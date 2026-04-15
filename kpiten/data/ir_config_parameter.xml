@@ -1,0 +1,8 @@
+<odoo noupdate="1">
+    <record model="ir.config_parameter" id="kpiten_setting_services">
+        <field name="key">kpiten_services</field>
+        <field
+            name="value"
+        >[{"application": "Marimo", "url": "http://localhost:5000", "redirect": "http://localhost:5000/notebook"}]</field>
+    </record>
+</odoo>
