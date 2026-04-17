@@ -1,0 +1,10 @@
+connectorx>=0.4.5
+dotenv>=0.9.9
+fastapi>=0.135.3
+marimo>=0.22.5
+polars>=1.39.3
+psycopg2-binary
+pyarrow>=23.0.1
+requests>=2.33.1
+uvicorn>=0.44.0
+dotenv
