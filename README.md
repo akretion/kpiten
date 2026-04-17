@@ -21,7 +21,7 @@ Available addons
 ----------------
 addon | version | maintainers | summary
 --- | --- | --- | ---
-[kpiten](kpiten/) | 18.0.1.0.0 |  | Expose user permissions to external service
+[kpiten](kpiten/) | 18.0.1.0.0 |  | Expose user permissions to external services
 
 [//]: # (end addons)
 
