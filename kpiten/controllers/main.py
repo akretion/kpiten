@@ -27,14 +27,56 @@ class kpiten(Controller):
             raise UserError(_(f"Unknown '{model}' in current Database !"))
         env = request.env
 
-        def get_stored_fields(user_id):
-            return (
+        def get_stored_fields(user_id, model_name, m2o=False):
+            res = (
                 env["ir.model.fields"]
                 .with_user(user_id)
-                .search([("model", "=", model)])
-                .filtered(lambda s: s.store and s.ttype not in EXCLUDED_TYPES)
-                .mapped("name")
+                .search([("model", "=", model_name)])
+                .filtered(lambda s: s.store)
             )
+            if m2o:
+                res = res.filtered(lambda s: s.ttype == "many2one")
+            else:
+                res = res.filtered(lambda s: s.ttype not in EXCLUDED_TYPES)
+            return res
+
+        def get_m2o_meta(fields):
+            """
+            rec_name + rec_name_search are ~ main fields
+
+            return sample
+            { ...,
+                'commercial_partner_id': {
+                    'model': 'res.partner',
+                    'rec_name': ['name'],
+                    'rec_name_search': ['complete_name']}
+             ..., }
+            """
+
+            def stored(names):
+                """_rec_name and _rec_name_search may contains non stored fields"""
+                if not names:
+                    return False
+                if isinstance(names, str):
+                    # _rec_name case
+                    names = [names]
+                return [
+                    x
+                    for x in names
+                    if x and x in get_stored_fields(SUPERUSER_ID, field.relation)
+                ]
+
+            meta = {}
+            for field in fields:
+                if env[field.relation]._rec_name:
+                    meta[field.name] = {
+                        "model": field.relation,
+                        "rec_name": stored(env[field.relation]._rec_name),
+                        "rec_name_search": stored(
+                            env[field.relation]._rec_names_search
+                        ),
+                    }
+            return meta
 
         # rules = env["ir.rule"]._compute_domain(model, mode="read")
         # where_clauses = env[model].sudo()._where_calc(rules)._where_clauses
@@ -50,9 +92,14 @@ class kpiten(Controller):
                     url,
                     json={
                         "table": env[model]._table,
+                        "m2o_meta": get_m2o_meta(
+                            get_stored_fields(SUPERUSER_ID, model, m2o=True)
+                        ),
                         "record_name": env[model]._rec_name,
-                        "fields": get_stored_fields(env.user.id),
-                        "all_fields": get_stored_fields(SUPERUSER_ID),
+                        "fields": get_stored_fields(env.user.id, model).mapped("name"),
+                        "all_fields": get_stored_fields(SUPERUSER_ID, model).mapped(
+                            "name"
+                        ),
                         # "where_clauses": where_clauses,
                     },
                     timeout=100,
