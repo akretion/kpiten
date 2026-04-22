@@ -1,0 +1,18 @@
+
+services:
+  kpiten:
+    build: 
+      context: .
+    image: kpiten
+    ports:
+      - 5000:5000
+
+    networks:
+      - malain_local
+      - traefik
+
+networks:
+  malain_local:
+    external: true
+  traefik:
+    external: true
