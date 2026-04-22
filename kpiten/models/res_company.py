@@ -15,7 +15,12 @@ class ResCompany(models.Model):
         try:
             res = safe_eval(settings.value)
             if not isinstance(res, list):
-                raise exceptions.ValidationError(_("bla"))
+                raise exceptions.ValidationError(
+                    _(
+                        "'kpiten_setting_services' system parameter "
+                        "should be a python list"
+                    )
+                )
             return res
         except Exception as err:
             raise exceptions.UserError(
