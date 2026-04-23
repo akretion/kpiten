@@ -1,7 +1,7 @@
 import logging
 
 import requests as rq
-from werkzeug.utils import redirect
+from werkzeug.utils import redirect, Response
 
 import odoo.http as http
 from odoo import SUPERUSER_ID, _
@@ -21,6 +21,19 @@ logger = logging.getLogger(__name__)
 
 
 class kpiten(Controller):
+
+    @http.route('/kpiten/cmp/<string:uuid>', type="http", auth="user")
+    def _compare_UUID(self, uuid, **kwargs):
+        logger.critical("?????????")
+        env = request.env
+        res = env['res.users.log'].search([('uuid', '=', uuid)])
+        user = res.create_uid
+
+        if user:
+            return Response(status=200)
+        else:
+            return Response(status=500)
+
     @http.route([ROUTE], type="http", auth="user")
     def _get_model_data(self, model):
         if model not in request.env.registry.models.keys():

@@ -5,13 +5,13 @@ services:
       context: .
     image: kpiten
     ports:
-      - 5000:5000
+      - ${KPITEN_PORT}:5000
 
-    networks:
+    networks: # everything here needs to match the bottom networks exactly. This is case sensitive.
       - malain_local
       - traefik
 
-networks:
+networks: # these should be changed to whatever network you need Kpiten to be in.
   malain_local:
     external: true
   traefik:

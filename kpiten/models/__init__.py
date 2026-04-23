@@ -1,1 +1,1 @@
-from . import res_company, kpiten_config, res_users_log
+from . import res_company, kpiten_config, ir_model_fields, res_users_log
