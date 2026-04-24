@@ -22,11 +22,11 @@ logger = logging.getLogger(__name__)
 
 class kpiten(Controller):
 
-    @http.route('/kpiten/cmp/<string:uuid>', type="http", auth="user")
+    @http.route("/kpiten/cmp/<string:uuid>", type="http", auth="user")
     def _compare_UUID(self, uuid, **kwargs):
         logger.critical("?????????")
         env = request.env
-        res = env['res.users.log'].search([('uuid', '=', uuid)])
+        res = env["res.users.log"].search([("uuid", "=", uuid)])
         user = res.create_uid
 
         if user:

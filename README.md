@@ -1,39 +1,40 @@
+## Settings
 
+copy / paste .env.example to .env and complete_
+You can change the port Kpiten will be available on by changing the `KPITEN_PORT` variable in your `.env` file.
 
-# Try
-<!-- /!\ Non OCA Context : Set here the badge of your runbot / runboat instance. -->
-[![Pre-commit Status](https://github.com/akretion/kpiten/actions/workflows/pre-commit.yml/badge.svg?branch=18.0)](https://github.com/akretion/kpiten/actions/workflows/pre-commit.yml?query=branch%3A18.0)
-[![Build Status](https://github.com/akretion/kpiten/actions/workflows/test.yml/badge.svg?branch=18.0)](https://github.com/akretion/kpiten/actions/workflows/test.yml?query=branch%3A18.0)
-[![codecov](https://codecov.io/gh/akretion/kpiten/branch/18.0/graph/badge.svg)](https://codecov.io/gh/akretion/kpiten)
-<!-- /!\ Non OCA Context : Set here the badge of your translation instance. -->
+## How to run the app
 
-<!-- /!\ do not modify above this line -->
+```bash
+docker compose up --build # running for the first time
+docker compose up # if you want to see KpiTen logs
+docker compose up -d # if you want to run the server without blocking your shell
+```
 
-KPI tools
+## Caveats
 
-<!-- /!\ do not modify below this line -->
+- change the networks in the `docker-compose.yml` to whatever you need. if the networks don't exist, it won't work.
+```yaml
+# except for network configs, everything should remain unchanged
+services:
+  kpiten:
+    build: 
+      context: .
+    image: kpiten
+    ports:
+      - ${KPITEN_PORT}:5000
 
-<!-- prettier-ignore-start -->
+    networks:
+      - your_network
+      - your_other_network
+      ...
 
-[//]: # (addons)
+networks: # these should be changed to whatever network you need Kpiten to be in.
+  your_network:
+    external: true
+  your_other_network:
+    external: true
+  ...
+```
 
-Available addons
-----------------
-addon | version | maintainers | summary
---- | --- | --- | ---
-[kpiten](kpiten/) | 18.0.1.0.0 |  | Expose user permissions to external services
-
-[//]: # (end addons)
-
-<!-- prettier-ignore-end -->
-
-## Licenses
-
-This repository is licensed under [AGPL-3.0](LICENSE).
-
-However, each module can have a totally different license, as long as they adhere to Akretion
-policy. Consult each module's `__manifest__.py` file, which contains a `license` key
-that explains its license.
-
-----
-<!-- /!\ Non OCA Context : Set here the full description of your organization. -->
+> **TIP** : Use `docker network ls` to list your networks and get the exact names.

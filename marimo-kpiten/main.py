@@ -1,5 +1,6 @@
 from services.env_reader_service import EnvReaderService
 from services.df_file_storage_service import DFFileStorage
+from services.odoo_rpc_service import OdooRPCService
 from model.table_metada import TableMetadata
 from model.graph_json import GraphJSON
 
@@ -17,6 +18,9 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 router = APIRouter()
 env_service = EnvReaderService()
+odoorpcservice = OdooRPCService()
+uid = odoorpcservice.enable()
+res = odoorpcservice.get_uinfo()
 
 DATAFRAMES: list[DataFrame] = []
 
@@ -48,6 +52,16 @@ def handle_table_info(metadata: TableMetadata):
 @router.post("/graph_build")
 def build_graph(graph_json: GraphJSON):
     print(graph_json)
+
+
+@router.get("/uuid_check")
+def uuid_check(uuid: str = ""):
+    user_exists = odoorpcservice.check_uuid(uuid)
+    if user_exists:
+        return Response(content=f"there is a user", status_code=200)
+    else:
+        return Response(content=f"No user matches UUID {uuid}", status_code=400)
+
 
 marimo_server = mo.create_asgi_app().with_app(path="/notebook", root="./df_notebook.py")
 

@@ -5,6 +5,4 @@ class KpitenConfig(models.Model):
     _inherit = "ir.model.fields"
 
     sequence = fields.Integer(default=99)
-    #enabled = fields.Boolean(defa)
-
-
+    # enabled = fields.Boolean(defa)
