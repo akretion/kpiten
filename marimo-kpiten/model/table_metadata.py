@@ -6,3 +6,8 @@ class TableMetadata(BaseModel):
     record_name: str
     fields: list[str]
     all_fields: list[str] | None
+
+
+class KpitenProfile(BaseModel):
+    name: str
+    tables: list[TableMetadata]

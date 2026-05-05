@@ -1,14 +1,11 @@
 from services.env_reader_service import EnvReaderService
-from random import randint
-import requests
-import json
 import logging
 import odoorpc
 
 EnvReader = EnvReaderService()
-
 logger = logging.getLogger(__name__)
 
+import requests
 
 class OdooRPCService:
     _instance = None
@@ -19,7 +16,8 @@ class OdooRPCService:
         self._DB = EnvReader.get("ODOO_DB_NAME") or "db"
         self._ODOO_UNAME = EnvReader.get("ODOO_UNAME") or "odoo"
         self._ODOO_PWD = EnvReader.get("ODOO_PWD") or "odoo"
-        self._odoo = odoorpc.ODOO(self._HOST, port=self._PORT, version="18.0")
+        self._odoo = odoorpc.ODOO(self._HOST, port=self._PORT)
+    
 
     def enable(self):
         self._odoo.login(self._DB, self._ODOO_UNAME, self._ODOO_PWD)

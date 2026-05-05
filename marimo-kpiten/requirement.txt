@@ -10,3 +10,7 @@ uvicorn>=0.44.0
 dotenv
 altair
 urllib3
+uvicorn
+fastapi
+marimo
+connectorx

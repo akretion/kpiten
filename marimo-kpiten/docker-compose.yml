@@ -8,11 +8,11 @@ services:
       - ${KPITEN_PORT}:5000
 
     networks: # everything here needs to match the bottom networks exactly. This is case sensitive.
-      - malain_local
+      - sacpa_local
       - traefik
 
 networks: # these should be changed to whatever network you need Kpiten to be in.
-  malain_local:
+  sacpa_local:
     external: true
   traefik:
     external: true

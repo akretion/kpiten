@@ -11,7 +11,7 @@ data_path = env_service.get("TABLE_PATH") or "./"
 logger = logging.getLogger(__name__)
 
 
-class DFFileStorage:
+class DFStorageService:
     # TO DO : make a type for json metadata for better validation
 
     metadata_file_name = "metadata"
@@ -22,11 +22,11 @@ class DFFileStorage:
         Path(f"{data_path}").mkdir(exist_ok=True)
         Path(f"{data_path}/{table}").mkdir(exist_ok=True)
         with open(
-            f"{data_path}/{table}/{DFFileStorage.metadata_file_name}.json", "w+"
+            f"{data_path}/{table}/{DFStorageService.metadata_file_name}.json", "w+"
         ) as meta:
             meta.write(json.dumps({"table": table, "record_name": record_name}))
         df.write_parquet(
-            f"{data_path}/{table}/{table}.{DFFileStorage.parquet_file_ext}"
+            f"{data_path}/{table}/{table}.{DFStorageService.parquet_file_ext}"
         )
 
     @staticmethod
@@ -38,13 +38,13 @@ class DFFileStorage:
         """
         try:
             with open(
-                f"{data_path}/{table}/{DFFileStorage.metadata_file_name}.json"
+                f"{data_path}/{table}/{DFStorageService.metadata_file_name}.json"
             ) as mtdt:
                 metadata_json = json.loads(mtdt.read())
 
                 record_name = metadata_json["record_name"]
                 df = pl.read_parquet(
-                    f"{data_path}/{table}/{table}.{DFFileStorage.parquet_file_ext}"
+                    f"{data_path}/{table}/{table}.{DFStorageService.parquet_file_ext}"
                 )
 
                 return (table, record_name, df)
