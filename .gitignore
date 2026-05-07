@@ -14,3 +14,4 @@ uv.lock
 # General
 .env
 generated
+.vscode
