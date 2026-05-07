@@ -1,40 +1,39 @@
-## Settings
+# Kpiten
 
-copy / paste .env.example to .env and complete_
-You can change the port Kpiten will be available on by changing the `KPITEN_PORT` variable in your `.env` file.
+## Setup
+> Kpiten a besoin d'avoir odoo déjà lancé pour tourner. **Plante dans le cas échéant** (temporaire)
 
-## How to run the app
+### Variables d'environnement
+Actuellement, les variables :
+- `ODOO_SERVER_HOST`
+- `ODOO_SERVER_PORT`
+- `POSTGRES_URL`
+sont **requises** et doivent être définies dans le fichier `.env`. `.env.example` donne des explications sur ce qu'elles devraient être.
 
+### Dans Odoo
+Il faut créer un profil qui contient la table Sale Order. Le nom n'a normalement pas d'importance, mais l'application a été testée avec un profil appelé **Sales** et une seule table à l'intérieur (sale.order).
+
+### Lancer l'application
 ```bash
-docker compose up --build # running for the first time
-docker compose up # if you want to see KpiTen logs
-docker compose up -d # if you want to run the server without blocking your shell
+$ . .venv/bin/activate
+(marimo-kpiten) $ uv add -r requirements.txt
+(marimo-kpiten) $ uv run main.py # tout le temps cette commande pour lancer le serveur
+# uvicorn devrait tourner
 ```
 
-## Caveats
-
-- change the networks in the `docker-compose.yml` to whatever you need. if the networks don't exist, it won't work.
-```yaml
-# except for network configs, everything should remain unchanged
-services:
-  kpiten:
-    build: 
-      context: .
-    image: kpiten
-    ports:
-      - ${KPITEN_PORT}:5000
-
-    networks:
-      - your_network
-      - your_other_network
-      ...
-
-networks: # these should be changed to whatever network you need Kpiten to be in.
-  your_network:
-    external: true
-  your_other_network:
-    external: true
-  ...
-```
-
-> **TIP** : Use `docker network ls` to list your networks and get the exact names.
+## Usage normal
+> Avec navigateur
+1. Visiter http://localhost:5000/
+> Cela écrit la table Sales Order dans le dossier generated.
+> La chose que l'ont doit voir à la visite de la page est
+> Un écran qui indique une redirection vers /notebook.
+2. Visister http://localhost:5000/notebook
+> C'est là que le notebook Marimo est servit.
+3. Faire des transformations sur la table Sales Order
+4. Choisir l'onglet Python et copier tout le code de la transformation
+5. Coller le code dans la zone de texte "Python Code"
+6. Appuyer sur **Save to Kpiten**
+> Vérifier Kpiten>Sales / le nom du profil créé plus tôt
+> La transformation est stockée ici
+7. Actualiser la page
+> Une nouvelle table avec les transformations effectuée devrait être affichée en plus de Sales Order.
