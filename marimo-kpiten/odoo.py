@@ -12,7 +12,7 @@ which disallows using different tables w/out changing the code.
 
 from fastapi import FastAPI, APIRouter
 from services.df_file_storage_service import DFStorageService
-from services.env_reader_service import EnvReaderService
+from services.env_reader import EnvReader
 from werkzeug.utils import redirect
 
 import connectorx as cx
@@ -25,19 +25,15 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 router = APIRouter()
 df_store = DFStorageService()
-env_read = EnvReaderService()
+env_ = EnvReader()
 
-PORT = env_read.get("ODOO_SERVER_PORT")
-HOST = env_read.get("ODOO_SERVER_HOST")
-POSTGRES_URL = env_read.get("POSTGRES_URL")
-
-odoo = odoorpc.ODOO(HOST, port=PORT)
+db_url = env_.get("POSTGRES_URL") + "/" + env_.get("ODOO_DB")
+odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
 
 print(odoo.db.list())
 
-odoo.login("odoo18", "admin", "admin")
+odoo.login(env_.get("ODOO_DB"), env_.get("ODOO_LOGIN"), env_.get("ODOO_PWD"))
 
-user = odoo.env.user
 env = odoo.env
 
 
@@ -55,8 +51,7 @@ router = APIRouter()
 
 @router.get("/")
 def handle_table_info():
-    kpiten_config = env["kpiten.config"]
-    kpiten_profiles = json.loads(kpiten_config.read_kpiten_config())
+    kpiten_profiles = json.loads(env["kpiten.config"].read_kpiten_config())
 
     for profile in kpiten_profiles:
         name = profile["name"]
@@ -73,7 +68,7 @@ def handle_table_info():
 
             print(f"SELECT {fields} FROM {tech_name} LIMIT 12")
             df = cx.read_sql(
-                POSTGRES_URL,
+                db_url,
                 f"SELECT {fields} FROM {tech_name} LIMIT 12",
                 return_type="polars",
             )

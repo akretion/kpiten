@@ -5,8 +5,8 @@
 
 ### Variables d'environnement
 Actuellement, les variables :
-- `ODOO_SERVER_HOST`
-- `ODOO_SERVER_PORT`
+- `ODOO_HOST`
+- `ODOO_PORT`
 - `POSTGRES_URL`
 sont **requises** et doivent être définies dans le fichier `.env`. `.env.example` donne des explications sur ce qu'elles devraient être.
 

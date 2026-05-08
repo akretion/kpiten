@@ -3,7 +3,7 @@ import json
 import logging
 from pathlib import Path
 from polars import DataFrame
-from services.env_reader_service import EnvReaderService
+from services.env_reader import EnvReader
 
 """
 TODO
@@ -11,7 +11,7 @@ TODO
 - (minor) make it so that profile_id isn't stored into each table to limit duplication
 """
 
-env_service = EnvReaderService()
+env_service = EnvReader()
 data_path = env_service.get("TABLE_PATH") or "./"
 
 logger = logging.getLogger(__name__)

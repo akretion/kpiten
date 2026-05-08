@@ -1,5 +1,4 @@
 import marimo
-
 import typing
 
 __generated_with = "0.22.5"
@@ -18,19 +17,13 @@ def get_odoo_env():
     """get_odoo_env
     Rend l'env odoo disponible pour toutes les cellules (si il est en paramètre des autres cellules)
     """
-    from services.env_reader_service import EnvReaderService
-
     import odoorpc
+    from services.env_reader import EnvReader
 
-    env_read = EnvReaderService()
-
-    PORT = env_read.get("ODOO_SERVER_PORT")
-    HOST = env_read.get("ODOO_SERVER_HOST")
-
-    odoo = odoorpc.ODOO(HOST, port=PORT)
-    odoo.login("odoo18", "admin", "admin")
+    env_ = EnvReader()
+    odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
+    odoo.login(env_.get("ODOO_DB"), env_.get("ODOO_LOGIN"), env_.get("ODOO_PWD"))
     env = odoo.env
-
     return env
 
 
@@ -61,6 +54,7 @@ def _(mo):  # Affiche les tables initiales (ici Sales Order.)
     """
     from services.df_file_storage_service import DFStorageService
 
+    print("underscores")
     df_store = DFStorageService()
 
     tables = ["Sales Order"]
@@ -133,12 +127,14 @@ def load_kpiten_line(kpiten_config_line_class):
     from services.df_file_storage_service import DFStorageService as dfsv
     import polars
 
+    print("load_kpiten_line")
+
     dfs = dfsv()  # to avoid clashes w/ other cells
 
     code_to_run = None
     df = polars.DataFrame()
 
-    line_ids = kpiten_config_line_class.search([("config_id", "=", 1)])
+    line_ids = kpiten_config_line_class.search([("config_id", "=", 2)])
     if len(line_ids) > 0:
         l_id = line_ids[0]
         code_to_run = kpiten_config_line_class.browse(l_id).definition
@@ -163,6 +159,7 @@ def compute_kpiten_line(mo, code_to_run, df):
       scope valide (donc df_next_like et df_like) qui correspond bien aux données récupérées dans kpiten.config.line
       - renvoyer une structure qui contient les scopes, les dataframes et les editors pour chaque transformations
     """
+    print("computer_kpiten_line")
     mo.stop(not code_to_run)
     editor = mo.ui.code_editor(value=code_to_run)
     first_line = code_to_run.partition("\n")[0]
@@ -195,6 +192,7 @@ def exec_kpiten_line(mo, editor, df_like, df_next_like, df):
         scope[df] # doit être dernier.
       ```
     """
+    print("exec")
     mo.stop(not editor.value)
     import polars as pl
 
