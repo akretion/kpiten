@@ -13,6 +13,7 @@ which disallows using different tables w/out changing the code.
 from fastapi import FastAPI, APIRouter
 from services.df_file_storage_service import DFStorageService
 from services.env_reader import EnvReader
+from services.dataframe_util import Df
 from werkzeug.utils import redirect
 
 import connectorx as cx
@@ -64,9 +65,11 @@ def handle_table_info():
             print(f"SELECT {fields} FROM {tbl['table']} LIMIT 12")
             df = cx.read_sql(
                 db_url,
-                f"SELECT {fields} FROM {tbl['table']} LIMIT 12",
+                f"SELECT {fields} FROM {tbl['table']} ORDER BY write_date ASC LIMIT 12",
                 return_type="polars",
             )
+            transfo = Df(df)
+            df = transfo.get_df()
             df_store.store_df(pr_id, tbl["table"], tbl["record_name"], fields, df)
             print(
                 f"\t\tTable : {tbl['table']}\n\t\t\trecord_name : {tbl['record_name']}\n\t\t\tfields={fields}\n\t\t\tall_fields={all_fields}\n\t\t\tprofile_id={pr_id}"
