@@ -57,7 +57,7 @@ def _(mo):  # Affiche les tables initiales (ici Sales Order.)
     print("underscores")
     df_store = DFStorageService()
 
-    tables = ["Sales Order"]
+    tables = ["sale_order"]
     df_w_meta = []
 
     for name in tables:
@@ -139,7 +139,7 @@ def load_kpiten_line(kpiten_config_line_class):
         l_id = line_ids[0]
         code_to_run = kpiten_config_line_class.browse(l_id).definition
 
-        df = dfs.retrieve_df("Sales Order")[4]
+        df = dfs.retrieve_df("sale_order")[4]
 
     return (code_to_run, df)
 

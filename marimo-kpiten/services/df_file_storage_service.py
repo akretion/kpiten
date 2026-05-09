@@ -11,14 +11,13 @@ TODO
 - (minor) make it so that profile_id isn't stored into each table to limit duplication
 """
 
-env_service = EnvReader()
-data_path = env_service.get("TABLE_PATH") or "./"
+data_path = EnvReader().get("TABLE_PATH") or "./"
 
 logger = logging.getLogger(__name__)
 
 
 class DFStorageService:
-    # TO DO : make a type for json metadata for better validation
+    # TODO : make a type for json metadata for better validation
 
     metadata_file_name = "metadata"
     parquet_file_ext = "parquet"

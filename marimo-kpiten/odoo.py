@@ -42,7 +42,7 @@ def quote(strings):
 
 
 def sanitize(fields: list[str]):
-    return ", ".join(set(quote(fields)))
+    return ", ".join(quote(fields))
 
 
 app = FastAPI()
@@ -51,32 +51,25 @@ router = APIRouter()
 
 @router.get("/")
 def handle_table_info():
-    kpiten_profiles = json.loads(env["kpiten.config"].read_kpiten_config())
+    kpiten_profiles = json.loads(env["kpiten.config"].read_config())
 
     for profile in kpiten_profiles:
         name = profile["name"]
         pr_id = profile["profile_id"]
         print(f"profile : {name}\nprofile_id : {pr_id}")
-
         print("\tTables: \n")
-        for table in profile["tables"]:
-            table_name = table["table"]
-            tech_name = table["technical_name"]
-            record_name = table["record_name"]
-            fields = sanitize(table["fields"])
-            all_fields = sanitize(table["all_fields"])
-
-            print(f"SELECT {fields} FROM {tech_name} LIMIT 12")
+        for tbl in profile["tables"]:
+            fields = sanitize(tbl["fields"])
+            all_fields = sanitize(tbl["all_fields"])
+            print(f"SELECT {fields} FROM {tbl['table']} LIMIT 12")
             df = cx.read_sql(
                 db_url,
-                f"SELECT {fields} FROM {tech_name} LIMIT 12",
+                f"SELECT {fields} FROM {tbl['table']} LIMIT 12",
                 return_type="polars",
             )
-
-            df_store.store_df(pr_id, table_name, record_name, fields, df)
-
+            df_store.store_df(pr_id, tbl["table"], tbl["record_name"], fields, df)
             print(
-                f"\t\tTable : {table_name}\n\t\t\trecord_name : {record_name}\n\t\t\tfields={fields}\n\t\t\tall_fields={all_fields}\n\t\t\tprofile_id={pr_id}"
+                f"\t\tTable : {tbl['table']}\n\t\t\trecord_name : {tbl['record_name']}\n\t\t\tfields={fields}\n\t\t\tall_fields={all_fields}\n\t\t\tprofile_id={pr_id}"
             )
 
     return redirect(code=301, location="/notebook")
