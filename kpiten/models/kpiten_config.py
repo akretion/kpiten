@@ -41,20 +41,21 @@ class KpitenConfig(models.Model):
             res = res.filtered(lambda s: s.ttype == "many2one")
         else:
             res = res.filtered(lambda s: s.ttype not in EXCLUDED_TYPES)
+        useless_fields = self._get_useless_fields().get(model_name)
+        if useless_fields:
+            res = res.filtered(lambda s: s.name not in useless_fields)
         return res
 
     @api.model
-    def read_kpiten_config(self):
+    def read_config(self):
         # TO DO : avoid building profiles by reassignment
         # in nested loop (cannot find better solution after reflexion)
-        env = self.env
-        kpiten_config = env["kpiten.config"]
         kpiten_profiles = []
         profile_name = None
         profile_id = None
         table_list = []
 
-        for profile in kpiten_config.search([]):
+        for profile in self.search([]):
             if profile_name is not None and profile_id is not profile.id:
                 # this iteration is about to build another profile, meaning
                 # that what is currently in memory is a full profile
@@ -79,8 +80,8 @@ class KpitenConfig(models.Model):
 
                 table_list.append(
                     {
-                        "table": model.name,
-                        "technical_name": self.env[model.model]._table,
+                        "name": model.name,
+                        "table": self.env[model.model]._table,
                         "record_name": model._rec_name,
                         "fields": model_fields,
                         "all_fields": all_fields,
@@ -93,6 +94,20 @@ class KpitenConfig(models.Model):
         )
         logger.info(kpiten_profiles)
         return json.dumps(kpiten_profiles)
+
+    def _get_useless_fields(self):
+        """return Dict of list
+         - keys are models
+         - list element are fields
+
+        to get a raw list of fields:
+            ",".join(env["ir.model.fields"].search([
+            ("stored", "=", True),
+            ("name", "not like", "%_ids"),
+            ("ttype", "not in", ("many2many", "one2many", "properties", "properties_definition", "binary")),
+            ("model", "=", "sale.order")]).mapped("name"))
+        """
+        return {}
 
 
 class KpitenConfigLine(models.Model):
