@@ -11,3 +11,4 @@ altair
 urllib3
 odoorpc
 werkzeug
+git+https://github.com/bealdav/pg-autojoin.git@main

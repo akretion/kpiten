@@ -15,6 +15,7 @@ from services.df_file_storage_service import DFStorageService
 from services.env_reader import EnvReader
 from services.dataframe_util import Df
 from werkzeug.utils import redirect
+from pg_autojoin import SqlJoin
 
 import connectorx as cx
 import marimo as mo
@@ -28,7 +29,11 @@ router = APIRouter()
 df_store = DFStorageService()
 env_ = EnvReader()
 
-db_url = env_.get("POSTGRES_URL") + "/" + env_.get("ODOO_DB")
+postgres_url = (
+    f'postgresql://{env_.get("DB_USER")}:{env_.get("DB_PWD")}@'
+    + '{env_.get("DB_HOST")}:{env_.get("DB_PORT")}'
+)
+db_url = f'{env_.get("postgres_url")}/{env_.get("ODOO_DB")}'
 odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
 
 print(odoo.db.list())
@@ -52,8 +57,20 @@ router = APIRouter()
 
 @router.get("/")
 def handle_table_info():
-    kpiten_profiles = json.loads(env["kpiten.config"].read_config())
+    def relationship_query(table):
+        conn = SqlJoin(
+            db=env_.get("ODOO_DB"),
+            user=env_.get("DB_USER"),
+            password=env_.get("DB_PWD"),
+            host=env_.get("DB_HOST"),
+            port=env_.get("DB_PORT"),
+        )
+        conn.set_columns_to_retrieve(["name", "ref", "code"])
+        conn.get_joins(table=table)
+        sql, _ = conn.get_joined_query(table=table)
+        return sql
 
+    kpiten_profiles = json.loads(env["kpiten.config"].read_config())
     for profile in kpiten_profiles:
         name = profile["name"]
         pr_id = profile["profile_id"]
@@ -62,12 +79,12 @@ def handle_table_info():
         for tbl in profile["tables"]:
             fields = sanitize(tbl["fields"])
             all_fields = sanitize(tbl["all_fields"])
-            print(f"SELECT {fields} FROM {tbl['table']} LIMIT 12")
-            df = cx.read_sql(
-                db_url,
+            sql = (
                 f"SELECT {fields} FROM {tbl['table']} ORDER BY write_date ASC LIMIT 12",
-                return_type="polars",
             )
+            print(sql)
+            # sql = relationship_query("sale_order")
+            df = cx.read_sql(db_url, sql, return_type="polars")
             transfo = Df(df)
             df = transfo.get_df()
             df_store.store_df(pr_id, tbl["table"], tbl["record_name"], fields, df)
