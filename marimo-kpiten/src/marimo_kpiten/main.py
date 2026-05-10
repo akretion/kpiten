@@ -16,6 +16,8 @@ from services.env_reader import EnvReader
 from services.dataframe_util import Df
 from werkzeug.utils import redirect
 from pg_autojoin import SqlJoin
+from urllib.error import URLError
+from odoorpc.error import RPCError
 
 import connectorx as cx
 import marimo as mo
@@ -34,11 +36,19 @@ postgres_url = (
     + f'{env_.get("DB_HOST")}:{env_.get("DB_PORT")}'
 )
 db_url = f'{postgres_url}/{env_.get("ODOO_DB")}'
-odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
+try:
+    odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
+except URLError as e:
+    logger.warning(f"Odoo is not available:\n{e}")
+except Exception as e:
+    logger.warning(e)
 
-print(odoo.db.list())
-
-odoo.login(env_.get("ODOO_DB"), env_.get("ODOO_LOGIN"), env_.get("ODOO_PWD"))
+try:
+    odoo.login(env_.get("ODOO_DB"), env_.get("ODOO_LOGIN"), env_.get("ODOO_PWD"))
+except RPCError as e:
+    logger.warning(f"Odoo authentification failed: {e}")
+except Exception as e:
+    logger.warning(e)
 
 env = odoo.env
 
@@ -66,8 +76,9 @@ def handle_table_info():
             port=env_.get("DB_PORT"),
         )
         conn.set_columns_to_retrieve(["name", "ref", "code"])
-        conn.get_joins(table=table)
         sql, _ = conn.get_joined_query(table=table)
+        # temporary
+        sql = sql.replace(", .*\nFROM", ", sale_order.*\nFROM")
         return sql
 
     kpiten_profiles = json.loads(env["kpiten.config"].read_config())
@@ -83,8 +94,9 @@ def handle_table_info():
                 f"SELECT {fields} FROM {tbl['table']} ORDER BY write_date ASC LIMIT 12",
             )
             print(sql)
-            # sql = relationship_query("sale_order")
-            df = cx.read_sql(db_url, sql[0], return_type="polars")
+            sql = relationship_query("sale_order")
+            print(sql)
+            df = cx.read_sql(db_url, sql, return_type="polars")
             transfo = Df(df)
             df = transfo.get_df()
             df_store.store_df(pr_id, tbl["table"], tbl["record_name"], fields, df)
