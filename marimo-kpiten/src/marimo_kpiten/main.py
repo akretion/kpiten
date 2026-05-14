@@ -76,9 +76,10 @@ def handle_table_info():
             port=env_.get("DB_PORT"),
         )
         conn.set_columns_to_retrieve(["name", "ref", "code"])
-        sql, _ = conn.get_joined_query(table=table)
-        # temporary
-        sql = sql.replace(", .*\nFROM", ", sale_order.*\nFROM")
+        # depends on the user
+        conn.set_json_key_pref(env.context.get("lang") or "en_US")
+        conn.set_fallback_json_key("en_US")
+        sql = conn.get_joined_query(table=table)
         return sql
 
     kpiten_profiles = json.loads(env["kpiten.config"].read_config())
@@ -93,9 +94,7 @@ def handle_table_info():
             sql = (
                 f"SELECT {fields} FROM {tbl['table']} ORDER BY write_date ASC LIMIT 12",
             )
-            print(sql)
             sql = relationship_query("sale_order")
-            print(sql)
             df = cx.read_sql(db_url, sql, return_type="polars")
             transfo = Df(df)
             df = transfo.get_df()
