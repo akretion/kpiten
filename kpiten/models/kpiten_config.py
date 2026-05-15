@@ -1,8 +1,7 @@
-from odoo import fields, models
-from odoo import SUPERUSER_ID, _
-from odoo import api
 import json
 import logging
+
+from odoo import api, fields, models, SUPERUSER_ID, _
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +40,7 @@ class KpitenConfig(models.Model):
             res = res.filtered(lambda s: s.ttype == "many2one")
         else:
             res = res.filtered(lambda s: s.ttype not in EXCLUDED_TYPES)
-        useless_fields = self._get_useless_fields().get(model_name)
+        useless_fields = self.get_useless_fields().get(model_name)
         if useless_fields:
             res = res.filtered(lambda s: s.name not in useless_fields)
         return res
@@ -95,7 +94,8 @@ class KpitenConfig(models.Model):
         logger.info(kpiten_profiles)
         return json.dumps(kpiten_profiles)
 
-    def _get_useless_fields(self):
+    @api.model
+    def get_useless_fields(self):
         """return Dict of list
          - keys are models
          - list element are fields
