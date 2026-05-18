@@ -11,3 +11,10 @@ wheels/
 
 # UV
 uv.lock
+
+# General
+.vscode
+.env
+
+# KpiTen
+generated

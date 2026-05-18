@@ -11,7 +11,7 @@ TODO
 - (minor) make it so that profile_id isn't stored into each table to limit duplication
 """
 
-data_path = './generated'
+data_path = "../generated"
 
 logger = logging.getLogger(__name__)
 
@@ -68,4 +68,6 @@ class DFStorageService:
                 return (profile_id, table, record_name, fields, df)
 
         except FileNotFoundError as FNFE:
-            raise Exception(f"No such table was stored : {table}")
+            raise Exception(
+                f"No such table was stored : {table}. Complete Exception : \n{FNFE}"
+            )

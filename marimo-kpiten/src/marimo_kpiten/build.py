@@ -1,5 +1,7 @@
 import marimo
-import typing
+
+# For typing hints
+from marimo_kpiten.services.df_file_storage_service import DFStorageService
 
 __generated_with = "0.22.5"
 app = marimo.App(width="medium")
@@ -18,7 +20,7 @@ def get_odoo_env():
     Rend l'env odoo disponible pour toutes les cellules (si il est en paramètre des autres cellules)
     """
     import odoorpc
-    from services.env_reader import EnvReader
+    from marimo_kpiten.services.env_reader import EnvReader
 
     env_ = EnvReader()
     odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
@@ -36,8 +38,13 @@ def get_kpiten_config_line_class(env):
     return kpiten_config_line_class
 
 
+@app.cell()
+def navigation(mo: marimo):
+    mo.nav_menu({"/build": "Create", "/kpi": "KPI"})
+
+
 @app.cell(hide_code=True)
-def _(mo):  # Affiche les tables initiales (ici Sales Order.)
+def _(mo):  # Affiche les tables initiales
     """
     _
     ---
@@ -52,39 +59,56 @@ def _(mo):  # Affiche les tables initiales (ici Sales Order.)
     -> J'ai pensé à un fichier simple qui contient une liste de tables\n
     -> Utiliser une hstack/vstack pour afficher tout ça
     """
-    from services.df_file_storage_service import DFStorageService
+    from marimo_kpiten.services.df_file_storage_service import DFStorageService
+    import pathlib
 
-    print("underscores")
     df_store = DFStorageService()
 
-    tables = ["sale_order"]
+    tables = []
+
+    # using tables in generated
+    generated = pathlib.Path("../generated")
+    res = generated.iterdir()
+    for file in res:
+        tables.append(file.name)
+
     df_w_meta = []
 
     for name in tables:
         table_data = df_store.retrieve_df(
             name
-        )  # récupère les tables par nom de dossier dans ./generated
+        )  # récupère les tables par noms de dossier dans doss generated
         table_name = table_data[1]
         _df = table_data[4]
         profile_id = table_data[0]
         df_w_meta.append({"profile_id": profile_id, "name": table_name, "df": _df})
 
-    result = []
-
-    for d in df_w_meta:
-        label = mo.md(f"**{d['name']}**")
-        data = mo.ui.dataframe(d["df"])
-        pid = d["profile_id"]
-
-        result.append(mo.vstack([pid, label, data]))
-
-    result
-
-    return df_w_meta
+    return df_w_meta, tables, df_store
 
 
 @app.cell()
-def code_input(mo):
+def select_df_to_build(mo: marimo, tables: list[str]):
+    selected_table_name = mo.ui.multiselect(options=tables, max_selections=1)
+    selected_table_name
+    return selected_table_name
+
+
+@app.cell()
+def display_selected_table(
+    mo: marimo, selected_table_name: marimo.ui.multiselect, df_store: DFStorageService
+):
+    display_title = mo.md("# No table selected")
+    build_df = mo.md("> Select a table to start building KPIs.")
+    if len(selected_table_name.value) >= 1:
+        sanitized_tbn = selected_table_name.value[0].replace("_", " ").capitalize()
+        df_info = df_store.retrieve_df(selected_table_name.value[0])
+        display_title = mo.md(f"# {sanitized_tbn}")
+        build_df = mo.ui.dataframe(df_info[4])
+    mo.vstack([display_title, build_df])
+
+
+@app.cell()
+def code_input(mo: marimo):
     """
     code_input
     ---
@@ -96,7 +120,7 @@ def code_input(mo):
 
 
 @app.cell()
-def save_code_input(mo):
+def save_code_input(mo: marimo):
     """
     save_code_input
     ---
@@ -108,7 +132,7 @@ def save_code_input(mo):
 
 
 @app.cell()
-def load_kpiten_line(kpiten_config_line_class):
+def load_kpiten_line(kpiten_config_line_class, selected_table_name, mo: marimo):
     """
     load_kpiten_line
     ---
@@ -124,22 +148,22 @@ def load_kpiten_line(kpiten_config_line_class):
       - utiliser le nom pour récupérer la DF correspondante avec .retrieve_df
       - retourner un dictionnaire, et s'assurer que les autres fonctionnent gèrent bien le dictionnaire.
     """
-    from services.df_file_storage_service import DFStorageService as dfsv
+    from marimo_kpiten.services.df_file_storage_service import DFStorageService as dfsv
     import polars
+
+    mo.stop(len(selected_table_name.value) < 1)
 
     print("load_kpiten_line")
 
     dfs = dfsv()  # to avoid clashes w/ other cells
+    d_info = dfs.retrieve_df(selected_table_name.value[0])
 
     code_to_run = None
-    df = polars.DataFrame()
+    df = d_info[4]
 
-    line_ids = kpiten_config_line_class.search([("config_id", "=", 2)])
-    if len(line_ids) > 0:
-        l_id = line_ids[0]
-        code_to_run = kpiten_config_line_class.browse(l_id).definition
-
-        df = dfs.retrieve_df("sale_order")[4]
+    line_ids = kpiten_config_line_class.search([("config_id", "=", d_info[0])])
+    l_id = line_ids[-1]
+    code_to_run = kpiten_config_line_class.browse(l_id).definition
 
     return (code_to_run, df)
 
@@ -173,7 +197,9 @@ def compute_kpiten_line(mo, code_to_run, df):
 
 
 @app.cell
-def exec_kpiten_line(mo, editor, df_like, df_next_like, df):
+def exec_kpiten_line(
+    mo: marimo, editor, df_like, df_next_like, df, selected_table_name
+):
     """
     exec_kpiten_line
     ---
@@ -192,13 +218,17 @@ def exec_kpiten_line(mo, editor, df_like, df_next_like, df):
         scope[df] # doit être dernier.
       ```
     """
-    print("exec")
     mo.stop(not editor.value)
     import polars as pl
 
     scope = {df_like: df, "pl": pl}
     exec(editor.value, scope)
-    scope[df_next_like]  # c'est la dataframe construite par le exec()
+    mo.vstack(
+        [
+            mo.md(f"## Dernière transformation de {selected_table_name.value[0]}"),
+            scope[df_next_like],
+        ]
+    )  # c'est la dataframe construite par le exec()
 
 
 @app.cell()

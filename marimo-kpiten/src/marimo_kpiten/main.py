@@ -30,6 +30,7 @@ app = FastAPI()
 router = APIRouter()
 df_store = DFStorageService()
 env_ = EnvReader()
+odoo = None
 
 postgres_url = (
     f'postgresql://{env_.get("DB_USER")}:{env_.get("DB_PWD")}@'
@@ -68,6 +69,7 @@ router = APIRouter()
 @router.get("/")
 def handle_table_info():
     def relationship_query(table):
+        logger.warning(f"relationship query({table})")
         conn = SqlJoin(
             db=env_.get("ODOO_DB"),
             user=env_.get("DB_USER"),
@@ -94,7 +96,12 @@ def handle_table_info():
             sql = (
                 f"SELECT {fields} FROM {tbl['table']} ORDER BY write_date ASC LIMIT 12",
             )
-            sql = relationship_query("sale_order")
+            logger.warning(sql)
+            sql = relationship_query(tbl["table"])
+            logger.warning(f"""ARGUMENTS\n
+                - db_url : {db_url}
+                - sql : {sql} 
+""")
             df = cx.read_sql(db_url, sql, return_type="polars")
             transfo = Df(df)
             df = transfo.get_df()
@@ -103,10 +110,14 @@ def handle_table_info():
                 f"\t\tTable : {tbl['table']}\n\t\t\trecord_name : {tbl['record_name']}\n\t\t\tfields={fields}\n\t\t\tall_fields={all_fields}\n\t\t\tprofile_id={pr_id}"
             )
 
-    return redirect(code=301, location="/notebook")
+    return redirect(code=301, location="/build")
 
 
-marimo_server = mo.create_asgi_app().with_app(path="/build", root="./build.py")
+marimo_server = (
+    mo.create_asgi_app()
+    .with_app(path="/build", root="./build.py")
+    .with_app(path="/kpi", root="./kpi.py")
+)
 
 app.include_router(router)
 app.mount("/", marimo_server.build())
