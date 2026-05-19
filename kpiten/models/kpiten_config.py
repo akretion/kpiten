@@ -1,7 +1,7 @@
 import json
 import logging
 
-from odoo import api, fields, models, SUPERUSER_ID, _
+from odoo import SUPERUSER_ID, api, fields, models
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +23,16 @@ class KpitenConfig(models.Model):
     line_ids = fields.One2many(
         comodel_name="kpiten.config.line", inverse_name="config_id"
     )
+    model_id = fields.Many2one(
+        comodel_name="ir.model", help="Main model to produce dataframe"
+    )
     model_ids = fields.Many2many(
-        comodel_name="ir.model", help="Models used to produce dataframe"
+        comodel_name="ir.model",
+        string="Models",
+        help="Other models used to complete dataframe",
     )
     company_id = fields.Many2one(comodel_name="res.company")
+    group_ids = fields.Many2many(comodel_name="res.groups")
 
     @api.model
     def get_stored_fields(self, user_id, model_name, m2o=False):
@@ -115,5 +121,11 @@ class KpitenConfigLine(models.Model):
     _description = "Configuration lines for kpiten"
 
     config_id = fields.Many2one(comodel_name="kpiten.config", required=True)
-    definition = fields.Text(help="Store settings for kpi")
+    definition = fields.Text(required=True, help="Store settings for kpi")
+    group_ids = fields.Many2many(comodel_name="res.groups")
+    kind = fields.Selection(
+        selection=[("data", "Data"), ("graph", "Graph")],
+        default="data",
+        help="Representation type",
+    )
     active = fields.Boolean(default=True)

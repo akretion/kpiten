@@ -1,9 +1,8 @@
 import logging
 
 import requests as rq
-from werkzeug.wrappers import Response
 from werkzeug.utils import redirect
-from typing import Any
+from werkzeug.wrappers import Response
 
 import odoo.http as http
 from odoo import SUPERUSER_ID, _
@@ -16,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 
 class kpiten(Controller):
-
     @http.route("/kpiten/cmp/<string:uuid>", type="http", auth="user")
     def _compare_UUID(self, uuid, **kwargs):
         env = request.env

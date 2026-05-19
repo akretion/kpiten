@@ -1,11 +1,19 @@
 # generated from manifests external_dependencies
+altair>=6.1.0
+anywidget>=0.11.0
+black>=26.3.1
 connectorx>=0.4.5
 dotenv>=0.9.9
 fastapi>=0.135.3
+jsonrpc>=3.0.1
 marimo>=0.22.5
+odoorpc>=0.10.1
+pg-autojoin
 polars>=1.39.3
+psycopg2-binary>=2.9.12
 psycopg2>=2.9.11
 pyarrow>=23.0.1
 requests>=2.33.1
+urllib3>=2.6.3
 uvicorn>=0.44.0
-werkzeug
+werkzeug>=3.1.8

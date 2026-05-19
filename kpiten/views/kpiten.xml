@@ -14,9 +14,11 @@
                     <group name="main">
                         <group name="left">
                             <field name="name" />
-                            <field name="model_ids" widget="many2many_tags" />
+                            <field name="model_id" />
                         </group>
                         <group name="right">
+                            <field name="group_ids" widget="many2many_tags" />
+                            <field name="model_ids" widget="many2many_tags" />
                             <field
                                 name="company_id"
                                 groups="base.group_multi_company"
@@ -27,11 +29,15 @@
                         <field name="line_ids" nolabel="1">
                             <list>
                                 <field name="definition" />
+                                <field name="kind" />
                                 <field name="active" optional="hide" />
+                                <field name="group_ids" widget="many2many_tags" />
                             </list>
                             <form>
                                 <group>
                                     <field name="definition" />
+                                    <field name="kind" widget="radio" />
+                                    <field name="group_ids" widget="many2many_tags" />
                                     <field name="active" widget="boolean_toggle" />
                                 </group>
                             </form>
