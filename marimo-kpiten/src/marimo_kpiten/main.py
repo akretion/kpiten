@@ -11,9 +11,9 @@ which disallows using different tables w/out changing the code.
 """
 
 from fastapi import FastAPI, APIRouter
-from services.df_file_storage_service import DFStorageService
-from services.env_reader import EnvReader
-from services.dataframe_util import Df
+from marimo_kpiten.services.df_file_storage_service import DFStorageService
+from marimo_kpiten.services.env_reader import EnvReader
+from marimo_kpiten.services.dataframe_util import Df
 from werkzeug.utils import redirect
 from pg_autojoin import SqlJoin
 from urllib.error import URLError
@@ -36,7 +36,7 @@ postgres_url = (
     f'postgresql://{env_.get("DB_USER")}:{env_.get("DB_PWD")}@'
     + f'{env_.get("DB_HOST")}:{env_.get("DB_PORT")}'
 )
-db_url = f'{postgres_url}/{env_.get("ODOO_DB")}'
+DB_URL = f'{postgres_url}/{env_.get("ODOO_DB")}'
 try:
     odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
 except URLError as e:
@@ -85,24 +85,37 @@ def handle_table_info():
         return sql
 
     kpiten_profiles = json.loads(env["kpiten.config"].read_config())
+    print("------ PARSING KPITEN PROFILES ------")
+    print("--- Looping on models ---")
     for profile in kpiten_profiles:
         name = profile["name"]
         pr_id = profile["profile_id"]
+        main_record_name = profile["main_record_name"]
+        main_model = profile["main_model"]
+        main_model_fields = profile["main_model_fields"]
+
+        sql = relationship_query(main_model)
+        main_df = cx.read_sql(DB_URL, sql, return_type="polars")
+        transfo = Df(main_df)
+        main_df = transfo.get_df()
+
+        df_store.store_df(
+            pr_id, main_model, main_record_name, main_model_fields, main_df
+        )
+
         print(f"profile : {name}\nprofile_id : {pr_id}")
-        print("\tTables: \n")
-        for tbl in profile["tables"]:
+        print(f"Main model : {main_model}\n")
+        print(f"Main model fields : {main_model_fields}")
+
+        for tbl in profile["models"]:
             fields = sanitize(tbl["fields"])
             all_fields = sanitize(tbl["all_fields"])
             sql = (
                 f"SELECT {fields} FROM {tbl['table']} ORDER BY write_date ASC LIMIT 12",
             )
-            logger.warning(sql)
+            logger.warning(f"generated sql : {sql}")
             sql = relationship_query(tbl["table"])
-            logger.warning(f"""ARGUMENTS\n
-                - db_url : {db_url}
-                - sql : {sql} 
-""")
-            df = cx.read_sql(db_url, sql, return_type="polars")
+            df = cx.read_sql(DB_URL, sql, return_type="polars")
             transfo = Df(df)
             df = transfo.get_df()
             df_store.store_df(pr_id, tbl["table"], tbl["record_name"], fields, df)
@@ -110,6 +123,8 @@ def handle_table_info():
                 f"\t\tTable : {tbl['table']}\n\t\t\trecord_name : {tbl['record_name']}\n\t\t\tfields={fields}\n\t\t\tall_fields={all_fields}\n\t\t\tprofile_id={pr_id}"
             )
 
+    print("--- end of loop ---")
+    print("------ KPITEN PROFILES PARSING END ------")
     return redirect(code=301, location="/build")
 
 

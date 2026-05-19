@@ -65,6 +65,7 @@ def _(mo):  # Affiche les tables initiales
     df_store = DFStorageService()
 
     tables = []
+    tname_to_profile_id: dict[str, int] = {}
 
     # using tables in generated
     generated = pathlib.Path("../generated")
@@ -78,12 +79,14 @@ def _(mo):  # Affiche les tables initiales
         table_data = df_store.retrieve_df(
             name
         )  # récupère les tables par noms de dossier dans doss generated
-        table_name = table_data[1]
-        _df = table_data[4]
-        profile_id = table_data[0]
+        table_name = table_data["table"]
+        _df = table_data["df"]
+        profile_id = table_data["profile_id"]
+
+        tname_to_profile_id[name] = profile_id
         df_w_meta.append({"profile_id": profile_id, "name": table_name, "df": _df})
 
-    return df_w_meta, tables, df_store
+    return df_w_meta, tables, df_store, tname_to_profile_id
 
 
 @app.cell()
@@ -103,7 +106,7 @@ def display_selected_table(
         sanitized_tbn = selected_table_name.value[0].replace("_", " ").capitalize()
         df_info = df_store.retrieve_df(selected_table_name.value[0])
         display_title = mo.md(f"# {sanitized_tbn}")
-        build_df = mo.ui.dataframe(df_info[4])
+        build_df = mo.ui.dataframe(df_info["df"])
     mo.vstack([display_title, build_df])
 
 
@@ -159,11 +162,14 @@ def load_kpiten_line(kpiten_config_line_class, selected_table_name, mo: marimo):
     d_info = dfs.retrieve_df(selected_table_name.value[0])
 
     code_to_run = None
-    df = d_info[4]
+    df = d_info["table"]
 
-    line_ids = kpiten_config_line_class.search([("config_id", "=", d_info[0])])
-    l_id = line_ids[-1]
-    code_to_run = kpiten_config_line_class.browse(l_id).definition
+    line_ids = kpiten_config_line_class.search(
+        [("config_id", "=", d_info["profile_id"])]
+    )
+    if len(line_ids) > 0:
+        l_id = line_ids[-1]
+        code_to_run = kpiten_config_line_class.browse(l_id).definition
 
     return (code_to_run, df)
 
@@ -173,7 +179,7 @@ def compute_kpiten_line(mo, code_to_run, df):
     """
     compute_kpiten_line
     ---
-    - Crée un élément Marimo d'édition de code Python
+    - Crée un élément Marimo d'édition de code Python (mo.ui.code_editor)
     - Récupère les noms de variables impliquées dans les transformations (df, df_next)
     - Retourne les infos créées plus la dataframe pour que exec_kpiten_line/n'importe quelle autre cellule puisse l'utiliser
 
@@ -196,53 +202,65 @@ def compute_kpiten_line(mo, code_to_run, df):
     return (editor, df_like, df_next_like, df)
 
 
-@app.cell
-def exec_kpiten_line(
-    mo: marimo, editor, df_like, df_next_like, df, selected_table_name
-):
-    """
-    exec_kpiten_line
-    ---
-    Affiche la table avec la transformation récupérée depuis Odoo
+# Doesn't work anymore as of now
+# @app.cell
+# def exec_kpiten_line(
+#     mo: marimo, editor, df_like, df_next_like, df, selected_table_name
+# ):
+#     """
+#     exec_kpiten_line
+#     ---
+#     Affiche la table avec la transformation récupérée depuis Odoo
 
-    TODO
-    - Faire en sorte que cette fonction accepte ce que compute_kpiten_line renvoie, donc :
-      - faire une boucle qui fait la même chose qu'en dessous avec les variables d'itérations
-      - il faut en plus que cette boucle construise une liste de `scope[df_next_like]` (donc de dataframes)
-      - la liste doit être "appelée" à la fin, comme pour tout ce qu'on veut afficher dans marimo ->
-      si la liste s'appelle "scope[df]" :
+#     TODO
+#     - Faire en sorte que cette fonction accepte ce que compute_kpiten_line renvoie, donc :
+#       - faire une boucle qui fait la même chose qu'en dessous avec les variables d'itérations
+#       - il faut en plus que cette boucle construise une liste de `scope[df_next_like]` (donc de dataframes)
+#       - la liste doit être "appelée" à la fin, comme pour tout ce qu'on veut afficher dans marimo ->
+#       si la liste s'appelle "scope[df]" :
 
-      ```python
-      def _():
-        ...
-        scope[df] # doit être dernier.
-      ```
-    """
-    mo.stop(not editor.value)
-    import polars as pl
+#       ```python
+#       def _():
+#         ...
+#         scope[df] # doit être dernier.
+#       ```
+#     """
+#     mo.stop(not editor.value)
+#     import polars as pl
 
-    scope = {df_like: df, "pl": pl}
-    exec(editor.value, scope)
-    mo.vstack(
-        [
-            mo.md(f"## Dernière transformation de {selected_table_name.value[0]}"),
-            scope[df_next_like],
-        ]
-    )  # c'est la dataframe construite par le exec()
+#     scope = {df_like: df, "pl": pl}
+#     exec(editor.value, scope)
+#     mo.vstack(
+#         [
+#             mo.md(f"## Dernière transformation de {selected_table_name.value[0]}"),
+#             scope[df_next_like],
+#         ]
+#     )  # c'est la dataframe construite par le exec()
 
 
 @app.cell()
-def store_df_code(mo, save, python_text, df_w_meta, kpiten_config_line_class):
+def store_df_code(
+    mo: marimo,
+    save,
+    python_text,
+    kpiten_config_line_class,
+    selected_table_name: marimo.ui.multiselect,
+    tname_to_profile_id: dict[str, int],
+):
     """
     store_df_code
     ---
     Stocke la transformation de dataframe via odoorpc.
     """
-    mo.stop(not python_text.value or not save.value)
+    mo.stop(
+        not python_text.value or not save.value or len(selected_table_name.value) < 1
+    )
 
-    for meta in df_w_meta:
-        print(kpiten_config_line_class)
-        record = kpiten_config_line_class.create(
-            {"config_id": meta["profile_id"], "definition": python_text.value}
-        )
-        print(record)
+    record = kpiten_config_line_class.create(
+        {
+            "config_id": tname_to_profile_id[selected_table_name.value[0]],
+            "definition": python_text.value,
+            "kind": "data",
+        }
+    )
+    print(record)
