@@ -111,7 +111,7 @@ def handle_table_info():
             fields = sanitize(tbl["fields"])
             all_fields = sanitize(tbl["all_fields"])
             sql = (
-                f"SELECT {fields} FROM {tbl['table']} ORDER BY write_date ASC LIMIT 12",
+                f"SELECT {fields} FROM {tbl['table']} ORDER BY write_date ASC LIMIT 100",
             )
             logger.warning(f"generated sql : {sql}")
             sql = relationship_query(tbl["table"])

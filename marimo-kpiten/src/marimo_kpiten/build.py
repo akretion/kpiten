@@ -174,35 +174,36 @@ def load_kpiten_line(kpiten_config_line_class, selected_table_name, mo: marimo):
     return (code_to_run, df)
 
 
-@app.cell()
-def compute_kpiten_line(mo, code_to_run, df):
-    """
-    compute_kpiten_line
-    ---
-    - Crée un élément Marimo d'édition de code Python (mo.ui.code_editor)
-    - Récupère les noms de variables impliquées dans les transformations (df, df_next)
-    - Retourne les infos créées plus la dataframe pour que exec_kpiten_line/n'importe quelle autre cellule puisse l'utiliser
+### NEEDS FIXING AS OF NOW ###
 
-    TODO
-    - maintenir la fonction pour qu'elle puisse gérer ce que `load_kpiten_line` retournera après modifs.
-      - elle doit donc faire une boucle sur la donnée itérable envoyée et pour chacune d'entre elle crééer un
-      scope valide (donc df_next_like et df_like) qui correspond bien aux données récupérées dans kpiten.config.line
-      - renvoyer une structure qui contient les scopes, les dataframes et les editors pour chaque transformations
-    """
-    print("computer_kpiten_line")
-    mo.stop(not code_to_run)
-    editor = mo.ui.code_editor(value=code_to_run)
-    first_line = code_to_run.partition("\n")[0]
-    df_like = first_line.split(" ")[2]  # <hash>df_next
-    df_next_like = first_line.split(" ")[0]  # <hash>df
+# @app.cell()
+# def compute_kpiten_line(mo, code_to_run, df):
+#     """
+#     compute_kpiten_line
+#     ---
+#     - Crée un élément Marimo d'édition de code Python (mo.ui.code_editor)
+#     - Récupère les noms de variables impliquées dans les transformations (df, df_next)
+#     - Retourne les infos créées plus la dataframe pour que exec_kpiten_line/n'importe quelle autre cellule puisse l'utiliser
 
-    print("df_like : ", df_like)
-    print("df_next_like : ", df_next_like)
+#     TODO
+#     - maintenir la fonction pour qu'elle puisse gérer ce que `load_kpiten_line` retournera après modifs.
+#       - elle doit donc faire une boucle sur la donnée itérable envoyée et pour chacune d'entre elle crééer un
+#       scope valide (donc df_next_like et df_like) qui correspond bien aux données récupérées dans kpiten.config.line
+#       - renvoyer une structure qui contient les scopes, les dataframes et les editors pour chaque transformations
+#     """
+#     print("computer_kpiten_line")
+#     mo.stop(not code_to_run)
+#     editor = mo.ui.code_editor(value=code_to_run)
+#     first_line = code_to_run.partition("\n")[0]
+#     df_like = first_line.split(" ")[2]  # <hash>df_next
+#     df_next_like = first_line.split(" ")[0]  # <hash>df
 
-    return (editor, df_like, df_next_like, df)
+#     print("df_like : ", df_like)
+#     print("df_next_like : ", df_next_like)
+
+#     return (editor, df_like, df_next_like, df)
 
 
-# Doesn't work anymore as of now
 # @app.cell
 # def exec_kpiten_line(
 #     mo: marimo, editor, df_like, df_next_like, df, selected_table_name
@@ -236,6 +237,8 @@ def compute_kpiten_line(mo, code_to_run, df):
 #             scope[df_next_like],
 #         ]
 #     )  # c'est la dataframe construite par le exec()
+
+######
 
 
 @app.cell()

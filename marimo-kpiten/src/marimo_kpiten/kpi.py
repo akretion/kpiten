@@ -181,14 +181,23 @@ def compute_kpiten_line(
                 )
             else:
                 import altair as alt
+                from marimo_kpiten.utils.graph_utils import ENCODING_DICT
 
                 graph_json = json.loads(transform["content"])
-                source = (
-                    df_store.retrieve_df(graph_json["from"])["df"]
-                    .sort(by=graph_json["x"], descending=False)
-                    .to_pandas()
-                )
+                CX = graph_json["x"]
+                CY = graph_json["y"]
+                source = None
                 chart = None
+
+                if type(CX) == dict:
+                    CX = alt.X(f"{CX['name']}:{ENCODING_DICT[CX['type']]}")
+                    print("CX : ", CX)
+
+                if type(CY) == dict:
+                    CY = alt.Y(f"{CY['name']}:{ENCODING_DICT[CY['type']]}")
+                    print("CY : ", CY)
+
+                source = df_store.retrieve_df(graph_json["from"])["df"].to_pandas()
 
                 match graph_json["graph_type"]:
                     case "bar":
@@ -196,16 +205,12 @@ def compute_kpiten_line(
                             alt.Chart(source)
                             .mark_bar()
                             .encode(
-                                x=alt.X(f"{graph_json["x"]}:T"),
-                                y=alt.Y(f"{graph_json["y"]}:Q"),
+                                x=CX,
+                                y=CY,
                             )
                         )
                     case _:
-                        chart = (
-                            alt.Chart(source)
-                            .mark_bar()
-                            .encode(x=graph_json["x"], y=graph_json["y"])
-                        )
+                        chart = alt.Chart(source).mark_bar().encode(x=CX, y=CY)
                 label = graph_json["label"]
                 graph = mo.ui.altair_chart(chart=chart)
                 exec_context_list.append(
