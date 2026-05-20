@@ -3,8 +3,9 @@ import marimo
 # for type hints
 from odoorpc.env import Environment
 from typing import TypedDict, Literal
-from marimo_kpiten.services.df_file_storage_service import DF_META
+from marimo_kpiten.services.df_file_storage_service import DF_META, DFStorageService
 import polars as pl
+import json
 
 __generated_with = "0.23.4"
 app = marimo.App(width="medium")
@@ -31,6 +32,7 @@ def _():
     import marimo as mo
     from pathlib import Path
     from marimo_kpiten.services.df_file_storage_service import DFStorageService
+    import json
 
     df_store = DFStorageService()
 
@@ -132,7 +134,12 @@ def load_kpiten_line(kpiten_config_line_class, mo: marimo):
 
 
 @app.cell()
-def compute_kpiten_line(mo: marimo, df_wt_list: list[DF_WITH_TRANSFORM]):
+def compute_kpiten_line(
+    mo: marimo,
+    json: json,
+    df_wt_list: list[DF_WITH_TRANSFORM],
+    df_store: DFStorageService,
+):
     """
     compute_kpiten_line
     ---
@@ -164,31 +171,69 @@ def compute_kpiten_line(mo: marimo, df_wt_list: list[DF_WITH_TRANSFORM]):
 
                 exec_context_list.append(
                     {
+                        "context_type": "data",
                         "df": used_df,
-                        "df_label": used_df_label,
+                        "label": used_df_label,
                         "editor": editor,
                         "df_like": df_like,
                         "df_next_like": df_next_like,
                     }
                 )
             else:
-                print("This would trigger the graph case, but there isn't one for now")
+                import altair as alt
+
+                graph_json = json.loads(transform["content"])
+                source = (
+                    df_store.retrieve_df(graph_json["from"])["df"]
+                    .sort(by=graph_json["x"], descending=False)
+                    .to_pandas()
+                )
+                chart = None
+
+                match graph_json["graph_type"]:
+                    case "bar":
+                        chart = (
+                            alt.Chart(source)
+                            .mark_bar()
+                            .encode(
+                                x=alt.X(f"{graph_json["x"]}:T"),
+                                y=alt.Y(f"{graph_json["y"]}:Q"),
+                            )
+                        )
+                    case _:
+                        chart = (
+                            alt.Chart(source)
+                            .mark_bar()
+                            .encode(x=graph_json["x"], y=graph_json["y"])
+                        )
+                label = graph_json["label"]
+                graph = mo.ui.altair_chart(chart=chart)
+                exec_context_list.append(
+                    {"context_type": "graph", "label": label, "graph": graph}
+                )
 
     return exec_context_list
 
 
 class DFExecutionContext(TypedDict):
-    df_label: str
+    context_type: Literal["data"]
+    label: str
     df: pl.DataFrame
     df_like: str
     df_next_like: str
     editor: marimo.ui.code_editor
 
 
+class GraphExecutionContext:
+    context_type: Literal["graph"]
+    label: str
+    graph: marimo.ui.altair_chart
+
+
 @app.cell
 def exec_kpiten_line(
     mo: marimo,
-    exec_context_list: list[DFExecutionContext],
+    exec_context_list: list[DFExecutionContext | GraphExecutionContext],
 ):
     """
     exec_kpiten_line
@@ -213,39 +258,38 @@ def exec_kpiten_line(
 
     ordered = {}
     to_display = []
-    exec_vs = []
 
     for c in exec_context_list:
-        ordered[c["df_label"]] = []
+        ordered[c["label"]] = []
 
     for c in exec_context_list:
-        ordered[c["df_label"]].append(c)
+        ordered[c["label"]].append(c)
 
     for k in ordered.keys():
         sub_transfo_list = []
         sub_transfo_list.append(mo.md(f"# {k}"))
         for ctx in ordered[k]:
-            scope = {ctx["df_like"]: ctx["df"], "pl": pl}
-            exec(ctx["editor"].value, scope)
-            sub_transfo_list.append(
-                scope[ctx["df_next_like"]],
-            )
+            match ctx["context_type"]:
+                case "data":
+                    scope = {ctx["df_like"]: ctx["df"], "pl": pl}
+                    exec(ctx["editor"].value, scope)
+                    sub_transfo_list.append(
+                        scope[ctx["df_next_like"]],
+                    )
+                case "graph":
+                    print(
+                        "graph case in exec_kpiten_line, it's just a display problem !!"
+                    )
+                    graph_ui = mo.vstack([mo.md(f"## {ctx['label']}"), ctx["graph"]])
+                    sub_transfo_list.append(graph_ui)
+                case _:
+                    scope = {ctx["df_like"]: ctx["df"], "pl": pl}
+                    exec(ctx["editor"].value, scope)
+                    sub_transfo_list.append(
+                        scope[ctx["df_next_like"]],
+                    )
         to_display.append(sub_transfo_list)
-
-    for ctx in exec_context_list:
-
-        scope = {ctx["df_like"]: ctx["df"], "pl": pl}
-        exec(ctx["editor"].value, scope)
-        exec_vs.append(
-            mo.vstack(
-                [
-                    mo.md(f"## Une transformation"),
-                    scope[ctx["df_next_like"]],
-                ]
-            )
-        )  # c'est la dataframe construite par le exec()
     to_display
-    return exec_vs
 
 
 if __name__ == "__main__":

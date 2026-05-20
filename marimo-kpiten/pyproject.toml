@@ -10,6 +10,7 @@ dependencies = [
   "fastapi>=0.135.3",
   "marimo>=0.22.5",
   "odoorpc>=0.10.1", # "pg-autojoin>=0.5.0",
+  "pandas>=3.0.3",
   "polars>=1.39.3",
   "psycopg2-binary>=2.9.12",
   "pyarrow>=23.0.1",
