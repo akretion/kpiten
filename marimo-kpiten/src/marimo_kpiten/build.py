@@ -135,6 +135,7 @@ def build_graph_form(mo: marimo, d: pl.DataFrame):
 
     graph_type_options = ["bar", "point", "area"]
     column_types = ["quantitative", "temporal", "nominal", "ordinal"]
+    aggregation_types = ["none", "count", "sum"]
 
     type_of_graph_select = mo.ui.multiselect(
         label="Graph type", options=graph_type_options, max_selections=1
@@ -146,19 +147,41 @@ def build_graph_form(mo: marimo, d: pl.DataFrame):
     column_x_type_select = mo.ui.multiselect(
         label="X column specifier", options=column_types, max_selections=1
     )
+    column_x_aggregation = mo.ui.multiselect(
+        label="X column aggregation",
+        options=aggregation_types,
+        max_selections=1,
+        value=["none"],
+    )
+
     column_y_select = mo.ui.multiselect(
         label="Y column", options=d.columns, max_selections=1
     )
     column_y_type_select = mo.ui.multiselect(
         label="Y column specifier", options=column_types, max_selections=1
     )
+    column_y_aggregation = mo.ui.multiselect(
+        label="Y column aggregation",
+        options=aggregation_types,
+        max_selections=1,
+        value=["none"],
+    )
+
     create_button = mo.ui.run_button(kind="neutral", label="Create")
 
     form = {
         "label": name_input,
         "graph_type": type_of_graph_select,
-        "x": {"type": column_x_type_select, "name": column_x_select},
-        "y": {"type": column_y_type_select, "name": column_y_select},
+        "x": {
+            "type": column_x_type_select,
+            "name": column_x_select,
+            "aggregation": column_x_aggregation,
+        },
+        "y": {
+            "type": column_y_type_select,
+            "name": column_y_select,
+            "aggregation": column_y_aggregation,
+        },
     }
 
     mo.vstack(
@@ -167,9 +190,9 @@ def build_graph_form(mo: marimo, d: pl.DataFrame):
             name_input,
             type_of_graph_select,
             mo.md("### X Axis"),
-            mo.hstack([column_x_select, column_x_type_select]),
+            mo.hstack([column_x_select, column_x_type_select, column_x_aggregation]),
             mo.md("### Y Axis"),
-            mo.hstack([column_y_select, column_y_type_select]),
+            mo.hstack([column_y_select, column_y_type_select, column_y_aggregation]),
             create_button,
         ]
     ).style({"max-width": "70%"})
@@ -201,10 +224,12 @@ def save_graph_form_data(
                     "x": {
                         "type": form["x"]["type"].value[0],
                         "name": form["x"]["name"].value[0],
+                        "aggregation": form["x"]["aggregation"].value[0],
                     },
                     "y": {
                         "type": form["y"]["type"].value[0],
                         "name": form["y"]["name"].value[0],
+                        "aggregation": form["y"]["aggregation"].value[0],
                     },
                 }
             ),

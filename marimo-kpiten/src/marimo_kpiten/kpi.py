@@ -1,30 +1,15 @@
 import marimo
-
-# for type hints
-from odoorpc.env import Environment
-from typing import TypedDict, Literal
-from marimo_kpiten.services.df_file_storage_service import DF_META, DFStorageService
-import polars as pl
-import json
+import polars
+from marimo_kpiten.services.df_file_storage_service import DFStorageService
 
 __generated_with = "0.23.4"
 app = marimo.App(width="medium")
 
 
-class Transformation(TypedDict):
-    config_id: int
-    content: str
-    kind: Literal["graph", "data"]
-
-
-class DF_WITH_TRANSFORM(TypedDict):
-    df_meta: DF_META
-    transformations: list[Transformation]
-
-
-@app.cell()
-def navigation(mo: marimo):
+@app.cell
+def navigation(mo):
     mo.nav_menu({"/build": "Create", "/kpi": "KPI"})
+    return
 
 
 @app.cell
@@ -33,6 +18,7 @@ def _():
     from pathlib import Path
     from marimo_kpiten.services.df_file_storage_service import DFStorageService
     import json
+    import polars as pl
 
     df_store = DFStorageService()
 
@@ -63,7 +49,7 @@ def _():
                 mo.ui.dataframe(df_data),
             ]
         )
-    return no_data_found_callout
+    return df_store, json, mo, pl, no_data_found_callout
 
 
 @app.cell()
@@ -81,7 +67,7 @@ def no_data_found(mo: marimo, no_data_found_callout):
     no_data_found_callout
 
 
-@app.cell()
+@app.cell
 def get_odoo_env():
     """get_odoo_env
     Rend l'env odoo disponible pour toutes les cellules (si il est en paramètre des autres cellules)
@@ -93,20 +79,20 @@ def get_odoo_env():
     odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
     odoo.login(env_.get("ODOO_DB"), env_.get("ODOO_LOGIN"), env_.get("ODOO_PWD"))
     env = odoo.env
-    return env
+    return (env,)
 
 
-@app.cell()
-def get_kpiten_config_line_class(env: Environment):
+@app.cell
+def get_kpiten_config_line_class(env):
     """get_kpiten_config_line_class
     utilise odoorpc pour récupérer env['kpiten.config.line']
     """
     kpiten_config_line_class = env["kpiten.config.line"]
-    return kpiten_config_line_class
+    return (kpiten_config_line_class,)
 
 
-@app.cell()
-def load_kpiten_line(no_data_found_callout, kpiten_config_line_class, mo: marimo):
+@app.cell
+def load_kpiten_line(kpiten_config_line_class, mo, no_data_found_callout):
     """
     load_kpiten_line
     ---
@@ -144,16 +130,12 @@ def load_kpiten_line(no_data_found_callout, kpiten_config_line_class, mo: marimo
         dwt_d = {"df_meta": meta, "transformations": transformations}
 
         df_wt_list.append(dwt_d)
+    return (df_wt_list,)
 
-    return df_wt_list
 
-
-@app.cell()
+@app.cell
 def compute_kpiten_line(
-    mo: marimo,
-    json: json,
-    df_wt_list: list[DF_WITH_TRANSFORM],
-    df_store: DFStorageService,
+    df_store: DFStorageService, df_wt_list, json, mo: marimo, pl: polars
 ):
     """
     compute_kpiten_line
@@ -202,18 +184,47 @@ def compute_kpiten_line(
                 print(graph_json)
                 CX = graph_json["x"]
                 CY = graph_json["y"]
+                X_AGG = CX["aggregation"]
+                Y_AGG = CY["aggregation"]
+
                 source = None
                 chart = None
 
                 if type(CX) == dict:
-                    CX = alt.X(f"{CX['name']}:{ENCODING_DICT[CX['type']]}")
+                    CX = alt.X(f"{CX['name']}:{ENCODING_DICT[CX['type']]}", sort="-y")
                     print("CX : ", CX)
 
                 if type(CY) == dict:
                     CY = alt.Y(f"{CY['name']}:{ENCODING_DICT[CY['type']]}")
                     print("CY : ", CY)
 
-                source = df_store.retrieve_df(graph_json["from"])["df"].to_pandas()
+                source = df_store.retrieve_df(graph_json["from"])["df"].limit(500)
+
+                match X_AGG:
+                    case "sum":
+                        source = source.group_by(graph_json["y"]["name"]).agg(
+                            pl.col(graph_json["x"]["name"]).sum()
+                        )
+                    case "count":
+                        source = source.group_by(graph_json["y"]["name"]).agg(
+                            pl.col(graph_json["x"]["name"]).count()
+                        )
+                    case _:
+                        source = source
+
+                match Y_AGG:
+                    case "sum":
+                        source = source = source.group_by(graph_json["x"]["name"]).agg(
+                            pl.col(graph_json["y"]["name"]).sum()
+                        )
+                    case "count":
+                        source = source.group_by(graph_json["x"]["name"]).agg(
+                            pl.col(graph_json["y"]["name"]).count()
+                        )
+                    case _:
+                        source = source
+
+                source = source.to_pandas()
 
                 match graph_json["graph_type"]:
                     case "bar":
@@ -233,7 +244,6 @@ def compute_kpiten_line(
                             .encode(x=CX, y=CY)
                             .interactive()
                         )
-
                     case "area":
                         chart = (
                             alt.Chart(source)
@@ -254,30 +264,11 @@ def compute_kpiten_line(
                 exec_context_list.append(
                     {"context_type": "graph", "label": label, "graph": graph}
                 )
-
-    return exec_context_list
-
-
-class DFExecutionContext(TypedDict):
-    context_type: Literal["data"]
-    label: str
-    df: pl.DataFrame
-    df_like: str
-    df_next_like: str
-    editor: marimo.ui.code_editor
-
-
-class GraphExecutionContext:
-    context_type: Literal["graph"]
-    label: str
-    graph: marimo.ui.altair_chart
+    return (exec_context_list,)
 
 
 @app.cell
-def exec_kpiten_line(
-    mo: marimo,
-    exec_context_list: list[DFExecutionContext | GraphExecutionContext],
-):
+def exec_kpiten_line(exec_context_list, mo, pl: polars):
     """
     exec_kpiten_line
     ---
@@ -296,8 +287,8 @@ def exec_kpiten_line(
         scope[df] # doit être dernier.
       ```
     """
-    mo.stop(not exec_context_list or len(exec_context_list) < 1)
-    import polars as pl
+    mo.stop(not exec_context_list)
+    mo.stop(len(exec_context_list) < 1)
 
     ordered = {}
     to_display = []
