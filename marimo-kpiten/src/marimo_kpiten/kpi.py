@@ -39,10 +39,18 @@ def _():
     # using tables in generated
     table_names = []
 
-    generated = Path("../generated")
-    res = generated.iterdir()
-    for file in res:
-        table_names.append(file.name)
+    no_data_found_callout = None
+    try:
+        generated = Path("../generated")
+        res = generated.iterdir()
+        for file in res:
+            table_names.append(file.name)
+    except FileNotFoundError as FNFE:
+        no_data_found_callout = mo.md(
+            "There is **no transformations**, nor any **tables** in general to work on. Try to visit `'/'`,"
+            + "then `/build` to verify if any tables exist. Then, you can create transformations, "
+            + "and they'll be here !"
+        ).callout("warn")
 
     for name in table_names:
         df_info = df_store.retrieve_df(name)
@@ -55,7 +63,7 @@ def _():
                 mo.ui.dataframe(df_data),
             ]
         )
-    return
+    return no_data_found_callout
 
 
 @app.cell()
@@ -65,6 +73,12 @@ def fallback_page(mo: marimo, exec_context_list):
         "# That's where your transformations will be\n"
         "> Make transformations via the `build` page, then go right back here."
     )
+
+
+@app.cell()
+def no_data_found(mo: marimo, no_data_found_callout):
+    mo.stop(not no_data_found_callout)
+    no_data_found_callout
 
 
 @app.cell()
@@ -92,7 +106,7 @@ def get_kpiten_config_line_class(env: Environment):
 
 
 @app.cell()
-def load_kpiten_line(kpiten_config_line_class, mo: marimo):
+def load_kpiten_line(no_data_found_callout, kpiten_config_line_class, mo: marimo):
     """
     load_kpiten_line
     ---
@@ -108,6 +122,7 @@ def load_kpiten_line(kpiten_config_line_class, mo: marimo):
       - utiliser le nom pour récupérer la DF correspondante avec .retrieve_df
       - retourner un dictionnaire, et s'assurer que les autres fonctionnent gèrent bien le dictionnaire.
     """
+    mo.stop(no_data_found_callout)
     from marimo_kpiten.services.df_file_storage_service import DFStorageService as dfsv
 
     all_df_metadata = dfsv.retrieve_all_dfs()
@@ -184,6 +199,7 @@ def compute_kpiten_line(
                 from marimo_kpiten.utils.graph_utils import ENCODING_DICT
 
                 graph_json = json.loads(transform["content"])
+                print(graph_json)
                 CX = graph_json["x"]
                 CY = graph_json["y"]
                 source = None
@@ -208,9 +224,31 @@ def compute_kpiten_line(
                                 x=CX,
                                 y=CY,
                             )
+                            .interactive()
                         )
+                    case "point":
+                        chart = (
+                            alt.Chart(source)
+                            .mark_point()
+                            .encode(x=CX, y=CY)
+                            .interactive()
+                        )
+
+                    case "area":
+                        chart = (
+                            alt.Chart(source)
+                            .mark_area()
+                            .encode(x=CX, y=CY)
+                            .interactive()
+                        )
+
                     case _:
-                        chart = alt.Chart(source).mark_bar().encode(x=CX, y=CY)
+                        chart = (
+                            alt.Chart(source)
+                            .mark_bar()
+                            .encode(x=CX, y=CY)
+                            .interactive()
+                        )
                 label = graph_json["label"]
                 graph = mo.ui.altair_chart(chart=chart)
                 exec_context_list.append(

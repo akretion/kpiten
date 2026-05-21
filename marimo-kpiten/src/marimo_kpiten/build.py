@@ -2,6 +2,7 @@ import marimo
 
 # For typing hints
 from marimo_kpiten.services.df_file_storage_service import DFStorageService
+import polars as pl
 
 __generated_with = "0.22.5"
 app = marimo.App(width="medium")
@@ -44,7 +45,7 @@ def navigation(mo: marimo):
 
 
 @app.cell(hide_code=True)
-def _(mo):  # Affiche les tables initiales
+def _(mo: marimo):  # Affiche les tables initiales
     """
     _
     ---
@@ -66,12 +67,19 @@ def _(mo):  # Affiche les tables initiales
 
     tables = []
     tname_to_profile_id: dict[str, int] = {}
+    no_data_found_callout = None
 
-    # using tables in generated
-    generated = pathlib.Path("../generated")
-    res = generated.iterdir()
-    for file in res:
-        tables.append(file.name)
+    try:
+        # using tables in generated
+        generated = pathlib.Path("../generated")
+        res = generated.iterdir()
+        for file in res:
+            tables.append(file.name)
+    except FileNotFoundError as FNFE:
+        no_data_found_callout = mo.callout(
+            "There isn't any data to work on. Try visiting / and going back here!",
+            kind="warn",
+        )
 
     df_w_meta = []
 
@@ -86,7 +94,13 @@ def _(mo):  # Affiche les tables initiales
         tname_to_profile_id[name] = profile_id
         df_w_meta.append({"profile_id": profile_id, "name": table_name, "df": _df})
 
-    return df_w_meta, tables, df_store, tname_to_profile_id
+    return df_w_meta, tables, df_store, tname_to_profile_id, no_data_found_callout
+
+
+@app.cell()
+def no_data_found(mo: marimo, no_data_found_callout):
+    mo.stop(not no_data_found_callout)
+    no_data_found_callout
 
 
 @app.cell()
@@ -102,12 +116,106 @@ def display_selected_table(
 ):
     display_title = mo.md("# No table selected")
     build_df = mo.md("> Select a table to start building KPIs.")
+    d = None
     if len(selected_table_name.value) >= 1:
         sanitized_tbn = selected_table_name.value[0].replace("_", " ").capitalize()
         df_info = df_store.retrieve_df(selected_table_name.value[0])
         display_title = mo.md(f"# {sanitized_tbn}")
-        build_df = mo.ui.dataframe(df_info["df"])
+        d = df_info["df"]
+        build_df = mo.ui.dataframe(d)
     mo.vstack([display_title, build_df])
+    return d
+
+
+@app.cell()
+def build_graph_form(mo: marimo, d: pl.DataFrame):
+    from polars import DataFrame
+
+    mo.stop(type(d) is type(None))
+
+    graph_type_options = ["bar", "point", "area"]
+    column_types = ["quantitative", "temporal", "nominal", "ordinal"]
+
+    type_of_graph_select = mo.ui.multiselect(
+        label="Graph type", options=graph_type_options, max_selections=1
+    )
+    name_input = mo.ui.text(placeholder="Graph's name...")
+    column_x_select = mo.ui.multiselect(
+        label="X column", options=d.columns, max_selections=1
+    )
+    column_x_type_select = mo.ui.multiselect(
+        label="X column specifier", options=column_types, max_selections=1
+    )
+    column_y_select = mo.ui.multiselect(
+        label="Y column", options=d.columns, max_selections=1
+    )
+    column_y_type_select = mo.ui.multiselect(
+        label="Y column specifier", options=column_types, max_selections=1
+    )
+    create_button = mo.ui.run_button(kind="neutral", label="Create")
+
+    form = {
+        "label": name_input,
+        "graph_type": type_of_graph_select,
+        "x": {"type": column_x_type_select, "name": column_x_select},
+        "y": {"type": column_y_type_select, "name": column_y_select},
+    }
+
+    mo.vstack(
+        [
+            mo.md("## Build a graph"),
+            name_input,
+            type_of_graph_select,
+            mo.md("### X Axis"),
+            mo.hstack([column_x_select, column_x_type_select]),
+            mo.md("### Y Axis"),
+            mo.hstack([column_y_select, column_y_type_select]),
+            create_button,
+        ]
+    ).style({"max-width": "70%"})
+
+    return form, create_button
+
+
+@app.cell()
+def save_graph_form_data(
+    mo: marimo,
+    form,
+    create_button: marimo.ui.run_button,
+    kpiten_config_line_class,
+    tname_to_profile_id,
+    selected_table_name,
+):
+    mo.stop(not create_button.value)
+    import json
+
+    form_record = kpiten_config_line_class.create(
+        {
+            "kind": "graph",
+            "config_id": tname_to_profile_id[selected_table_name.value[0]],
+            "definition": json.dumps(
+                {
+                    "label": form["label"].value,
+                    "graph_type": form["graph_type"].value[0],
+                    "from": selected_table_name.value[0],
+                    "x": {
+                        "type": form["x"]["type"].value[0],
+                        "name": form["x"]["name"].value[0],
+                    },
+                    "y": {
+                        "type": form["y"]["type"].value[0],
+                        "name": form["y"]["name"].value[0],
+                    },
+                }
+            ),
+        }
+    )
+    print(form_record)
+    mo.md(
+        f"Successfully stored graph. Visit KPI's **{selected_table_name.value[0]}** section to see it !",
+    ).callout(
+        kind="success",
+    )
 
 
 @app.cell()
