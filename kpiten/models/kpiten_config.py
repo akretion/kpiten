@@ -56,24 +56,24 @@ class KpitenConfig(models.Model):
         # TO DO : avoid building profiles by reassignment
         # in nested loop (cannot find better solution after reflexion)
         kpiten_profiles = []
+
         profile_name = None
         profile_id = None
-        table_list = []
+        main_model = None
+        main_model_fields = []
+        model_list = []  # optional, can turn out empty
 
         for profile in self.search([]):
-            if profile_name is not None and profile_id is not profile.id:
-                # this iteration is about to build another profile, meaning
-                # that what is currently in memory is a full profile
-                kpiten_profiles.append(
-                    {
-                        "name": profile_name,
-                        "profile_id": profile_id,
-                        "tables": table_list,
-                    }
-                )
             profile_name = profile.name
             profile_id = profile.id
-            table_list = []
+            main_model = profile.model_id
+            model_list = []
+            main_model_fields = self.get_stored_fields(
+                self.env.user.id, profile.model_id.model
+            )
+            main_model_fields = [x.name for x in main_model_fields]
+
+            # Parsing optional model list
             for model in profile.model_ids:
                 model_fields = [
                     x.name
@@ -83,7 +83,7 @@ class KpitenConfig(models.Model):
                     x.name for x in self.get_stored_fields(SUPERUSER_ID, model.model)
                 ]
 
-                table_list.append(
+                model_list.append(
                     {
                         "name": model.name,
                         "table": self.env[model.model]._table,
@@ -93,11 +93,24 @@ class KpitenConfig(models.Model):
                     }
                 )
 
-        # for the last profile
-        kpiten_profiles.append(
-            {"name": profile_name, "tables": table_list, "profile_id": profile_id}
-        )
-        logger.info(kpiten_profiles)
+            kpiten_profiles.append(
+                {
+                    "name": profile_name,
+                    "main_model": self.env[main_model.model]._table,
+                    "main_record_name": main_model._rec_name,
+                    "main_model_fields": main_model_fields,
+                    "models": model_list,
+                    "profile_id": profile_id,
+                }
+            )
+
+        print(f"""
+        LEN OF KPITEN PROFILES : {len(kpiten_profiles)},\n
+        KPITEN_PROFILES : \n
+        -----------
+        {kpiten_profiles}\n
+        -----------
+        """)
         return json.dumps(kpiten_profiles)
 
     @api.model
