@@ -71,7 +71,7 @@ def _(mo: marimo):  # Affiche les tables initiales
 
     try:
         # using tables in generated
-        generated = pathlib.Path("../generated")
+        generated = pathlib.Path("../generated/dataframes")
         res = generated.iterdir()
         for file in res:
             tables.append(file.name)
@@ -87,12 +87,13 @@ def _(mo: marimo):  # Affiche les tables initiales
         table_data = df_store.retrieve_df(
             name
         )  # récupère les tables par noms de dossier dans doss generated
-        table_name = table_data["table"]
-        _df = table_data["df"]
-        profile_id = table_data["profile_id"]
+        if table_data:
+            table_name = table_data["table"]
+            _df = table_data["df"]
+            profile_id = table_data["profile_id"]
 
-        tname_to_profile_id[name] = profile_id
-        df_w_meta.append({"profile_id": profile_id, "name": table_name, "df": _df})
+            tname_to_profile_id[name] = profile_id
+            df_w_meta.append({"profile_id": profile_id, "name": table_name, "df": _df})
 
     return df_w_meta, tables, df_store, tname_to_profile_id, no_data_found_callout
 
@@ -118,11 +119,19 @@ def display_selected_table(
     build_df = mo.md("> Select a table to start building KPIs.")
     d = None
     if len(selected_table_name.value) >= 1:
+        from marimo_kpiten.services.notebook_state_service import NotebookStateService
+
+        nb_ss = NotebookStateService()
+        nb_ss.store_notebook_state(
+            "build", {"selected_table_name": selected_table_name.value[0]}
+        )
+
         sanitized_tbn = selected_table_name.value[0].replace("_", " ").capitalize()
         df_info = df_store.retrieve_df(selected_table_name.value[0])
-        display_title = mo.md(f"# {sanitized_tbn}")
-        d = df_info["df"]
-        build_df = mo.ui.dataframe(d)
+        if df_info:
+            display_title = mo.md(f"# {sanitized_tbn}")
+            d = df_info["df"]
+            build_df = mo.ui.dataframe(d)
     mo.vstack([display_title, build_df])
     return d
 
@@ -295,7 +304,8 @@ def load_kpiten_line(kpiten_config_line_class, selected_table_name, mo: marimo):
     d_info = dfs.retrieve_df(selected_table_name.value[0])
 
     code_to_run = None
-    df = d_info["table"]
+    if d_info:
+        df = d_info["table"]
 
     line_ids = kpiten_config_line_class.search(
         [("config_id", "=", d_info["profile_id"])]

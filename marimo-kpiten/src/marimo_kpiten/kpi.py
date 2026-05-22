@@ -1,6 +1,7 @@
 import marimo
 import polars
 from marimo_kpiten.services.df_file_storage_service import DFStorageService
+from odoorpc import ODOO
 
 __generated_with = "0.23.4"
 app = marimo.App(width="medium")
@@ -38,17 +39,19 @@ def _():
             + "and they'll be here !"
         ).callout("warn")
 
-    for name in table_names:
-        df_info = df_store.retrieve_df(name)
-        df_name = df_info["table"]
-        df_data = df_info["df"]
-        vs = mo.vstack(
-            [
-                mo.md(f'# {df_name.replace("_", " ").capitalize()}'),
-                mo.md("---"),
-                mo.ui.dataframe(df_data),
-            ]
-        )
+    # for name in table_names:
+    #     if name != "notebook_state":
+    #         df_info = df_store.retrieve_df(name)
+    #         if df_info:
+    #             df_name = df_info["table"]
+    #             df_data = df_info["df"]
+    #             vs = mo.vstack(
+    #                 [
+    #                     mo.md(f'# {df_name.replace("_", " ").capitalize()}'),
+    #                     mo.md("---"),
+    #                     mo.ui.dataframe(df_data),
+    #                 ]
+    #             )
     return df_store, json, mo, pl, no_data_found_callout
 
 
@@ -89,6 +92,110 @@ def get_kpiten_config_line_class(env):
     """
     kpiten_config_line_class = env["kpiten.config.line"]
     return (kpiten_config_line_class,)
+
+
+@app.cell
+def date_filter(mo: marimo):
+    date_options = [
+        "today only",
+        "last week",
+        "last 30 days",
+        "last 90 days",
+        "last 6 months",
+        "last year",
+    ]
+    date_select = mo.ui.multiselect(
+        label="Time period", options=date_options, max_selections=1, value=["last year"]
+    )
+
+    date_select
+    return date_select
+
+
+# @app.cell
+# def company_filter(mo: marimo, df_store: DFStorageService):
+#     from marimo_kpiten.services.notebook_state_service import NotebookStateService
+
+#     nb_ss = NotebookStateService()
+#     company_select = None
+
+#     build_nbs = nb_ss.retrieve_notebook_state("build")
+#     if build_nbs:
+#         selected_table_name = build_nbs["selected_table_name"]
+
+#         selected_df = df_store.retrieve_df(selected_table_name)["df"]
+#         companies = selected_df.select("company_id").to_series().to_list()
+#         unique_companies = set(companies)
+
+#         company_select = mo.ui.multiselect(
+#             label="Company",
+#             options=["All", *unique_companies],
+#             max_selections=1,
+#             value=["All"],
+#         )
+
+#     company_select  # if an error occurs, it just silently doesn't display since it's None
+#     return company_select
+
+
+@app.cell
+def compute_date_predicate(mo: marimo, pl: polars, date_select: marimo.ui.multiselect):
+    mo.stop(not date_select.value[0])
+    from datetime import timedelta, datetime
+
+    predicates: list[bool] = []
+    time_column = (
+        "create_date"  # create_date happens to have distinct values, better for testing
+    )
+    match date_select.value[0]:
+        case "today only":
+            predicates.append(pl.col(time_column) >= datetime.now())
+        case "last week":
+            predicates.append(pl.col(time_column) >= datetime.now() - timedelta(days=7))
+        case "last 30 days":
+            predicates.append(
+                pl.col(time_column) >= datetime.now() - timedelta(days=30)
+            )
+        case "last 90 days":
+            predicates.append(
+                pl.col(time_column) >= datetime.now() - timedelta(days=90)
+            )
+        case "last 6 months":
+            predicates.append(
+                pl.col(time_column) >= datetime.now() - timedelta(days=31 * 6)
+            )
+        case "last year":
+            predicates.append(
+                pl.col(time_column) >= datetime.now() - timedelta(days=365)
+            )
+        case _:
+            predicates.append(
+                pl.col(time_column) >= datetime.now() - timedelta(days=30)
+            )
+    return predicates
+
+
+# @app.cell
+# def compute_company_predicate(
+#     mo: marimo,
+#     pl: polars,
+#     predicates: list[bool],
+#     company_select: marimo.ui.multiselect,
+#     env: ODOO,
+# ):
+#     mo.stop(not company_select.value[0] or company_select.value[0] == "All")
+#     company_id = env["res.company"].search([("name", "=", company_select.value[0])])
+#     if len(company_id) >= 1:
+#         predicates.append(pl.col("company_id") == company_id[0])
+
+#     company_predicates = predicates
+#     return company_predicates
+
+
+# @app.cell
+# def full_predicates(date_predicates: list[bool], company_predicates: list[bool]):
+#     full_predicates = [*date_predicates, *company_predicates]
+#     return full_predicates
 
 
 @app.cell
@@ -135,7 +242,12 @@ def load_kpiten_line(kpiten_config_line_class, mo, no_data_found_callout):
 
 @app.cell
 def compute_kpiten_line(
-    df_store: DFStorageService, df_wt_list, json, mo: marimo, pl: polars
+    df_store: DFStorageService,
+    df_wt_list,
+    json,
+    mo: marimo,
+    pl: polars,
+    predicates: list[bool],
 ):
     """
     compute_kpiten_line
@@ -181,7 +293,6 @@ def compute_kpiten_line(
                 from marimo_kpiten.utils.graph_utils import ENCODING_DICT
 
                 graph_json = json.loads(transform["content"])
-                print(graph_json)
                 CX = graph_json["x"]
                 CY = graph_json["y"]
                 X_AGG = CX["aggregation"]
@@ -192,13 +303,15 @@ def compute_kpiten_line(
 
                 if type(CX) == dict:
                     CX = alt.X(f"{CX['name']}:{ENCODING_DICT[CX['type']]}", sort="-y")
-                    print("CX : ", CX)
 
                 if type(CY) == dict:
                     CY = alt.Y(f"{CY['name']}:{ENCODING_DICT[CY['type']]}")
-                    print("CY : ", CY)
 
-                source = df_store.retrieve_df(graph_json["from"])["df"].limit(500)
+                source = (
+                    df_store.retrieve_df(graph_json["from"])["df"]
+                    .limit(500)
+                    .filter(predicates)
+                )
 
                 match X_AGG:
                     case "sum":
@@ -311,9 +424,6 @@ def exec_kpiten_line(exec_context_list, mo, pl: polars):
                         scope[ctx["df_next_like"]],
                     )
                 case "graph":
-                    print(
-                        "graph case in exec_kpiten_line, it's just a display problem !!"
-                    )
                     graph_ui = mo.vstack([mo.md(f"## {ctx['label']}"), ctx["graph"]])
                     sub_transfo_list.append(graph_ui)
                 case _:
