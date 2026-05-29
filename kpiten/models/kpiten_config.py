@@ -5,6 +5,7 @@ from odoo import SUPERUSER_ID, api, fields, models
 
 logger = logging.getLogger(__name__)
 
+# TODO remove
 EXCLUDED_TYPES = [
     "many2many",
     "one2many",
@@ -34,6 +35,7 @@ class KpitenConfig(models.Model):
     company_id = fields.Many2one(comodel_name="res.company")
     group_ids = fields.Many2many(comodel_name="res.groups")
 
+    # TODO remove: replace by get_fields()
     @api.model
     def get_stored_fields(self, user_id, model_name, m2o=False):
         res = (
@@ -46,11 +48,12 @@ class KpitenConfig(models.Model):
             res = res.filtered(lambda s: s.ttype == "many2one")
         else:
             res = res.filtered(lambda s: s.ttype not in EXCLUDED_TYPES)
-        useless_fields = self.get_useless_fields().get(model_name)
+        useless_fields = self.env["kpiten"].get_useless_fields().get(model_name)
         if useless_fields:
             res = res.filtered(lambda s: s.name not in useless_fields)
         return res
 
+    # TODO remove
     @api.model
     def read_config(self):
         # TO DO : avoid building profiles by reassignment
@@ -112,21 +115,6 @@ class KpitenConfig(models.Model):
         -----------
         """)
         return json.dumps(kpiten_profiles)
-
-    @api.model
-    def get_useless_fields(self):
-        """return Dict of list
-         - keys are models
-         - list element are fields
-
-        to get a raw list of fields:
-            ",".join(env["ir.model.fields"].search([
-            ("stored", "=", True),
-            ("name", "not like", "%_ids"),
-            ("ttype", "not in", ("many2many", "one2many", "properties", "properties_definition", "binary")),
-            ("model", "=", "sale.order")]).mapped("name"))
-        """
-        return {}
 
 
 class KpitenConfigLine(models.Model):
