@@ -1,14 +1,22 @@
+import re
 import polars as pl
 from decimal import Decimal
 
 
 class Df:
-    def __init__(self, df):
+    def __init__(self, df, fields=None, decimal_truncate=None):
         self.df = df
+        self.fields = fields
+        self.decimal_truncate = decimal_truncate
 
     def get_df(self):
         self.remove_empty_columns()
-        self.set_datetime2date_columns()
+        self.set_datetime_string2date_columns()
+        self.split_many2one_result()
+        if self.decimal_truncate:
+            self.df = self.df.with_columns(pl.col(pl.Decimal).round(self.decimal_truncate))
+            # TODO debug
+            # self.df = self.df.with_columns(pl.col('margin_percent').round(self.decimal_truncate))
         # Normalize decimal
         self.df = self.df.with_columns(
             [
@@ -48,5 +56,27 @@ class Df:
             [col for col in self.df.columns if not self.df[col].is_null().all()]
         )
 
-    def set_datetime2date_columns(self):
-        self.df = self.df.with_columns(pl.col(pl.Datetime).cast(pl.Date))
+    def set_datetime_string2date_columns(self):
+        datetime_fields = [x for x in self.fields if self.fields[x].get('type') == 'datetime']
+        self.df = self.df.with_columns(pl.col(datetime_fields).str.to_datetime())
+        self.df = self.df.with_columns(pl.col(datetime_fields).cast(pl.Date))
+
+    def split_many2one_result(self):
+        """ Convert Many2one list fields to 2 fields
+            i.e.
+            company_id [2, "My Company"]
+            =>
+                company_id: My Company
+                company_id_: 2
+
+            Recognized columns: those with _id or _uid suffix 
+        """
+        id_cols = [col for col in self.df.columns if re.search(r"_(u?id)$", col)]
+        self.df = self.df.with_columns([
+            expr
+            for col in id_cols
+            for expr in [
+                pl.col(col).list.get(0).cast(pl.Int64).alias(re.sub(r"_(u?id)$", "_id_", col)),
+                pl.col(col).list.get(1).str.strip_chars().alias(col),
+            ]
+        ])

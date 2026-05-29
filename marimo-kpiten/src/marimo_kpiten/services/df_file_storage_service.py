@@ -20,7 +20,7 @@ class DF_META(TypedDict):
     profile_id: int
     table: str
     record_name: str
-    fields: list[str]
+    # fields: list[str]
     df: DataFrame
 
 
@@ -38,8 +38,13 @@ class DFStorageService:
 
     @staticmethod
     def store_df(
-        profile_id: int, table: str, record_name: str, fields: list[str], df: DataFrame
-    ):
+        profile_id: int, table: str, record_name: str, df: DataFrame
+    ):  
+        # TODO: use config as parameter instead of these fields
+        # profile_id = config.id
+        # table = config.model_id._table
+        # record_name = config.model_id._rec_name
+
         Path(f"{data_path}").mkdir(exist_ok=True)
         Path(f"{data_path}/{DFStorageService.df_data_dir_name}/").mkdir(exist_ok=True)
         Path(f"{data_path}/{DFStorageService.df_data_dir_name}/{table}/").mkdir(
@@ -55,7 +60,7 @@ class DFStorageService:
                         "profile_id": profile_id,
                         "table": table,
                         "record_name": record_name,
-                        "fields": fields,
+                        # "fields": fields,
                     }
                 )
             )
@@ -82,7 +87,7 @@ class DFStorageService:
 
                 profile_id = metadata_json["profile_id"]
                 record_name = metadata_json["record_name"]
-                fields = metadata_json["fields"]
+                # fields = metadata_json["fields"]
                 df = pl.read_parquet(
                     f"{data_path}/{DFStorageService.df_data_dir_name}/{table}/{table}.{DFStorageService.parquet_file_ext}"
                 )
@@ -91,7 +96,7 @@ class DFStorageService:
                     "profile_id": profile_id,
                     "table": table,
                     "record_name": record_name,
-                    "fields": fields,
+                    # "fields": fields,
                     "df": df,
                 }
 
