@@ -1,6 +1,6 @@
 import marimo
 import polars
-from marimo_kpiten.services.df_file_storage_service import DFStorageService
+from marimo_kpiten.services.df_file_storage_service import DFStorage
 from odoorpc import ODOO
 
 __generated_with = "0.23.4"
@@ -17,11 +17,11 @@ def navigation(mo):
 def _():
     import marimo as mo
     from pathlib import Path
-    from marimo_kpiten.services.df_file_storage_service import DFStorageService
+    from marimo_kpiten.services.df_file_storage_service import DFStorage
     import json
     import polars as pl
 
-    df_store = DFStorageService()
+    df_store = DFStorage()
 
     # using tables in generated
     table_names = []
@@ -113,7 +113,7 @@ def date_filter(mo: marimo):
 
 
 # @app.cell
-# def company_filter(mo: marimo, df_store: DFStorageService):
+# def company_filter(mo: marimo, df_store: DFStorage):
 #     from marimo_kpiten.services.notebook_state_service import NotebookStateService
 
 #     nb_ss = NotebookStateService()
@@ -216,14 +216,14 @@ def load_kpiten_line(kpiten_config_line_class, mo, no_data_found_callout):
       - retourner un dictionnaire, et s'assurer que les autres fonctionnent gèrent bien le dictionnaire.
     """
     mo.stop(no_data_found_callout)
-    from marimo_kpiten.services.df_file_storage_service import DFStorageService as dfsv
+    from marimo_kpiten.services.df_file_storage_service import DFStorage as dfsv
 
     all_df_metadata = dfsv.retrieve_all_dfs()
     df_wt_list = []
     for meta in all_df_metadata:
         transformations = []
         line_ids = kpiten_config_line_class.search(
-            [("config_id", "=", meta["profile_id"])]
+            [("config_id", "=", kpiten_config_line_class.get_conf_id(meta["table"]))]
         )
         for l_id in line_ids:
             transformations.append(
@@ -242,7 +242,7 @@ def load_kpiten_line(kpiten_config_line_class, mo, no_data_found_callout):
 
 @app.cell
 def compute_kpiten_line(
-    df_store: DFStorageService,
+    df_store: DFStorage,
     df_wt_list,
     json,
     mo: marimo,
