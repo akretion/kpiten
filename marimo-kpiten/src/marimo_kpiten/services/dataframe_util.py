@@ -60,8 +60,12 @@ class Df:
 
     def set_datetime_string2date_columns(self):
         datetime_fields = [
-            x for x in self.fields if self.fields[x].get("type") == "datetime"
+            x
+            for x in self.fields
+            if self.fields[x].get("type") == "datetime"
+            and not self.df[x].is_null().all()
         ]
+        print(datetime_fields)
         self.df = self.df.with_columns(pl.col(datetime_fields).str.to_datetime())
         self.df = self.df.with_columns(pl.col(datetime_fields).cast(pl.Date))
 
@@ -75,7 +79,11 @@ class Df:
 
         Recognized columns: those with _id or _uid suffix
         """
-        id_cols = [col for col in self.df.columns if re.search(r"_(u?id)$", col)]
+        id_cols = [
+            col
+            for col in self.df.columns
+            if re.search(r"_(u?id)$", col) and not self.df[col].is_null().all()
+        ]
         self.df = self.df.with_columns(
             [
                 expr
