@@ -87,7 +87,7 @@ def _(mo: marimo, env: ODOO):  # Affiche les tables initiales
     for name in tables:
         table_data = df_store.retrieve_df(
             name
-        )  # récupère les tables par noms de dossier dans doss generated
+        )  # récupère les tables par noms de dossier dans generated
         if table_data:
             table_name = table_data["table"]
             _df = table_data["df"]
@@ -105,7 +105,9 @@ def no_data_found(mo: marimo, no_data_found_callout):
 
 @app.cell()
 def select_df_to_build(mo: marimo, tables: list[str]):
-    selected_table_name = mo.ui.multiselect(options=tables, max_selections=1)
+    selected_table_name = mo.ui.multiselect(
+        options=tables, max_selections=1, label="Select a table"
+    )
     selected_table_name
     return selected_table_name
 
@@ -114,35 +116,93 @@ def select_df_to_build(mo: marimo, tables: list[str]):
 def display_selected_table(
     mo: marimo, selected_table_name: marimo.ui.multiselect, df_store: DFStorage
 ):
-    display_title = mo.md("# No table selected")
+    from marimo_kpiten.services.notebook_state_service import NotebookStateService
+
+    nb_ss = NotebookStateService()
+
+    page_title = mo.md("# Create KPIs")
+    display_title = mo.md("## No table selected")
     build_df = mo.md("> Select a table to start building KPIs.")
     d = None
     if len(selected_table_name.value) >= 1:
-        from marimo_kpiten.services.notebook_state_service import NotebookStateService
-
-        nb_ss = NotebookStateService()
         nb_ss.store_notebook_state(
             "build", {"selected_table_name": selected_table_name.value[0]}
         )
 
-        sanitized_tbn = selected_table_name.value[0].replace("_", " ").capitalize()
+        sanitized_tbn = selected_table_name.value[0].replace(".", " ").capitalize()
         df_info = df_store.retrieve_df(selected_table_name.value[0])
         if df_info:
-            display_title = mo.md(f"# {sanitized_tbn}")
+            display_title = mo.md(f"## Build Dataframes with **{sanitized_tbn}**")
             d = df_info["df"]
             build_df = mo.ui.dataframe(d)
-    mo.vstack([display_title, build_df])
-    return d
+    mo.vstack([page_title, display_title, build_df])
+    return d, sanitized_tbn
 
 
 @app.cell()
-def build_graph_form(mo: marimo, d: pl.DataFrame):
+def code_input(mo: marimo, d):
+    """
+    code_input
+    ---
+    Affiche la zone de texte appelée "Paste code"
+    """
+    mo.stop(type(d) is type(None))
+    python_text = mo.ui.text_area(label="## Paste code")
+    python_text
+    return python_text
+
+
+@app.cell()
+def save_code_input(mo: marimo, d):
+    """
+    save_code_input
+    ---
+    Affiche le bouton "Save to Kpiten"
+    """
+    mo.stop(type(d) is type(None))
+    save = mo.ui.run_button(label="Save code to Kpiten")
+    save
+    return save
+
+
+@app.cell()
+def store_df_code(
+    mo: marimo,
+    save,
+    python_text,
+    env,
+    selected_table_name: marimo.ui.multiselect,
+):
+    """
+    store_df_code
+    ---
+    Stocke la transformation de dataframe via odoorpc.
+    """
+    mo.stop(
+        not python_text.value or not save.value or len(selected_table_name.value) < 1
+    )
+    storedf_message = f"Successfully stored dataframe. Visit KPI's **{selected_table_name.value[0]}** section to see it !"
+    storedf_kind = "success"
+    if not python_text.value or python_text.value == "":
+        storedf_message = f'Please fill in the "**Paste code**" field with python code from dataframe transformation.'
+        storedf_kind = "warn"
+    record = env["kpiten.config.line"].create_conf_line(
+        selected_table_name.value[0], python_text.value, "data"
+    )
+    if not record:
+        storedf_message = f"An error occured, please try again."
+        storedf_kind = "error"
+    mo.md(storedf_message).callout(kind=storedf_kind)
+
+
+@app.cell()
+def build_graph_form(mo: marimo, d: pl.DataFrame, sanitized_tbn: str):
     from polars import DataFrame
 
     mo.stop(type(d) is type(None))
 
     graph_type_options = ["bar", "point", "area"]
-    column_types = ["quantitative", "temporal", "nominal", "ordinal"]
+    # column_types = ["quantitative", "temporal", "nominal", "ordinal"]
     aggregation_types = ["none", "count", "sum"]
 
     type_of_graph_select = mo.ui.multiselect(
@@ -152,9 +212,9 @@ def build_graph_form(mo: marimo, d: pl.DataFrame):
     column_x_select = mo.ui.multiselect(
         label="X column", options=d.columns, max_selections=1
     )
-    column_x_type_select = mo.ui.multiselect(
-        label="X column specifier", options=column_types, max_selections=1
-    )
+    # column_x_type_select = mo.ui.multiselect(
+    #     label="X column specifier", options=column_types, max_selections=1
+    # )
     column_x_aggregation = mo.ui.multiselect(
         label="X column aggregation",
         options=aggregation_types,
@@ -165,9 +225,9 @@ def build_graph_form(mo: marimo, d: pl.DataFrame):
     column_y_select = mo.ui.multiselect(
         label="Y column", options=d.columns, max_selections=1
     )
-    column_y_type_select = mo.ui.multiselect(
-        label="Y column specifier", options=column_types, max_selections=1
-    )
+    # column_y_type_select = mo.ui.multiselect(
+    #     label="Y column specifier", options=column_types, max_selections=1
+    # )
     column_y_aggregation = mo.ui.multiselect(
         label="Y column aggregation",
         options=aggregation_types,
@@ -181,12 +241,12 @@ def build_graph_form(mo: marimo, d: pl.DataFrame):
         "label": name_input,
         "graph_type": type_of_graph_select,
         "x": {
-            "type": column_x_type_select,
+            # "type": column_x_type_select,
             "name": column_x_select,
             "aggregation": column_x_aggregation,
         },
         "y": {
-            "type": column_y_type_select,
+            # "type": column_y_type_select,
             "name": column_y_select,
             "aggregation": column_y_aggregation,
         },
@@ -194,16 +254,16 @@ def build_graph_form(mo: marimo, d: pl.DataFrame):
 
     mo.vstack(
         [
-            mo.md("## Build a graph"),
+            mo.md(f"## Build a Graph from **{sanitized_tbn}**"),
             name_input,
             type_of_graph_select,
             mo.md("### X Axis"),
-            mo.hstack([column_x_select, column_x_type_select, column_x_aggregation]),
+            mo.hstack([column_x_select, column_x_aggregation]),
             mo.md("### Y Axis"),
-            mo.hstack([column_y_select, column_y_type_select, column_y_aggregation]),
+            mo.hstack([column_y_select, column_y_aggregation]),
             create_button,
         ]
-    ).style({"max-width": "70%"})
+    ).style({"max-width": "50%"})
 
     return form, create_button
 
@@ -227,12 +287,12 @@ def save_graph_form_data(
                 "graph_type": form["graph_type"].value[0],
                 "from": selected_table_name.value[0],
                 "x": {
-                    "type": form["x"]["type"].value[0],
+                    # "type": form["x"]["type"].value[0],
                     "name": form["x"]["name"].value[0],
                     "aggregation": form["x"]["aggregation"].value[0],
                 },
                 "y": {
-                    "type": form["y"]["type"].value[0],
+                    # "type": form["y"]["type"].value[0],
                     "name": form["y"]["name"].value[0],
                     "aggregation": form["y"]["aggregation"].value[0],
                 },
@@ -251,49 +311,3 @@ def save_graph_form_data(
     ).callout(
         kind=callout_kind,
     )
-
-
-@app.cell()
-def code_input(mo: marimo):
-    """
-    code_input
-    ---
-    Affiche la zone de texte appelée "Python Code"
-    """
-    python_text = mo.ui.text_area(label="Python Code")
-    python_text
-    return python_text
-
-
-@app.cell()
-def save_code_input(mo: marimo):
-    """
-    save_code_input
-    ---
-    Affiche le bouton "Save to Kpiten"
-    """
-    save = mo.ui.run_button(label="Save to Kpiten")
-    save
-    return save
-
-
-@app.cell()
-def store_df_code(
-    mo: marimo,
-    save,
-    python_text,
-    env,
-    selected_table_name: marimo.ui.multiselect,
-):
-    """
-    store_df_code
-    ---
-    Stocke la transformation de dataframe via odoorpc.
-    """
-    mo.stop(
-        not python_text.value or not save.value or len(selected_table_name.value) < 1
-    )
-    record = env["kpiten.config.line"].create_conf_line(
-        selected_table_name.value[0], python_text.value, "data"
-    )
-    print(record)

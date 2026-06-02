@@ -55,11 +55,16 @@ def _():
     return df_store, json, mo, pl, no_data_found_callout
 
 
+@app.cell
+def page_title(mo: marimo):
+    mo.md("# KPIs \n> KPIs **you** have created")
+
+
 @app.cell()
 def fallback_page(mo: marimo, exec_context_list):
     mo.stop(len(exec_context_list) >= 1)
     mo.md(
-        "# That's where your transformations will be\n"
+        "## That's where your transformations will be\n"
         "> Make transformations via the `build` page, then go right back here."
     )
 
@@ -112,30 +117,30 @@ def date_filter(mo: marimo):
     return date_select
 
 
-# @app.cell
-# def company_filter(mo: marimo, df_store: DFStorage):
-#     from marimo_kpiten.services.notebook_state_service import NotebookStateService
+@app.cell
+def company_filter(mo: marimo, df_store: DFStorage):
+    from marimo_kpiten.services.notebook_state_service import NotebookStateService
 
-#     nb_ss = NotebookStateService()
-#     company_select = None
+    nb_ss = NotebookStateService()
+    company_select = None
 
-#     build_nbs = nb_ss.retrieve_notebook_state("build")
-#     if build_nbs:
-#         selected_table_name = build_nbs["selected_table_name"]
+    build_nbs = nb_ss.retrieve_notebook_state("build")
+    if build_nbs:
+        selected_table_name = build_nbs["selected_table_name"]
 
-#         selected_df = df_store.retrieve_df(selected_table_name)["df"]
-#         companies = selected_df.select("company_id").to_series().to_list()
-#         unique_companies = set(companies)
+        selected_df = df_store.retrieve_df(selected_table_name)["df"]
+        companies = selected_df.select("company_id").to_series().to_list()
+        unique_companies = set(companies)
 
-#         company_select = mo.ui.multiselect(
-#             label="Company",
-#             options=["All", *unique_companies],
-#             max_selections=1,
-#             value=["All"],
-#         )
+        company_select = mo.ui.multiselect(
+            label="Company",
+            options=["All", *unique_companies],
+            max_selections=1,
+            value=["All"],
+        )
 
-#     company_select  # if an error occurs, it just silently doesn't display since it's None
-#     return company_select
+    company_select  # if an error occurs, it just silently doesn't display since it's None
+    return company_select
 
 
 @app.cell
@@ -143,59 +148,63 @@ def compute_date_predicate(mo: marimo, pl: polars, date_select: marimo.ui.multis
     mo.stop(not date_select.value[0])
     from datetime import timedelta, datetime
 
-    predicates: list[bool] = []
+    date_predicates: list[bool] = []
     time_column = (
         "create_date"  # create_date happens to have distinct values, better for testing
     )
     match date_select.value[0]:
         case "today only":
-            predicates.append(pl.col(time_column) >= datetime.now())
+            date_predicates.append(pl.col(time_column) >= datetime.now())
         case "last week":
-            predicates.append(pl.col(time_column) >= datetime.now() - timedelta(days=7))
+            date_predicates.append(
+                pl.col(time_column) >= datetime.now() - timedelta(days=7)
+            )
         case "last 30 days":
-            predicates.append(
+            date_predicates.append(
                 pl.col(time_column) >= datetime.now() - timedelta(days=30)
             )
         case "last 90 days":
-            predicates.append(
+            date_predicates.append(
                 pl.col(time_column) >= datetime.now() - timedelta(days=90)
             )
         case "last 6 months":
-            predicates.append(
+            date_predicates.append(
                 pl.col(time_column) >= datetime.now() - timedelta(days=31 * 6)
             )
         case "last year":
-            predicates.append(
+            date_predicates.append(
                 pl.col(time_column) >= datetime.now() - timedelta(days=365)
             )
         case _:
-            predicates.append(
+            date_predicates.append(
                 pl.col(time_column) >= datetime.now() - timedelta(days=30)
             )
-    return predicates
+    return date_predicates
 
 
-# @app.cell
-# def compute_company_predicate(
-#     mo: marimo,
-#     pl: polars,
-#     predicates: list[bool],
-#     company_select: marimo.ui.multiselect,
-#     env: ODOO,
-# ):
-#     mo.stop(not company_select.value[0] or company_select.value[0] == "All")
-#     company_id = env["res.company"].search([("name", "=", company_select.value[0])])
-#     if len(company_id) >= 1:
-#         predicates.append(pl.col("company_id") == company_id[0])
+@app.cell
+def compute_company_predicate(
+    mo: marimo,
+    pl: polars,
+    company_select: marimo.ui.multiselect,
+    env: ODOO,
+):
+    mo.stop(not company_select.value[0])
+    company_predicates = []
+    company_exists = (
+        len(env["res.company"].search([("name", "=", company_select.value[0])])) >= 1
+    )
+    if company_exists:
+        company_predicates.append(pl.col("company_id") == company_select.value[0])
+    elif company_select.value[0] == "All":
+        company_predicates.append(pl.col("company_id") == pl.col("company_id"))
+    return company_predicates
 
-#     company_predicates = predicates
-#     return company_predicates
 
-
-# @app.cell
-# def full_predicates(date_predicates: list[bool], company_predicates: list[bool]):
-#     full_predicates = [*date_predicates, *company_predicates]
-#     return full_predicates
+@app.cell
+def full_predicates(date_predicates: list[bool], company_predicates: list[bool]):
+    full_predicates = [*date_predicates, *company_predicates]
+    return full_predicates
 
 
 @app.cell
@@ -247,7 +256,7 @@ def compute_kpiten_line(
     json,
     mo: marimo,
     pl: polars,
-    predicates: list[bool],
+    full_predicates: list[bool],
 ):
     """
     compute_kpiten_line
@@ -272,16 +281,15 @@ def compute_kpiten_line(
             editor = None
 
             if transform["kind"] == "data":
-                # these transforms are relevant only for kind=code
+                # these transforms are relevant only for kind=data
                 first_line = transform["content"].partition("\n")[0]
                 df_like = first_line.split(" ")[2]
                 df_next_like = first_line.split(" ")[0]
                 editor = mo.ui.code_editor(transform["content"])
-
                 exec_context_list.append(
                     {
                         "context_type": "data",
-                        "df": used_df,
+                        "df": used_df.filter(full_predicates),
                         "label": used_df_label,
                         "editor": editor,
                         "df_like": df_like,
@@ -289,8 +297,7 @@ def compute_kpiten_line(
                     }
                 )
             else:
-                import altair as alt
-                from marimo_kpiten.utils.graph_utils import ENCODING_DICT
+                import plotly.express as px
 
                 graph_json = json.loads(transform["content"])
                 CX = graph_json["x"]
@@ -299,18 +306,19 @@ def compute_kpiten_line(
                 Y_AGG = CY["aggregation"]
 
                 source = None
-                chart = None
+                fig = None
 
-                if type(CX) == dict:
-                    CX = alt.X(f"{CX['name']}:{ENCODING_DICT[CX['type']]}", sort="-y")
+                # ALTAIR
+                # if type(CX) == dict:
+                #     CX = alt.X(f"{CX['name']}:{ENCODING_DICT[CX['type']]}", sort="-y")
 
-                if type(CY) == dict:
-                    CY = alt.Y(f"{CY['name']}:{ENCODING_DICT[CY['type']]}")
+                # if type(CY) == dict:
+                #     CY = alt.Y(f"{CY['name']}:{ENCODING_DICT[CY['type']]}")
 
                 source = (
                     df_store.retrieve_df(graph_json["from"])["df"]
                     .limit(500)
-                    .filter(predicates)
+                    .filter(full_predicates)
                 )
 
                 match X_AGG:
@@ -337,43 +345,55 @@ def compute_kpiten_line(
                     case _:
                         source = source
 
-                source = source.to_pandas()
+                # source = source.to_pandas()
+                x_label = CX["name"].replace("_", " ").capitalize()
+                y_label = CY["name"].replace("_", " ").capitalize()
+                labels = {
+                    CX["name"]: x_label,
+                    CY["name"]: y_label,
+                }
+                width = 800
+                height = 900
 
                 match graph_json["graph_type"]:
                     case "bar":
-                        chart = (
-                            alt.Chart(source)
-                            .mark_bar()
-                            .encode(
-                                x=CX,
-                                y=CY,
-                            )
-                            .interactive()
+                        fig = px.bar(
+                            source,
+                            x=CX["name"],
+                            y=CY["name"],
+                            labels=labels,
+                            width=width,
+                            height=height,
                         )
                     case "point":
-                        chart = (
-                            alt.Chart(source)
-                            .mark_point()
-                            .encode(x=CX, y=CY)
-                            .interactive()
+                        fig = px.scatter(
+                            source,
+                            x=CX["name"],
+                            y=CY["name"],
+                            labels=labels,
+                            width=width,
+                            height=height,
                         )
                     case "area":
-                        chart = (
-                            alt.Chart(source)
-                            .mark_area()
-                            .encode(x=CX, y=CY)
-                            .interactive()
+                        fig = px.area(
+                            source,
+                            x=CX["name"],
+                            y=CY["name"],
+                            labels=labels,
+                            width=width,
+                            height=height,
                         )
-
                     case _:
-                        chart = (
-                            alt.Chart(source)
-                            .mark_bar()
-                            .encode(x=CX, y=CY)
-                            .interactive()
+                        fig = px.bar(
+                            source,
+                            x=CX["name"],
+                            y=CY["name"],
+                            labels=labels,
+                            width=width,
+                            height=height,
                         )
                 label = graph_json["label"]
-                graph = mo.ui.altair_chart(chart=chart)
+                graph = mo.ui.plotly(figure=fig)
                 exec_context_list.append(
                     {"context_type": "graph", "label": label, "graph": graph}
                 )

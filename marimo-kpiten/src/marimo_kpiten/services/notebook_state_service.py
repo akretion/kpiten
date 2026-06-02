@@ -7,7 +7,7 @@ data_path = env_.get("DATA_PATH") or "../generated"
 
 class NotebookStateService:
     """
-    By choice, data will be stored in simple files that bear the name of what they store
+    By choice, data will be stored in simple files that bare the name of what they store
     e.g, currently selected table in build.py should be stored in build/table_name.txt, and the
     contents of build/table_name.txt would only be the selected table name.
     While it does multiply the amount of files created, it also diminishes rewrites,
