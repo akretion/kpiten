@@ -10,7 +10,7 @@ class Df:
         self.decimal_truncate = decimal_truncate
 
     def get_df(self):
-        self.remove_empty_columns()
+        # self.remove_empty_columns()
         self.set_datetime_string2date_columns()
         self.split_many2one_result()
         if self.decimal_truncate:
