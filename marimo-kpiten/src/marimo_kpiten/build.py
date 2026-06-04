@@ -116,16 +116,16 @@ def select_df_to_build(mo: marimo, tables: list[str]):
 def display_selected_table(
     mo: marimo, selected_table_name: marimo.ui.multiselect, df_store: DFStorage
 ):
-    from marimo_kpiten.services.notebook_state_service import NotebookStateService
+    from marimo_kpiten.services.file_state import FileState
 
-    nb_ss = NotebookStateService()
+    nb_ss = FileState()
 
     page_title = mo.md("# Create KPIs")
     display_title = mo.md("## No table selected")
     build_df = mo.md("> Select a table to start building KPIs.")
     d = None
     if len(selected_table_name.value) >= 1:
-        nb_ss.store_notebook_state(
+        nb_ss.store_state(
             "build", {"selected_table_name": selected_table_name.value[0]}
         )
 

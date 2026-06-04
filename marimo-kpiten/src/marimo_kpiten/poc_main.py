@@ -1,7 +1,9 @@
 from fastapi import FastAPI, APIRouter
+from fastapi.responses import RedirectResponse
 from marimo_kpiten.services.df_file_storage_service import DFStorage
 from marimo_kpiten.services.env_reader import EnvReader
 from marimo_kpiten.services.dataframe_util import Df
+from marimo_kpiten.services.file_state import FileState
 from werkzeug.utils import redirect
 from urllib.error import URLError
 from odoorpc.error import RPCError
@@ -10,7 +12,6 @@ import polars as pl
 import marimo as mo
 import odoorpc
 import logging
-import json
 
 logger = logging.getLogger(__name__)
 app = FastAPI()
@@ -40,7 +41,19 @@ router = APIRouter()
 
 
 @router.get("/")
-def handle_models():
+def root():
+    return {"message": "server is running. visit /login w/ an id to use the website"}
+
+
+# TODO : NAVIGATE TO IT USING ODOO THEN CHANGE THIS TO POST
+@router.get("/login")
+def login(id: int):
+    FileState.store_state(state_type="state", data={"user_id": str(id)})
+    return RedirectResponse("/df_process", status_code=303)
+
+
+@router.get("/df_process")
+def build_global_dfs():
     config_ids = env["kpiten.config"].search([])
     for conf in env["kpiten.config"].browse(config_ids):
         model = conf.model_id.model
@@ -53,7 +66,7 @@ def handle_models():
         transfo = Df(df, fields_metadata, decimal_truncate=int(decimal))
         df = transfo.get_df()
         df_store.store_df(model, df)
-        # df_store.store_df(conf.id, model, env["kpiten"].kpi_rec_name(model), df)
+    return RedirectResponse("/build", status_code=303)
 
 
 marimo_server = (

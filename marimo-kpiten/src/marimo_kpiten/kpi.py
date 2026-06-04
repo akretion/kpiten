@@ -119,9 +119,9 @@ def date_filter(mo: marimo):
 
 @app.cell
 def company_filter(mo: marimo, df_store: DFStorage):
-    from marimo_kpiten.services.notebook_state_service import NotebookStateService
+    from marimo_kpiten.services.file_state import FileState
 
-    nb_ss = NotebookStateService()
+    nb_ss = FileState()
     company_select = None
 
     build_nbs = nb_ss.retrieve_notebook_state("build")
@@ -208,21 +208,12 @@ def full_predicates(date_predicates: list[bool], company_predicates: list[bool])
 
 
 @app.cell
-def load_kpiten_line(kpiten_config_line_class, mo, no_data_found_callout):
+def load_kpiten_line(kpiten_config_line_class, mo: marimo, no_data_found_callout):
     """
     load_kpiten_line
     ---
     - Récupères la première ligne dans kpiten.config.line via odoorpc et prend la transformation
     - Retourne la transformation et la table qui lui correspond (ici Sales Order, hardcodé)
-
-    TODO
-    - Faire en sorte que la récupération de la ligne ne soit plus hardcodée.
-    > Envisageable de récupérer la dernière à chaque fois grâce à odoorpc et de la logique python (e.g plus grand id)
-    - Flow pour récupérer toutes les lignes :
-      - boucle qui itère sur chaque ids récupérés par le search
-      - récupérer l'id de la config et faire une jointure ON config_id pour trouver le nom exact du profil
-      - utiliser le nom pour récupérer la DF correspondante avec .retrieve_df
-      - retourner un dictionnaire, et s'assurer que les autres fonctionnent gèrent bien le dictionnaire.
     """
     mo.stop(no_data_found_callout)
     from marimo_kpiten.services.df_file_storage_service import DFStorage as dfsv
@@ -235,11 +226,21 @@ def load_kpiten_line(kpiten_config_line_class, mo, no_data_found_callout):
             [("config_id", "=", kpiten_config_line_class.get_conf_id(meta["table"]))]
         )
         for l_id in line_ids:
+
+            def delete_this_transformation(arg):
+                kpiten_config_line_class.browse(l_id).unlink()
+                mo.output.append(
+                    mo.md(
+                        "✅ Successfully **deleted** record. **Refresh the page** to see the effect"
+                    )
+                )
+
             transformations.append(
                 {
                     "config_id": kpiten_config_line_class.browse(l_id).config_id.id,
                     "content": kpiten_config_line_class.browse(l_id).definition,
                     "kind": kpiten_config_line_class.browse(l_id).kind,
+                    "delete_this": delete_this_transformation,
                 }
             )
 
@@ -261,15 +262,9 @@ def compute_kpiten_line(
     """
     compute_kpiten_line
     ---
-    - Crée un élément Marimo d'édition de code Python (mo.ui.code_editor)
+    - Crée des éléments Marimo d'édition de code Python (mo.ui.code_editor)
     - Récupère les noms de variables impliquées dans les transformations (df, df_next)
     - Retourne les infos créées plus la dataframe pour que exec_kpiten_line/n'importe quelle autre cellule puisse l'utiliser
-
-    TODO
-    - maintenir la fonction pour qu'elle puisse gérer ce que `load_kpiten_line` retournera après modifs.
-      - elle doit donc faire une boucle sur la donnée itérable envoyée et pour chacune d'entre elle crééer un
-      scope valide (donc df_next_like et df_like) qui correspond bien aux données récupérées dans kpiten.config.line
-      - renvoyer une structure qui contient les scopes, les dataframes et les editors pour chaque transformations
     """
     mo.stop((not df_wt_list) or (len(df_wt_list) < 1))
 
@@ -278,6 +273,7 @@ def compute_kpiten_line(
         for transform in df_wt["transformations"]:
             used_df = df_wt["df_meta"]["df"]
             used_df_label = df_wt["df_meta"]["table"]
+            del_action = transform["delete_this"]
             editor = None
 
             if transform["kind"] == "data":
@@ -286,6 +282,9 @@ def compute_kpiten_line(
                 df_like = first_line.split(" ")[2]
                 df_next_like = first_line.split(" ")[0]
                 editor = mo.ui.code_editor(transform["content"])
+                delete_button = mo.ui.button(
+                    kind="danger", label="Suppr.", on_click=del_action
+                )
                 exec_context_list.append(
                     {
                         "context_type": "data",
@@ -294,6 +293,7 @@ def compute_kpiten_line(
                         "editor": editor,
                         "df_like": df_like,
                         "df_next_like": df_next_like,
+                        "delete_button": delete_button,
                     }
                 )
             else:
@@ -394,31 +394,26 @@ def compute_kpiten_line(
                         )
                 label = graph_json["label"]
                 graph = mo.ui.plotly(figure=fig)
+                delete_button = mo.ui.button(
+                    kind="danger", label="Suppr.", on_click=del_action
+                )
                 exec_context_list.append(
-                    {"context_type": "graph", "label": label, "graph": graph}
+                    {
+                        "context_type": "graph",
+                        "label": label,
+                        "graph": graph,
+                        "delete_button": delete_button,
+                    }
                 )
     return (exec_context_list,)
 
 
 @app.cell
-def exec_kpiten_line(exec_context_list, mo, pl: polars):
+def exec_kpiten_lines(exec_context_list, mo, pl: polars):
     """
-    exec_kpiten_line
+    exec_kpiten_lines
     ---
-    Affiche la table avec la transformation récupérée depuis Odoo
-
-    TODO
-    - Faire en sorte que cette fonction accepte ce que compute_kpiten_line renvoie, donc :
-      - faire une boucle qui fait la même chose qu'en dessous avec les variables d'itérations
-      - il faut en plus que cette boucle construise une liste de `scope[df_next_like]` (donc de dataframes)
-      - la liste doit être "appelée" à la fin, comme pour tout ce qu'on veut afficher dans marimo ->
-      si la liste s'appelle "scope[df]" :
-
-      ```python
-      def _():
-        ...
-        scope[df] # doit être dernier.
-      ```
+    Affiche les transformation récupérées depuis Odoo
     """
     mo.stop(not exec_context_list)
     mo.stop(len(exec_context_list) < 1)
@@ -438,13 +433,24 @@ def exec_kpiten_line(exec_context_list, mo, pl: polars):
         for ctx in ordered[k]:
             match ctx["context_type"]:
                 case "data":
-                    scope = {ctx["df_like"]: ctx["df"], "pl": pl}
+                    scope = {
+                        ctx["df_like"]: ctx["df"],
+                        "pl": pl,
+                        "delete_button": ctx["delete_button"],
+                    }
                     exec(ctx["editor"].value, scope)
-                    sub_transfo_list.append(
-                        scope[ctx["df_next_like"]],
+                    df_ui = mo.vstack(
+                        [scope[ctx["df_next_like"]], ctx["delete_button"]]
                     )
+                    sub_transfo_list.append(df_ui)
                 case "graph":
-                    graph_ui = mo.vstack([mo.md(f"## {ctx['label']}"), ctx["graph"]])
+                    graph_ui = mo.vstack(
+                        [
+                            mo.md(f"## {ctx['label']}"),
+                            ctx["graph"],
+                            ctx["delete_button"],
+                        ]
+                    )
                     sub_transfo_list.append(graph_ui)
                 case _:
                     scope = {ctx["df_like"]: ctx["df"], "pl": pl}
