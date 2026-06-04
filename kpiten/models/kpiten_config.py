@@ -53,69 +53,6 @@ class KpitenConfig(models.Model):
             res = res.filtered(lambda s: s.name not in useless_fields)
         return res
 
-    # TODO remove
-    @api.model
-    def read_config(self):
-        # TO DO : avoid building profiles by reassignment
-        # in nested loop (cannot find better solution after reflexion)
-        kpiten_profiles = []
-
-        profile_name = None
-        profile_id = None
-        main_model = None
-        main_model_fields = []
-        model_list = []  # optional, can turn out empty
-
-        for profile in self.search([]):
-            profile_name = profile.name
-            profile_id = profile.id
-            main_model = profile.model_id
-            model_list = []
-            main_model_fields = self.get_stored_fields(
-                self.env.user.id, profile.model_id.model
-            )
-            main_model_fields = [x.name for x in main_model_fields]
-
-            # Parsing optional model list
-            for model in profile.model_ids:
-                model_fields = [
-                    x.name
-                    for x in self.get_stored_fields(self.env.user.id, model.model)
-                ]
-                all_fields = [
-                    x.name for x in self.get_stored_fields(SUPERUSER_ID, model.model)
-                ]
-
-                model_list.append(
-                    {
-                        "name": model.name,
-                        "table": self.env[model.model]._table,
-                        "record_name": model._rec_name,
-                        "fields": model_fields,
-                        "all_fields": all_fields,
-                    }
-                )
-
-            kpiten_profiles.append(
-                {
-                    "name": profile_name,
-                    "main_model": self.env[main_model.model]._table,
-                    "main_record_name": main_model._rec_name,
-                    "main_model_fields": main_model_fields,
-                    "models": model_list,
-                    "profile_id": profile_id,
-                }
-            )
-
-        print(f"""
-        LEN OF KPITEN PROFILES : {len(kpiten_profiles)},\n
-        KPITEN_PROFILES : \n
-        -----------
-        {kpiten_profiles}\n
-        -----------
-        """)
-        return json.dumps(kpiten_profiles)
-
 
 class KpitenConfigLine(models.Model):
     _name = "kpiten.config.line"
@@ -125,8 +62,32 @@ class KpitenConfigLine(models.Model):
     definition = fields.Text(required=True, help="Store settings for kpi")
     group_ids = fields.Many2many(comodel_name="res.groups")
     kind = fields.Selection(
-        selection=[("data", "Data"), ("graph", "Graph")],
+        selection=[("data", "Data"), ("graph", "Graph"), ("ban", "BAN")],
         default="data",
         help="Representation type",
     )
     active = fields.Boolean(default=True)
+
+    @api.model
+    def get_conf_id(self, model):
+        model_id = self.env["ir.model"].search([("model", "=", model)])
+        if len(model_id) >= 1:
+            return (
+                self.env["kpiten.config.line"]
+                .config_id.search([("model_id", "=", model_id.id)])
+                .id
+            )
+
+    @api.model
+    def create_conf_line(self, model, definition: str, kind: str):
+        res = self.env["kpiten.config.line"].create(
+            {
+                "config_id": self.get_conf_id(model),
+                "definition": definition,
+                "kind": kind,
+            }
+        )
+        if res:
+            return True
+        else:
+            return False

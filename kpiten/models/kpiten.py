@@ -125,7 +125,7 @@ class Kpiten(models.Model):
     def get_fields_metadata(self, model: str) -> dict:
         model_obj = self.env[model]
         fields = {}
-        for field in self.env['ir.model.fields'].search([('model', '=', model)]):
+        for field in self.env["ir.model.fields"].search([("model", "=", model)]):
             if field.name not in self._get_model_direct_fields(model):
                 continue
             fields[field.name] = {
