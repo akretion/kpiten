@@ -1,5 +1,6 @@
 import marimo
 import polars
+import json
 from marimo_kpiten.services.df_file_storage_service import DFStorage
 from odoorpc import ODOO
 
@@ -38,20 +39,6 @@ def _():
             + "then `/build` to verify if any tables exist. Then, you can create transformations, "
             + "and they'll be here !"
         ).callout("warn")
-
-    # for name in table_names:
-    #     if name != "notebook_state":
-    #         df_info = df_store.retrieve_df(name)
-    #         if df_info:
-    #             df_name = df_info["table"]
-    #             df_data = df_info["df"]
-    #             vs = mo.vstack(
-    #                 [
-    #                     mo.md(f'# {df_name.replace("_", " ").capitalize()}'),
-    #                     mo.md("---"),
-    #                     mo.ui.dataframe(df_data),
-    #                 ]
-    #             )
     return df_store, json, mo, pl, no_data_found_callout
 
 
@@ -112,8 +99,6 @@ def date_filter(mo: marimo):
     date_select = mo.ui.multiselect(
         label="Time period", options=date_options, max_selections=1, value=["last year"]
     )
-
-    date_select
     return date_select
 
 
@@ -138,14 +123,17 @@ def company_filter(mo: marimo, df_store: DFStorage):
             max_selections=1,
             value=["All"],
         )
-
-    company_select  # if an error occurs, it just silently doesn't display since it's None
     return company_select
 
 
 @app.cell
+def display_filters(mo: marimo, company_select, date_select):
+    mo.hstack([company_select, date_select], justify="start")
+
+
+@app.cell
 def compute_date_predicate(mo: marimo, pl: polars, date_select: marimo.ui.multiselect):
-    mo.stop(not date_select.value[0])
+    mo.stop(not date_select.value)
     from datetime import timedelta, datetime
 
     date_predicates: list[bool] = []
@@ -205,6 +193,17 @@ def compute_company_predicate(
 def full_predicates(date_predicates: list[bool], company_predicates: list[bool]):
     full_predicates = [*date_predicates, *company_predicates]
     return full_predicates
+
+
+@app.cell
+def display_ban(exec_context_list, mo: marimo, full_predicates: list[bool]):
+    mo.stop(len(full_predicates) < 1)
+    bans = [
+        mo.stat(label=ban_ctx["label"], value=ban_ctx["BAN"], bordered=True)
+        for ban_ctx in exec_context_list
+        if ban_ctx["context_type"] == "ban"
+    ]
+    mo.hstack(bans, wrap=True)
 
 
 @app.cell
@@ -277,7 +276,7 @@ def compute_kpiten_line(
             editor = None
 
             if transform["kind"] == "data":
-                # these transforms are relevant only for kind=data
+                # this process is only relevant for kind=data
                 first_line = transform["content"].partition("\n")[0]
                 df_like = first_line.split(" ")[2]
                 df_next_like = first_line.split(" ")[0]
@@ -294,6 +293,21 @@ def compute_kpiten_line(
                         "df_like": df_like,
                         "df_next_like": df_next_like,
                         "delete_button": delete_button,
+                    }
+                )
+            elif transform["kind"] == "ban":
+                BAN_json = json.loads(transform["content"])
+                result_df = used_df.filter(full_predicates).sql(BAN_json["BAN_query"])
+                BAN = result_df.to_dict()[BAN_json["column_alias"]]
+                if len(BAN) > 0:
+                    BAN = BAN[0]
+                else:
+                    mo.stop(True)
+                exec_context_list.append(
+                    {
+                        "context_type": "ban",
+                        "label": BAN_json["BAN_name"],
+                        "BAN": BAN,
                     }
                 )
             else:
@@ -352,8 +366,8 @@ def compute_kpiten_line(
                     CX["name"]: x_label,
                     CY["name"]: y_label,
                 }
-                width = 800
-                height = 900
+                width = 600
+                height = 700
 
                 match graph_json["graph_type"]:
                     case "bar":
@@ -409,7 +423,7 @@ def compute_kpiten_line(
 
 
 @app.cell
-def exec_kpiten_lines(exec_context_list, mo, pl: polars):
+def exec_kpiten_lines(exec_context_list, mo: marimo, pl: polars):
     """
     exec_kpiten_lines
     ---
@@ -422,10 +436,12 @@ def exec_kpiten_lines(exec_context_list, mo, pl: polars):
     to_display = []
 
     for c in exec_context_list:
-        ordered[c["label"]] = []
+        if c["context_type"] is not "ban":
+            ordered[c["label"]] = []
 
     for c in exec_context_list:
-        ordered[c["label"]].append(c)
+        if c["context_type"] is not "ban":
+            ordered[c["label"]].append(c)
 
     for k in ordered.keys():
         sub_transfo_list = []
@@ -452,6 +468,11 @@ def exec_kpiten_lines(exec_context_list, mo, pl: polars):
                         ]
                     )
                     sub_transfo_list.append(graph_ui)
+                case "ban":
+                    continue
+                    # displayed at the top of KPI, so it's not handled here
+                    # but must be spelled out as a case so it doesn't go into
+                    # the default one.
                 case _:
                     scope = {ctx["df_like"]: ctx["df"], "pl": pl}
                     exec(ctx["editor"].value, scope)
@@ -459,7 +480,7 @@ def exec_kpiten_lines(exec_context_list, mo, pl: polars):
                         scope[ctx["df_next_like"]],
                     )
         to_display.append(sub_transfo_list)
-    to_display
+    mo.hstack(to_display, wrap=True)
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ import marimo
 from marimo_kpiten.services.df_file_storage_service import DFStorage
 import polars as pl
 from odoorpc import ODOO
+import json
 
 __generated_with = "0.22.5"
 app = marimo.App(width="medium")
@@ -40,13 +41,18 @@ def get_kpiten_config_line_class(env):
     return kpiten_config_line_class
 
 
+@app.cell
+def get_json():
+    import json
+
+
 @app.cell()
 def navigation(mo: marimo):
     mo.nav_menu({"/build": "Create", "/kpi": "KPI"})
 
 
 @app.cell(hide_code=True)
-def _(mo: marimo, env: ODOO):  # Affiche les tables initiales
+def _(mo: marimo):  # Affiche les tables initiales
     """
     _
     ---
@@ -78,7 +84,7 @@ def _(mo: marimo, env: ODOO):  # Affiche les tables initiales
             tables.append(file.name)
     except FileNotFoundError as FNFE:
         no_data_found_callout = mo.callout(
-            "There isn't any data to work on. Try visiting / and going back here!",
+            "There isn't any data to work on. Try visiting /login !",
             kind="warn",
         )
 
@@ -126,7 +132,8 @@ def display_selected_table(
     d = None
     if len(selected_table_name.value) >= 1:
         nb_ss.store_state(
-            "build", {"selected_table_name": selected_table_name.value[0]}
+            module_name="build",
+            data={"selected_table_name": selected_table_name.value[0]},
         )
 
         sanitized_tbn = selected_table_name.value[0].replace(".", " ").capitalize()
@@ -197,8 +204,6 @@ def store_df_code(
 
 @app.cell()
 def build_graph_form(mo: marimo, d: pl.DataFrame, sanitized_tbn: str):
-    from polars import DataFrame
-
     mo.stop(type(d) is type(None))
 
     graph_type_options = ["bar", "point", "area"]
@@ -275,9 +280,9 @@ def save_graph_form_data(
     create_button: marimo.ui.run_button,
     kpiten_config_line_class,
     selected_table_name,
+    json: json,
 ):
     mo.stop(not create_button.value)
-    import json
 
     form_record = kpiten_config_line_class.create_conf_line(
         selected_table_name.value[0],
@@ -308,6 +313,64 @@ def save_graph_form_data(
 
     mo.md(
         message,
-    ).callout(
-        kind=callout_kind,
+    ).callout(kind=callout_kind)
+
+
+@app.cell
+def build_BAN(mo: marimo, sanitized_tbn: str, d: pl.DataFrame):
+    # BAN -> Big Ass Number, terme réellement utilisé pour parler des cartes de KPI avec des
+    # Chiffres ou des infos dessus.
+    mo.stop(type(d) is type(None))
+    ban_cell_title = mo.md(f"## Build a BAN (*KPI card*) from **{sanitized_tbn}**")
+    ban_cell_desc = mo.md(
+        "> You provide an SQL query that generates an interesting number / short "
+        "information about your company, and the result will be displayed as a "
+        "KPI Card in the `KPI` section."
     )
+    BAN_name = mo.ui.text(placeholder="BAN name")
+    BAN_col_alias = mo.ui.text(
+        label="alias", placeholder="alias of column that holds your data"
+    )
+    BAN_sql = mo.ui.code_editor(placeholder="Your SQL query", language="sql")
+    save_BAN_btn = mo.ui.run_button(kind="neutral", label="Save BAN")
+
+    mo.vstack(
+        [ban_cell_title, ban_cell_desc, BAN_name, BAN_sql, BAN_col_alias, save_BAN_btn]
+    )
+
+    return (BAN_name, BAN_sql, BAN_col_alias)
+
+
+@app.cell
+def save_BAN(
+    mo: marimo,
+    BAN_name: marimo.ui.text,
+    BAN_col_alias: marimo.ui.text,
+    BAN_sql: marimo.ui.text_area,
+    sanitized_tbn: str,
+    save_BAN_btn: marimo.ui.run_button,
+    selected_table_name: marimo.ui.multiselect,
+    kpiten_config_line_class,
+    json: json,
+):
+    mo.stop(not save_BAN_btn.value)
+
+    BAN_record = kpiten_config_line_class.create_conf_line(
+        selected_table_name.value[0],
+        json.dumps(
+            {
+                "BAN_name": BAN_name.value,
+                "BAN_query": BAN_sql.value,
+                "from": selected_table_name.value[0],
+                "column_alias": BAN_col_alias.value,
+            }
+        ),
+        "ban",
+    )
+
+    save_BAN_message = f"Successfully stored BAN. Visit the **{sanitized_tbn}** section in `KPI` to see it !"
+    save_BAN_kind = "success"
+    if not BAN_record:
+        save_BAN_message = "Couldn't store BAN, please try again later."
+        save_BAN_kind = "error"
+    mo.md(save_BAN_message).callout(kind=save_BAN_kind)

@@ -42,6 +42,10 @@ router = APIRouter()
 
 @router.get("/")
 def root():
+    res = env["kpiten"].get_record_vals(
+        "sale.order", [], FileState.retrieve_state("user_id")
+    )
+    print(res)
     return {"message": "server is running. visit /login w/ an id to use the website"}
 
 
@@ -59,7 +63,7 @@ def build_global_dfs():
         model = conf.model_id.model
         print("Model is", model)
         # user id 2 have most of the grants
-        records = env["kpiten"].get_record_vals(model, [], 2, limit=100)
+        records = env["kpiten"].get_record_vals(model, [], 2, limit=200)
         df = pl.DataFrame(records, strict=False, infer_schema_length=None)
         decimal = env_.get("DECIMAL_TRUNCATE") or 0
         fields_metadata = env["kpiten"].get_fields_metadata(model)
