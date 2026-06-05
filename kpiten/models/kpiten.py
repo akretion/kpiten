@@ -18,6 +18,15 @@ class Kpiten(models.Model):
         # Allow to expose _rec_name to rpc
         return self.env[model]._rec_name
 
+    @api.model
+    def get_allowed_fields(self, model: str, allowed_uid: int) -> list[str]:
+        stored_fields = self.env["ir.model.fields"].search(
+            [("model", "=", model), ("store", "=", True)]
+        )
+        user_fields = self.env[model].with_user(allowed_uid)._fields
+
+        return [field for field in user_fields if field in stored_fields]
+
     def _get_useless_fields(self):
         """return Dict of list
          - keys are models
