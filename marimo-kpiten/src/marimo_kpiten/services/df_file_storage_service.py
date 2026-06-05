@@ -1,10 +1,11 @@
 import polars as pl
-import json
 import logging
 import pathlib
 from pathlib import Path
 from polars import DataFrame
 from marimo_kpiten.services.env_reader import EnvReader
+from marimo_kpiten.services.RPC import RPC
+from marimo_kpiten.services.file_state import FileState
 from typing import TypedDict
 
 """
@@ -34,6 +35,23 @@ class DFStorage:
     parquet_file_ext = "parquet"
 
     @staticmethod
+    def _filter_not_found_columns(
+        df: DataFrame, name: str, columns: list[str], verbose=False
+    ):
+        not_found = []
+        for c in columns:
+            try:
+                res = df.select(c)
+            except pl.exceptions.ColumnNotFoundError as CNF:
+                not_found.append(c)
+        if verbose:
+            if len(not_found) > 0:
+                logger.warning(f"Those columns were not found in {name} : {not_found}")
+            else:
+                logger.warning(f"[{name}] : every column was found.")
+        return not_found
+
+    @staticmethod
     def store_df(table: str, df: DataFrame):
         Path(f"{data_path}").mkdir(exist_ok=True)
         Path(f"{data_path}/{DFStorage.df_data_dir_name}/").mkdir(exist_ok=True)
@@ -50,15 +68,23 @@ class DFStorage:
         RETURNS: tuple(profile_id, table_name, record_name, fields, DataFrame)
         """
         if table == "notebook_state":
-            print("that's the notebooks state, early return")
             return None
+
+        curr_uid = int(FileState.retrieve_state("user_id"))
+        allowed_fields = RPC().env["kpiten"].get_allowed_fields(table, curr_uid)
         try:
             df = pl.read_parquet(
                 f"{data_path}/{DFStorage.df_data_dir_name}/{table}/{table}.{DFStorage.parquet_file_ext}"
             )
+            not_found = DFStorage._filter_not_found_columns(
+                df, table, allowed_fields, True
+            )
+            existing_fields = [
+                field for field in allowed_fields if field not in not_found
+            ]
             return {
                 "table": table,
-                "df": df,
+                "df": df.select(existing_fields),
             }
         except FileNotFoundError as FNFE:
             raise Exception(
