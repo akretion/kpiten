@@ -73,6 +73,21 @@ class Kpiten(models.Model):
         # 4. Lecture des champs directs en une seule requête
         raw_data = records.read(list(direct_fields))
 
+        # 4.5 Traduction
+        translatable = self.env["ir.model.fields"].search(
+            [("model", "=", model), ("translate", "=", True)]
+        )
+        model_has_translate_fields = len(translatable) > 0
+        if model_has_translate_fields:
+            rec_by_id = {r["id"]: r for r in raw_data}
+            for record in records:
+                for field in translatable:
+                    translations, _ = record.get_field_translations(field.name)
+                    if len(translations) > 0:
+                        rec_by_id[record.id][field.name] = {
+                            t["lang"]: t["value"] for t in translations
+                        }
+
         def replace_null(val):
             # replace False by None because dataframe require None
             if not val:
@@ -141,8 +156,13 @@ class Kpiten(models.Model):
                 "type": field.ttype,
                 "string": field.field_description,
                 "rel": field.relation,
+                "translatable": field.translate,
             }
         return fields
+
+    @api.model
+    def get_translations(self, model):
+        pass
 
     def _get_relational_paths_for_model(self, model: str) -> set:
         """
