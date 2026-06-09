@@ -82,9 +82,24 @@ class DFStorage:
             existing_fields = [
                 field for field in allowed_fields if field not in not_found
             ]
+
+            df = df.select(existing_fields)
+
+            # find all Struct columns (= translated fields)
+            struct_cols = [
+                col
+                for col, dtype in zip(df.columns, df.dtypes)
+                if isinstance(dtype, pl.Struct)
+            ]
+
+            # apply locale
+            locale = RPC().env["res.users"].browse(curr_uid).lang
+            df = df.with_columns(
+                [pl.col(col).struct.field(locale).alias(col) for col in struct_cols]
+            )
             return {
                 "table": table,
-                "df": df.select(existing_fields),
+                "df": df,
             }
         except FileNotFoundError as FNFE:
             raise Exception(

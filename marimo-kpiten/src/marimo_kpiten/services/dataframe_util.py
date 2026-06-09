@@ -82,7 +82,9 @@ class Df:
         id_cols = [
             col
             for col in self.df.columns
-            if re.search(r"_(u?id)$", col) and not self.df[col].is_null().all()
+            if re.search(r"_(u?id)$", col)
+            and not self.df[col].is_null().all()
+            and self.df[col].dtype is pl.List
         ]
         self.df = self.df.with_columns(
             [
