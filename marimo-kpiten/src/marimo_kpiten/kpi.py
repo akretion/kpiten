@@ -1,7 +1,6 @@
 import marimo
 import polars
-import json
-from marimo_kpiten.services.df_file_storage_service import DFStorage
+from marimo_kpiten.services.df_storage import DFStorage
 from odoorpc import ODOO
 
 __generated_with = "0.23.4"
@@ -18,7 +17,7 @@ def navigation(mo):
 def _():
     import marimo as mo
     from pathlib import Path
-    from marimo_kpiten.services.df_file_storage_service import DFStorage
+    from marimo_kpiten.services.df_storage import DFStorage
     import json
     import polars as pl
 
@@ -40,6 +39,14 @@ def _():
             + "and they'll be here !"
         ).callout("warn")
     return df_store, json, mo, pl, no_data_found_callout
+
+
+@app.cell
+def app_style(mo: marimo):
+    style_sheet = ""
+    with open("../styles/first.css") as f:
+        style_sheet = f.read()
+    mo.Html(f"""<style>{style_sheet}</style>""")
 
 
 @app.cell
@@ -87,6 +94,18 @@ def get_kpiten_config_line_class(env):
 
 
 @app.cell
+def layout_selection(mo: marimo):
+    layout_options = ["Serial (default)", "2 columns when possible"]
+    layout_select = mo.ui.multiselect(
+        label="Layout",
+        options=layout_options,
+        max_selections=1,
+        value=["Serial (default)"],
+    )
+    return layout_select
+
+
+@app.cell
 def date_filter(mo: marimo):
     date_options = [
         "today only",
@@ -102,33 +121,33 @@ def date_filter(mo: marimo):
     return date_select
 
 
+# @app.cell
+# def company_filter(mo: marimo, df_store: DFStorage):
+#     from marimo_kpiten.services.file_state import FileState
+
+#     nb_ss = FileState()
+#     company_select = None
+
+#     build_nbs = nb_ss.retrieve_notebook_state("build")
+#     if build_nbs:
+#         selected_table_name = build_nbs["selected_table_name"]
+
+#         selected_df = df_store.retrieve_df(selected_table_name)["df"]
+#         companies = selected_df.select("company_id").to_series().to_list()
+#         unique_companies = set(companies)
+
+#         company_select = mo.ui.multiselect(
+#             label="Company",
+#             options=["All", *unique_companies],
+#             max_selections=1,
+#             value=["All"],
+#         )
+#     return company_select
+
+
 @app.cell
-def company_filter(mo: marimo, df_store: DFStorage):
-    from marimo_kpiten.services.file_state import FileState
-
-    nb_ss = FileState()
-    company_select = None
-
-    build_nbs = nb_ss.retrieve_notebook_state("build")
-    if build_nbs:
-        selected_table_name = build_nbs["selected_table_name"]
-
-        selected_df = df_store.retrieve_df(selected_table_name)["df"]
-        companies = selected_df.select("company_id").to_series().to_list()
-        unique_companies = set(companies)
-
-        company_select = mo.ui.multiselect(
-            label="Company",
-            options=["All", *unique_companies],
-            max_selections=1,
-            value=["All"],
-        )
-    return company_select
-
-
-@app.cell
-def display_filters(mo: marimo, company_select, date_select):
-    mo.hstack([company_select, date_select], justify="start")
+def display_selectors(mo: marimo, company_select, date_select, layout_select):
+    mo.hstack([date_select, layout_select], justify="start")
 
 
 @app.cell
@@ -170,28 +189,28 @@ def compute_date_predicate(mo: marimo, pl: polars, date_select: marimo.ui.multis
     return date_predicates
 
 
-@app.cell
-def compute_company_predicate(
-    mo: marimo,
-    pl: polars,
-    company_select: marimo.ui.multiselect,
-    env: ODOO,
-):
-    mo.stop(not company_select.value[0])
-    company_predicates = []
-    company_exists = (
-        len(env["res.company"].search([("name", "=", company_select.value[0])])) >= 1
-    )
-    if company_exists:
-        company_predicates.append(pl.col("company_id") == company_select.value[0])
-    elif company_select.value[0] == "All":
-        company_predicates.append(pl.col("company_id") == pl.col("company_id"))
-    return company_predicates
+# @app.cell
+# def compute_company_predicate(
+#     mo: marimo,
+#     pl: polars,
+#     company_select: marimo.ui.multiselect,
+#     env: ODOO,
+# ):
+#     mo.stop(not company_select.value[0])
+#     company_predicates = []
+#     company_exists = (
+#         len(env["res.company"].search([("name", "=", company_select.value[0])])) >= 1
+#     )
+#     if company_exists:
+#         company_predicates.append(pl.col("company_id") == company_select.value[0])
+#     elif company_select.value[0] == "All":
+#         company_predicates.append(pl.col("company_id") == pl.col("company_id"))
+#     return company_predicates
 
 
 @app.cell
 def full_predicates(date_predicates: list[bool], company_predicates: list[bool]):
-    full_predicates = [*date_predicates, *company_predicates]
+    full_predicates = [*date_predicates]
     return full_predicates
 
 
@@ -215,7 +234,7 @@ def load_kpiten_line(kpiten_config_line_class, mo: marimo, no_data_found_callout
     - Retourne la transformation et la table qui lui correspond (ici Sales Order, hardcodé)
     """
     mo.stop(no_data_found_callout)
-    from marimo_kpiten.services.df_file_storage_service import DFStorage as dfsv
+    from marimo_kpiten.services.df_storage import DFStorage as dfsv
 
     all_df_metadata = dfsv.retrieve_all_dfs()
     df_wt_list = []
@@ -297,19 +316,28 @@ def compute_kpiten_line(
                 )
             elif transform["kind"] == "ban":
                 BAN_json = json.loads(transform["content"])
-                result_df = used_df.filter(full_predicates).sql(BAN_json["BAN_query"])
-                BAN = result_df.to_dict()[BAN_json["column_alias"]]
-                if len(BAN) > 0:
-                    BAN = BAN[0]
-                else:
-                    mo.stop(True)
-                exec_context_list.append(
-                    {
-                        "context_type": "ban",
-                        "label": BAN_json["BAN_name"],
-                        "BAN": BAN,
-                    }
-                )
+                try:
+                    result_df = used_df.filter(full_predicates).sql(
+                        BAN_json["BAN_query"]
+                    )
+                    BAN = result_df.to_dict()[BAN_json["column_alias"]]
+                    if len(BAN) > 0:
+                        BAN = BAN[0]
+                    else:
+                        mo.stop(True),
+                    exec_context_list.append(
+                        {
+                            "context_type": "ban",
+                            "label": BAN_json["BAN_name"],
+                            "BAN": BAN,
+                        }
+                    )
+                except pl.exceptions.ColumnNotFoundError as CNFE:
+                    print(
+                        f"Could not load BAN {BAN_json['BAN_name']}. Please check",
+                        " your spelling, and whether you have the rights to query",
+                    )
+                    print(f"full error :\n{CNFE}")
             else:
                 import plotly.express as px
 
@@ -366,7 +394,7 @@ def compute_kpiten_line(
                     CX["name"]: x_label,
                     CY["name"]: y_label,
                 }
-                width = 600
+                width = 500
                 height = 700
 
                 match graph_json["graph_type"]:
@@ -423,7 +451,7 @@ def compute_kpiten_line(
 
 
 @app.cell
-def exec_kpiten_lines(exec_context_list, mo: marimo, pl: polars):
+def exec_kpiten_lines(exec_context_list, mo: marimo, pl: polars, layout_select):
     """
     exec_kpiten_lines
     ---
@@ -431,9 +459,11 @@ def exec_kpiten_lines(exec_context_list, mo: marimo, pl: polars):
     """
     mo.stop(not exec_context_list)
     mo.stop(len(exec_context_list) < 1)
+    from great_tables import GT, style, loc
 
     ordered = {}
     to_display = []
+    selected_layout = layout_select.value[0]
 
     for c in exec_context_list:
         if c["context_type"] is not "ban":
@@ -444,43 +474,71 @@ def exec_kpiten_lines(exec_context_list, mo: marimo, pl: polars):
             ordered[c["label"]].append(c)
 
     for k in ordered.keys():
-        sub_transfo_list = []
-        sub_transfo_list.append(mo.md(f"# {k}"))
+        sub_parts_html = f'<h1 style="width:100%;margin:0.5rem 0">{k}</h1>'
         for ctx in ordered[k]:
             match ctx["context_type"]:
                 case "data":
+
+                    def cell_style(_rowId, _columnName, value):
+                        return {
+                            "backgroundColor": "rgb(125, 132, 178)",
+                        }
+
                     scope = {
                         ctx["df_like"]: ctx["df"],
                         "pl": pl,
                         "delete_button": ctx["delete_button"],
                     }
                     exec(ctx["editor"].value, scope)
-                    df_ui = mo.vstack(
-                        [scope[ctx["df_next_like"]], ctx["delete_button"]]
+                    table_html = mo.ui.table(
+                        scope[ctx["df_next_like"]].limit(20),
+                        style_cell=cell_style,
                     )
-                    sub_transfo_list.append(df_ui)
+                    delete_html = ctx["delete_button"].text
+                    sub_parts_html += f"""
+                        <div style="display:flex; flex-flow:column; max-width:50vw; min-width:300px; gap:0.5rem; padding:0.5rem; box-sizing:border-box">
+                            <div style="overflow:scroll">{table_html}</div>
+                            {delete_html}
+                        </div>
+                    """
                 case "graph":
-                    graph_ui = mo.vstack(
-                        [
-                            mo.md(f"## {ctx['label']}"),
-                            ctx["graph"],
-                            ctx["delete_button"],
-                        ]
-                    )
-                    sub_transfo_list.append(graph_ui)
+                    graph_html = ctx["graph"].text
+                    delete_html = ctx["delete_button"].text
+                    sub_parts_html += f"""
+                        <div style="display:flex; flex-flow:column; max-width:50vw; min-width:400px; gap:0.5rem; padding:0.5rem; box-sizing:border-box">
+                            <h2 style="margin:0">{ctx['label']}</h2>
+                            {graph_html}
+                            {delete_html}
+                        </div>
+                    """
                 case "ban":
                     continue
-                    # displayed at the top of KPI, so it's not handled here
-                    # but must be spelled out as a case so it doesn't go into
-                    # the default one.
                 case _:
                     scope = {ctx["df_like"]: ctx["df"], "pl": pl}
                     exec(ctx["editor"].value, scope)
-                    sub_transfo_list.append(
-                        scope[ctx["df_next_like"]],
-                    )
-        to_display.append(sub_transfo_list)
-    mo.hstack(to_display, wrap=True)
+                    fallback_html = mo.ui.table(scope[ctx["df_next_like"]]).text
+                    sub_parts_html += f"<div>{fallback_html}</div>"
+
+        to_display.append(sub_parts_html)
+
+    if selected_layout == "Serial (default)":
+        inner = "".join(
+            [
+                f'<div style="display:flex; flex-flow:column; width:100%; gap:1rem">{block}</div>'
+                for block in to_display
+            ]
+        )
+        final_html = f'<div style="display:flex; flex-flow:column; width:100%; gap:2rem">{inner}</div>'
+    else:
+        inner = "".join(
+            [
+                f'<div style="display:flex; flex-flow:row wrap; gap:1rem; width:200%">{block}</div>'
+                for block in to_display
+            ]
+        )
+        final_html = f'<div style="display:flex; flex-flow:column; width:100%; gap:2rem">{inner}</div>'
+
+    mo.Html(final_html)
 
 
 if __name__ == "__main__":

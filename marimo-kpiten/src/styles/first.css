@@ -1,0 +1,31 @@
+/* div {
+    background-color: purple !important;
+} */
+
+:root {
+    --bg-color: rgb(35, 43, 66);
+    --table-bg: rgb(125, 132, 178);
+    --th-bg: rgb(255, 244, 233);
+    --text-color: white
+}
+
+h1,
+h2,
+h3,
+span.paragraph {
+    color: var(--text-color);
+}
+
+div:not(div.relative div) {
+    background-color: var(--bg-color) !important;
+    color: var(--text-color);
+}
+
+tr>th {
+    background-color: var(--th-bg) !important;
+}
+
+select {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}

@@ -1,10 +1,16 @@
 import re
 import polars as pl
 from decimal import Decimal
+from typing import Any
 
 
 class Df:
-    def __init__(self, df, fields=None, decimal_truncate=None):
+    def __init__(
+        self,
+        df: pl.DataFrame,
+        fields: dict[str, Any] | None = None,
+        decimal_truncate: int | None = None,
+    ):
         self.df = df
         self.fields = fields
         self.decimal_truncate = decimal_truncate
@@ -82,9 +88,9 @@ class Df:
         id_cols = [
             col
             for col in self.df.columns
-            if re.search(r"_(u?id)$", col)
+            if re.search(r"_(u?id)", col)
             and not self.df[col].is_null().all()
-            and self.df[col].dtype is pl.List
+            and self.df[col].dtype in [pl.List, list[str]]
         ]
         self.df = self.df.with_columns(
             [

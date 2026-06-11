@@ -15,6 +15,9 @@ uv.lock
 # General
 .vscode
 .env
+_extensions
+**.pdf
+**.qmd
 
 # KpiTen
 generated

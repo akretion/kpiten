@@ -11,7 +11,7 @@ which disallows using different tables w/out changing the code.
 """
 
 from fastapi import FastAPI, APIRouter
-from marimo_kpiten.services.df_file_storage_service import DFStorage
+from marimo_kpiten.services.df_storage import DFStorage
 from marimo_kpiten.services.env_reader import EnvReader
 from marimo_kpiten.services.dataframe_util import Df
 from werkzeug.utils import redirect

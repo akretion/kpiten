@@ -6,6 +6,7 @@ from polars import DataFrame
 from marimo_kpiten.services.env_reader import EnvReader
 from marimo_kpiten.services.RPC import RPC
 from marimo_kpiten.services.file_state import FileState
+from marimo_kpiten.services.dataframe_util import Df
 from typing import TypedDict
 
 """
@@ -76,27 +77,17 @@ class DFStorage:
             df = pl.read_parquet(
                 f"{data_path}/{DFStorage.df_data_dir_name}/{table}/{table}.{DFStorage.parquet_file_ext}"
             )
-            not_found = DFStorage._filter_not_found_columns(
-                df, table, allowed_fields, True
-            )
-            existing_fields = [
-                field for field in allowed_fields if field not in not_found
-            ]
-
-            df = df.select(existing_fields)
-
-            # find all Struct columns (= translated fields)
+            df = df.select(allowed_fields)
             struct_cols = [
                 col
                 for col, dtype in zip(df.columns, df.dtypes)
                 if isinstance(dtype, pl.Struct)
             ]
-
-            # apply locale
             locale = RPC().env["res.users"].browse(curr_uid).lang
             df = df.with_columns(
                 [pl.col(col).struct.field(locale).alias(col) for col in struct_cols]
             )
+
             return {
                 "table": table,
                 "df": df,

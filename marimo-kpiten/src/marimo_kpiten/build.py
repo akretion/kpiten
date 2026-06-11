@@ -1,7 +1,7 @@
 import marimo
 
 # For typing hints
-from marimo_kpiten.services.df_file_storage_service import DFStorage
+from marimo_kpiten.services.df_storage import DFStorage
 import polars as pl
 from odoorpc import ODOO
 import json
@@ -53,21 +53,7 @@ def navigation(mo: marimo):
 
 @app.cell(hide_code=True)
 def _(mo: marimo):  # Affiche les tables initiales
-    """
-    _
-    ---
-    Affiche la table Initiale Sales Order en utilisant le contenu de ./generated.
-    Sales Order est hardcodé car c'est ce que j'ai utilisé pour tester la feature.\n
-
-    SUGGESTIONS / TODO
-    ---
-    Pour afficher plusieurs tables, il faudrait :
-    - en stocker plusieurs (dans ./generated)
-    - trouver un moyen de passer l'information des tables stockées à Marimo depuis odoo.py \n
-    -> J'ai pensé à un fichier simple qui contient une liste de tables\n
-    -> Utiliser une hstack/vstack pour afficher tout ça
-    """
-    from marimo_kpiten.services.df_file_storage_service import DFStorage
+    from marimo_kpiten.services.df_storage import DFStorage
     import pathlib
 
     df_store = DFStorage()
@@ -122,20 +108,11 @@ def select_df_to_build(mo: marimo, tables: list[str]):
 def display_selected_table(
     mo: marimo, selected_table_name: marimo.ui.multiselect, df_store: DFStorage
 ):
-    from marimo_kpiten.services.file_state import FileState
-
-    nb_ss = FileState()
-
     page_title = mo.md("# Create KPIs")
     display_title = mo.md("## No table selected")
     build_df = mo.md("> Select a table to start building KPIs.")
     d = None
     if len(selected_table_name.value) >= 1:
-        nb_ss.store_state(
-            module_name="build",
-            data={"selected_table_name": selected_table_name.value[0]},
-        )
-
         sanitized_tbn = selected_table_name.value[0].replace(".", " ").capitalize()
         df_info = df_store.retrieve_df(selected_table_name.value[0])
         if df_info:
