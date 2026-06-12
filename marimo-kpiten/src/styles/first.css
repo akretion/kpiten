@@ -3,29 +3,37 @@
 } */
 
 :root {
-    --bg-color: rgb(35, 43, 66);
-    --table-bg: rgb(125, 132, 178);
-    --th-bg: rgb(255, 244, 233);
-    --text-color: white
+    --text-color: white;
+    --bg-from: #19244b;
+    --bg-to: #1b415e;
+    --background: linear-gradient(120deg, var(--bg-from), var(--bg-to));
+    --cm-background: linear-gradient(120deg, var(--bg-from), var(--bg-to));
+}
+
+body,
+.marimo-app,
+#root {
+    /* whatever the actual root element is */
+    background: linear-gradient(100deg, var(--bg-from), var(--bg-to), #1a4864) !important;
+}
+
+marimo-ui-element marimo-table span {
+    color: var(--text-color) !important;
 }
 
 h1,
 h2,
 h3,
-span.paragraph {
+span.truncate {
     color: var(--text-color);
 }
 
-div:not(div.relative div) {
-    background-color: var(--bg-color) !important;
+/* background-color: var(--bg-color) !important; */
+/* div#root {
     color: var(--text-color);
-}
-
-tr>th {
-    background-color: var(--th-bg) !important;
-}
+} */
 
 select {
     background-color: var(--bg-color);
-    color: var(--text-color);
+    color: var(--text-color) !important;
 }

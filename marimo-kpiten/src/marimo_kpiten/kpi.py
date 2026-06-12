@@ -8,9 +8,44 @@ app = marimo.App(width="medium")
 
 
 @app.cell
+def page_title(mo: marimo):
+    title_md = mo.md("## KPI • ")
+    return title_md
+
+
+@app.cell
 def navigation(mo):
-    mo.nav_menu({"/build": "Create", "/kpi": "KPI"})
-    return
+    mo_nav_menu = mo.nav_menu({"/build": "Create", "/kpi": "KPI"})
+    return mo_nav_menu
+
+
+@app.cell
+def display_selectors(mo: marimo, company_select, date_select, layout_select):
+    selectors_hstack = mo.hstack(
+        [
+            mo.vstack([mo.md("Period"), date_select.style({"color": "white"})]).style(
+                {"max-width": "fit-content", "color": "white"}
+            ),
+            mo.vstack([mo.md("Layout"), layout_select.style({"color": "white"})]).style(
+                {"max-width": "fit-content", "color": "white"}
+            ),
+        ],
+        justify="start",
+    )
+    return selectors_hstack
+
+
+@app.cell
+def display_headers(
+    mo: marimo,
+    selectors_hstack: marimo.hstack,
+    title_md: marimo.md,
+    mo_nav_menu: marimo.nav_menu,
+):
+    mo.hstack(
+        [mo.hstack([title_md, selectors_hstack]), mo_nav_menu],
+        justify="start",
+    )
 
 
 @app.cell
@@ -47,11 +82,6 @@ def app_style(mo: marimo):
     with open("../styles/first.css") as f:
         style_sheet = f.read()
     mo.Html(f"""<style>{style_sheet}</style>""")
-
-
-@app.cell
-def page_title(mo: marimo):
-    mo.md("# KPIs \n> KPIs **you** have created")
 
 
 @app.cell()
@@ -97,7 +127,6 @@ def get_kpiten_config_line_class(env):
 def layout_selection(mo: marimo):
     layout_options = ["Serial (default)", "2 columns when possible"]
     layout_select = mo.ui.multiselect(
-        label="Layout",
         options=layout_options,
         max_selections=1,
         value=["Serial (default)"],
@@ -116,7 +145,7 @@ def date_filter(mo: marimo):
         "last year",
     ]
     date_select = mo.ui.multiselect(
-        label="Time period", options=date_options, max_selections=1, value=["last year"]
+        options=date_options, max_selections=1, value=["last year"]
     )
     return date_select
 
@@ -143,11 +172,6 @@ def date_filter(mo: marimo):
 #             value=["All"],
 #         )
 #     return company_select
-
-
-@app.cell
-def display_selectors(mo: marimo, company_select, date_select, layout_select):
-    mo.hstack([date_select, layout_select], justify="start")
 
 
 @app.cell
@@ -478,22 +502,13 @@ def exec_kpiten_lines(exec_context_list, mo: marimo, pl: polars, layout_select):
         for ctx in ordered[k]:
             match ctx["context_type"]:
                 case "data":
-
-                    def cell_style(_rowId, _columnName, value):
-                        return {
-                            "backgroundColor": "rgb(125, 132, 178)",
-                        }
-
                     scope = {
                         ctx["df_like"]: ctx["df"],
                         "pl": pl,
                         "delete_button": ctx["delete_button"],
                     }
                     exec(ctx["editor"].value, scope)
-                    table_html = mo.ui.table(
-                        scope[ctx["df_next_like"]].limit(20),
-                        style_cell=cell_style,
-                    )
+                    table_html = mo.ui.table(scope[ctx["df_next_like"]].limit(20))
                     delete_html = ctx["delete_button"].text
                     sub_parts_html += f"""
                         <div style="display:flex; flex-flow:column; max-width:50vw; min-width:300px; gap:0.5rem; padding:0.5rem; box-sizing:border-box">
