@@ -4,13 +4,11 @@ authors = [
   {name = "David Beal", email = "david.beal@akretion.com"},
 ]
 dependencies = [
-  "connectorx>=0.4.5",
   "dotenv>=0.9.9",
   "fastapi>=0.135.3",
   "marimo>=0.22.5",
   "odoorpc>=0.10.1",
   "polars>=1.39.3",
-  "psycopg2-binary>=2.9.12",
   "pyarrow>=23.0.1",
   "requests>=2.33.1",
   "urllib3>=2.7.0",
@@ -20,11 +18,11 @@ dependencies = [
   "numpy>=2.4.6",
   "great-tables>=0.21.0",
 ]
-description = "Use marimo data exploration capabilities & dashboarding"
+description = "Use marimo data exploration capabilities & dashboarding for Odoo"
 name = "marimo-kpiten"
 readme = "README.md"
 requires-python = ">=3.12"
-version = "0.5.0"
+version = "0.6.0"
 
 [project.scripts]
 marimo-kpiten = "marimo_kpiten:main"
