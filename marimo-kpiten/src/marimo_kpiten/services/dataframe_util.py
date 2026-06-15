@@ -71,7 +71,6 @@ class Df:
             if self.fields[x].get("type") == "datetime"
             and not self.df[x].is_null().all()
         ]
-        print(datetime_fields)
         self.df = self.df.with_columns(pl.col(datetime_fields).str.to_datetime())
         self.df = self.df.with_columns(pl.col(datetime_fields).cast(pl.Date))
 

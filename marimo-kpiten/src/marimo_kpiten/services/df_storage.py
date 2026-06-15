@@ -23,7 +23,7 @@ class DF_META(TypedDict):
     df: DataFrame
 
 
-data_path = env_.get("DATA_PATH") or "../generated"
+data_path = "../generated"
 
 logger = logging.getLogger(__name__)
 

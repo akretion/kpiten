@@ -13,7 +13,6 @@
 body,
 .marimo-app,
 #root {
-    /* whatever the actual root element is */
     background: linear-gradient(100deg, var(--bg-from), var(--bg-to), #1a4864) !important;
 }
 
@@ -27,11 +26,6 @@ h3,
 span.truncate {
     color: var(--text-color);
 }
-
-/* background-color: var(--bg-color) !important; */
-/* div#root {
-    color: var(--text-color);
-} */
 
 select {
     background-color: var(--bg-color);

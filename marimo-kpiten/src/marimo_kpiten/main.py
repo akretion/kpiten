@@ -1,29 +1,17 @@
-"""
-TODO
-- Find out how the dataflow from a connected odoo user to here will be.
-> Right now, everything is hardcoded / read from the env, which disallows multi-user setups
-
-- Determine how df_notebook.py will be aware of what tables it has to show. For now, the tables are hardcoded,
-which disallows using different tables w/out changing the code.
-
-- turn odoorpc into a singleton to avoid multiple connections in the same script.
-
-"""
-
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Request
+from fastapi.responses import RedirectResponse
 from marimo_kpiten.services.df_storage import DFStorage
 from marimo_kpiten.services.env_reader import EnvReader
 from marimo_kpiten.services.dataframe_util import Df
-from werkzeug.utils import redirect
-from pg_autojoin import SqlJoin
+from marimo_kpiten.services.file_state import FileState
 from urllib.error import URLError
 from odoorpc.error import RPCError
+from datetime import datetime
 
-import connectorx as cx
+import polars as pl
 import marimo as mo
 import odoorpc
 import logging
-import json
 
 logger = logging.getLogger(__name__)
 app = FastAPI()
@@ -31,12 +19,8 @@ router = APIRouter()
 df_store = DFStorage()
 env_ = EnvReader()
 odoo = None
+env = None
 
-postgres_url = (
-    f'postgresql://{env_.get("DB_USER")}:{env_.get("DB_PWD")}@'
-    + f'{env_.get("DB_HOST")}:{env_.get("DB_PORT")}'
-)
-DB_URL = f'{postgres_url}/{env_.get("ODOO_DB")}'
 try:
     odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
 except URLError as e:
@@ -46,86 +30,69 @@ except Exception as e:
 
 try:
     odoo.login(env_.get("ODOO_DB"), env_.get("ODOO_LOGIN"), env_.get("ODOO_PWD"))
+    env = odoo.env
 except RPCError as e:
     logger.warning(f"Odoo authentification failed: {e}")
 except Exception as e:
     logger.warning(e)
 
-env = odoo.env
+if odoo is None:
+    raise Exception("Odoo connection could not be initialized properly.") 
 
-
-def quote(strings):
-    return [f'"{s}"' for s in strings]
-
-
-def sanitize(fields: list[str]):
-    return ", ".join(quote(fields))
-
+if env is None:
+    raise Exception("Odoo environment could not be initialized properly.")
 
 app = FastAPI()
 router = APIRouter()
 
 
 @router.get("/")
-def handle_table_info():
-    def relationship_query(table):
-        logger.warning(f"relationship query({table})")
-        conn = SqlJoin(
-            db=env_.get("ODOO_DB"),
-            user=env_.get("DB_USER"),
-            password=env_.get("DB_PWD"),
-            host=env_.get("DB_HOST"),
-            port=env_.get("DB_PORT"),
-        )
-        conn.set_columns_to_retrieve(["name", "ref", "code"])
-        # depends on the user
-        conn.set_json_key_pref(env.context.get("lang") or "en_US")
-        conn.set_fallback_json_key("en_US")
-        sql = conn.get_joined_query(table=table)
-        return sql
+def root():
+    res = env["kpiten"].get_record_vals(
+        "sale.order", [], FileState.retrieve_state("user_id")
+    )
+    print(res)
+    return {"message": "server is running. visit /login w/ an id to use the website"}
 
-    kpiten_profiles = json.loads(env["kpiten.config"].read_config())
-    print("------ PARSING KPITEN PROFILES ------")
-    print("--- Looping on models ---")
-    for profile in kpiten_profiles:
-        name = profile["name"]
-        pr_id = profile["profile_id"]
-        main_record_name = profile["main_record_name"]
-        main_model = profile["main_model"]
-        main_model_fields = profile["main_model_fields"]
 
-        sql = relationship_query(main_model)
-        main_df = cx.read_sql(DB_URL, sql, return_type="polars")
-        transfo = Df(main_df)
-        main_df = transfo.get_df()
+# TODO : NAVIGATE TO IT USING ODOO THEN CHANGE THIS TO POST
+@router.get("/login")
+def login(id: int):
+    FileState.store_state(state_type="state", data={"user_id": str(id)})
+    return RedirectResponse("/df_process", status_code=303)
 
-        df_store.store_df(
-            pr_id, main_model, main_record_name, main_model_fields, main_df
-        )
 
-        print(f"profile : {name}\nprofile_id : {pr_id}")
-        print(f"Main model : {main_model}\n")
-        print(f"Main model fields : {main_model_fields}")
+@router.get("/df_process")
+def build_global_dfs():
+    overall_start_time = datetime.now()
+    config_ids = env["kpiten.config"].search([])
+    loop_start_time = datetime.now()
+    for conf in env["kpiten.config"].browse(config_ids):
+        model = conf.model_id.model
+        print(f"### Loop on {model} :  statistics ###")
+        # print("Model is", model)
+        # user id 2 have most of the grants
+        record_time = datetime.now()
+        records = env["kpiten"].get_record_vals(model, [], 2, limit=200)
+        record_time_end = datetime.now()
+        print("record cpt : ", record_time_end - record_time)
+        df = pl.DataFrame(records, strict=False, infer_schema_length=None)
+        decimal = env_.get("DECIMAL_TRUNCATE") or 0
+        fmetadata_time = datetime.now()
+        fields_metadata = env["kpiten"].get_fields_metadata(model)
+        fmetadata_time_end = datetime.now()
+        print("fmetadata : ", fmetadata_time_end - fmetadata_time)
+        transfo = Df(df, fields_metadata, decimal_truncate=int(decimal))
+        df = transfo.get_df()
+        df_store.store_df(model, df)
+    loop_end_time = datetime.now()
+    overall_end_time = datetime.now()
 
-        for tbl in profile["models"]:
-            fields = sanitize(tbl["fields"])
-            all_fields = sanitize(tbl["all_fields"])
-            sql = (
-                f"SELECT {fields} FROM {tbl['table']} ORDER BY write_date ASC LIMIT 100",
-            )
-            logger.warning(f"generated sql : {sql}")
-            sql = relationship_query(tbl["table"])
-            df = cx.read_sql(DB_URL, sql, return_type="polars")
-            transfo = Df(df)
-            df = transfo.get_df()
-            df_store.store_df(pr_id, tbl["table"], tbl["record_name"], fields, df)
-            print(
-                f"\t\tTable : {tbl['table']}\n\t\t\trecord_name : {tbl['record_name']}\n\t\t\tfields={fields}\n\t\t\tall_fields={all_fields}\n\t\t\tprofile_id={pr_id}"
-            )
-
-    print("--- end of loop ---")
-    print("------ KPITEN PROFILES PARSING END ------")
-    return redirect(code=301, location="/build")
+    print("#### Overall Statistics ####\n")
+    print(f"overall time : {overall_end_time - overall_start_time}")
+    print(f"loop : {loop_end_time - loop_start_time}")
+    print("#### --- ####")
+    return RedirectResponse("/build", status_code=303)
 
 
 marimo_server = (
@@ -136,7 +103,6 @@ marimo_server = (
 
 app.include_router(router)
 app.mount("/", marimo_server.build())
-
 
 if __name__ == "__main__":
     import uvicorn

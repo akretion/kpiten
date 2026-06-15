@@ -88,6 +88,12 @@ def _(mo: marimo):  # Affiche les tables initiales
 
     return df_w_meta, tables, df_store, tname_to_profile_id, no_data_found_callout
 
+@app.cell
+def app_style(mo: marimo):
+    style_sheet = ""
+    with open("../styles/first.css") as f:
+        style_sheet = f.read()
+    mo.Html(f"""<style>{style_sheet}</style>""")
 
 @app.cell()
 def no_data_found(mo: marimo, no_data_found_callout):

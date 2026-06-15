@@ -2,7 +2,7 @@ from marimo_kpiten.services.env_reader import EnvReader
 from pathlib import Path
 
 env_ = EnvReader()
-data_path = env_.get("DATA_PATH") or "../generated"
+data_path = "../generated"
 
 
 class FileState:
