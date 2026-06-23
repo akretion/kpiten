@@ -16,6 +16,10 @@ body,
     background: linear-gradient(100deg, var(--bg-from), var(--bg-to), #1a4864) !important;
 }
 
+div[part="table-footer"] {
+    color: var(--text-color) !important;
+}
+
 marimo-ui-element marimo-table span {
     color: var(--text-color) !important;
 }
@@ -25,6 +29,14 @@ h2,
 h3,
 span.truncate {
     color: var(--text-color);
+}
+
+span.paragraph, span.markdown, label {
+	color: var(--text-color) !important;
+}
+
+button#radix-_r_1c_.text-xs {
+	color: var(--text-color) !important;
 }
 
 select {

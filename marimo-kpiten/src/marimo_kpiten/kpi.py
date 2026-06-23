@@ -1,26 +1,23 @@
 import marimo
-import polars
-from marimo_kpiten.services.df_storage import DFStorage
-from odoorpc import ODOO
 
-__generated_with = "0.23.4"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def page_title(mo: marimo):
+def page_title(mo):
     title_md = mo.md("## KPI • ")
-    return title_md
+    return (title_md,)
 
 
 @app.cell
 def navigation(mo):
     mo_nav_menu = mo.nav_menu({"/build": "Create", "/kpi": "KPI"})
-    return mo_nav_menu
+    return (mo_nav_menu,)
 
 
 @app.cell
-def display_selectors(mo: marimo, company_select, date_select, layout_select):
+def display_selectors(date_select, layout_select, mo):
     selectors_hstack = mo.hstack(
         [
             mo.vstack([mo.md("Period"), date_select.style({"color": "white"})]).style(
@@ -32,20 +29,16 @@ def display_selectors(mo: marimo, company_select, date_select, layout_select):
         ],
         justify="start",
     )
-    return selectors_hstack
+    return (selectors_hstack,)
 
 
 @app.cell
-def display_headers(
-    mo: marimo,
-    selectors_hstack: marimo.hstack,
-    title_md: marimo.md,
-    mo_nav_menu: marimo.nav_menu,
-):
+def display_headers(mo, mo_nav_menu, selectors_hstack, title_md):
     mo.hstack(
         [mo.hstack([title_md, selectors_hstack]), mo_nav_menu],
         justify="start",
     )
+    return
 
 
 @app.cell
@@ -73,30 +66,33 @@ def _():
             + "then `/build` to verify if any tables exist. Then, you can create transformations, "
             + "and they'll be here !"
         ).callout("warn")
-    return df_store, json, mo, pl, no_data_found_callout
+    return df_store, json, mo, no_data_found_callout, pl
 
 
 @app.cell
-def app_style(mo: marimo):
+def app_style(mo):
     style_sheet = ""
     with open("../styles/first.css") as f:
         style_sheet = f.read()
     mo.Html(f"""<style>{style_sheet}</style>""")
+    return
 
 
-@app.cell()
-def fallback_page(mo: marimo, exec_context_list):
+@app.cell
+def fallback_page(exec_context_list, mo):
     mo.stop(len(exec_context_list) >= 1)
     mo.md(
         "## That's where your transformations will be\n"
         "> Make transformations via the `build` page, then go right back here."
     )
+    return
 
 
-@app.cell()
-def no_data_found(mo: marimo, no_data_found_callout):
+@app.cell
+def no_data_found(mo, no_data_found_callout):
     mo.stop(not no_data_found_callout)
     no_data_found_callout
+    return
 
 
 @app.cell
@@ -124,18 +120,18 @@ def get_kpiten_config_line_class(env):
 
 
 @app.cell
-def layout_selection(mo: marimo):
+def layout_selection(mo):
     layout_options = ["Serial (default)", "2 columns when possible"]
     layout_select = mo.ui.multiselect(
         options=layout_options,
         max_selections=1,
         value=["Serial (default)"],
     )
-    return layout_select
+    return (layout_select,)
 
 
 @app.cell
-def date_filter(mo: marimo):
+def date_filter(mo):
     date_options = [
         "today only",
         "last week",
@@ -147,35 +143,11 @@ def date_filter(mo: marimo):
     date_select = mo.ui.multiselect(
         options=date_options, max_selections=1, value=["last year"]
     )
-    return date_select
-
-
-# @app.cell
-# def company_filter(mo: marimo, df_store: DFStorage):
-#     from marimo_kpiten.services.file_state import FileState
-
-#     nb_ss = FileState()
-#     company_select = None
-
-#     build_nbs = nb_ss.retrieve_notebook_state("build")
-#     if build_nbs:
-#         selected_table_name = build_nbs["selected_table_name"]
-
-#         selected_df = df_store.retrieve_df(selected_table_name)["df"]
-#         companies = selected_df.select("company_id").to_series().to_list()
-#         unique_companies = set(companies)
-
-#         company_select = mo.ui.multiselect(
-#             label="Company",
-#             options=["All", *unique_companies],
-#             max_selections=1,
-#             value=["All"],
-#         )
-#     return company_select
+    return (date_select,)
 
 
 @app.cell
-def compute_date_predicate(mo: marimo, pl: polars, date_select: marimo.ui.multiselect):
+def compute_date_predicate(date_select, mo, pl):
     mo.stop(not date_select.value)
     from datetime import timedelta, datetime
 
@@ -210,36 +182,17 @@ def compute_date_predicate(mo: marimo, pl: polars, date_select: marimo.ui.multis
             date_predicates.append(
                 pl.col(time_column) >= datetime.now() - timedelta(days=30)
             )
-    return date_predicates
-
-
-# @app.cell
-# def compute_company_predicate(
-#     mo: marimo,
-#     pl: polars,
-#     company_select: marimo.ui.multiselect,
-#     env: ODOO,
-# ):
-#     mo.stop(not company_select.value[0])
-#     company_predicates = []
-#     company_exists = (
-#         len(env["res.company"].search([("name", "=", company_select.value[0])])) >= 1
-#     )
-#     if company_exists:
-#         company_predicates.append(pl.col("company_id") == company_select.value[0])
-#     elif company_select.value[0] == "All":
-#         company_predicates.append(pl.col("company_id") == pl.col("company_id"))
-#     return company_predicates
+    return (date_predicates,)
 
 
 @app.cell
-def full_predicates(date_predicates: list[bool], company_predicates: list[bool]):
+def full_predicates(date_predicates: list[bool]):
     full_predicates = [*date_predicates]
-    return full_predicates
+    return (full_predicates,)
 
 
 @app.cell
-def display_ban(exec_context_list, mo: marimo, full_predicates: list[bool]):
+def display_ban(exec_context_list, full_predicates, mo):
     mo.stop(len(full_predicates) < 1)
     bans = [
         mo.stat(label=ban_ctx["label"], value=ban_ctx["BAN"], bordered=True)
@@ -247,10 +200,11 @@ def display_ban(exec_context_list, mo: marimo, full_predicates: list[bool]):
         if ban_ctx["context_type"] == "ban"
     ]
     mo.hstack(bans, wrap=True)
+    return
 
 
 @app.cell
-def load_kpiten_line(kpiten_config_line_class, mo: marimo, no_data_found_callout):
+def load_kpiten_line(kpiten_config_line_class, mo, no_data_found_callout):
     """
     load_kpiten_line
     ---
@@ -293,14 +247,7 @@ def load_kpiten_line(kpiten_config_line_class, mo: marimo, no_data_found_callout
 
 
 @app.cell
-def compute_kpiten_line(
-    df_store: DFStorage,
-    df_wt_list,
-    json,
-    mo: marimo,
-    pl: polars,
-    full_predicates: list[bool],
-):
+def compute_kpiten_line(df_store, df_wt_list, full_predicates, json, mo, pl):
     """
     compute_kpiten_line
     ---
@@ -475,7 +422,7 @@ def compute_kpiten_line(
 
 
 @app.cell
-def exec_kpiten_lines(exec_context_list, mo: marimo, pl: polars, layout_select):
+def exec_kpiten_lines(exec_context_list, layout_select, mo, pl):
     """
     exec_kpiten_lines
     ---
@@ -554,6 +501,7 @@ def exec_kpiten_lines(exec_context_list, mo: marimo, pl: polars, layout_select):
         final_html = f'<div style="display:flex; flex-flow:column; width:100%; gap:2rem">{inner}</div>'
 
     mo.Html(final_html)
+    return
 
 
 if __name__ == "__main__":

@@ -1,12 +1,6 @@
 import marimo
 
-# For typing hints
-from marimo_kpiten.services.df_storage import DFStorage
-import polars as pl
-from odoorpc import ODOO
-import json
-
-__generated_with = "0.22.5"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
@@ -17,7 +11,7 @@ def _():
     return (mo,)
 
 
-@app.cell()
+@app.cell
 def get_odoo_env():
     """get_odoo_env
     Rend l'env odoo disponible pour toutes les cellules (si il est en paramètre des autres cellules)
@@ -29,30 +23,33 @@ def get_odoo_env():
     odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
     odoo.login(env_.get("ODOO_DB"), env_.get("ODOO_LOGIN"), env_.get("ODOO_PWD"))
     env = odoo.env
-    return env
+    return (env,)
 
 
-@app.cell()
+@app.cell
 def get_kpiten_config_line_class(env):
     """get_kpiten_config_line_class
     utilise odoorpc pour récupérer env['kpiten.config.line']
     """
     kpiten_config_line_class = env["kpiten.config.line"]
-    return kpiten_config_line_class
+    return (kpiten_config_line_class,)
 
 
 @app.cell
 def get_json():
     import json
 
+    return (json,)
 
-@app.cell()
-def navigation(mo: marimo):
-    mo.nav_menu({"/build": "Create", "/kpi": "KPI"})
+
+@app.cell
+def navigation(mo):
+    build_nav = mo.nav_menu({"/build": "Create", "/kpi": "KPI"})
+    return build_nav
 
 
 @app.cell(hide_code=True)
-def _(mo: marimo):  # Affiche les tables initiales
+def _(mo):
     from marimo_kpiten.services.df_storage import DFStorage
     import pathlib
 
@@ -85,35 +82,51 @@ def _(mo: marimo):  # Affiche les tables initiales
             _df = table_data["df"]
 
             df_w_meta.append({"name": table_name, "df": _df})
+    return df_store, no_data_found_callout, tables
 
-    return df_w_meta, tables, df_store, tname_to_profile_id, no_data_found_callout
 
 @app.cell
-def app_style(mo: marimo):
+def app_style(mo):
     style_sheet = ""
     with open("../styles/first.css") as f:
         style_sheet = f.read()
     mo.Html(f"""<style>{style_sheet}</style>""")
+    return
 
-@app.cell()
-def no_data_found(mo: marimo, no_data_found_callout):
+
+@app.cell
+def no_data_found(mo, no_data_found_callout):
     mo.stop(not no_data_found_callout)
     no_data_found_callout
+    return
 
 
-@app.cell()
-def select_df_to_build(mo: marimo, tables: list[str]):
-    selected_table_name = mo.ui.multiselect(
-        options=tables, max_selections=1, label="Select a table"
+@app.cell
+def display_header(mo: marimo, stn_ui, build_nav):
+    mo.hstack(
+        [
+            mo.hstack([mo.md("## Build • "), stn_ui]).style(
+                {"max-width": "fit-content"}
+            ),
+            mo.hstack([build_nav]).style({"max-width": "fit-content"}),
+        ],
+        justify="space-between",
     )
-    selected_table_name
-    return selected_table_name
 
 
-@app.cell()
-def display_selected_table(
-    mo: marimo, selected_table_name: marimo.ui.multiselect, df_store: DFStorage
-):
+@app.cell
+def select_df_to_build(mo, tables):
+    selected_table_name_label = mo.md("Select a table")
+    selected_table_name = mo.ui.multiselect(options=tables, max_selections=1)
+
+    stn_ui = mo.vstack([selected_table_name_label, selected_table_name]).style(
+        {"max-width": "fit-content", "color": "white"}
+    )
+    return (selected_table_name, stn_ui)
+
+
+@app.cell
+def display_selected_table(df_store, mo, selected_table_name):
     page_title = mo.md("# Create KPIs")
     display_title = mo.md("## No table selected")
     build_df = mo.md("> Select a table to start building KPIs.")
@@ -129,21 +142,21 @@ def display_selected_table(
     return d, sanitized_tbn
 
 
-@app.cell()
-def code_input(mo: marimo, d):
+@app.cell
+def code_input(d, mo):
     """
     code_input
     ---
     Affiche la zone de texte appelée "Paste code"
     """
     mo.stop(type(d) is type(None))
-    python_text = mo.ui.text_area(label="## Paste code")
-    python_text
-    return python_text
+    python_text = mo.ui.text_area()
+    mo.vstack([mo.md("## Paste Code"), python_text]).style({"color": "white"})
+    return (python_text,)
 
 
-@app.cell()
-def save_code_input(mo: marimo, d):
+@app.cell
+def save_code_input(d, mo):
     """
     save_code_input
     ---
@@ -152,17 +165,11 @@ def save_code_input(mo: marimo, d):
     mo.stop(type(d) is type(None))
     save = mo.ui.run_button(label="Save code to Kpiten")
     save
-    return save
+    return (save,)
 
 
-@app.cell()
-def store_df_code(
-    mo: marimo,
-    save,
-    python_text,
-    env,
-    selected_table_name: marimo.ui.multiselect,
-):
+@app.cell
+def store_df_code(env, mo, python_text, save, selected_table_name):
     """
     store_df_code
     ---
@@ -183,10 +190,11 @@ def store_df_code(
         storedf_message = f"An error occured, please try again."
         storedf_kind = "error"
     mo.md(storedf_message).callout(kind=storedf_kind)
+    return
 
 
-@app.cell()
-def build_graph_form(mo: marimo, d: pl.DataFrame, sanitized_tbn: str):
+@app.cell
+def build_graph_form(d, mo: marimo, sanitized_tbn):
     mo.stop(type(d) is type(None))
 
     graph_type_options = ["bar", "point", "area"]
@@ -194,30 +202,24 @@ def build_graph_form(mo: marimo, d: pl.DataFrame, sanitized_tbn: str):
     aggregation_types = ["none", "count", "sum"]
 
     type_of_graph_select = mo.ui.multiselect(
-        label="Graph type", options=graph_type_options, max_selections=1
+        options=graph_type_options, max_selections=1
     )
     name_input = mo.ui.text(placeholder="Graph's name...")
-    column_x_select = mo.ui.multiselect(
-        label="X column", options=d.columns, max_selections=1
-    )
+    column_x_select = mo.ui.multiselect(options=d.columns, max_selections=1)
     # column_x_type_select = mo.ui.multiselect(
     #     label="X column specifier", options=column_types, max_selections=1
     # )
     column_x_aggregation = mo.ui.multiselect(
-        label="X column aggregation",
         options=aggregation_types,
         max_selections=1,
         value=["none"],
     )
 
-    column_y_select = mo.ui.multiselect(
-        label="Y column", options=d.columns, max_selections=1
-    )
+    column_y_select = mo.ui.multiselect(options=d.columns, max_selections=1)
     # column_y_type_select = mo.ui.multiselect(
     #     label="Y column specifier", options=column_types, max_selections=1
     # )
     column_y_aggregation = mo.ui.multiselect(
-        label="Y column aggregation",
         options=aggregation_types,
         max_selections=1,
         value=["none"],
@@ -244,26 +246,35 @@ def build_graph_form(mo: marimo, d: pl.DataFrame, sanitized_tbn: str):
         [
             mo.md(f"## Build a Graph from **{sanitized_tbn}**"),
             name_input,
-            type_of_graph_select,
-            mo.md("### X Axis"),
-            mo.hstack([column_x_select, column_x_aggregation]),
-            mo.md("### Y Axis"),
-            mo.hstack([column_y_select, column_y_aggregation]),
+            mo.hstack([mo.md("Graph type"), type_of_graph_select], justify="start"),
+            mo.md("### X Axis").style({"color": "white"}),
+            mo.hstack(
+                [
+                    mo.vstack([mo.md("X Column"), column_x_select]),
+                    mo.vstack([mo.md("X Aggregation"), column_x_aggregation]),
+                ]
+            ),
+            mo.md("### Y Axis").style({"color": "white"}),
+            mo.hstack(
+                [
+                    mo.vstack([mo.md("Y Column"), column_y_select]),
+                    mo.vstack([mo.md("Y Aggregation"), column_y_aggregation]),
+                ]
+            ),
             create_button,
         ]
-    ).style({"max-width": "50%"})
+    ).style({"max-width": "50%", "color": "white"})
+    return create_button, form
 
-    return form, create_button
 
-
-@app.cell()
+@app.cell
 def save_graph_form_data(
-    mo: marimo,
+    create_button,
     form,
-    create_button: marimo.ui.run_button,
+    json,
     kpiten_config_line_class,
+    mo,
     selected_table_name,
-    json: json,
 ):
     mo.stop(not create_button.value)
 
@@ -297,10 +308,11 @@ def save_graph_form_data(
     mo.md(
         message,
     ).callout(kind=callout_kind)
+    return
 
 
 @app.cell
-def build_BAN(mo: marimo, sanitized_tbn: str, d: pl.DataFrame):
+def build_BAN(d, mo, sanitized_tbn):
     # BAN -> Big Ass Number, terme réellement utilisé pour parler des cartes de KPI avec des
     # Chiffres ou des infos dessus.
     mo.stop(type(d) is type(None))
@@ -311,30 +323,36 @@ def build_BAN(mo: marimo, sanitized_tbn: str, d: pl.DataFrame):
         "KPI Card in the `KPI` section."
     )
     BAN_name = mo.ui.text(placeholder="BAN name")
-    BAN_col_alias = mo.ui.text(
-        label="alias", placeholder="alias of column that holds your data"
-    )
+    BAN_col_alias = mo.ui.text(placeholder="alias of column that holds your data")
     BAN_sql = mo.ui.code_editor(placeholder="Your SQL query", language="sql")
     save_BAN_btn = mo.ui.run_button(kind="neutral", label="Save BAN")
 
     mo.vstack(
-        [ban_cell_title, ban_cell_desc, BAN_name, BAN_sql, BAN_col_alias, save_BAN_btn]
+        [
+            ban_cell_title,
+            ban_cell_desc,
+            BAN_name,
+            BAN_sql,
+            mo.hstack([mo.md("BAN alias"), BAN_col_alias], justify="start").style(
+                {"color": "white"}
+            ),
+            save_BAN_btn,
+        ]
     )
-
-    return (BAN_name, BAN_sql, BAN_col_alias)
+    return BAN_col_alias, BAN_name, BAN_sql, save_BAN_btn
 
 
 @app.cell
 def save_BAN(
-    mo: marimo,
-    BAN_name: marimo.ui.text,
-    BAN_col_alias: marimo.ui.text,
-    BAN_sql: marimo.ui.text_area,
-    sanitized_tbn: str,
-    save_BAN_btn: marimo.ui.run_button,
-    selected_table_name: marimo.ui.multiselect,
+    BAN_col_alias,
+    BAN_name,
+    BAN_sql,
+    json,
     kpiten_config_line_class,
-    json: json,
+    mo,
+    sanitized_tbn,
+    save_BAN_btn,
+    selected_table_name,
 ):
     mo.stop(not save_BAN_btn.value)
 
@@ -357,3 +375,8 @@ def save_BAN(
         save_BAN_message = "Couldn't store BAN, please try again later."
         save_BAN_kind = "error"
     mo.md(save_BAN_message).callout(kind=save_BAN_kind)
+    return
+
+
+if __name__ == "__main__":
+    app.run()

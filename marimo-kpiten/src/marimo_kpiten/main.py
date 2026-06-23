@@ -37,7 +37,7 @@ except Exception as e:
     logger.warning(e)
 
 if odoo is None:
-    raise Exception("Odoo connection could not be initialized properly.") 
+    raise Exception("Odoo connection could not be initialized properly.")
 
 if env is None:
     raise Exception("Odoo environment could not be initialized properly.")
@@ -48,15 +48,11 @@ router = APIRouter()
 
 @router.get("/")
 def root():
-    res = env["kpiten"].get_record_vals(
-        "sale.order", [], FileState.retrieve_state("user_id")
-    )
-    print(res)
     return {"message": "server is running. visit /login w/ an id to use the website"}
 
 
 # TODO : NAVIGATE TO IT USING ODOO THEN CHANGE THIS TO POST
-@router.get("/login")
+@router.get("/login")  # ?id = id
 def login(id: int):
     FileState.store_state(state_type="state", data={"user_id": str(id)})
     return RedirectResponse("/df_process", status_code=303)
