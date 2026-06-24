@@ -102,10 +102,10 @@ def no_data_found(mo, no_data_found_callout):
 
 
 @app.cell
-def display_header(mo: marimo, stn_ui, build_nav):
+def display_header(mo: marimo, stn_ui, build_nav, ts_ui):
     mo.hstack(
         [
-            mo.hstack([mo.md("## Build • "), stn_ui]).style(
+            mo.hstack([mo.md("## Build • "), stn_ui, ts_ui]).style(
                 {"max-width": "fit-content"}
             ),
             mo.hstack([build_nav]).style({"max-width": "fit-content"}),
@@ -113,9 +113,22 @@ def display_header(mo: marimo, stn_ui, build_nav):
         justify="space-between",
     )
 
+@app.cell
+def select_transformation_to_make(mo: marimo):
+    transformation_selector_label = mo.md("What to build ?")
+    transformation_selector = mo.ui.multiselect(options=['graph', 'dataframe', 'card'], max_selections=1, value=["dataframe"])
+
+    ts_ui = mo.vstack([
+        transformation_selector_label,
+        transformation_selector
+    ]).style(
+        {"max-width": "fit-content", "color": "white"}
+    )
+    return (ts_ui,transformation_selector)
+    
 
 @app.cell
-def select_df_to_build(mo, tables):
+def select_df_to_build(mo:marimo, tables):
     selected_table_name_label = mo.md("Select a table")
     selected_table_name = mo.ui.multiselect(options=tables, max_selections=1)
 
@@ -138,30 +151,37 @@ def display_selected_table(df_store, mo, selected_table_name):
             display_title = mo.md(f"## Build Dataframes with **{sanitized_tbn}**")
             d = df_info["df"]
             build_df = mo.ui.dataframe(d)
-    mo.vstack([page_title, display_title, build_df])
+    selected_table_ui = mo.vstack([page_title, display_title, build_df])
     return d, sanitized_tbn
+
+@app.cell
+def show_selected_table(mo, transformation_selector, selected_table_ui):
+    mo.stop(transformation_selector.value[0] is not "dataframe")
+    selected_table_ui
 
 
 @app.cell
-def code_input(d, mo):
+def code_input(d, mo: marimo, transformation_selector):
     """
     code_input
     ---
     Affiche la zone de texte appelée "Paste code"
     """
+    mo.stop(transformation_selector.value[0] is not "dataframe")
     mo.stop(type(d) is type(None))
     python_text = mo.ui.text_area()
-    mo.vstack([mo.md("## Paste Code"), python_text]).style({"color": "white"})
+    mo.vstack([mo.md("## Paste Code").style({"color": "white"}), python_text])
     return (python_text,)
 
 
 @app.cell
-def save_code_input(d, mo):
+def save_code_input(d, mo, transformation_selector):
     """
     save_code_input
     ---
     Affiche le bouton "Save to Kpiten"
     """
+    mo.stop(transformation_selector.value[0] is not "dataframe")
     mo.stop(type(d) is type(None))
     save = mo.ui.run_button(label="Save code to Kpiten")
     save
@@ -169,12 +189,13 @@ def save_code_input(d, mo):
 
 
 @app.cell
-def store_df_code(env, mo, python_text, save, selected_table_name):
+def store_df_code(env, mo, python_text, save, selected_table_name, transformation_selector):
     """
     store_df_code
     ---
     Stocke la transformation de dataframe via odoorpc.
     """
+    mo.stop(transformation_selector.value[0] is not "dataframe")
     mo.stop(
         not python_text.value or not save.value or len(selected_table_name.value) < 1
     )
@@ -194,7 +215,8 @@ def store_df_code(env, mo, python_text, save, selected_table_name):
 
 
 @app.cell
-def build_graph_form(d, mo: marimo, sanitized_tbn):
+def build_graph_form(d, mo: marimo, sanitized_tbn, transformation_selector):
+    mo.stop(transformation_selector.value[0] is not "graph")
     mo.stop(type(d) is type(None))
 
     graph_type_options = ["bar", "point", "area"]
@@ -244,26 +266,26 @@ def build_graph_form(d, mo: marimo, sanitized_tbn):
 
     mo.vstack(
         [
-            mo.md(f"## Build a Graph from **{sanitized_tbn}**"),
+            mo.md(f"## Build a Graph from **{sanitized_tbn}**").style({"color":"white"}),
             name_input,
-            mo.hstack([mo.md("Graph type"), type_of_graph_select], justify="start"),
+            mo.hstack([mo.md("Graph type").style({"color":"white"}), type_of_graph_select], justify="start").style({"color" : "white"}),
             mo.md("### X Axis").style({"color": "white"}),
             mo.hstack(
                 [
                     mo.vstack([mo.md("X Column"), column_x_select]),
                     mo.vstack([mo.md("X Aggregation"), column_x_aggregation]),
                 ]
-            ),
+            ).style({"color":"white"}),
             mo.md("### Y Axis").style({"color": "white"}),
             mo.hstack(
                 [
                     mo.vstack([mo.md("Y Column"), column_y_select]),
                     mo.vstack([mo.md("Y Aggregation"), column_y_aggregation]),
                 ]
-            ),
+            ).style({"color":"white"}),
             create_button,
         ]
-    ).style({"max-width": "50%", "color": "white"})
+    ).style({"max-width": "50%"})
     return create_button, form
 
 
@@ -275,7 +297,9 @@ def save_graph_form_data(
     kpiten_config_line_class,
     mo,
     selected_table_name,
+    transformation_selector,
 ):
+    mo.stop(transformation_selector.value[0] is not "graph")
     mo.stop(not create_button.value)
 
     form_record = kpiten_config_line_class.create_conf_line(
@@ -312,9 +336,10 @@ def save_graph_form_data(
 
 
 @app.cell
-def build_BAN(d, mo, sanitized_tbn):
+def build_BAN(d, mo, sanitized_tbn, transformation_selector):
     # BAN -> Big Ass Number, terme réellement utilisé pour parler des cartes de KPI avec des
     # Chiffres ou des infos dessus.
+    mo.stop(transformation_selector.value[0] is not "card")
     mo.stop(type(d) is type(None))
     ban_cell_title = mo.md(f"## Build a BAN (*KPI card*) from **{sanitized_tbn}**")
     ban_cell_desc = mo.md(
@@ -353,7 +378,9 @@ def save_BAN(
     sanitized_tbn,
     save_BAN_btn,
     selected_table_name,
+    transformation_selector,
 ):
+    mo.stop(transformation_selector.value[0] is not "card")
     mo.stop(not save_BAN_btn.value)
 
     BAN_record = kpiten_config_line_class.create_conf_line(
