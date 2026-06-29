@@ -1,3 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 kpiten.access_kpiten_config,access_kpiten_config,kpiten.model_kpiten_config,base.group_user,1,1,1,1
 kpiten.access_kpiten_config_line,access_kpiten_config_line,kpiten.model_kpiten_config_line,base.group_user,1,1,1,1
+kpiten.access_kpiten,access_kpiten,kpiten.model_kpiten,base.group_user,1,1,1,1

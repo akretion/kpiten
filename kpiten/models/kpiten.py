@@ -1,7 +1,7 @@
 from odoo import _, api, exceptions, models
 
 
-class Kpiten(models.Model):
+class Kpiten(models.AbstractModel):
     _name = "kpiten"
     _description = "KpiTen methods"
 
