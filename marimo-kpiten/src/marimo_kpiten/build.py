@@ -480,7 +480,7 @@ def show_ucolumn_types(
     ucols_type_msg = "No col selected."
     selected_df_ucols_type = mo.md(selected_df_ucols_msg)
     union_df_cols_type = mo.md(ucols_type_msg)
-    save_union_data = mo.ui.run_button(label="Save").style({"color": "white"})
+    save_union_button = mo.ui.run_button(label="Save")
 
     if selected_df_ucols_selector.value[0] is not None:
         selected_df_ucols_msg = f"type of {selected_df_ucols_selector.value[-1]} : {d.schema[selected_df_ucols_selector.value[-1]]}"
@@ -492,9 +492,15 @@ def show_ucolumn_types(
         [
             mo.vstack([selected_df_ucols_msg, selected_df_ucols_selector.value]),
             mo.vstack([ucols_type_msg, union_df_cols_selector.value]),
-            mo.vstack([save_union_data]),
+            mo.vstack([save_union_button.style({"color": "white"})]),
         ]
     ).style({"color": "white"})
+
+
+@app.cell
+def save_union(save_union_button, selected_table_name, table2_selector):
+    mo.stop(transformation_selector.value[0] is not "union")
+    mo.stop(save_union_button.value is None)
 
 
 @app.cell

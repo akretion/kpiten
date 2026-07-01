@@ -193,6 +193,7 @@ def full_predicates(date_predicates: list[bool]):
 
 @app.cell
 def display_ban(exec_context_list, full_predicates, mo):
+    mo.stop(exec_context_list == [])
     mo.stop(len(full_predicates) < 1)
     bans = [
         mo.stat(label=ban_ctx["label"], value=ban_ctx["BAN"], bordered=True)
@@ -212,6 +213,7 @@ def load_kpiten_line(kpiten_config_line_class, mo, no_data_found_callout):
     - Retourne la transformation et la table qui lui correspond (ici Sales Order, hardcodé)
     """
     mo.stop(no_data_found_callout)
+    print("LOADING")
     from marimo_kpiten.services.df_storage import DFStorage as dfsv
 
     all_df_metadata = dfsv.retrieve_all_dfs()
@@ -309,6 +311,43 @@ def compute_kpiten_line(df_store, df_wt_list, full_predicates, json, mo, pl):
                         " your spelling, and whether you have the rights to query",
                     )
                     print(f"full error :\n{CNFE}")
+            elif transform["kind"] == "union":
+                union_json = json.loads(transform["content"])
+                print(union_json)
+                base_model_df = df_store.retrieve_df(
+                    union_json["definition"]["model"]["name"]
+                )["df"]
+                union_model_df = df_store.retrieve_df(
+                    union_json["definition"]["union_model"]["name"]
+                )["df"]
+
+                bmdf_columns = union_json["definition"]["model"]["columns"]
+                umdf_columns = union_json["definition"]["union_model"]["columns"]
+                base_model_df = base_model_df.select(bmdf_columns.keys())
+                union_model_df = union_model_df.select(umdf_columns.keys())
+
+                base_model_df = base_model_df.rename(bmdf_columns)
+                union_model_df = union_model_df.rename(umdf_columns)
+
+                UNION_DF = pl.union(
+                    [base_model_df, union_model_df], how="vertical_relaxed"
+                )
+
+                # hardcoded for now
+                UNION_DF = UNION_DF.with_columns(
+                    (pl.col("date").dt.month()).alias("month")
+                )
+
+                print(UNION_DF)
+
+                # exec_context_list.append(
+                #     {
+                #         "label": "dummy label",
+                #         "context_type": "union",
+                #         "union_df": UNION_DF,
+                #     }
+                # )
+
             else:
                 import plotly.express as px
 

@@ -86,7 +86,6 @@ class DFStorage:
 
         curr_uid = int(FileState.retrieve_state("user_id"))
         allowed_fields = RPC().env["kpiten"].get_allowed_fields(table, curr_uid)
-        print(f"ALLOWED FIELDS (before alteration) : {allowed_fields}")
         try:
             df = pl.read_parquet(
                 f"{data_path}/{DFStorage.df_data_dir_name}/{table}/{table}.{DFStorage.parquet_file_ext}"
