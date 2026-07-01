@@ -1,4 +1,6 @@
 import marimo
+import polars
+from marimo_kpiten.services.df_storage import DFStorage
 
 __generated_with = "0.23.9"
 app = marimo.App(width="medium")
@@ -113,22 +115,24 @@ def display_header(mo: marimo, stn_ui, build_nav, ts_ui):
         justify="space-between",
     )
 
+
 @app.cell
 def select_transformation_to_make(mo: marimo):
     transformation_selector_label = mo.md("What to build ?")
-    transformation_selector = mo.ui.multiselect(options=['graph', 'dataframe', 'card'], max_selections=1, value=["dataframe"])
+    transformation_selector = mo.ui.multiselect(
+        options=["graph", "dataframe", "card", "union"],
+        max_selections=1,
+        value=["dataframe"],
+    )
 
-    ts_ui = mo.vstack([
-        transformation_selector_label,
-        transformation_selector
-    ]).style(
+    ts_ui = mo.vstack([transformation_selector_label, transformation_selector]).style(
         {"max-width": "fit-content", "color": "white"}
     )
-    return (ts_ui,transformation_selector)
-    
+    return (ts_ui, transformation_selector)
+
 
 @app.cell
-def select_df_to_build(mo:marimo, tables):
+def select_df_to_build(mo: marimo, tables):
     selected_table_name_label = mo.md("Select a table")
     selected_table_name = mo.ui.multiselect(options=tables, max_selections=1)
 
@@ -153,6 +157,7 @@ def display_selected_table(df_store, mo, selected_table_name):
             build_df = mo.ui.dataframe(d)
     selected_table_ui = mo.vstack([page_title, display_title, build_df])
     return d, sanitized_tbn
+
 
 @app.cell
 def show_selected_table(mo, transformation_selector, selected_table_ui):
@@ -189,7 +194,9 @@ def save_code_input(d, mo, transformation_selector):
 
 
 @app.cell
-def store_df_code(env, mo, python_text, save, selected_table_name, transformation_selector):
+def store_df_code(
+    env, mo, python_text, save, selected_table_name, transformation_selector
+):
     """
     store_df_code
     ---
@@ -266,23 +273,28 @@ def build_graph_form(d, mo: marimo, sanitized_tbn, transformation_selector):
 
     mo.vstack(
         [
-            mo.md(f"## Build a Graph from **{sanitized_tbn}**").style({"color":"white"}),
+            mo.md(f"## Build a Graph from **{sanitized_tbn}**").style(
+                {"color": "white"}
+            ),
             name_input,
-            mo.hstack([mo.md("Graph type").style({"color":"white"}), type_of_graph_select], justify="start").style({"color" : "white"}),
+            mo.hstack(
+                [mo.md("Graph type").style({"color": "white"}), type_of_graph_select],
+                justify="start",
+            ).style({"color": "white"}),
             mo.md("### X Axis").style({"color": "white"}),
             mo.hstack(
                 [
                     mo.vstack([mo.md("X Column"), column_x_select]),
                     mo.vstack([mo.md("X Aggregation"), column_x_aggregation]),
                 ]
-            ).style({"color":"white"}),
+            ).style({"color": "white"}),
             mo.md("### Y Axis").style({"color": "white"}),
             mo.hstack(
                 [
                     mo.vstack([mo.md("Y Column"), column_y_select]),
                     mo.vstack([mo.md("Y Aggregation"), column_y_aggregation]),
                 ]
-            ).style({"color":"white"}),
+            ).style({"color": "white"}),
             create_button,
         ]
     ).style({"max-width": "50%"})
@@ -403,6 +415,91 @@ def save_BAN(
         save_BAN_kind = "error"
     mo.md(save_BAN_message).callout(kind=save_BAN_kind)
     return
+
+
+@app.cell
+def union_tables_selectors(mo: marimo, transformation_selector, tables, sanitized_tbn):
+    mo.stop(transformation_selector.value[0] is not "union")
+
+    table2_sel_label = mo.md(f"Table 2 (to make an union with {sanitized_tbn})")
+    table2_selector = mo.ui.multiselect(options=tables, max_selections=1)
+    mo.hstack([mo.vstack([table2_sel_label, table2_selector])]).style(
+        {"color": "white"}
+    )
+
+    return (table2_selector,)
+
+
+@app.cell
+def union_columns_selectors(
+    mo: marimo,
+    transformation_selector,
+    table2_selector,
+    d: polars.DataFrame,
+    df_store: DFStorage,
+    sanitized_tbn,
+):
+    mo.stop(transformation_selector.value[0] is not "union")
+    mo.stop(len(table2_selector.value) is 0)
+    # TODO Trouver un moyen de gérer l'ordre des colonnes avec moins d'intervention externe
+    sduc_label = mo.md(f"Cols of {sanitized_tbn}")
+    selected_df_ucols_selector = mo.ui.multiselect(options=d.columns)
+    union_df = df_store.retrieve_df(table2_selector.value[0])["df"]
+    union_df_cols_selector = mo.ui.multiselect(options=union_df.columns)
+
+    mo.hstack(
+        [
+            mo.vstack(
+                [
+                    mo.md(f"Cols of {sanitized_tbn}"),
+                    selected_df_ucols_selector,
+                ]
+            ).style({"color": "white"}),
+            mo.vstack(
+                [
+                    mo.md(f"Cols of {table2_selector.value[0]}"),
+                    union_df_cols_selector,
+                ]
+            ).style({"color": "white"}),
+        ]
+    )
+    return (selected_df_ucols_selector, union_df_cols_selector)
+
+
+@app.cell
+def show_ucolumn_types(
+    mo: marimo, selected_df_ucols_selector, union_df_cols_selector, union_df
+):
+    mo.stop(transformation_selector.value[0] is not "union")
+    mo.stop(len(table2_selector.value) is 0)
+    mo.stop(
+        len(union_df_cols_selector.value) is 0
+        or len(selected_df_ucols_selector.value) is 0
+    )
+    selected_df_ucols_msg = "No col selected."
+    ucols_type_msg = "No col selected."
+    selected_df_ucols_type = mo.md(selected_df_ucols_msg)
+    union_df_cols_type = mo.md(ucols_type_msg)
+    save_union_data = mo.ui.run_button(label="Save").style({"color": "white"})
+
+    if selected_df_ucols_selector.value[0] is not None:
+        selected_df_ucols_msg = f"type of {selected_df_ucols_selector.value[-1]} : {d.schema[selected_df_ucols_selector.value[-1]]}"
+
+    if union_df_cols_selector.value[0] is not None:
+        ucols_type_msg = f"type of {union_df_cols_selector.value[-1]} : {union_df.schema[union_df_cols_selector.value[-1]]}"
+
+    mo.hstack(
+        [
+            mo.vstack([selected_df_ucols_msg, selected_df_ucols_selector.value]),
+            mo.vstack([ucols_type_msg, union_df_cols_selector.value]),
+            mo.vstack([save_union_data]),
+        ]
+    ).style({"color": "white"})
+
+
+@app.cell
+def save_union(selected_df_ucols_selector, union_df_cols_selector, save_union_data):
+    pass
 
 
 if __name__ == "__main__":

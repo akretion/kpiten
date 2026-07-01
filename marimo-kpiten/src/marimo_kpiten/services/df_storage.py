@@ -39,18 +39,31 @@ class DFStorage:
     def _filter_not_found_columns(
         df: DataFrame, name: str, columns: list[str], verbose=False
     ):
+        found = []
         not_found = []
         for c in columns:
             try:
                 res = df.select(c)
+                found.append(c)
             except pl.exceptions.ColumnNotFoundError as CNF:
                 not_found.append(c)
         if verbose:
             if len(not_found) > 0:
-                logger.warning(f"Those columns were not found in {name} : {not_found}")
+                logger.warning(f"[{name}] Those columns were not found : {not_found}")
             else:
-                logger.warning(f"[{name}] : every column was found.")
-        return not_found
+                logger.warning(f"[{name}] Every column was found.")
+        return found
+
+    @staticmethod
+    def _is_forbidden_column(c: str, verbose=True):
+        forbidden_columns = ["__last_update"]
+        has_illegal_prefix = c.startswith("__")
+        is_forbidden = c in forbidden_columns
+
+        if (is_forbidden or has_illegal_prefix) and verbose:
+            print(f"ignored forbidden column '{c}'")
+
+        return not has_illegal_prefix or not is_forbidden
 
     @staticmethod
     def store_df(table: str, df: DataFrame):
@@ -73,11 +86,18 @@ class DFStorage:
 
         curr_uid = int(FileState.retrieve_state("user_id"))
         allowed_fields = RPC().env["kpiten"].get_allowed_fields(table, curr_uid)
+        print(f"ALLOWED FIELDS (before alteration) : {allowed_fields}")
         try:
             df = pl.read_parquet(
                 f"{data_path}/{DFStorage.df_data_dir_name}/{table}/{table}.{DFStorage.parquet_file_ext}"
             )
-            df = df.select(allowed_fields)
+            sanitized_allowed_fields = filter(
+                DFStorage._is_forbidden_column, allowed_fields
+            )
+            sanitized_allowed_fields = DFStorage._filter_not_found_columns(
+                df, table, sanitized_allowed_fields, True
+            )
+            df = df.select(sanitized_allowed_fields)
             struct_cols = [
                 col
                 for col, dtype in zip(df.columns, df.dtypes)
