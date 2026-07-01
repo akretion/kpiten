@@ -365,8 +365,6 @@ def compute_kpiten_line(df_store, df_wt_list, full_predicates, json, mo, pl):
                     CX["name"]: x_label,
                     CY["name"]: y_label,
                 }
-                width = 500
-                height = 700
 
                 match graph_json["graph_type"]:
                     case "bar":
@@ -375,8 +373,6 @@ def compute_kpiten_line(df_store, df_wt_list, full_predicates, json, mo, pl):
                             x=CX["name"],
                             y=CY["name"],
                             labels=labels,
-                            width=width,
-                            height=height,
                         )
                     case "point":
                         fig = px.scatter(
@@ -384,8 +380,6 @@ def compute_kpiten_line(df_store, df_wt_list, full_predicates, json, mo, pl):
                             x=CX["name"],
                             y=CY["name"],
                             labels=labels,
-                            width=width,
-                            height=height,
                         )
                     case "area":
                         fig = px.area(
@@ -393,8 +387,6 @@ def compute_kpiten_line(df_store, df_wt_list, full_predicates, json, mo, pl):
                             x=CX["name"],
                             y=CY["name"],
                             labels=labels,
-                            width=width,
-                            height=height,
                         )
                     case _:
                         fig = px.bar(
@@ -402,9 +394,11 @@ def compute_kpiten_line(df_store, df_wt_list, full_predicates, json, mo, pl):
                             x=CX["name"],
                             y=CY["name"],
                             labels=labels,
-                            width=width,
-                            height=height,
                         )
+                fig.update_layout(
+                    autosize=True,
+                    margin=dict(l=20, r=20, t=40, b=20),
+                )
                 label = graph_json["label"]
                 graph = mo.ui.plotly(figure=fig)
                 delete_button = mo.ui.button(
@@ -430,11 +424,11 @@ def exec_kpiten_lines(exec_context_list, layout_select, mo, pl):
     """
     mo.stop(not exec_context_list)
     mo.stop(len(exec_context_list) < 1)
-    from great_tables import GT, style, loc
 
     ordered = {}
     to_display = []
     selected_layout = layout_select.value[0]
+    data_t_width = "80vw" if selected_layout == "Serial (default)" else "40vw"
 
     for c in exec_context_list:
         if c["context_type"] is not "ban":
@@ -458,7 +452,7 @@ def exec_kpiten_lines(exec_context_list, layout_select, mo, pl):
                     table_html = mo.ui.table(scope[ctx["df_next_like"]].limit(20))
                     delete_html = ctx["delete_button"].text
                     sub_parts_html += f"""
-                        <div style="display:flex; flex-flow:column; max-width:50vw; min-width:300px; gap:0.5rem; padding:0.5rem; box-sizing:border-box">
+                        <div style="display:flex; flex-flow:column; width: {data_t_width}; min-width:300px; gap:0.5rem; padding:0.5rem; box-sizing:border-box">
                             <div style="overflow:scroll">{table_html}</div>
                             {delete_html}
                         </div>
@@ -467,7 +461,7 @@ def exec_kpiten_lines(exec_context_list, layout_select, mo, pl):
                     graph_html = ctx["graph"].text
                     delete_html = ctx["delete_button"].text
                     sub_parts_html += f"""
-                        <div style="display:flex; flex-flow:column; max-width:50vw; min-width:400px; gap:0.5rem; padding:0.5rem; box-sizing:border-box">
+                        <div style="display:flex; flex-flow:column; width:80vw; min-width:400px; gap:0.5rem; padding:0.5rem; box-sizing:border-box">
                             <h2 style="margin:0">{ctx['label']}</h2>
                             {graph_html}
                             {delete_html}
