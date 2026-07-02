@@ -27,12 +27,12 @@
                     </group>
                     <group colspan="1">
                         <field name="line_ids" nolabel="1">
-                            <list>
+                            <tree>
                                 <field name="definition" />
                                 <field name="kind" />
                                 <field name="active" optional="hide" />
                                 <field name="group_ids" widget="many2many_tags" />
-                            </list>
+                            </tree>
                             <form>
                                 <group>
                                     <field name="definition" />
@@ -51,7 +51,7 @@
     <record id="kpiten_list" model="ir.ui.view">
         <field name="model">kpiten.config</field>
         <field name="arch" type="xml">
-            <list>
+            <tree>
                 <field name="name" />
                 <field name="model_ids" widget="many2many_tags" />
                 <field
@@ -60,7 +60,7 @@
                     optional="show"
                     readonly="1"
                 />
-            </list>
+            </tree>
         </field>
     </record>
 
@@ -76,8 +76,7 @@
     <record id="kpiten_action" model="ir.actions.act_window">
         <field name="name">Kpiten</field>
         <field name="res_model">kpiten.config</field>
-        <field name="view_mode">list,form</field>
-        <field name="path">kpiten</field>
+        <field name="view_mode">tree,form</field>
     </record>
 
     <menuitem

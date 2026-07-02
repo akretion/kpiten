@@ -1,3 +1,5 @@
+from math import exp2
+
 from odoo import _, api, exceptions, models
 
 
@@ -7,10 +9,16 @@ class Kpiten(models.AbstractModel):
 
     def _follow_relational_fields(self):
         return {
-            "product.product": {"default_code", "name", "categ_id.name"},
+            "product.product": {
+                "default_code",
+                "name",
+                "categ_id.name",
+                "product_tmpl_id.type",
+            },
             "product.category": {"name"},
             "res.partner": {"commercial_partner_id.name", "commercial_partner_id.ref"},
             "res.users": {"name"},
+            "hr.employee": {"employee_type"},
         }
 
     @api.model
@@ -20,12 +28,19 @@ class Kpiten(models.AbstractModel):
 
     @api.model
     def get_allowed_fields(self, model: str, allowed_uid: int) -> list[str]:
-        stored_fields = self.env["ir.model.fields"].search(
-            [("model", "=", model), ("store", "=", True)]
+        stored_fields = (
+            self.env["ir.model.fields"]
+            .search([("model", "=", model), ("store", "=", True)])
+            .mapped("name")
         )
         user_fields = self.env[model].with_user(allowed_uid)._fields
 
-        return [field for field in user_fields if field in stored_fields]
+        additionnal_fields = self._get_relational_paths_for_model(model)
+
+        return [
+            *[field for field in user_fields if field in stored_fields],
+            *additionnal_fields,
+        ]
 
     def _get_useless_fields(self):
         """return Dict of list
@@ -69,6 +84,14 @@ class Kpiten(models.AbstractModel):
         records = self.env[model].with_user(user_id).search(domain, limit=limit)
         if not records:
             return []
+
+        # def hardcoded_filter(c: str):
+        #     if c != "hours_today":
+        #         return True
+        #     else:
+        #         print(f"excluded : {c}")
+
+        # direct_fields = filter(hardcoded_filter, direct_fields)
 
         # 4. Lecture des champs directs en une seule requête
         raw_data = records.read(list(direct_fields))
@@ -142,6 +165,8 @@ class Kpiten(models.AbstractModel):
                 continue
             if field.name in self._get_useless_fields():
                 continue
+            if field.compute and not field.store:
+                continue
             result.add(fname)
         return result
 
@@ -188,6 +213,43 @@ class Kpiten(models.AbstractModel):
                 paths.add(f"{fname}.{sub_field}")
 
         return paths
+
+    def resolve_field_path(self, model, ids, path):
+        """
+        Resolves a (possibly dotted) field path for a list of record ids of `model`.
+        Returns {id: value}.
+
+        Examples:
+            resolve_field_path(env, 'mrp.workcenter.productivity', ids, 'duration')
+            resolve_field_path(env, 'mrp.workcenter.productivity', ids, 'user_id.employee_id.employee_type')
+        """
+        field, *rest = path.split(
+            ".", 1
+        )  # rest is [] if no more dots, else [remaining_path]
+
+        if not rest:
+            # base case: last segment, fetch the real value
+            records = self.env[model].search_read([("id", "in", ids)], ["id", field])
+            return {r["id"]: r[field] for r in records}
+
+        # recursive case: this segment is relational, hop through it
+        records = self.env[model].search_read([("id", "in", ids)], ["id", field])
+
+        # many2one comes back as (related_id, display_name) or False if empty
+        id_to_related_id = {
+            r["id"]: (r[field][0] if r[field] else None) for r in records
+        }
+
+        related_model = self.env[model]._fields[field].comodel_name
+        related_ids = list({v for v in id_to_related_id.values() if v is not None})
+
+        related_result = self.resolve_field_path(related_model, related_ids, rest[0])
+
+        # stitch: base_id -> related_id -> resolved value
+        return {
+            base_id: related_result.get(related_id)
+            for base_id, related_id in id_to_related_id.items()
+        }
 
 
 # Fields to systematically exclude

@@ -62,7 +62,12 @@ class KpitenConfigLine(models.Model):
     definition = fields.Text(required=True, help="Store settings for kpi")
     group_ids = fields.Many2many(comodel_name="res.groups")
     kind = fields.Selection(
-        selection=[("data", "Data"), ("graph", "Graph"), ("ban", "BAN")],
+        selection=[
+            ("data", "Data"),
+            ("graph", "Graph"),
+            ("ban", "BAN"),
+            ("union", "Union"),
+        ],
         default="data",
         help="Representation type",
     )
