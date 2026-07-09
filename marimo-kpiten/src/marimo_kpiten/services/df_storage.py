@@ -55,7 +55,7 @@ class DFStorage:
         return found
 
     @staticmethod
-    def _is_forbidden_column(c: str, verbose=True):
+    def _is_forbidden_column(c: str, verbose=False):
         forbidden_columns = ["__last_update"]
         has_illegal_prefix = c.startswith("__")
         is_forbidden = c in forbidden_columns
@@ -97,7 +97,7 @@ class DFStorage:
         # remove columns that are not in the actual dataframe, even
         # if they are allowed columns
         sanitized_allowed_fields = DFStorage._filter_not_found_columns(
-            df, table, sanitized_allowed_fields, True
+            df, table, sanitized_allowed_fields, False
         )
         return sanitized_allowed_fields
 

@@ -221,7 +221,6 @@ def load_kpiten_line(kpiten_config_line_class, mo, no_data_found_callout):
     - Retourne la transformation et la table qui lui correspond (ici Sales Order, hardcodé)
     """
     mo.stop(no_data_found_callout)
-    print("LOADING")
     from marimo_kpiten.services.df_storage import DFStorage as dfsv
 
     all_df_metadata = dfsv.retrieve_all_dfs()
@@ -324,6 +323,8 @@ def compute_kpiten_line(
                     )
                     print(f"full error :\n{CNFE}")
             elif transform["kind"] == "union":
+                from marimo_kpiten.services.temp_transform_engine import TransformEngine
+
                 union_json = json.loads(transform["content"])
                 base_model_df = df_store.retrieve_df(
                     union_json["definition"]["model"]["name"]
@@ -334,6 +335,15 @@ def compute_kpiten_line(
                 union_model_df = df_store.retrieve_df(
                     union_json["definition"]["union_model"]["name"]
                 )["df"]
+
+                engine = TransformEngine(
+                    {"model": "account.analytic.line", "df": base_model_df},
+                    {"model": "mrp.workcenter.productivity", "df": union_model_df},
+                    "./services/mixed_timesheets.rules.toml",
+                )
+
+                engine.run()
+
                 union_model_df = union_model_df.with_columns(
                     pl.lit("production").alias("description")
                 )
@@ -351,8 +361,6 @@ def compute_kpiten_line(
                     .then(pl.lit("Production & Méthode / Production"))
                     .otherwise(pl.col("dept"))
                 )
-                print(f"UNION : {union_model_df}\nSCHEMA : {union_model_df.schema}")
-                print(f"BASE : {base_model_df}\nSCHEMA : {base_model_df.schema}")
 
                 UNION_DF = pl.concat(
                     [base_model_df, union_model_df], how="vertical_relaxed"
