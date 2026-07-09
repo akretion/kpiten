@@ -8,6 +8,10 @@ class Kpiten(models.AbstractModel):
     _description = "KpiTen methods"
 
     def _follow_relational_fields(self):
+        """
+        for walkable paths only (e.g : some_model.user_id.name)
+        [destined to be consumed by odoo's mapped function]
+        """
         return {
             "product.product": {
                 "default_code",
@@ -18,7 +22,25 @@ class Kpiten(models.AbstractModel):
             "product.category": {"name"},
             "res.partner": {"commercial_partner_id.name", "commercial_partner_id.ref"},
             "res.users": {"name"},
-            "hr.employee": {"employee_type"},
+            "account.analytic.account": {"name"},
+        }
+
+    def _get_reverse_lookups(self):
+        return {
+            "mrp.workcenter.productivity": {
+                "user_id": {
+                    "target_model": "hr.employee",
+                    "target_link_field": "user_id",
+                    "target_value_field": "employee_type",
+                },
+            },
+            "account.analytic.line": {
+                "employee_id": {
+                    "target_model": "hr.employee",
+                    "target_link_field": "user_id",
+                    "target_value_field": "employee_type",
+                }
+            },
         }
 
     @api.model
@@ -96,21 +118,6 @@ class Kpiten(models.AbstractModel):
         # 4. Lecture des champs directs en une seule requête
         raw_data = records.read(list(direct_fields))
 
-        # 4.5 Traduction
-        translatable = self.env["ir.model.fields"].search(
-            [("model", "=", model), ("translate", "=", True)]
-        )
-        model_has_translate_fields = len(translatable) > 0
-        if model_has_translate_fields:
-            rec_by_id = {r["id"]: r for r in raw_data}
-            for record in records:
-                for field in translatable:
-                    translations, _ = record.get_field_translations(field.name)
-                    if len(translations) > 0:
-                        rec_by_id[record.id][field.name] = {
-                            t["lang"]: t["value"] for t in translations
-                        }
-
         def replace_null(val):
             # replace False by None because dataframe require None
             if not val:
@@ -143,9 +150,20 @@ class Kpiten(models.AbstractModel):
 
         # 6. Remplacer les Many2one bruts (id, name) par juste l'id
         #    pour les champs dont on a déjà la valeur via dot-notation
-        resolved_roots = {path.split(".")[0] for path in relational_paths}
+        # resolved_roots = {path.split(".")[0] for path in relational_paths}
         # On garde le Many2one brut uniquement s'il n'est pas couvert par FIELDS_MAP
         # (utile pour avoir l'id de relation même sans sous-champs déclarés)
+
+        REVERSE_LOOKUPS = self._get_reverse_lookups()
+        for root_field, lookup in REVERSE_LOOKUPS.get(model, {}).items():
+            data_by_id = self._resolve_reverse_lookup(
+                data_by_id,
+                root_field=root_field,
+                target_model=lookup["target_model"],
+                target_link_field=lookup["target_link_field"],
+                target_value_field=lookup["target_value_field"],
+                result_key=f"{root_field}.{lookup['target_value_field']}",
+            )
 
         return list(data_by_id.values())
 
@@ -185,9 +203,21 @@ class Kpiten(models.AbstractModel):
             }
         return fields
 
-    @api.model
-    def get_translations(self, model):
-        pass
+    def _get_translations(self, model, records, raw_data):
+        # 4.5 Traduction
+        translatable = self.env["ir.model.fields"].search(
+            [("model", "=", model), ("translate", "=", True)]
+        )
+        model_has_translate_fields = len(translatable) > 0
+        if model_has_translate_fields:
+            rec_by_id = {r["id"]: r for r in raw_data}
+            for record in records:
+                for field in translatable:
+                    translations, _ = record.get_field_translations(field.name)
+                    if len(translations) > 0:
+                        rec_by_id[record.id][field.name] = {
+                            t["lang"]: t["value"] for t in translations
+                        }
 
     def _get_relational_paths_for_model(self, model: str) -> set:
         """
@@ -214,42 +244,41 @@ class Kpiten(models.AbstractModel):
 
         return paths
 
-    def resolve_field_path(self, model, ids, path):
-        """
-        Resolves a (possibly dotted) field path for a list of record ids of `model`.
-        Returns {id: value}.
-
-        Examples:
-            resolve_field_path(env, 'mrp.workcenter.productivity', ids, 'duration')
-            resolve_field_path(env, 'mrp.workcenter.productivity', ids, 'user_id.employee_id.employee_type')
-        """
-        field, *rest = path.split(
-            ".", 1
-        )  # rest is [] if no more dots, else [remaining_path]
-
-        if not rest:
-            # base case: last segment, fetch the real value
-            records = self.env[model].search_read([("id", "in", ids)], ["id", field])
-            return {r["id"]: r[field] for r in records}
-
-        # recursive case: this segment is relational, hop through it
-        records = self.env[model].search_read([("id", "in", ids)], ["id", field])
-
-        # many2one comes back as (related_id, display_name) or False if empty
-        id_to_related_id = {
-            r["id"]: (r[field][0] if r[field] else None) for r in records
+    def _resolve_reverse_lookup(
+        self,
+        data_by_id,
+        root_field,
+        target_model,
+        target_link_field,
+        target_value_field,
+        result_key,
+    ):
+        root_ids = {
+            (v[0] if isinstance(v, (list, tuple)) else v)
+            for v in (row.get(root_field) for row in data_by_id.values())
+            if v
         }
 
-        related_model = self.env[model]._fields[field].comodel_name
-        related_ids = list({v for v in id_to_related_id.values() if v is not None})
-
-        related_result = self.resolve_field_path(related_model, related_ids, rest[0])
-
-        # stitch: base_id -> related_id -> resolved value
-        return {
-            base_id: related_result.get(related_id)
-            for base_id, related_id in id_to_related_id.items()
+        matches = self.env[target_model].search_read(
+            [(target_link_field, "in", list(root_ids))],
+            [target_link_field, target_value_field],
+        )
+        value_by_root_id = {
+            (
+                m[target_link_field][0]
+                if isinstance(m[target_link_field], (list, tuple))
+                else m[target_link_field]
+            ): m[target_value_field]
+            for m in matches
         }
+
+        for row in data_by_id.values():
+            raw = row.get(root_field)
+            raw_id = raw[0] if isinstance(raw, (list, tuple)) else raw
+            if raw_id:
+                row[result_key] = [raw_id, value_by_root_id.get(raw_id)]
+
+        return data_by_id
 
 
 # Fields to systematically exclude
