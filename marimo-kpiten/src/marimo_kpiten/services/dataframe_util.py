@@ -2,6 +2,7 @@ import re
 import polars as pl
 from decimal import Decimal
 from typing import Any
+from marimo_kpiten.services.RPC import RPC
 
 
 class Df:
@@ -99,7 +100,7 @@ class Df:
                     pl.col(col)
                     .list.get(0)
                     .cast(pl.Int64)
-                    .alias(re.sub(r"_(u?id)$", "_id_", col)),
+                    .alias(re.sub(r"_(u?id)", "_id_", col)),  # r"_(u?id)$"
                     pl.col(col).list.get(1).str.strip_chars().alias(col),
                 ]
             ]

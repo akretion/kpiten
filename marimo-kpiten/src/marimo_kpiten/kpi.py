@@ -32,6 +32,14 @@ def display_selectors(date_select, layout_select, mo):
     return (selectors_hstack,)
 
 
+@app.cell(hide_code=True)
+def other_deps():
+    from great_tables import GT, vals, style, loc
+    import polars.selectors as cs
+
+    return loc, style, cs, GT, vals, style
+
+
 @app.cell
 def display_headers(mo, mo_nav_menu, selectors_hstack, title_md):
     mo.hstack(
@@ -249,7 +257,9 @@ def load_kpiten_line(kpiten_config_line_class, mo, no_data_found_callout):
 
 
 @app.cell
-def compute_kpiten_line(df_store, df_wt_list, full_predicates, json, mo, pl):
+def compute_kpiten_line(
+    df_store, df_wt_list, full_predicates, json, mo, pl, cs, GT, vals, style, loc
+):
     """
     compute_kpiten_line
     ---
@@ -258,6 +268,8 @@ def compute_kpiten_line(df_store, df_wt_list, full_predicates, json, mo, pl):
     - Retourne les infos créées plus la dataframe pour que exec_kpiten_line/n'importe quelle autre cellule puisse l'utiliser
     """
     mo.stop((not df_wt_list) or (len(df_wt_list) < 1))
+
+    from marimo_kpiten.services.dataframe_util import Df
 
     exec_context_list = []
     for df_wt in df_wt_list:
@@ -313,13 +325,18 @@ def compute_kpiten_line(df_store, df_wt_list, full_predicates, json, mo, pl):
                     print(f"full error :\n{CNFE}")
             elif transform["kind"] == "union":
                 union_json = json.loads(transform["content"])
-                print(union_json)
                 base_model_df = df_store.retrieve_df(
                     union_json["definition"]["model"]["name"]
-                )["df"]
+                )["df"].filter(
+                    pl.col("department_id").is_not_null(),
+                    pl.col("budget_type").is_not_null(),
+                )
                 union_model_df = df_store.retrieve_df(
                     union_json["definition"]["union_model"]["name"]
                 )["df"]
+                union_model_df = union_model_df.with_columns(
+                    pl.lit("production").alias("description")
+                )
 
                 bmdf_columns = union_json["definition"]["model"]["columns"]
                 umdf_columns = union_json["definition"]["union_model"]["columns"]
@@ -329,24 +346,139 @@ def compute_kpiten_line(df_store, df_wt_list, full_predicates, json, mo, pl):
                 base_model_df = base_model_df.rename(bmdf_columns)
                 union_model_df = union_model_df.rename(umdf_columns)
 
-                UNION_DF = pl.union(
+                union_model_df.with_columns(
+                    pl.when(pl.col("dept").is_null())
+                    .then(pl.lit("Production & Méthode / Production"))
+                    .otherwise(pl.col("dept"))
+                )
+                print(f"UNION : {union_model_df}\nSCHEMA : {union_model_df.schema}")
+                print(f"BASE : {base_model_df}\nSCHEMA : {base_model_df.schema}")
+
+                UNION_DF = pl.concat(
                     [base_model_df, union_model_df], how="vertical_relaxed"
                 )
 
-                # hardcoded for now
+                # --- Renaming (stays: these values are used in group_by/filter later, not just display) ---
                 UNION_DF = UNION_DF.with_columns(
-                    (pl.col("date").dt.month()).alias("month")
+                    pl.when(pl.col("employé") == "employee")
+                    .then(pl.lit("Employé entreprise"))
+                    .when(pl.col("employé") == "temporary")
+                    .then(pl.lit("Intérimaire"))
+                    .when(pl.col("employé").is_null())
+                    .then(pl.lit("Employé entreprise"))
+                    .when(pl.col("employé") == "contractor")
+                    .then(pl.lit("Sous-Traitant / Sous Contrat"))
+                    .otherwise(pl.col("employé"))
+                    .alias("employé")
                 )
 
-                print(UNION_DF)
+                UNION_DF = UNION_DF.with_columns(
+                    pl.when(
+                        (pl.col("dept") == "production")
+                        | (pl.col("dept") == "quality")
+                        | (pl.col("dept") == "availability")
+                        | (pl.col("dept") == "performance")
+                        | (pl.col("dept") == "productive")
+                    )
+                    .then(pl.lit("Production & Méthode / Production"))
+                    .otherwise(pl.col("dept"))
+                    .alias("dept")
+                )
 
-                # exec_context_list.append(
-                #     {
-                #         "label": "dummy label",
-                #         "context_type": "union",
-                #         "union_df": UNION_DF,
-                #     }
-                # )
+                UNION_DF = UNION_DF.with_columns(
+                    pl.when(pl.col("budget") == "production")
+                    .then(pl.lit("FAB"))
+                    .when(pl.col("budget") == "installation")
+                    .then(pl.lit("POSE"))
+                    .when(pl.col("budget") == "service")
+                    .then(pl.lit("BE"))
+                    .otherwise(pl.col("budget"))
+                    .alias("budget")
+                )
+
+                # --- Month pivot + aggregation (real computation, stays) ---
+                UNION_DF = UNION_DF.with_columns(
+                    pl.col("date").dt.month().alias("mois")
+                )
+
+                UNION_DF = UNION_DF.pivot(
+                    "mois",
+                    index=["budget", "dept", "projet", "employé"],
+                    values="heures",
+                    aggregate_function="sum",
+                )
+
+                month_map = {
+                    "1": "Janvier",
+                    "2": "Février",
+                    "3": "Mars",
+                    "4": "Avril",
+                    "5": "Mai",
+                    "6": "Juin",
+                    "12": "Décembre",
+                }
+                present_months = [m for m in month_map if m in UNION_DF.columns]
+
+                UNION_DF = UNION_DF.group_by(["budget", "dept", "employé"]).agg(
+                    [pl.col(m).sum() for m in present_months]
+                )
+                UNION_DF = UNION_DF.rename({m: month_map[m] for m in present_months})
+                month_labels = [month_map[m] for m in present_months]
+
+                # --- Filtering + dept collapsing (real logic, stays) ---
+                UNION_DF = UNION_DF.filter(
+                    (pl.col("dept").str.starts_with("Production"))
+                    | (pl.col("dept").str.starts_with("Pose"))
+                    | (pl.col("dept").str.starts_with("Projet"))
+                    | (pl.col("dept").str.starts_with("Travaux"))
+                    | (pl.col("dept").str.starts_with("Bureau"))
+                )
+
+                UNION_DF = UNION_DF.with_columns(
+                    pl.when(pl.col("dept").str.starts_with("Production"))
+                    .then(pl.lit("Production & Méthode"))
+                    .otherwise(pl.col("dept"))
+                    .alias("dept")
+                )
+
+                # --- Final aggregation + sort (no more "can't sort because totals are rows" problem) ---
+                final_df = (
+                    UNION_DF.group_by(["budget", "dept", "employé"])
+                    .agg([pl.col(m).sum() for m in month_labels])
+                    .sort(["budget", "dept", "employé"], nulls_last=True)
+                )
+                final_df = final_df.with_columns(
+                    pl.sum_horizontal(month_labels).alias("Heures Totales").round(0)
+                ).sort(["budget", "Heures Totales"], descending=[False, True])
+
+                # --- Presentation: replaces grand_total, partition loop, and rounding entirely ---
+                gt_table = (
+                    GT(final_df, rowname_col="employé", groupname_col="budget")
+                    .tab_header(union_json["definition"]["label"])
+                    .fmt_number(columns=month_labels, decimals=0)
+                    .summary_rows(
+                        fns={"TOTAL": [pl.col(m).sum() for m in month_labels]},
+                        fmt=lambda x: vals.fmt_number(x, decimals=0),
+                    )
+                    .grand_summary_rows(
+                        fns={"TOTAL GÉNÉRAL": [pl.col(m).sum() for m in month_labels]},
+                        fmt=lambda x: vals.fmt_number(x, decimals=0),
+                    )
+                    .tab_style(
+                        style=style.fill(color="lightblue"), locations=loc.summary()
+                    )
+                    .tab_style(
+                        style=style.fill(color="cyan"), locations=loc.grand_summary()
+                    )
+                    .tab_options(data_row_padding=2)
+                )
+                exec_context_list.append(
+                    {
+                        "label": union_json["definition"]["label"],
+                        "context_type": "union",
+                        "union_df": gt_table,
+                    }
+                )
 
             else:
                 import plotly.express as px
@@ -496,6 +628,14 @@ def exec_kpiten_lines(exec_context_list, layout_select, mo, pl):
                             {delete_html}
                         </div>
                     """
+                case "union":
+                    sub_parts_html = mo.vstack(
+                        [
+                            mo.md(f"## {ctx["label"]}").style({"color": "white"}),
+                            ctx["union_df"],
+                        ]
+                    )
+
                 case "graph":
                     graph_html = ctx["graph"].text
                     delete_html = ctx["delete_button"].text

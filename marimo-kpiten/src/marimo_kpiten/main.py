@@ -69,7 +69,7 @@ def build_global_dfs():
         # print("Model is", model)
         # user id 2 have most of the grants
         record_time = datetime.now()
-        records = env["kpiten"].get_record_vals(model, [], 2, limit=200)
+        records = env["kpiten"].get_record_vals(model, [], 2)
         record_time_end = datetime.now()
         print("record cpt : ", record_time_end - record_time)
         df = pl.DataFrame(records, strict=False, infer_schema_length=None)

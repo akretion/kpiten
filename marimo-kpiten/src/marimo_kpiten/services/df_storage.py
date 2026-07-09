@@ -66,6 +66,14 @@ class DFStorage:
         return not has_illegal_prefix or not is_forbidden
 
     @staticmethod
+    def _is_external_column(c: str, verbose=False):
+        if "." in c or c[-1] == "_":
+            if verbose:
+                print(f"column {c} is recognized as external.")
+            return True
+        return False
+
+    @staticmethod
     def store_df(table: str, df: DataFrame):
         Path(f"{data_path}").mkdir(exist_ok=True)
         Path(f"{data_path}/{DFStorage.df_data_dir_name}/").mkdir(exist_ok=True)
@@ -73,6 +81,25 @@ class DFStorage:
         df.write_parquet(
             f"{data_path}/{DFStorage.df_data_dir_name}/{table}/{table}.{DFStorage.parquet_file_ext}"
         )
+
+    @staticmethod
+    def _allowed_fields_pipeline(df, table: str, curr_uid: int):
+        # Get allowed fields from odoo side
+        allowed_fields = RPC().env["kpiten"].get_allowed_fields(table, curr_uid)
+        # isolate external columns
+        dotted_columns = filter(DFStorage._is_external_column, df.columns)
+        # merge the two lists
+        allowed_fields = list(set([*allowed_fields, *dotted_columns]))
+        # remove forbidden columns
+        sanitized_allowed_fields = filter(
+            DFStorage._is_forbidden_column, allowed_fields
+        )
+        # remove columns that are not in the actual dataframe, even
+        # if they are allowed columns
+        sanitized_allowed_fields = DFStorage._filter_not_found_columns(
+            df, table, sanitized_allowed_fields, True
+        )
+        return sanitized_allowed_fields
 
     @staticmethod
     def retrieve_df(table: str) -> DF_META | None:
@@ -85,16 +112,12 @@ class DFStorage:
             return None
 
         curr_uid = int(FileState.retrieve_state("user_id"))
-        allowed_fields = RPC().env["kpiten"].get_allowed_fields(table, curr_uid)
         try:
             df = pl.read_parquet(
                 f"{data_path}/{DFStorage.df_data_dir_name}/{table}/{table}.{DFStorage.parquet_file_ext}"
             )
-            sanitized_allowed_fields = filter(
-                DFStorage._is_forbidden_column, allowed_fields
-            )
-            sanitized_allowed_fields = DFStorage._filter_not_found_columns(
-                df, table, sanitized_allowed_fields, True
+            sanitized_allowed_fields = DFStorage._allowed_fields_pipeline(
+                df, table, curr_uid
             )
             df = df.select(sanitized_allowed_fields)
             struct_cols = [
