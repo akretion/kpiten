@@ -1,0 +1,22 @@
+[STYLE]
+[STYLE.header.style] # loc.header()
+color="red"
+fill="blue"
+
+[STYLE.title.style] # loc.title()
+color="red"
+fill="blue"
+
+[STYLE.body.style] # loc.body()
+color="red" # style.text(color="", size=)
+fill="blue" # style.fill(color="")
+css="""
+	/* custom CSS styles */*
+"""
+
+[STYLE.row_groups.style] # loc.row_group()
+color="red"
+fill="blue"
+
+[OPTIONS] # .tab_options(...)
+data_row_padding=2 # pixels

@@ -1,6 +1,7 @@
 from typing import Any
 from marimo_kpiten.services.df_storage import DF_META
 from marimo_kpiten.services.df_storage import DFStorage as df_store
+from marimo_kpiten.services.df_style_engine import DFStyleEngine
 import polars as pl
 import polars.selectors as cs
 import marimo as mo
@@ -218,7 +219,7 @@ def union_case(transform: dict[str, Any], exec_context_list: list):
         )
         .tab_style(style=style.fill(color="lightblue"), locations=loc.summary())
         .tab_style(style=style.fill(color="cyan"), locations=loc.grand_summary())
-        .tab_options(data_row_padding=2)
+        .tab_options(data_row_padding="2")
     )
     exec_context_list.append(
         {

@@ -36,4 +36,4 @@ def process_dt_predicate(date_select: mo.ui.multiselect):
             date_predicates.append(
                 pl.col(time_column) >= datetime.now() - timedelta(days=30)
             )
-    return (date_predicates,)
+    return date_predicates
