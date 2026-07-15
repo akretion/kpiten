@@ -22,7 +22,6 @@ def dataframe_case(
     editor = None
 
     if transform["kind"] == "data":
-        # this process is only relevant for kind=data
         first_line = transform["content"].partition("\n")[0]
         df_like = first_line.split(" ")[2]
         df_next_like = first_line.split(" ")[0]
@@ -35,6 +34,7 @@ def dataframe_case(
                 "label": used_df_label,
                 "editor": editor,
                 "df_like": df_like,
+                "style_func": DFStyleEngine.general,
                 "df_next_like": df_next_like,
                 "delete_button": delete_button,
             }

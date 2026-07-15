@@ -17,7 +17,7 @@ def navigation(mo):
 
 
 @app.cell
-def display_selectors(date_select, layout_select, mo):
+def display_selectors(date_select, layout_select, render_opt_select, mo):
     selectors_hstack = mo.hstack(
         [
             mo.vstack([mo.md("Period"), date_select.style({"color": "white"})]).style(
@@ -26,6 +26,9 @@ def display_selectors(date_select, layout_select, mo):
             mo.vstack([mo.md("Layout"), layout_select.style({"color": "white"})]).style(
                 {"max-width": "fit-content", "color": "white"}
             ),
+            mo.vstack(
+                [mo.md("Display"), render_opt_select.style({"color": "white"})]
+            ).style({"max-width": "fit-content", "color": "white"}),
         ],
         justify="start",
     )
@@ -134,13 +137,22 @@ def get_kpiten_config_line_class(env):
 
 @app.cell
 def layout_selection(mo):
-    layout_options = ["Serial (default)", "2 columns when possible"]
+    layout_options = ["Serial", "2 columns when possible"]
     layout_select = mo.ui.multiselect(
         options=layout_options,
         max_selections=1,
-        value=["Serial (default)"],
+        value=["Serial"],
     )
     return (layout_select,)
+
+
+@app.cell
+def render_engine_selection(mo):
+    render_opt = ["Reporting", "Exploration"]
+    render_opt_select = mo.ui.multiselect(
+        options=render_opt, max_selections=1, value=["Exploration"]
+    )
+    return render_opt_select
 
 
 @app.cell
@@ -271,7 +283,7 @@ def compute_kpiten_line(
 
 
 @app.cell
-def exec_kpiten_lines(exec_context_list, layout_select, mo, pl):
+def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo, pl):
     """
     exec_kpiten_lines
     ---
@@ -283,7 +295,7 @@ def exec_kpiten_lines(exec_context_list, layout_select, mo, pl):
     ordered = {}
     to_display = []
     selected_layout = layout_select.value[0]
-    data_t_width = "80vw" if selected_layout == "Serial (default)" else "40vw"
+    data_t_width = "80vw" if selected_layout == "Serial" else "40vw"
 
     for c in exec_context_list:
         if c["context_type"] is not "ban":
@@ -304,7 +316,12 @@ def exec_kpiten_lines(exec_context_list, layout_select, mo, pl):
                         "delete_button": ctx["delete_button"],
                     }
                     exec(ctx["editor"].value, scope)
-                    table_html = mo.ui.table(scope[ctx["df_next_like"]].limit(20))
+                    table_html = mo.ui.table(scope[ctx["df_next_like"]])
+                    if render_opt_select.value[0] == "Reporting":
+                        table_html = ctx["style_func"](
+                            scope[ctx["df_next_like"]].limit(20)
+                        ).as_raw_html()
+                        print(table_html)
                     delete_html = ctx["delete_button"].text
                     sub_parts_html += f"""
                         <div style="display:flex; flex-flow:column; width: {data_t_width}; min-width:300px; gap:0.5rem; padding:0.5rem; box-sizing:border-box">
@@ -340,7 +357,7 @@ def exec_kpiten_lines(exec_context_list, layout_select, mo, pl):
 
         to_display.append(sub_parts_html)
 
-    if selected_layout == "Serial (default)":
+    if selected_layout == "Serial":
         inner = "".join(
             [
                 f'<div style="display:flex; flex-flow:column; width:100%; gap:1rem">{block}</div>'

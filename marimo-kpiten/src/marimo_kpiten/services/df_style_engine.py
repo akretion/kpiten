@@ -16,21 +16,22 @@ class DFStyleEngine:
             great_df = GT(df)
             print(f"BufferedReaser : {cfg}")
             print(f"CONFIG : {config}")
-            for style_per_loc in config["STYLE"].items():
-                d = DFStyleEngine._parse_style(style_per_loc)
+            for loc_name, loc_config in config["STYLE"].items():
+                d = DFStyleEngine._parse_style(loc_name, loc_config)
                 great_df = great_df.tab_style(
                     style=d["style"], locations=d["locations"]
                 )
-            return great_df
+        return great_df
 
     @staticmethod
-    def _parse_style(style_per_loc: tuple[str, dict[str, str]]):
-        location = DFStyleEngine._loc_resolve(style_per_loc[0])
+    def _parse_style(loc_name: str, loc_config: dict[str, Any]):
+        location = DFStyleEngine._loc_resolve(loc_name)
+        props = loc_config["style"]
         style = []
-        if "color" in style_per_loc[1]:
-            style.append(STYLE.text(style_per_loc[1]["color"]))
-        if "fill" in style_per_loc[1]:
-            style.append(STYLE.fill(style_per_loc[1]["fill"]))
+        if "color" in props:
+            style.append(STYLE.text(color=props["color"]))
+        if "fill" in props:
+            style.append(STYLE.fill(color=props["fill"]))
         return {"style": style, "locations": location}
 
     @staticmethod
