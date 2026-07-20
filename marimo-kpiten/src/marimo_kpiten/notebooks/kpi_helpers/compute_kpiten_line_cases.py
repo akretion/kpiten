@@ -70,18 +70,20 @@ def BAN_case(
         print(f"full error :\n{CNFE}")
 
 
-def union_case(transform: dict[str, Any], exec_context_list: list):
+def union_case(transform: dict[str, Any], exec_context_list: list, full_predicates):
 
     union_json = json.loads(transform["content"])
-    base_model_df = df_store.retrieve_df(union_json["definition"]["model"]["name"])[
-        "df"
-    ].filter(
-        pl.col("department_id").is_not_null(),
-        pl.col("budget_type").is_not_null(),
+    base_model_df = (
+        df_store.retrieve_df(union_json["definition"]["model"]["name"])["df"]
+        .filter(
+            pl.col("department_id").is_not_null(),
+            pl.col("budget_type").is_not_null(),
+        )
+        .filter(full_predicates)
     )
     union_model_df = df_store.retrieve_df(
         union_json["definition"]["union_model"]["name"]
-    )["df"]
+    )["df"].filter(full_predicates)
 
     # from marimo_kpiten.services.temp_transform_engine import TransformEngine
 
@@ -152,10 +154,14 @@ def union_case(transform: dict[str, Any], exec_context_list: list):
     )
 
     # --- Month pivot + aggregation (real computation, stays) ---
-    UNION_DF = UNION_DF.with_columns(pl.col("date").dt.month().alias("mois"))
+    UNION_DF = UNION_DF.with_columns(
+        pl.col("date").dt.month().alias("mois"),
+        pl.col("date").dt.year().alias("annee"),
+    )
 
+    # Pivot on (mois, annee) combined so different years don't collapse together
     UNION_DF = UNION_DF.pivot(
-        "mois",
+        on=["mois", "annee"],
         index=["budget", "dept", "projet", "employé"],
         values="heures",
         aggregate_function="sum",
@@ -168,15 +174,41 @@ def union_case(transform: dict[str, Any], exec_context_list: list):
         "4": "Avril",
         "5": "Mai",
         "6": "Juin",
+        "7": "Juillet",
+        "8": "Août",
+        "9": "Septembre",
+        "10": "Octobre",
+        "11": "Novembre",
         "12": "Décembre",
     }
-    present_months = [m for m in month_map if m in UNION_DF.columns]
+
+    period_cols = [
+        c for c in UNION_DF.columns if c not in ("budget", "dept", "projet", "employé")
+    ]
+
+    parsed_periods = []
+    for col in period_cols:
+        inner = col.strip("{}")  # "1,2026"
+        mois_str, annee_str = inner.split(",")
+        if mois_str in month_map:
+            parsed_periods.append((int(annee_str), int(mois_str), col))
+
+    parsed_periods.sort()
+
+    # Build final display names like "Janvier 2025", "Janvier 2026"
+    rename_map = {col: f"{month_map[str(mois)]}" for annee, mois, col in parsed_periods}
+    ordered_display_cols = [rename_map[col] for _, _, col in parsed_periods]
 
     UNION_DF = UNION_DF.group_by(["budget", "dept", "employé"]).agg(
-        [pl.col(m).sum() for m in present_months]
+        [pl.col(col).sum() for _, _, col in parsed_periods]
     )
-    UNION_DF = UNION_DF.rename({m: month_map[m] for m in present_months})
-    month_labels = [month_map[m] for m in present_months]
+    UNION_DF = UNION_DF.rename(rename_map)
+    month_labels = ordered_display_cols
+
+    # Keep track of which display columns belong to which year, for GT spanners
+    year_to_cols = {}
+    for annee, mois, col in parsed_periods:
+        year_to_cols.setdefault(annee, []).append(rename_map[col])
 
     # --- Filtering + dept collapsing (real logic, stays) ---
     UNION_DF = UNION_DF.filter(
@@ -194,7 +226,7 @@ def union_case(transform: dict[str, Any], exec_context_list: list):
         .alias("dept")
     )
 
-    # --- Final aggregation + sort (no more "can't sort because totals are rows" problem) ---
+    # --- Final aggregation + sort ---
     final_df = (
         UNION_DF.group_by(["budget", "dept", "employé"])
         .agg([pl.col(m).sum() for m in month_labels])
@@ -204,7 +236,7 @@ def union_case(transform: dict[str, Any], exec_context_list: list):
         pl.sum_horizontal(month_labels).alias("Heures Totales").round(0)
     ).sort(["budget", "Heures Totales"], descending=[False, True])
 
-    # --- Presentation: replaces grand_total, partition loop, and rounding entirely ---
+    # --- Presentation ---
     gt_table = (
         GT(final_df, rowname_col="employé", groupname_col="budget")
         .tab_header(union_json["definition"]["label"])
@@ -221,6 +253,9 @@ def union_case(transform: dict[str, Any], exec_context_list: list):
         .tab_style(style=style.fill(color="cyan"), locations=loc.grand_summary())
         .tab_options(data_row_padding="2")
     )
+
+    for annee, cols in year_to_cols.items():
+        gt_table = gt_table.tab_spanner(label=str(annee), columns=cols)
     exec_context_list.append(
         {
             "label": union_json["definition"]["label"],

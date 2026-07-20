@@ -1,5 +1,14 @@
 import polars as pl
 import marimo as mo
+import datetime
+
+
+def last_year_bounds(today: datetime.date) -> dict[str, datetime.date]:
+    ly = today.year - 1
+    return {
+        "LY_first_day": datetime.date(ly, 1, 1),
+        "LY_last_day": datetime.date(ly, 12, 31),
+    }
 
 
 def process_dt_predicate(date_select: mo.ui.multiselect):
@@ -29,8 +38,11 @@ def process_dt_predicate(date_select: mo.ui.multiselect):
                 pl.col(time_column) >= datetime.now() - timedelta(days=31 * 6)
             )
         case "last year":
+            LY_info = last_year_bounds(datetime.now())
+            print(LY_info)
             date_predicates.append(
-                pl.col(time_column) >= datetime.now() - timedelta(days=365)
+                (pl.col(time_column) >= LY_info["LY_first_day"])
+                & (pl.col(time_column) <= LY_info["LY_last_day"])
             )
         case _:
             date_predicates.append(

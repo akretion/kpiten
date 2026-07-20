@@ -272,7 +272,11 @@ def compute_kpiten_line(
                     exec_context_list=exec_context_list,
                 )
             elif transform["kind"] == "union":
-                union_case(transform=transform, exec_context_list=exec_context_list)
+                union_case(
+                    transform=transform,
+                    exec_context_list=exec_context_list,
+                    full_predicates=full_predicates,
+                )
             else:
                 graph_case(
                     transform=transform,
