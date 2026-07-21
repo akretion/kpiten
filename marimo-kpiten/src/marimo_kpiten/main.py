@@ -1,11 +1,17 @@
-from fastapi import FastAPI, APIRouter, Request
+import json
+from typing import Any
+
+from fastapi import FastAPI, APIRouter, Response
 from fastapi.responses import RedirectResponse
 from marimo_kpiten.services.df_storage import DFStorage
 from marimo_kpiten.services.env_reader import EnvReader
 from marimo_kpiten.services.dataframe_util import Df
 from marimo_kpiten.services.file_state import FileState
+from marimo_kpiten.services.session_handler import SessionHandler
 from urllib.error import URLError
 from odoorpc.error import RPCError
+from odoorpc.env import Environment
+from odoorpc import ODOO
 from datetime import datetime
 
 import polars as pl
@@ -18,8 +24,8 @@ app = FastAPI()
 router = APIRouter()
 df_store = DFStorage()
 env_ = EnvReader()
-odoo = None
-env = None
+odoo: ODOO | None = None
+env: Environment | None = None
 
 try:
     odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
@@ -45,50 +51,86 @@ if env is None:
 app = FastAPI()
 router = APIRouter()
 
-
-@router.get("/")
-def root():
-    return {"message": "server is running. visit /login w/ an id to use the website"}
-
-
-# TODO : NAVIGATE TO IT USING ODOO THEN CHANGE THIS TO POST
-@router.get("/login")  # ?id = id
-def login(id: int):
-    FileState.store_state(state_type="state", data={"user_id": str(id)})
-    return RedirectResponse("/df_process", status_code=303)
+# # TODO : NAVIGATE TO IT USING ODOO THEN CHANGE THIS TO POST
+# @router.get("/login")  # ?id = id
+# def login(id: int):
+#     FileState.store_state(state_type="state", data={"user_id": str(id)})
+#     return RedirectResponse("/df_process", status_code=303)
 
 
-@router.get("/df_process")
+@router.post("/")
+def auth(uuid_dict: dict[Any, Any]):
+    print(f"payload : {uuid_dict}")
+    if uuid_dict.get("user_uuid") and env:
+        log_ids = env["res.users.log"].search([("uuid", "=", uuid_dict["user_uuid"])])
+        logs = env["res.users.log"].browse(log_ids)
+        if len(log_ids) > 0:
+            FileState.store_state(
+                state_type="state",
+                data={
+                    "user_id": str(logs[0].create_uid.id)
+                },  # the first occurence is enough
+            )
+
+            df_build_success = build_global_dfs()
+            if not df_build_success:
+                return Response(
+                    status_code=500,
+                    content="The server is unavailable. "
+                    + "Please try again later, or contact support !",
+                )
+            session_token = SessionHandler.new_session(uuid_dict["user_uuid"])
+            return Response(
+                status_code=200, content=json.dumps({"session": session_token})
+            )
+        else:
+            return Response(status_code=403)
+
+
 def build_global_dfs():
-    overall_start_time = datetime.now()
-    config_ids = env["kpiten.config"].search([])
-    loop_start_time = datetime.now()
-    for conf in env["kpiten.config"].browse(config_ids):
-        model = conf.model_id.model
-        print(f"### Loop on {model} :  statistics ###")
-        # print("Model is", model)
-        # user id 2 have most of the grants
-        record_time = datetime.now()
-        records = env["kpiten"].get_record_vals(model, [], 2)
-        record_time_end = datetime.now()
-        print("record cpt : ", record_time_end - record_time)
-        df = pl.DataFrame(records, strict=False, infer_schema_length=None)
-        decimal = env_.get("DECIMAL_TRUNCATE") or 0
-        fmetadata_time = datetime.now()
-        fields_metadata = env["kpiten"].get_fields_metadata(model)
-        fmetadata_time_end = datetime.now()
-        print("fmetadata : ", fmetadata_time_end - fmetadata_time)
-        transfo = Df(df, fields_metadata, decimal_truncate=int(decimal))
-        df = transfo.get_df()
-        df_store.store_df(model, df)
-    loop_end_time = datetime.now()
-    overall_end_time = datetime.now()
+    if env:
+        overall_start_time = datetime.now()
+        config_ids = env["kpiten.config"].search([])
+        loop_start_time = datetime.now()
+        for conf in env["kpiten.config"].browse(config_ids):
+            model = conf.model_id.model
+            print(f"### Loop on {model} :  statistics ###")
+            # print("Model is", model)
+            # user id 2 have most of the grants
+            record_time = datetime.now()
+            records = env["kpiten"].get_record_vals(model, [], 2)
+            record_time_end = datetime.now()
+            print("record cpt : ", record_time_end - record_time)
+            df = pl.DataFrame(records, strict=False, infer_schema_length=None)
+            decimal = env_.get("DECIMAL_TRUNCATE") or 0
+            fmetadata_time = datetime.now()
+            fields_metadata = env["kpiten"].get_fields_metadata(model)
+            fmetadata_time_end = datetime.now()
+            print("fmetadata : ", fmetadata_time_end - fmetadata_time)
+            transfo = Df(df, fields_metadata, decimal_truncate=int(decimal))
+            df = transfo.get_df()
+            df_store.store_df(model, df)
+        loop_end_time = datetime.now()
+        overall_end_time = datetime.now()
 
-    print("#### Overall Statistics ####\n")
-    print(f"overall time : {overall_end_time - overall_start_time}")
-    print(f"loop : {loop_end_time - loop_start_time}")
-    print("#### --- ####")
-    return RedirectResponse("/build", status_code=303)
+        print("#### Overall Statistics ####\n")
+        print(f"overall time : {overall_end_time - overall_start_time}")
+        print(f"loop : {loop_end_time - loop_start_time}")
+        print("#### --- ####")
+
+        return True
+    else:
+        return False
+
+
+@router.get("/build/auth")
+def check(session: str):
+    print(f"Session = {session}")
+    print(SessionHandler.sessions)
+    if SessionHandler.check_session(session):
+        return RedirectResponse(status_code=303, url="/build/")
+    else:
+        return Response(status_code=403, content="Auth failed.")
 
 
 marimo_server = (

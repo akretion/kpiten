@@ -1,4 +1,5 @@
 import marimo
+from marimo_kpiten.services.session_handler import SessionHandler
 import polars
 from marimo_kpiten.services.df_storage import DFStorage
 
