@@ -3,6 +3,6 @@
         <field name="key">kpiten_services</field>
         <field
             name="value"
-        >[{"application": "Marimo", "url": "http://localhost:5000", "redirect": "http://localhost:5000/notebook"}]</field>
+        >[{"application": "Marimo", "url": "http://localhost:5000", "redirect": "http://localhost:5000/"}]</field>
     </record>
 </odoo>

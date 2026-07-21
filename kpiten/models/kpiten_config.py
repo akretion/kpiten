@@ -1,4 +1,4 @@
-import json
+import requests
 import logging
 
 from odoo import SUPERUSER_ID, api, fields, models

@@ -73,12 +73,6 @@
         </field>
     </record>
 
-    <record id="kpiten_action" model="ir.actions.act_window">
-        <field name="name">Kpiten</field>
-        <field name="res_model">kpiten.config</field>
-        <field name="view_mode">tree,form</field>
-    </record>
-
     <menuitem
         id="kpiten_app"
         name="KpiTen"
@@ -86,5 +80,19 @@
         sequence="50"
     />
 
+
+    <record id="kpiten_action" model="ir.actions.act_window">
+        <field name="name">Kpiten</field>
+        <field name="res_model">kpiten.config</field>
+        <field name="view_mode">tree,form</field>
+    </record>
     <menuitem id="kpiten_menu" parent="kpiten_app" action="kpiten_action" />
+
+    <record id="action_redirect_to_kpiten" model="ir.actions.server">
+        <field name="name">Accéder à KPIten🡥</field>
+        <field name="model_id" ref="kpiten.model_kpiten"></field>
+        <field name="state">code</field>
+        <field name="code">action = model.action_redirect_to_kpiten()</field>
+    </record>
+    <menuitem id="menu_kpiten_redirect" parent="kpiten_app" action="action_redirect_to_kpiten" />
 </odoo>

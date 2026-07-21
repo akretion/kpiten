@@ -1,6 +1,7 @@
 from math import exp2
-
-from odoo import _, api, exceptions, models
+import requests
+from odoo import SUPERUSER_ID, _, api, exceptions, models
+from odoo.tools.safe_eval import safe_eval
 
 
 class Kpiten(models.AbstractModel):
@@ -279,6 +280,26 @@ class Kpiten(models.AbstractModel):
                 row[result_key] = [raw_id, value_by_root_id.get(raw_id)]
 
         return data_by_id
+
+    def action_redirect_to_kpiten(self):
+        uuid = (
+            self.env["res.users.log"]
+            .with_user(SUPERUSER_ID)
+            .search([("create_uid", "=", self.env.user.id)])[0]
+            .uuid
+        )
+        res = self.env["res.company"]._get_kpiten_services()
+        print(res)
+        resp = requests.post(f"http://localhost:5000/", json={"user_uuid": uuid})
+        session = resp.json()["session"]
+        print("session : " + session)
+        resp.raise_for_status()
+
+        return {
+            "type": "ir.actions.act_url",
+            "url": f"http://localhost:5000/build/auth?session={session}",
+            "target": "new",
+        }
 
 
 # Fields to systematically exclude

@@ -13,6 +13,7 @@ class ResCompany(models.Model):
         if not settings:
             raise exceptions.UserError(_("Missing kpiten services parameters"))
         try:
+            print(settings.value)
             res = safe_eval(settings.value)
             if not isinstance(res, list):
                 raise exceptions.ValidationError(
@@ -24,5 +25,8 @@ class ResCompany(models.Model):
             return res
         except Exception as err:
             raise exceptions.UserError(
-                _(f"Kpiten parameters '{settings}' can't be evaluated correctly.")
+                _(
+                    f"Kpiten parameters '{settings}' can't be evaluated correctly."
+                    + f"\nFull exception :\n{Exception}"
+                )
             ) from err
