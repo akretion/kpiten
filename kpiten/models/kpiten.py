@@ -291,6 +291,18 @@ class Kpiten(models.AbstractModel):
         res = self.env["res.company"]._get_kpiten_services()
         print(res)
         resp = requests.post(f"http://localhost:5000/", json={"user_uuid": uuid})
+        if not resp.json().get("session"):
+            error = resp.json().get("error") or "No error was specified"
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": "Failed to open KPIten (external app)",
+                    "message": f"Here is the full error : \n{error}",
+                    "type": "warning",  # 'info', 'success', 'warning', 'danger'
+                    "sticky": False,  # True keeps it until manually closed
+                },
+            }
         session = resp.json()["session"]
         print("session : " + session)
         resp.raise_for_status()
