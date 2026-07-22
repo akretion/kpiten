@@ -7,7 +7,7 @@ from marimo_kpiten.services.df_storage import DFStorage
 from marimo_kpiten.services.env_reader import EnvReader
 from marimo_kpiten.services.dataframe_util import Df
 from marimo_kpiten.services.file_state import FileState
-from marimo_kpiten.services.session_handler import SessionHandler
+from marimo_kpiten.services.session_handler import SESSION_STATE, SessionHandler
 from urllib.error import URLError
 from odoorpc.error import RPCError
 from odoorpc.env import Environment
@@ -64,6 +64,8 @@ def auth(uuid_dict: dict[Any, Any]):
     if uuid_dict.get("user_uuid") and env:
         log_ids = env["res.users.log"].search([("uuid", "=", uuid_dict["user_uuid"])])
         logs = env["res.users.log"].browse(log_ids)
+        print(f"LOGS : {logs}")
+        print(f"LOG_IDS : {log_ids}")
         if len(log_ids) > 0:
             FileState.store_state(
                 state_type="state",
@@ -76,15 +78,32 @@ def auth(uuid_dict: dict[Any, Any]):
             if not df_build_success:
                 return Response(
                     status_code=500,
-                    content="The server is unavailable. "
-                    + "Please try again later, or contact support !",
+                    content=json.dumps(
+                        {
+                            "error": "The server is unavailable. "
+                            + "Please try again later, or contact support !"
+                        }
+                    ),
                 )
             session_token = SessionHandler.new_session(uuid_dict["user_uuid"])
             return Response(
                 status_code=200, content=json.dumps({"session": session_token})
             )
         else:
-            return Response(status_code=403)
+            return Response(
+                status_code=403,
+                content=json.dumps({"error": "No user matches this uuid"}),
+            )
+    else:
+        return Response(
+            status_code=403,
+            content=json.dumps(
+                {
+                    "error": f"No uuid was provided. there needs to be a 'user_uuid'"
+                    + "property in the sent JSON"
+                }
+            ),
+        )
 
 
 def build_global_dfs():
@@ -127,10 +146,18 @@ def build_global_dfs():
 def check(session: str):
     print(f"Session = {session}")
     print(SessionHandler.sessions)
-    if SessionHandler.check_session(session):
+    if SessionHandler.check_session(session) == SESSION_STATE.VALID:
         return RedirectResponse(status_code=303, url="/build/")
+    elif SESSION_STATE.EXISTS:
+        return Response(
+            status_code=403,
+            content="<h1>Auth failed</h1><p></p>Your session is expired.",
+        )
     else:
-        return Response(status_code=403, content="Auth failed.")
+        return Response(
+            status_code=403,
+            content="<h1>Auth failed</h1><p></p>No session registered for this token.",
+        )
 
 
 marimo_server = (
