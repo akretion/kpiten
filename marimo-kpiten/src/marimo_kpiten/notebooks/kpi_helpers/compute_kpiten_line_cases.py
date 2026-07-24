@@ -18,6 +18,50 @@ def dataframe_case(
     full_predicates: list[bool],
 ):
     used_df_label = df_wt["df_meta"]["table"]  # type: ignore
+
+    # CUSTOM CODE - TODO : make this kind of custom code a hook
+    if used_df_label == "account.analytic.line":
+        # Filtering
+        used_df = used_df.filter(
+            pl.col("category").eq("invoice"),
+            pl.col("product_id_").is_not_null(),
+            pl.col("plan_id.name").str.contains("Projet"),
+            pl.col("move_line_id.display_type").eq("product"),
+            pl.col("date").dt.year().eq(2026),
+        )
+
+        # Months columns
+        used_df = used_df.with_columns(
+            pl.col("date").dt.month().alias("mois"),
+            pl.col("date").dt.year().alias("annee"),
+        )
+
+        used_df = (
+            used_df.group_by(["move_id.name", "annee", "mois"])
+            .agg(pl.col("amount").sum(), pl.col("price_subtotal").sum())
+            .sort(by=["move_id.name"], descending=True)
+        )
+
+        month_map = {
+            "1": "Janvier",
+            "2": "Février",
+            "3": "Mars",
+            "4": "Avril",
+            "5": "Mai",
+            "6": "Juin",
+            "7": "Juillet",
+            "8": "Août",
+            "9": "Septembre",
+            "10": "Octobre",
+            "11": "Novembre",
+            "12": "Décembre",
+        }
+
+        for m in month_map.items():
+            used_df = used_df.with_columns(
+                pl.col("mois").cast(pl.Utf8).replace(month_map).alias("mois")
+            )
+
     del_action = transform["delete_this"]
     editor = None
 
@@ -30,7 +74,11 @@ def dataframe_case(
         exec_context_list.append(
             {
                 "context_type": "data",
-                "df": used_df.filter(full_predicates),
+                "df": (
+                    used_df.filter(full_predicates)
+                    if used_df.get_column("create_date", default=None) is not None
+                    else used_df
+                ),
                 "label": used_df_label,
                 "editor": editor,
                 "df_like": df_like,
@@ -285,9 +333,16 @@ def graph_case(
     #     CY = alt.Y(f"{CY['name']}:{ENCODING_DICT[CY['type']]}")
 
     source = (
-        df_store.retrieve_df(graph_json["from"])["df"]
-        .limit(500)
-        .filter(full_predicates)
+        (
+            df_store.retrieve_df(graph_json["from"])["df"]
+            .limit(500)
+            .filter(full_predicates)
+        )
+        if df_store.retrieve_df(graph_json["from"])["df"].get_column(
+            "create_date", default=None
+        )
+        is not None
+        else (df_store.retrieve_df(graph_json["from"])["df"].limit(500))
     )
 
     match X_AGG:

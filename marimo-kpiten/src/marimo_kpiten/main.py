@@ -144,7 +144,6 @@ def build_global_dfs():
 
 @router.get("/build/auth")
 def check(session: str):
-    print(f"Session = {session}")
     print(SessionHandler.sessions)
     if SessionHandler.check_session(session) == SESSION_STATE.VALID:
         return RedirectResponse(status_code=303, url="/build/")

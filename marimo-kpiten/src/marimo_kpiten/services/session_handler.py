@@ -13,7 +13,7 @@ class Session:
         self.until = til
 
     @staticmethod
-    def is_valid(s: Session):
+    def is_valid(s):
         if s.until < datetime.now():
             return False
         return True

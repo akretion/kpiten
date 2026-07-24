@@ -18,6 +18,7 @@ class Df:
 
     def get_df(self):
         # self.remove_empty_columns()
+        print("GET_DF")
         self.set_datetime_string2date_columns()
         self.split_many2one_result()
         if self.decimal_truncate:
@@ -66,12 +67,15 @@ class Df:
         )
 
     def set_datetime_string2date_columns(self):
+        print("SET DATETIME STRING 2 DATE COLUMN")
         datetime_fields = [
             x
             for x in self.fields
             if self.fields[x].get("type") == "datetime"
+            or "date" in x
             and not self.df[x].is_null().all()
         ]
+        print(f"datetime fields : {datetime_fields}")
         self.df = self.df.with_columns(pl.col(datetime_fields).str.to_datetime())
         self.df = self.df.with_columns(pl.col(datetime_fields).cast(pl.Date))
 
