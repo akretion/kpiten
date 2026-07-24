@@ -1,6 +1,6 @@
 from math import exp2
 import requests
-from odoo import SUPERUSER_ID, _, api, exceptions, models
+from odoo import SUPERUSER_ID, _, api, models
 from odoo.tools.safe_eval import safe_eval
 
 
@@ -24,6 +24,9 @@ class Kpiten(models.AbstractModel):
             "res.partner": {"commercial_partner_id.name", "commercial_partner_id.ref"},
             "res.users": {"name"},
             "account.analytic.account": {"name"},
+            "account.move": {"name"},
+            "account.move.line": {"name", "display_type", "price_subtotal"},
+            "account.analytic.plan": {"name"},
         }
 
     def _get_reverse_lookups(self):
@@ -310,7 +313,7 @@ class Kpiten(models.AbstractModel):
         return {
             "type": "ir.actions.act_url",
             "url": f"http://localhost:5000/build/auth?session={session}",
-            "target": "new",
+            "target": "self",
         }
 
 
