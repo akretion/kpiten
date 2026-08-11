@@ -1,7 +1,6 @@
-from math import exp2
 import requests
-from odoo import SUPERUSER_ID, _, api, models
-from odoo.tools.safe_eval import safe_eval
+
+from odoo import SUPERUSER_ID, api, models
 
 
 class Kpiten(models.AbstractModel):
@@ -293,7 +292,7 @@ class Kpiten(models.AbstractModel):
         )
         res = self.env["res.company"]._get_kpiten_services()
         print(res)
-        resp = requests.post(f"http://localhost:5000/", json={"user_uuid": uuid})
+        resp = requests.post("http://localhost:5000/", json={"user_uuid": uuid})
         if not resp.json().get("session"):
             error = resp.json().get("error") or "No error was specified"
             return {

@@ -1,6 +1,6 @@
 import uuid
 
-from odoo import fields, models, api
+from odoo import fields, models
 
 
 class ResUsersLog(models.Model):

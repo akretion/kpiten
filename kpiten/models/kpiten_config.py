@@ -1,7 +1,6 @@
-import requests
 import logging
 
-from odoo import SUPERUSER_ID, api, fields, models
+from odoo import api, fields, models
 
 logger = logging.getLogger(__name__)
 
