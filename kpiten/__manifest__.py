@@ -1,6 +1,6 @@
 {
-    "name": "KpiTen Data",
-    "summary": "Expose user permissions to external services",
+    "name": "KpiTen",
+    "summary": "Store kpiten KPI configuration",
     "version": "18.0.1.0.0",
     "development_status": "Alpha",
     "installable": True,

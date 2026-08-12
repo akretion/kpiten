@@ -1,6 +1,8 @@
 from odoo import _, exceptions, models
 from odoo.tools.safe_eval import safe_eval
 
+MODULE = __name__[12 : __name__.index(".", 13)]
+
 
 class ResCompany(models.Model):
     _inherit = "res.company"
@@ -8,7 +10,7 @@ class ResCompany(models.Model):
     def _get_kpiten_services(self):
         """Inherit to set alternative way to get settings"""
         settings = self.env.ref(
-            "kpiten.kpiten_setting_services", raise_if_not_found=False
+            f"{MODULE}.kpiten_setting_services", raise_if_not_found=False
         )
         if not settings:
             raise exceptions.UserError(_("Missing kpiten services parameters"))

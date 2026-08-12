@@ -1,10 +1,6 @@
-.. image:: https://odoo-community.org/readme-banner-image
-   :target: https://odoo-community.org/get-involved?utm_source=readme
-   :alt: Odoo Community Association
-
-===========
-KpiTen Data
-===========
+======
+KpiTen
+======
 
 .. 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -17,7 +13,7 @@ KpiTen Data
 .. |badge1| image:: https://img.shields.io/badge/maturity-Alpha-red.png
     :target: https://odoo-community.org/page/development-status
     :alt: Alpha
-.. |badge2| image:: https://img.shields.io/badge/license-AGPL--3-blue.png
+.. |badge2| image:: https://img.shields.io/badge/licence-AGPL--3-blue.png
     :target: http://www.gnu.org/licenses/agpl-3.0-standalone.html
     :alt: License: AGPL-3
 .. |badge3| image:: https://img.shields.io/badge/github-akretion%2Fkpiten-lightgray.png?logo=github
@@ -26,9 +22,11 @@ KpiTen Data
 
 |badge1| |badge2| |badge3|
 
-Expose user permissions to external services.
+Store kpiten KPI configuration in Odoo and allow to go to Kpiten
+application with current user permissions.
 
-Permissions, no data leaks !!!
+Then you can explore Odoo data with Marimo Kpiten external tool without
+using Odoo.
 
 .. IMPORTANT::
    This is an alpha version, the data model and design can change at any time without warning.
