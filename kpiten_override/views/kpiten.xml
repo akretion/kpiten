@@ -1,0 +1,17 @@
+<odoo>
+    <record id="kpiten_form" model="ir.ui.view">
+        <field name="model">kpiten.config</field>
+        <field name="inherit_id" ref="kpiten.kpiten_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='line_ids']/kanban" position="before">
+                <list>
+                    <field name="definition" />
+                    <field name="kind" widget="radio" />
+                    <field name="group_ids" widget="many2many_tags" />
+                    <field name="active" widget="boolean_toggle" />
+                </list>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
