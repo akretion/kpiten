@@ -1,1 +1,1 @@
-Override Kpiten module cross version
+Overrides Kpiten cross versions module, mainly xml

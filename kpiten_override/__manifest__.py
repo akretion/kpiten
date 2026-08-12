@@ -1,6 +1,6 @@
 {
-    "name": "KpiTen",
-    "summary": "Dedicated overides on current odoo version (mainly xml)",
+    "name": "KpiTen Overrides",
+    "summary": "Dedicated overrides on current odoo version (mainly xml)",
     "version": "18.0.1.0.0",
     "development_status": "Alpha",
     "installable": True,

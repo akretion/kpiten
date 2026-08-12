@@ -1,10 +1,6 @@
-.. image:: https://odoo-community.org/readme-banner-image
-   :target: https://odoo-community.org/get-involved?utm_source=readme
-   :alt: Odoo Community Association
-
-======
-KpiTen
-======
+================
+KpiTen Overrides
+================
 
 .. 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -17,7 +13,7 @@ KpiTen
 .. |badge1| image:: https://img.shields.io/badge/maturity-Alpha-red.png
     :target: https://odoo-community.org/page/development-status
     :alt: Alpha
-.. |badge2| image:: https://img.shields.io/badge/license-AGPL--3-blue.png
+.. |badge2| image:: https://img.shields.io/badge/licence-AGPL--3-blue.png
     :target: http://www.gnu.org/licenses/agpl-3.0-standalone.html
     :alt: License: AGPL-3
 .. |badge3| image:: https://img.shields.io/badge/github-akretion%2Fkpiten-lightgray.png?logo=github
@@ -26,7 +22,7 @@ KpiTen
 
 |badge1| |badge2| |badge3|
 
-Override Kpiten module cross version
+Overrides Kpiten cross versions module, mainly xml
 
 .. IMPORTANT::
    This is an alpha version, the data model and design can change at any time without warning.
