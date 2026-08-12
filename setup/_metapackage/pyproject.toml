@@ -1,8 +1,8 @@
 [project]
 name = "odoo-addons-akretion-kpiten"
-version = "18.0.20260415.0"
+version = "18.0.20260812.0"
 dependencies = [
-    "odoo-addon-kpiten==18.0.*",
+    "odoo-addon-kpiten_override==18.0.*",
 ]
 classifiers=[
     "Programming Language :: Python",
