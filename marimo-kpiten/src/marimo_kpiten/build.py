@@ -97,6 +97,17 @@ def no_data_found(mo, no_data_found_callout):
 
 
 @app.cell
+def get_kpiten_config_line_class(env):
+    """get_kpiten_config_line_class
+    utilise odoorpc pour récupérer env['kpiten.config.line']
+    """
+    if not env["ir.model"].search([("model", "=", "kpiten.config")]):
+        raise Exception(f"Kpiten module not installed in '{odoo.env.db}' db")
+    kpiten_config_line_class = env["kpiten.config.line"]
+    return (kpiten_config_line_class,)
+
+
+@app.cell
 def display_header(mo: marimo, stn_ui, build_nav, ts_ui):
     mo.hstack(
         [

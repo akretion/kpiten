@@ -97,7 +97,7 @@ def BAN_case(
 ):
     BAN_json = json.loads(transform["content"])
     try:
-        result_df = used_df.filter(full_predicates).sql(BAN_json["BAN_query"])
+        result_df = used_df.sql(BAN_json["BAN_query"])
         BAN = result_df.to_dict()[BAN_json["column_alias"]]
         if len(BAN) > 0:
             BAN = BAN[0]
