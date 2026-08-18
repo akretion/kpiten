@@ -1,8 +1,9 @@
 <odoo noupdate="1">
     <record model="ir.config_parameter" id="kpiten_setting_services">
         <field name="key">kpiten_services</field>
+        <!-- You must define your own urls -->
         <field
             name="value"
-        >[{"application": "Marimo", "url": "http://localhost:5000", "redirect": "http://localhost:5000/"}]</field>
+        >{"application": "Marimo", "external_url": "http://my-external-kpiten:5000": "internal_url": "http://my-internal-kpiten:5000"}</field>
     </record>
 </odoo>

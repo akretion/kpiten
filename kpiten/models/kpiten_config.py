@@ -17,22 +17,28 @@ EXCLUDED_TYPES = [
 class KpitenConfig(models.Model):
     _name = "kpiten.config"
     _description = "Configuration for kpiten"
+    _rec_name = "model_id"
 
-    name = fields.Char(required=True)
+    name = fields.Char(compute="_compute_name", readonly=False)
     state = fields.Selection(selection=[("draft", "Draft"), ("validated", "Validated")])
     line_ids = fields.One2many(
         comodel_name="kpiten.config.line", inverse_name="config_id"
     )
     model_id = fields.Many2one(
-        comodel_name="ir.model", help="Main model to produce dataframe"
-    )
-    model_ids = fields.Many2many(
         comodel_name="ir.model",
-        string="Models",
-        help="Other models used to complete dataframe",
+        required=True,
+        ondelete="cascade",
+        help="Main model to produce dataframe",
     )
+    sequence = fields.Integer()
     company_id = fields.Many2one(comodel_name="res.company")
     group_ids = fields.Many2many(comodel_name="res.groups")
+
+    @api.depends("model_id")
+    def _compute_name(self):
+        for rec in self:
+            if rec.model_id:
+                rec.name = rec.model_id.name
 
     # TODO remove: replace by get_fields()
     @api.model

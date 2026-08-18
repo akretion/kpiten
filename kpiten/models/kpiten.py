@@ -1,6 +1,6 @@
 import requests
 
-from odoo import SUPERUSER_ID, api, models
+from odoo import SUPERUSER_ID, api, exceptions, models
 
 
 class Kpiten(models.AbstractModel):
@@ -22,29 +22,22 @@ class Kpiten(models.AbstractModel):
             "product.category": {"name"},
             "res.partner": {"commercial_partner_id.name", "commercial_partner_id.ref"},
             "res.users": {"name"},
-            "account.analytic.account": {"name"},
-            "account.move": {"name"},
-            "account.move.line": {"name", "display_type", "price_subtotal"},
-            "account.analytic.plan": {"name"},
         }
 
     def _get_reverse_lookups(self):
-        return {
+        """TODO is it required ?
+
+        May contains a such dict
+            {
             "mrp.workcenter.productivity": {
                 "user_id": {
                     "target_model": "hr.employee",
                     "target_link_field": "user_id",
                     "target_value_field": "employee_type",
                 },
-            },
-            "account.analytic.line": {
-                "employee_id": {
-                    "target_model": "hr.employee",
-                    "target_link_field": "user_id",
-                    "target_value_field": "employee_type",
-                }
-            },
-        }
+            }
+        """
+        return {}
 
     @api.model
     def kpi_rec_name(self, model):
@@ -290,9 +283,11 @@ class Kpiten(models.AbstractModel):
             .search([("create_uid", "=", self.env.user.id)])[0]
             .uuid
         )
-        res = self.env["res.company"]._get_kpiten_services()
-        print(res)
-        resp = requests.post("http://localhost:5000/", json={"user_uuid": uuid})
+        urls = self.env["res.company"]._get_kpiten_services()
+        try:
+            resp = requests.post(f"{urls["internal_url"]}/", json={"user_uuid": uuid})
+        except Exception as err:
+            raise exceptions.ValidationError(err)
         if not resp.json().get("session"):
             error = resp.json().get("error") or "No error was specified"
             return {
@@ -308,11 +303,10 @@ class Kpiten(models.AbstractModel):
         session = resp.json()["session"]
         print("session : " + session)
         resp.raise_for_status()
-
         return {
             "type": "ir.actions.act_url",
-            "url": f"http://localhost:5000/build/auth?session={session}",
-            "target": "self",
+            "url": f"{urls["external_url"]}/build/auth?session={session}",
+            "target": "new",
         }
 
 

@@ -3,6 +3,8 @@ from odoo.tools.safe_eval import safe_eval
 
 MODULE = __name__[12 : __name__.index(".", 13)]
 
+SP = "'kpiten_setting_services' system parameter "
+
 
 class ResCompany(models.Model):
     _inherit = "res.company"
@@ -15,14 +17,16 @@ class ResCompany(models.Model):
         if not settings:
             raise exceptions.UserError(_("Missing kpiten services parameters"))
         try:
-            print(settings.value)
             res = safe_eval(settings.value)
-            if not isinstance(res, list):
+            if not isinstance(res, dict):
+                raise exceptions.ValidationError(_(SP + "should be a python dict"))
+            if not res.get("internal_url"):
                 raise exceptions.ValidationError(
-                    _(
-                        "'kpiten_setting_services' system parameter "
-                        "should be a python list"
-                    )
+                    _(SP + "should contains 'internal_url' key")
+                )
+            if not res.get("external_url"):
+                raise exceptions.ValidationError(
+                    _(SP + "should contains 'external_url' key")
                 )
             return res
         except Exception as err:
