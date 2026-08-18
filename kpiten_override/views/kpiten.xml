@@ -6,7 +6,7 @@
             <xpath expr="//field[@name='line_ids']/kanban" position="before">
                 <list>
                     <field name="definition" />
-                    <field name="kind" widget="radio" />
+                    <field name="kind" />
                     <field name="group_ids" widget="many2many_tags" />
                     <field name="active" widget="boolean_toggle" />
                 </list>
