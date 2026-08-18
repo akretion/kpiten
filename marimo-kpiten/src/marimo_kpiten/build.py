@@ -4,7 +4,7 @@ import polars
 from marimo_kpiten.services.df_storage import DFStorage
 
 __generated_with = "0.23.9"
-app = marimo.App(width="medium")
+app = marimo.App(width="full")
 
 
 @app.cell
@@ -27,15 +27,6 @@ def get_odoo_env():
     odoo.login(env_.get("ODOO_DB"), env_.get("ODOO_LOGIN"), env_.get("ODOO_PWD"))
     env = odoo.env
     return (env,)
-
-
-@app.cell
-def get_kpiten_config_line_class(env):
-    """get_kpiten_config_line_class
-    utilise odoorpc pour récupérer env['kpiten.config.line']
-    """
-    kpiten_config_line_class = env["kpiten.config.line"]
-    return (kpiten_config_line_class,)
 
 
 @app.cell
@@ -70,7 +61,8 @@ def _(mo):
             tables.append(file.name)
     except FileNotFoundError as FNFE:
         no_data_found_callout = mo.callout(
-            "There isn't any data to work on. Try visiting /login !",
+            "There isn't any data to work on. "
+            + "Create a valid 'kpiten.config' record in Odoo.",
             kind="warn",
         )
 

@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.23.9"
-app = marimo.App(width="medium")
+app = marimo.App(width="full")
 
 
 @app.cell
@@ -131,6 +131,8 @@ def get_kpiten_config_line_class(env):
     """get_kpiten_config_line_class
     utilise odoorpc pour récupérer env['kpiten.config.line']
     """
+    if not env["ir.model"].search([("model", "=", "kpiten.config")]):
+        raise Exception(f"Kpiten module not installed in '{odoo.env.db}' db")
     kpiten_config_line_class = env["kpiten.config.line"]
     return (kpiten_config_line_class,)
 
