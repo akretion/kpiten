@@ -12,7 +12,7 @@ def page_title(mo):
 
 @app.cell
 def navigation(mo):
-    mo_nav_menu = mo.nav_menu({"/build": "Create", "/kpi": "KPI"})
+    mo_nav_menu = mo.nav_menu({"/build": "New"})
     return (mo_nav_menu,)
 
 
@@ -112,29 +112,25 @@ def no_data_found(mo, no_data_found_callout):
 
 
 @app.cell
-def get_odoo_env():
-    """get_odoo_env
-    Rend l'env odoo disponible pour toutes les cellules (si il est en paramètre des autres cellules)
+def _get_odoo_env():
     """
-    import odoorpc
-    from marimo_kpiten.services.env_reader import EnvReader
+    Makes odoo env available for all cells (if in the parameter of other cells)
+    """
+    from marimo_kpiten.common import _get_odoo_env
 
-    env_ = EnvReader()
-    odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
-    odoo.login(env_.get("ODOO_DB"), env_.get("ODOO_LOGIN"), env_.get("ODOO_PWD"))
-    env = odoo.env
+    env = _get_odoo_env()
     return (env,)
 
 
 @app.cell
-def get_kpiten_config_line_class(env):
-    """get_kpiten_config_line_class
+def _get_config_model(env):
+    """
     utilise odoorpc pour récupérer env['kpiten.config.line']
     """
-    if not env["ir.model"].search([("model", "=", "kpiten.config")]):
-        raise Exception(f"Kpiten module not installed in '{odoo.env.db}' db")
-    kpiten_config_line_class = env["kpiten.config.line"]
-    return (kpiten_config_line_class,)
+    from marimo_kpiten.common import _get_config_model
+
+    config_model = _get_config_model(env)
+    return (config_model,)
 
 
 @app.cell
@@ -200,7 +196,7 @@ def display_ban(exec_context_list, full_predicates, mo):
 
 
 @app.cell
-def load_kpiten_line(kpiten_config_line_class, mo, no_data_found_callout):
+def load_kpiten_line(config_model, mo, no_data_found_callout):
     """
     load_kpiten_line
     ---
@@ -214,13 +210,13 @@ def load_kpiten_line(kpiten_config_line_class, mo, no_data_found_callout):
     df_wt_list = []
     for meta in all_df_metadata:
         transformations = []
-        line_ids = kpiten_config_line_class.search(
-            [("config_id", "=", kpiten_config_line_class.get_conf_id(meta["table"]))]
+        line_ids = config_model.search(
+            [("config_id", "=", config_model.get_conf_id(meta["table"]))]
         )
         for l_id in line_ids:
 
             def delete_this_transformation(arg):
-                kpiten_config_line_class.browse(l_id).unlink()
+                config_model.browse(l_id).unlink()
                 mo.output.append(
                     mo.md(
                         "✅ Successfully **deleted** record. **Refresh the page** to see the effect"
@@ -229,9 +225,9 @@ def load_kpiten_line(kpiten_config_line_class, mo, no_data_found_callout):
 
             transformations.append(
                 {
-                    "config_id": kpiten_config_line_class.browse(l_id).config_id.id,
-                    "content": kpiten_config_line_class.browse(l_id).definition,
-                    "kind": kpiten_config_line_class.browse(l_id).kind,
+                    "config_id": config_model.browse(l_id).config_id.id,
+                    "content": config_model.browse(l_id).definition,
+                    "kind": config_model.browse(l_id).kind,
                     "delete_this": delete_this_transformation,
                 }
             )
@@ -364,21 +360,22 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo, p
         to_display.append(sub_parts_html)
 
     if selected_layout == "Serial":
+        common = 'div style="display:flex; flex-flow'
         inner = "".join(
             [
-                f'<div style="display:flex; flex-flow:column; width:100%; gap:1rem">{block}</div>'
+                f'<{common}:column; width:100%; gap:1rem">{block}</div>'
                 for block in to_display
             ]
         )
-        final_html = f'<div style="display:flex; flex-flow:column; width:100%; gap:2rem">{inner}</div>'
+        final_html = f'<{common}:column; width:100%; gap:2rem">{inner}</div>'
     else:
         inner = "".join(
             [
-                f'<div style="display:flex; flex-flow:row wrap; gap:1rem; width:200%">{block}</div>'
+                f'<{common}:row wrap; gap:1rem; width:200%">{block}</div>'
                 for block in to_display
             ]
         )
-        final_html = f'<div style="display:flex; flex-flow:column; width:100%; gap:2rem">{inner}</div>'
+        final_html = f'<{common}:column; width:100%; gap:2rem">{inner}</div>'
 
     mo.Html(final_html)
     return

@@ -1,6 +1,7 @@
 import marimo
-from marimo_kpiten.services.session_handler import SessionHandler
 import polars
+
+from marimo_kpiten.services.session_handler import SessionHandler
 from marimo_kpiten.services.df_storage import DFStorage
 
 __generated_with = "0.23.9"
@@ -15,17 +16,13 @@ def _():
 
 
 @app.cell
-def get_odoo_env():
-    """get_odoo_env
-    Rend l'env odoo disponible pour toutes les cellules (si il est en paramètre des autres cellules)
+def _get_odoo_env():
     """
-    import odoorpc
-    from marimo_kpiten.services.env_reader import EnvReader
+    Makes odoo env available for all cells (if in the parameter of other cells)
+    """
+    from marimo_kpiten.common import _get_odoo_env
 
-    env_ = EnvReader()
-    odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
-    odoo.login(env_.get("ODOO_DB"), env_.get("ODOO_LOGIN"), env_.get("ODOO_PWD"))
-    env = odoo.env
+    env = _get_odoo_env()
     return (env,)
 
 
@@ -38,7 +35,7 @@ def get_json():
 
 @app.cell
 def navigation(mo):
-    build_nav = mo.nav_menu({"/build": "Create", "/kpi": "KPI"})
+    build_nav = mo.nav_menu({"/kpi": "KPI"})
     return build_nav
 
 
@@ -97,14 +94,14 @@ def no_data_found(mo, no_data_found_callout):
 
 
 @app.cell
-def get_kpiten_config_line_class(env):
-    """get_kpiten_config_line_class
+def _get_config_model(env):
+    """
     utilise odoorpc pour récupérer env['kpiten.config.line']
     """
-    if not env["ir.model"].search([("model", "=", "kpiten.config")]):
-        raise Exception(f"Kpiten module not installed in '{odoo.env.db}' db")
-    kpiten_config_line_class = env["kpiten.config.line"]
-    return (kpiten_config_line_class,)
+    from marimo_kpiten.common import _get_config_model
+
+    config_model = _get_config_model(env)
+    return (config_model,)
 
 
 @app.cell
@@ -296,7 +293,7 @@ def save_graph_form_data(
     create_button,
     form,
     json,
-    kpiten_config_line_class,
+    config_model,
     mo,
     selected_table_name,
     transformation_selector,
@@ -304,7 +301,7 @@ def save_graph_form_data(
     mo.stop(transformation_selector.value[0] is not "graph")
     mo.stop(not create_button.value)
 
-    form_record = kpiten_config_line_class.create_conf_line(
+    form_record = config_model.create_conf_line(
         selected_table_name.value[0],
         json.dumps(
             {
@@ -375,7 +372,7 @@ def save_BAN(
     BAN_name,
     BAN_sql,
     json,
-    kpiten_config_line_class,
+    config_model,
     mo,
     sanitized_tbn,
     save_BAN_btn,
@@ -385,7 +382,7 @@ def save_BAN(
     mo.stop(transformation_selector.value[0] is not "card")
     mo.stop(not save_BAN_btn.value)
 
-    BAN_record = kpiten_config_line_class.create_conf_line(
+    BAN_record = config_model.create_conf_line(
         selected_table_name.value[0],
         json.dumps(
             {
