@@ -2,6 +2,8 @@ import odoorpc
 
 from marimo_kpiten.services.env_reader import EnvReader
 
+DATA_PATH = "../data_dir"
+
 
 def _get_config_model(env):
     """

@@ -1,8 +1,9 @@
-from marimo_kpiten.services.env_reader import EnvReader
 from pathlib import Path
 
+from marimo_kpiten.common import DATA_PATH
+from marimo_kpiten.services.env_reader import EnvReader
+
 env_ = EnvReader()
-data_path = "../generated"
 
 
 class FileState:
@@ -26,30 +27,30 @@ class FileState:
         state_type: str = "notebook",
     ):
         # TODO : REFACTOR
-        Path(f"{data_path}").mkdir(exist_ok=True)
+        Path(f"{DATA_PATH}").mkdir(exist_ok=True)
         match state_type:
             case "notebook":
-                Path(f"{data_path}").mkdir(exist_ok=True)
-                Path(f"{data_path}/{FileState.notebook_state_dir}/").mkdir(
+                Path(f"{DATA_PATH}").mkdir(exist_ok=True)
+                Path(f"{DATA_PATH}/{FileState.notebook_state_dir}/").mkdir(
                     exist_ok=True
                 )
-                Path(f"{data_path}/{FileState.notebook_state_dir}/{module_name}").mkdir(
+                Path(f"{DATA_PATH}/{FileState.notebook_state_dir}/{module_name}").mkdir(
                     exist_ok=True
                 )
 
                 for key, d in data.items():
                     with open(
-                        f"{data_path}/{FileState.notebook_state_dir}/{module_name}/{key}.txt",
+                        f"{DATA_PATH}/{FileState.notebook_state_dir}/{module_name}/{key}.txt",
                         "w+",
                     ) as data_file:
                         data_file.write(d)
             case "state":
-                Path(f"{data_path}").mkdir(exist_ok=True)
-                Path(f"{data_path}/{FileState.default_state_dir}/").mkdir(exist_ok=True)
+                Path(f"{DATA_PATH}").mkdir(exist_ok=True)
+                Path(f"{DATA_PATH}/{FileState.default_state_dir}/").mkdir(exist_ok=True)
 
                 for key, d in data.items():
                     with open(
-                        f"{data_path}/{FileState.default_state_dir}/{key}.txt",
+                        f"{DATA_PATH}/{FileState.default_state_dir}/{key}.txt",
                         "w+",
                     ) as data_file:
                         data_file.write(d)
@@ -62,7 +63,7 @@ class FileState:
     def retrieve_notebook_state(module_name: str):
         try:
             notebook_state_files = Path(
-                f"{data_path}/{FileState.notebook_state_dir}/{module_name}"
+                f"{DATA_PATH}/{FileState.notebook_state_dir}/{module_name}"
             ).iterdir()
             retrieved = {}
 
@@ -76,7 +77,7 @@ class FileState:
     @staticmethod
     def retrieve_state(state: str):
         try:
-            state_files = Path(f"{data_path}/{FileState.default_state_dir}").iterdir()
+            state_files = Path(f"{DATA_PATH}/{FileState.default_state_dir}").iterdir()
             for f in state_files:
                 if f.name.strip(".txt") == state:
                     return f.read_text()

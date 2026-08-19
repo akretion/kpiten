@@ -3,6 +3,7 @@ import logging
 import pathlib
 from pathlib import Path
 from polars import DataFrame
+from marimo_kpiten.common import DATA_PATH
 from marimo_kpiten.services.env_reader import EnvReader
 from marimo_kpiten.services.RPC import RPC
 from marimo_kpiten.services.file_state import FileState
@@ -23,15 +24,13 @@ class DF_META(TypedDict):
     df: DataFrame
 
 
-data_path = "../generated"
-
 logger = logging.getLogger(__name__)
 
 
 class DFStorage:
     # TODO : make a type for json metadata for better validation
 
-    df_data_dir_name = "dataframes"
+    df_data_dir_name = "parquet"
     metadata_file_name = "metadata"
     parquet_file_ext = "parquet"
 
@@ -75,11 +74,10 @@ class DFStorage:
 
     @staticmethod
     def store_df(table: str, df: DataFrame):
-        Path(f"{data_path}").mkdir(exist_ok=True)
-        Path(f"{data_path}/{DFStorage.df_data_dir_name}/").mkdir(exist_ok=True)
-        Path(f"{data_path}/{DFStorage.df_data_dir_name}/{table}/").mkdir(exist_ok=True)
+        Path(f"{DATA_PATH}").mkdir(exist_ok=True)
+        Path(f"{DATA_PATH}/{DFStorage.df_data_dir_name}/").mkdir(exist_ok=True)
         df.write_parquet(
-            f"{data_path}/{DFStorage.df_data_dir_name}/{table}/{table}.{DFStorage.parquet_file_ext}"
+            f"{DATA_PATH}/{DFStorage.df_data_dir_name}/{table}.{DFStorage.parquet_file_ext}"
         )
 
     @staticmethod
@@ -114,7 +112,7 @@ class DFStorage:
         curr_uid = int(FileState.retrieve_state("user_id"))
         try:
             df = pl.read_parquet(
-                f"{data_path}/{DFStorage.df_data_dir_name}/{table}/{table}.{DFStorage.parquet_file_ext}"
+                f"{DATA_PATH}/{DFStorage.df_data_dir_name}/{table}.{DFStorage.parquet_file_ext}"
             )
             sanitized_allowed_fields = DFStorage._allowed_fields_pipeline(
                 df, table, curr_uid
@@ -140,12 +138,21 @@ class DFStorage:
             )
 
     @staticmethod
+    def list_table_names() -> list[str]:
+        df_dir = pathlib.Path(f"{DATA_PATH}/{DFStorage.df_data_dir_name}")
+        if not df_dir.exists():
+            return []
+        return [
+            file.stem
+            for file in df_dir.iterdir()
+            if file.is_file() and file.suffix == f".{DFStorage.parquet_file_ext}"
+        ]
+
+    @staticmethod
     def retrieve_all_dfs() -> list[DF_META]:
-        generated = pathlib.Path(f"{data_path}/{DFStorage.df_data_dir_name}")
         tables: list[DF_META] = []
-        res = generated.iterdir()
-        for file in res:
-            df = DFStorage.retrieve_df(file.name)
+        for name in DFStorage.list_table_names():
+            df = DFStorage.retrieve_df(name)
             if df:
                 tables.append(df)
         return tables

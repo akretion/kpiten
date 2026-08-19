@@ -60,23 +60,17 @@ def display_headers(mo, mo_nav_menu, selectors_hstack, title_md):
 @app.cell
 def _():
     import marimo as mo
-    from pathlib import Path
     from marimo_kpiten.services.df_storage import DFStorage
     import json
     import polars as pl
 
     df_store = DFStorage()
 
-    # using tables in generated
-    table_names = []
+    # using tables in parquet
+    table_names = df_store.list_table_names()
 
     no_data_found_callout = None
-    try:
-        generated = Path("../generated")
-        res = generated.iterdir()
-        for file in res:
-            table_names.append(file.name)
-    except FileNotFoundError as FNFE:
+    if not table_names:
         no_data_found_callout = mo.md(
             "There is **no transformations**, nor any **tables** in general to work on. Try to visit `'/'`,"
             + "then `/build` to verify if any tables exist. Then, you can create transformations, "
@@ -359,8 +353,8 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo, p
 
         to_display.append(sub_parts_html)
 
+    common = 'div style="display:flex; flex-flow'
     if selected_layout == "Serial":
-        common = 'div style="display:flex; flex-flow'
         inner = "".join(
             [
                 f'<{common}:column; width:100%; gap:1rem">{block}</div>'

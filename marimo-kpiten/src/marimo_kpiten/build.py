@@ -42,21 +42,14 @@ def navigation(mo):
 @app.cell(hide_code=True)
 def _(mo):
     from marimo_kpiten.services.df_storage import DFStorage
-    import pathlib
 
     df_store = DFStorage()
 
-    tables = []
+    tables = df_store.list_table_names()
     tname_to_profile_id: dict[str, int] = {}
     no_data_found_callout = None
 
-    try:
-        # using tables in generated
-        generated = pathlib.Path("../generated/dataframes")
-        res = generated.iterdir()
-        for file in res:
-            tables.append(file.name)
-    except FileNotFoundError as FNFE:
+    if not tables:
         no_data_found_callout = mo.callout(
             "There isn't any data to work on. "
             + "Create a valid 'kpiten.config' record in Odoo.",
@@ -68,7 +61,7 @@ def _(mo):
     for name in tables:
         table_data = df_store.retrieve_df(
             name
-        )  # récupère les tables par noms de dossier dans generated
+        )  # récupère les tables par noms de fichier parquet
         if table_data:
             table_name = table_data["table"]
             _df = table_data["df"]
