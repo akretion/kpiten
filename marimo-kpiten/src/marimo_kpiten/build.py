@@ -346,29 +346,18 @@ def build_BAN(d, mo, sanitized_tbn, transformation_selector):
         "information about your company, and the result will be displayed as a "
         "KPI Card in the `KPI` section."
     )
-    BAN_name = mo.ui.text(placeholder="BAN name")
-    BAN_col_alias = mo.ui.text(placeholder="alias of column that holds your data")
-    BAN_sql = mo.ui.code_editor(placeholder="Your SQL query", language="sql")
-    save_BAN_btn = mo.ui.run_button(kind="neutral", label="Save BAN")
-
-    mo.vstack(
-        [
-            ban_cell_title,
-            ban_cell_desc,
-            BAN_name,
-            BAN_sql,
-            mo.hstack([mo.md("BAN alias"), BAN_col_alias], justify="start").style(
-                {"color": "white"}
-            ),
-            save_BAN_btn,
-        ]
+    BAN_name = mo.ui.text(placeholder="Name")
+    BAN_sql = mo.ui.code_editor(
+        placeholder="state IN ('draft', 'sent')", language="sql"
     )
-    return BAN_col_alias, BAN_name, BAN_sql, save_BAN_btn
+    save_BAN_btn = mo.ui.run_button(kind="neutral", label="Save")
+
+    mo.vstack([ban_cell_title, ban_cell_desc, BAN_name, BAN_sql, save_BAN_btn])
+    return BAN_name, BAN_sql, save_BAN_btn
 
 
 @app.cell
 def save_BAN(
-    BAN_col_alias,
     BAN_name,
     BAN_sql,
     json,
@@ -389,7 +378,6 @@ def save_BAN(
                 "BAN_name": BAN_name.value,
                 "BAN_query": BAN_sql.value,
                 "from": selected_table_name.value[0],
-                "column_alias": BAN_col_alias.value,
             }
         ),
         "ban",

@@ -92,30 +92,29 @@ def dataframe_case(
 def BAN_case(
     used_df: pl.DataFrame,
     transform: dict[str, Any],
-    full_predicates: list[bool],
     exec_context_list: list,
 ):
     BAN_json = json.loads(transform["content"])
     try:
-        result_df = used_df.sql(BAN_json["BAN_query"])
-        BAN = result_df.to_dict()[BAN_json["column_alias"]]
-        if len(BAN) > 0:
-            BAN = BAN[0]
-        else:
+        df = used_df.sql(f'SELECT count(id) FROM self WHERE {BAN_json.get("where")}')
+        BAN = df.to_dict()["id"]
+        if df.is_empty():
             mo.stop(True),
+        else:
+            BAN = df.to_dict()["id"][0]
         exec_context_list.append(
             {
                 "context_type": "ban",
-                "label": BAN_json["BAN_name"],
+                "label": BAN_json["name"],
                 "BAN": BAN,
             }
         )
-    except pl.exceptions.ColumnNotFoundError as CNFE:
+    except pl.exceptions.ColumnNotFoundError as err:
         print(
-            f"Could not load BAN {BAN_json['BAN_name']}. Please check",
+            f"Could not load BAN {BAN_json['name']}. Please check",
             " your spelling, and whether you have the rights to query",
         )
-        print(f"full error :\n{CNFE}")
+        print(f"full error :\n{err}")
 
 
 def union_case(transform: dict[str, Any], exec_context_list: list, full_predicates):

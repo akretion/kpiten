@@ -7,13 +7,13 @@ app = marimo.App(width="full")
 @app.cell
 def page_title(mo):
     title_md = mo.md("## KPI • ")
-    return (title_md,)
+    return title_md
 
 
 @app.cell
 def navigation(mo):
     mo_nav_menu = mo.nav_menu({"/build": "New"})
-    return (mo_nav_menu,)
+    return mo_nav_menu
 
 
 @app.cell
@@ -32,7 +32,7 @@ def display_selectors(date_select, layout_select, render_opt_select, mo):
         ],
         justify="start",
     )
-    return (selectors_hstack,)
+    return selectors_hstack
 
 
 @app.cell(hide_code=True)
@@ -119,7 +119,7 @@ def _get_odoo_env():
     from marimo_kpiten.common import _get_odoo_env
 
     env = _get_odoo_env()
-    return (env,)
+    return env
 
 
 @app.cell
@@ -130,7 +130,7 @@ def _get_config_model(env):
     from marimo_kpiten.common import _get_config_model
 
     config_model = _get_config_model(env)
-    return (config_model,)
+    return config_model
 
 
 @app.cell
@@ -141,7 +141,7 @@ def layout_selection(mo):
         max_selections=1,
         value=["Serial"],
     )
-    return (layout_select,)
+    return layout_select
 
 
 @app.cell
@@ -166,7 +166,7 @@ def date_filter(mo):
     date_select = mo.ui.multiselect(
         options=date_options, max_selections=1, value=["last year"]
     )
-    return (date_select,)
+    return date_select
 
 
 @app.cell
@@ -266,7 +266,6 @@ def compute_kpiten_line(
                 BAN_case(
                     used_df=used_df,
                     transform=transform,
-                    full_predicates=full_predicates,
                     exec_context_list=exec_context_list,
                 )
             elif transform["kind"] == "union":
