@@ -1,6 +1,7 @@
-import polars as pl
-import marimo as mo
 import datetime
+
+import marimo as mo
+import polars as pl
 
 
 def last_year_bounds(today: datetime.date) -> dict[str, datetime.date]:
@@ -12,40 +13,33 @@ def last_year_bounds(today: datetime.date) -> dict[str, datetime.date]:
 
 
 def process_dt_predicate(date_select: mo.ui.multiselect):
-    from datetime import timedelta, datetime
+    from datetime import date, timedelta
 
     date_predicates: list[pl.Expr] = []
     time_column = (
         "create_date"  # create_date happens to have distinct values, better for testing
     )
+    today = date.today()
     match date_select.value[0]:
         case "today only":
-            date_predicates.append(pl.col(time_column) >= datetime.now())
+            date_predicates.append(pl.col(time_column) >= today)
         case "last week":
-            date_predicates.append(
-                pl.col(time_column) >= datetime.now() - timedelta(days=7)
-            )
+            date_predicates.append(pl.col(time_column) >= today - timedelta(days=7))
         case "last 30 days":
-            date_predicates.append(
-                pl.col(time_column) >= datetime.now() - timedelta(days=30)
-            )
+            date_predicates.append(pl.col(time_column) >= today - timedelta(days=30))
         case "last 90 days":
-            date_predicates.append(
-                pl.col(time_column) >= datetime.now() - timedelta(days=90)
-            )
+            date_predicates.append(pl.col(time_column) >= today - timedelta(days=90))
         case "last 6 months":
             date_predicates.append(
-                pl.col(time_column) >= datetime.now() - timedelta(days=31 * 6)
+                pl.col(time_column) >= today - timedelta(days=31 * 6)
             )
         case "last year":
-            LY_info = last_year_bounds(datetime.now())
+            LY_info = last_year_bounds(today)
             print(LY_info)
             date_predicates.append(
                 (pl.col(time_column) >= LY_info["LY_first_day"])
                 & (pl.col(time_column) <= LY_info["LY_last_day"])
             )
         case _:
-            date_predicates.append(
-                pl.col(time_column) >= datetime.now() - timedelta(days=30)
-            )
+            date_predicates.append(pl.col(time_column) >= today - timedelta(days=30))
     return date_predicates

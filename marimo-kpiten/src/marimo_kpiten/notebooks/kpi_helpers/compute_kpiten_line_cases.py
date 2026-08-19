@@ -93,13 +93,20 @@ def BAN_case(
     used_df: pl.DataFrame,
     transform: dict[str, Any],
     exec_context_list: list,
+    full_predicates: list[pl.Expr],
 ):
     BAN_json = json.loads(transform["content"])
     try:
-        df = used_df.sql(f'SELECT count(id) FROM self WHERE {BAN_json.get("where")}')
-        BAN = df.to_dict()["id"]
+        filtered_df = (
+            used_df.filter(full_predicates)
+            if used_df.get_column("create_date", default=None) is not None
+            else used_df
+        )
+        df = filtered_df.sql(
+            f'SELECT count(id) FROM self WHERE {BAN_json.get("where")}'
+        )
         if df.is_empty():
-            mo.stop(True),
+            mo.stop(True)
         else:
             BAN = df.to_dict()["id"][0]
         exec_context_list.append(

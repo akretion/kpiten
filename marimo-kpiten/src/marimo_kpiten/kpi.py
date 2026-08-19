@@ -267,6 +267,7 @@ def compute_kpiten_line(
                     used_df=used_df,
                     transform=transform,
                     exec_context_list=exec_context_list,
+                    full_predicates=full_predicates,
                 )
             elif transform["kind"] == "union":
                 union_case(
