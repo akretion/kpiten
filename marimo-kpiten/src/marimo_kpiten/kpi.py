@@ -37,13 +37,13 @@ def display_selectors(date_select, layout_select, render_opt_select, mo):
 
 @app.cell(hide_code=True)
 def other_deps():
-    from marimo_kpiten.notebooks.kpi_helpers.compute_kpiten_line_cases import (
+    from marimo_kpiten.helpers.compute_cases import (
         BAN_case,
         dataframe_case,
         graph_case,
         union_case,
     )
-    from marimo_kpiten.notebooks.kpi_helpers.date_helpers import process_dt_predicate
+    from marimo_kpiten.helpers.date import process_dt_predicate
 
     return (BAN_case, dataframe_case, graph_case, union_case, process_dt_predicate)
 

@@ -265,7 +265,7 @@ def build_graph_form(d, mo: marimo, sanitized_tbn, transformation_selector):
         },
     }
 
-    from marimo_kpiten.notebooks.build_helpers.graph_form_ui import graph_form_ui
+    from marimo_kpiten.helpers.graph_form_ui import graph_form_ui
 
     graph_form_ui(
         sanitized_tbn,
@@ -368,8 +368,8 @@ def save_BAN(
         selected_table_name.value[0],
         json.dumps(
             {
-                "BAN_name": BAN_name.value,
-                "BAN_query": BAN_sql.value,
+                "name": BAN_name.value,
+                "where": BAN_sql.value,
                 "from": selected_table_name.value[0],
             }
         ),
