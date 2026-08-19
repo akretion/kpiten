@@ -112,7 +112,7 @@ def BAN_case(
         exec_context_list.append(
             {
                 "context_type": "ban",
-                "label": BAN_json["name"],
+                "label": transform.get("name") or BAN_json.get("name"),
                 "BAN": BAN,
             }
         )

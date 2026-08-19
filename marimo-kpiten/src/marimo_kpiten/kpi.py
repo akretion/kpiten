@@ -221,6 +221,7 @@ def load_kpiten_line(config_model, mo, no_data_found_callout):
                 {
                     "config_id": config_model.browse(l_id).config_id.id,
                     "content": config_model.browse(l_id).definition,
+                    "name": config_model.browse(l_id).name,
                     "kind": config_model.browse(l_id).kind,
                     "delete_this": delete_this_transformation,
                 }

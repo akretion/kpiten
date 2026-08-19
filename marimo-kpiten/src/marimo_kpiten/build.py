@@ -127,24 +127,24 @@ def select_transformation_to_make(mo: marimo):
 
 @app.cell
 def select_df_to_build(mo: marimo, tables):
-    selected_table_name_label = mo.md("Select a table")
-    selected_table_name = mo.ui.multiselect(options=tables, max_selections=1)
+    selected_model_label = mo.md("Select a model")
+    selected_model = mo.ui.multiselect(options=tables, max_selections=1)
 
-    stn_ui = mo.vstack([selected_table_name_label, selected_table_name]).style(
+    stn_ui = mo.vstack([selected_model_label, selected_model]).style(
         {"max-width": "fit-content", "color": "white"}
     )
-    return (selected_table_name, stn_ui)
+    return (selected_model, stn_ui)
 
 
 @app.cell
-def display_selected_table(df_store, mo, selected_table_name):
+def display_selected_table(df_store, mo, selected_model):
     page_title = mo.md("# Create KPIs")
     display_title = mo.md("## No table selected")
     build_df = mo.md("> Select a table to start building KPIs.")
     d = None
-    if len(selected_table_name.value) >= 1:
-        sanitized_tbn = selected_table_name.value[0].replace(".", " ").capitalize()
-        df_info = df_store.retrieve_df(selected_table_name.value[0])
+    if len(selected_model.value) >= 1:
+        sanitized_tbn = selected_model.value[0].replace(".", " ").capitalize()
+        df_info = df_store.retrieve_df(selected_model.value[0])
         if df_info:
             display_title = mo.md(f"## Build Dataframes with **{sanitized_tbn}**")
             d = df_info["df"]
@@ -188,25 +188,21 @@ def save_code_input(d, mo, transformation_selector):
 
 
 @app.cell
-def store_df_code(
-    env, mo, python_text, save, selected_table_name, transformation_selector
-):
+def store_df_code(env, mo, python_text, save, selected_model, transformation_selector):
     """
     store_df_code
     ---
     Stocke la transformation de dataframe via odoorpc.
     """
     mo.stop(transformation_selector.value[0] is not "dataframe")
-    mo.stop(
-        not python_text.value or not save.value or len(selected_table_name.value) < 1
-    )
-    storedf_message = f"Successfully stored dataframe. Visit KPI's **{selected_table_name.value[0]}** section to see it !"
+    mo.stop(not python_text.value or not save.value or len(selected_model.value) < 1)
+    storedf_message = f"Successfully stored dataframe. Visit KPI's **{selected_model.value[0]}** section to see it !"
     storedf_kind = "success"
     if not python_text.value or python_text.value == "":
         storedf_message = f'Please fill in the "**Paste code**" field with python code from dataframe transformation.'
         storedf_kind = "warn"
     record = env["kpiten.config.line"].create_conf_line(
-        selected_table_name.value[0], python_text.value, "data"
+        selected_model.value[0], python_text.value, "data"
     )
     if not record:
         storedf_message = f"An error occured, please try again."
@@ -288,19 +284,19 @@ def save_graph_form_data(
     json,
     config_model,
     mo,
-    selected_table_name,
+    selected_model,
     transformation_selector,
 ):
     mo.stop(transformation_selector.value[0] is not "graph")
     mo.stop(not create_button.value)
 
     form_record = config_model.create_conf_line(
-        selected_table_name.value[0],
+        selected_model.value[0],
         json.dumps(
             {
                 "label": form["label"].value,
                 "graph_type": form["graph_type"].value[0],
-                "from": selected_table_name.value[0],
+                "from": selected_model.value[0],
                 "x": {
                     # "type": form["x"]["type"].value[0],
                     "name": form["x"]["name"].value[0],
@@ -315,7 +311,7 @@ def save_graph_form_data(
         ),
         "graph",
     )
-    message = f"Successfully stored graph. Visit KPI's **{selected_table_name.value[0]}** section to see it !"
+    message = f"Successfully stored graph. Visit KPI's **{selected_model.value[0]}** section to see it !"
     callout_kind = "success"
     if not form_record:
         message = "Couldn't store graph, please try again later."
@@ -358,22 +354,22 @@ def save_BAN(
     mo,
     sanitized_tbn,
     save_BAN_btn,
-    selected_table_name,
+    selected_model,
     transformation_selector,
 ):
     mo.stop(transformation_selector.value[0] is not "card")
     mo.stop(not save_BAN_btn.value)
 
     BAN_record = config_model.create_conf_line(
-        selected_table_name.value[0],
+        selected_model.value[0],
         json.dumps(
             {
-                "name": BAN_name.value,
                 "where": BAN_sql.value,
-                "from": selected_table_name.value[0],
+                "from": selected_model.value[0],
             }
         ),
         "ban",
+        name=BAN_name.value,
     )
 
     save_BAN_message = f"Successfully stored BAN. Visit the **{sanitized_tbn}** section in `KPI` to see it !"
@@ -466,7 +462,7 @@ def show_ucolumn_types(
 
 
 @app.cell
-def save_union(save_union_button, selected_table_name, table2_selector):
+def save_union(save_union_button, selected_model, table2_selector):
     mo.stop(transformation_selector.value[0] is not "union")
     mo.stop(save_union_button.value is None)
 
