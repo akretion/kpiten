@@ -65,7 +65,9 @@ class KpitenConfigLine(models.Model):
 
     config_id = fields.Many2one(comodel_name="kpiten.config", required=True)
     definition = fields.Text(required=True, help="Store settings for kpi")
+    name = fields.Char()
     group_ids = fields.Many2many(comodel_name="res.groups")
+    sequence = fields.Integer()
     kind = fields.Selection(
         selection=[
             ("data", "Data"),
@@ -89,11 +91,12 @@ class KpitenConfigLine(models.Model):
             )
 
     @api.model
-    def create_conf_line(self, model, definition: str, kind: str):
+    def create_conf_line(self, model, definition: str, kind: str, name: str = None):
         res = self.env["kpiten.config.line"].create(
             {
                 "config_id": self.get_conf_id(model),
                 "definition": definition,
+                "name": name,
                 "kind": kind,
             }
         )

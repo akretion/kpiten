@@ -29,6 +29,7 @@
                             <kanban>
                                 <templates>
                                     <t t-name="card">
+                                        <field name="name" />
                                         <field name="definition" />
                                         <field name="kind" />
                                         <field name="active" optional="hide" />
@@ -41,7 +42,8 @@
                             </kanban>
                             <form>
                                 <group>
-                                    <field name="definition" />
+                                    <field name="definition" widget="ace" options="{'mode': 'python'}" />
+                                    <field name="name" />
                                     <field name="kind" widget="radio" />
                                     <field name="group_ids" widget="many2many_tags" />
                                     <field name="active" widget="boolean_toggle" />

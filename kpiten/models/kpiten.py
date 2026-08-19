@@ -39,6 +39,17 @@ class Kpiten(models.AbstractModel):
         """
         return {}
 
+    def _rename_fields(self):
+        """Used by other modules to rename ... fields !
+            {
+                "model1": {
+                    "field1": new_name1,
+                }
+            }
+        if keys aren't exist it doesn't break your instance.
+        """
+        return {}
+
     @api.model
     def kpi_rec_name(self, model):
         # Allow to expose _rec_name to rpc
