@@ -6,7 +6,7 @@ authors = [
 dependencies = [
   "dotenv>=0.9.9",
   "fastapi>=0.135.3",
-  "marimo>=0.22.5",
+  "marimo>=0.24.0",
   "odoorpc>=0.10.1",
   "polars>=1.39.3",
   "pyarrow>=23.0.1",
@@ -34,5 +34,4 @@ requires = ["uv_build>=0.11.3,<0.12.0"]
 [dependency-groups]
 dev = [
   "black>=26.5.1",
-  "marimo>=0.23.4",
 ]
