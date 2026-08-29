@@ -60,9 +60,32 @@ def other_deps():
 
 
 @app.cell
-def display_headers(mo, mo_nav_menu, selectors_hstack, title_md):
+def period_label(date_select, mo):
+    from marimo_kpiten.helpers.date import period_bounds
+
+    mo.stop(not date_select.value)
+    bounds = period_bounds(date_select)
+    period_md = mo.md("")
+    if bounds:
+        start, end = bounds
+        period_md = mo.md(f"**{start} → {end}**").style(
+            {
+                "background": "#eef2f6",
+                "color": "#1f2937",
+                "padding": "0.25rem 0.75rem",
+                "border-radius": "1rem",
+            }
+        )
+    return period_md
+
+
+@app.cell
+def display_headers(mo, mo_nav_menu, period_md, selectors_hstack, title_md):
     mo.hstack(
-        [mo.hstack([title_md, selectors_hstack]), mo_nav_menu],
+        [
+            mo.hstack([title_md, selectors_hstack]),
+            mo.hstack([period_md, mo_nav_menu]),
+        ],
         justify="start",
     )
     return
@@ -151,6 +174,8 @@ def date_filter(mo):
         "last 30 days",
         "last 90 days",
         "last 6 months",
+        "last 1 year",
+        "last 5 years",
         "last year",
     ]
     date_select = _select(date_options, ["last year"])
