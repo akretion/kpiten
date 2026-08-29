@@ -193,7 +193,15 @@ def display_cards(exec_context_list, full_predicates, mo):
     mo.stop(exec_context_list == [])
     mo.stop(len(full_predicates) < 1)
     cards = [
-        mo.stat(label=card_ctx["label"], value=card_ctx["value"], bordered=True)
+        mo.vstack(
+            [
+                mo.hstack([card_ctx["delete_button"]], justify="start"),
+                mo.stat(
+                    label=card_ctx["label"], value=card_ctx["value"], bordered=True
+                ),
+            ],
+            gap="0.25rem",
+        )
         for card_ctx in exec_context_list
         if card_ctx["context_type"] == "card"
     ]
@@ -202,7 +210,13 @@ def display_cards(exec_context_list, full_predicates, mo):
 
 
 @app.cell
-def load_kpiten_line(config_model, mo, no_data_found_callout):
+def reload_state(mo):
+    reload, set_reload = mo.state(0)
+    return reload, set_reload
+
+
+@app.cell
+def load_kpiten_line(config_model, mo, no_data_found_callout, reload, set_reload):
     """
     load_kpiten_line
     ---
@@ -217,13 +231,11 @@ def load_kpiten_line(config_model, mo, no_data_found_callout):
         transformations = []
         for line in load_lines(config_model, meta["table"]):
 
-            def delete_this_transformation(arg, line_id=line["id"]):
+            def delete_this_transformation(
+                arg, line_id=line["id"], set_reload=set_reload
+            ):
                 delete_line(config_model, line_id)
-                mo.output.append(
-                    mo.md(
-                        "✅ Successfully **deleted** record. **Refresh the page** to see the effect"
-                    )
-                )
+                set_reload(reload + 1)
 
             transformations.append({**line, "delete_this": delete_this_transformation})
 
@@ -301,7 +313,7 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
     from marimo_kpiten.helpers.display import (
         data_block,
         graph_block,
-        layout_html,
+        layout_blocks,
         union_block,
         union_old_block,
     )
@@ -314,25 +326,29 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
         if c["context_type"] != "card":
             ordered.setdefault(c["label"], []).append(c)
 
-    blocks = []
+    groups = []
     for k, ctxs in ordered.items():
-        sub_parts_html = f'<h1 style="width:100%;margin:0.5rem 0">{k}</h1>'
+        ctx_blocks = []
         for ctx in ctxs:
             match ctx["context_type"]:
                 case "data":
-                    sub_parts_html += data_block(
-                        ctx, data_t_width, render_opt_select.value[0], mo
+                    ctx_blocks.append(
+                        data_block(ctx, data_t_width, render_opt_select.value[0], mo)
                     )
                 case "union":
-                    sub_parts_html = union_block(ctx, mo)
+                    ctx_blocks.append(union_block(ctx, mo))
                 case "union_old":
-                    sub_parts_html = union_old_block(ctx, mo)
+                    ctx_blocks.append(union_old_block(ctx, mo))
                 case "graph":
-                    sub_parts_html += graph_block(ctx, mo)
+                    ctx_blocks.append(graph_block(ctx, mo))
+        groups.append(
+            mo.vstack(
+                [mo.md(f"# {k}").style({"color": "white"}), *ctx_blocks],
+                gap="0.5rem",
+            )
+        )
 
-        blocks.append(sub_parts_html)
-
-    mo.Html(layout_html(blocks, selected_layout))
+    layout_blocks(groups, selected_layout, mo)
     return
 
 

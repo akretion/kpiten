@@ -28,6 +28,12 @@ def _agg(source, group_col, agg_col, agg_fn):
     return source
 
 
+def _delete_button(on_click):
+    return mo.ui.button(
+        kind="danger", label="🗑️", tooltip="Supprimer", on_click=on_click
+    )
+
+
 def dataframe_case(
     used_df: pl.DataFrame,
     df_wt: dict[str, DF_META | list[Any]],
@@ -47,7 +53,7 @@ def dataframe_case(
         df_like = first_line.split(" ")[2]
         df_next_like = first_line.split(" ")[0]
         editor = mo.ui.code_editor(transform["content"])
-        delete_button = mo.ui.button(kind="danger", label="Suppr.", on_click=del_action)
+        delete_button = _delete_button(del_action)
         exec_context_list.append(
             {
                 "context_type": "data",
@@ -80,6 +86,7 @@ def card_case(
                 "context_type": "card",
                 "label": transform.get("name"),
                 "value": df.to_dict()["id"][0],
+                "delete_button": _delete_button(transform["delete_this"]),
             }
         )
     except Exception as err:
@@ -105,7 +112,12 @@ def union_case(transform: dict[str, Any], exec_context_list: list, full_predicat
     ]
     result = pl.concat(dfs, how="vertical_relaxed")
     exec_context_list.append(
-        {"context_type": "union", "label": label, "union_df": mo.ui.table(result)}
+        {
+            "context_type": "union",
+            "label": label,
+            "union_df": mo.ui.table(result),
+            "delete_button": _delete_button(transform["delete_this"]),
+        }
     )
 
 
@@ -116,12 +128,14 @@ def union_old_case(transform: dict[str, Any], exec_context_list: list, full_pred
     other = union_json["definition"]["union_model"]
 
     builder = apply_union_old(base["name"])
+    delete_button = _delete_button(transform["delete_this"])
     if builder:
         exec_context_list.append(
             {
                 "context_type": "union_old",
                 "label": label,
                 "union_df": builder(union_json, full_predicates, label),
+                "delete_button": delete_button,
             }
         )
         return
@@ -132,7 +146,12 @@ def union_old_case(transform: dict[str, Any], exec_context_list: list, full_pred
     df2 = df2.select(other["columns"].keys()).rename(other["columns"])
     result = pl.concat([df1, df2], how="vertical_relaxed")
     exec_context_list.append(
-        {"context_type": "union_old", "label": label, "union_df": mo.ui.table(result)}
+        {
+            "context_type": "union_old",
+            "label": label,
+            "union_df": mo.ui.table(result),
+            "delete_button": delete_button,
+        }
     )
 
 
@@ -160,7 +179,7 @@ def graph_case(
     )
 
     graph = mo.ui.plotly(figure=fig)
-    delete_button = mo.ui.button(kind="danger", label="Suppr.")
+    delete_button = _delete_button(transform["delete_this"])
     exec_context_list.append(
         {
             "context_type": "graph",
