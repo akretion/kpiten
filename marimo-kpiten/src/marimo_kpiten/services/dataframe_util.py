@@ -22,6 +22,7 @@ class Df:
     def get_df(self):
         logger.debug("GET_DF")
         self.set_datetime_string2date_columns()
+        self._truncate_dates()
         self.split_many2one_result()
         if self.decimal_truncate:
             self.df = self.df.with_columns(
@@ -42,6 +43,24 @@ class Df:
     def _fix_false_strings(self):
         """Replace the string 'false' with an empty string in string columns."""
         self.df = self.df.with_columns(pl.col(pl.Utf8).replace("false", ""))
+
+    def _truncate_dates(self):
+        """Truncate date/datetime columns to the month as Date.
+
+        create_date and write_date are left untouched.
+        """
+        excluded = {"create_date", "write_date"}
+        date_cols = [
+            c
+            for c, dtype in zip(self.df.columns, self.df.dtypes)
+            if dtype in (pl.Date, pl.Datetime) and c not in excluded
+        ]
+        if not date_cols:
+            return
+        self.df = self.df.with_columns(
+            pl.col(c).cast(pl.Datetime).dt.truncate("1mo").cast(pl.Date)
+            for c in date_cols
+        )
 
     def get_decimal_columns(self):
         "Get columns from Decimal type"
