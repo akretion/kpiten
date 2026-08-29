@@ -41,14 +41,14 @@ def display_selectors(date_select, layout_select, render_opt_select, mo):
 @app.cell(hide_code=True)
 def other_deps():
     from marimo_kpiten.helpers.compute_cases import (
-        BAN_case,
+        card_case,
         dataframe_case,
         graph_case,
         union_case,
     )
     from marimo_kpiten.helpers.date import process_dt_predicate
 
-    return (BAN_case, dataframe_case, graph_case, union_case, process_dt_predicate)
+    return (card_case, dataframe_case, graph_case, union_case, process_dt_predicate)
 
 
 @app.cell
@@ -163,15 +163,15 @@ def full_predicates(date_predicates: list[pl.Expr]):
 
 
 @app.cell
-def display_ban(exec_context_list, full_predicates, mo):
+def display_cards(exec_context_list, full_predicates, mo):
     mo.stop(exec_context_list == [])
     mo.stop(len(full_predicates) < 1)
-    bans = [
-        mo.stat(label=ban_ctx["label"], value=ban_ctx["BAN"], bordered=True)
-        for ban_ctx in exec_context_list
-        if ban_ctx["context_type"] == "ban"
+    cards = [
+        mo.stat(label=card_ctx["label"], value=card_ctx["value"], bordered=True)
+        for card_ctx in exec_context_list
+        if card_ctx["context_type"] == "card"
     ]
-    mo.hstack(bans, wrap=True)
+    mo.hstack(cards, wrap=True)
     return
 
 
@@ -207,7 +207,7 @@ def load_kpiten_line(config_model, mo, no_data_found_callout):
 
 @app.cell
 def compute_kpiten_line(
-    df_wt_list, full_predicates, mo, BAN_case, dataframe_case, graph_case, union_case
+    df_wt_list, full_predicates, mo, card_case, dataframe_case, graph_case, union_case
 ):
     """
     compute_kpiten_line
@@ -227,8 +227,8 @@ def compute_kpiten_line(
                 dataframe_case(
                     used_df, df_wt, transform, exec_context_list, full_predicates
                 )
-            elif transform["kind"] == "ban":
-                BAN_case(
+            elif transform["kind"] == "card":
+                card_case(
                     used_df=used_df,
                     transform=transform,
                     exec_context_list=exec_context_list,
@@ -271,7 +271,7 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
 
     ordered = {}
     for c in exec_context_list:
-        if c["context_type"] != "ban":
+        if c["context_type"] != "card":
             ordered.setdefault(c["label"], []).append(c)
 
     blocks = []

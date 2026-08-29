@@ -309,63 +309,61 @@ def save_graph_form_data(
 
 
 @app.cell
-def build_BAN(d, mo, sanitized_tbn, transformation_selector):
-    # BAN -> Big Ass Number, terme réellement utilisé pour parler des cartes de KPI avec des
-    # Chiffres ou des infos dessus.
+def build_card(d, mo, sanitized_tbn, transformation_selector):
     mo.stop(transformation_selector.value[0] != "card")
     mo.stop(type(d) is type(None))
-    ban_cell_title = mo.md(f"## Build a BAN (*KPI card*) from **{sanitized_tbn}**")
-    ban_cell_desc = mo.md(
+    card_cell_title = mo.md(f"## Build a card from **{sanitized_tbn}**")
+    card_cell_desc = mo.md(
         "> You provide an SQL query that generates an interesting number / short "
         "information about your company, and the result will be displayed as a "
         "KPI Card in the `KPI` section."
     )
-    BAN_name = mo.ui.text(placeholder="Name")
-    BAN_sql = mo.ui.code_editor(
+    card_name = mo.ui.text(placeholder="Name")
+    card_sql = mo.ui.code_editor(
         placeholder="state IN ('draft', 'sent')", language="sql"
     )
-    save_BAN_btn = mo.ui.run_button(kind="neutral", label="Save")
+    save_card_btn = mo.ui.run_button(kind="neutral", label="Save")
 
-    mo.vstack([ban_cell_title, ban_cell_desc, BAN_name, BAN_sql, save_BAN_btn])
-    return BAN_name, BAN_sql, save_BAN_btn
+    mo.vstack([card_cell_title, card_cell_desc, card_name, card_sql, save_card_btn])
+    return card_name, card_sql, save_card_btn
 
 
 @app.cell
-def save_BAN(
-    BAN_name,
-    BAN_sql,
+def save_card(
+    card_name,
+    card_sql,
     json,
     config_model,
     mo,
     sanitized_tbn,
-    save_BAN_btn,
+    save_card_btn,
     selected_model,
     transformation_selector,
 ):
     mo.stop(transformation_selector.value[0] != "card")
-    mo.stop(not save_BAN_btn.value)
+    mo.stop(not save_card_btn.value)
 
     from marimo_kpiten.services.config import create_line as _create_line
 
-    BAN_record = _create_line(
+    card_record = _create_line(
         config_model,
         selected_model.value[0],
         json.dumps(
             {
-                "where": BAN_sql.value,
+                "where": card_sql.value,
                 "from": selected_model.value[0],
             }
         ),
-        "ban",
-        name=BAN_name.value,
+        "card",
+        name=card_name.value,
     )
 
-    save_BAN_message = f"Successfully stored BAN. Visit the **{sanitized_tbn}** section in `KPI` to see it !"
-    save_BAN_kind = "success"
-    if not BAN_record:
-        save_BAN_message = "Couldn't store BAN, please try again later."
-        save_BAN_kind = "error"
-    mo.md(save_BAN_message).callout(kind=save_BAN_kind)
+    save_card_message = f"Successfully stored card. Visit the **{sanitized_tbn}** section in `KPI` to see it !"
+    save_card_kind = "success"
+    if not card_record:
+        save_card_message = "Couldn't store card, please try again later."
+        save_card_kind = "error"
+    mo.md(save_card_message).callout(kind=save_card_kind)
     return
 
 

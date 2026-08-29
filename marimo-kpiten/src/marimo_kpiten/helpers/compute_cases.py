@@ -62,29 +62,29 @@ def dataframe_case(
         )
 
 
-def BAN_case(
+def card_case(
     used_df: pl.DataFrame,
     transform: dict[str, Any],
     exec_context_list: list,
     full_predicates: list[pl.Expr],
 ):
-    BAN_json = json.loads(transform["content"])
+    card_json = json.loads(transform["content"])
     try:
         df = _date_filtered(used_df, full_predicates).sql(
-            f'SELECT count(id) FROM self WHERE {BAN_json.get("where")}'
+            f'SELECT count(id) FROM self WHERE {card_json.get("where")}'
         )
         if df.is_empty():
             mo.stop(True)
         exec_context_list.append(
             {
-                "context_type": "ban",
-                "label": transform.get("name") or BAN_json.get("name"),
-                "BAN": df.to_dict()["id"][0],
+                "context_type": "card",
+                "label": transform.get("name") or card_json.get("name"),
+                "value": df.to_dict()["id"][0],
             }
         )
     except Exception as err:
         logger.error(
-            "Could not load BAN %s. Please check your spelling, "
+            "Could not load card %s. Please check your spelling, "
             "and whether you have the rights to query",
             transform.get("name"),
         )
