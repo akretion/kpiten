@@ -1,5 +1,12 @@
 from typing import Any
 
+from marimo_kpiten.services.file_state import FileState
+
+
+def current_user_id():
+    """Id of the user logged in the marimo session."""
+    return FileState.retrieve_state("user_id")
+
 
 def load_lines(config_model, table: str) -> list[dict[str, Any]]:
     """Return the kpiten.config.line records for a table."""
@@ -21,9 +28,11 @@ def load_lines(config_model, table: str) -> list[dict[str, Any]]:
 
 
 def create_line(
-    config_model, model: str, definition: str, kind: str, name=None
+    config_model, model: str, definition: str, kind: str, name=None, user_id=None
 ) -> bool:
-    return config_model.create_conf_line(model, definition, kind, name)
+    return config_model.create_conf_line(
+        model, definition, kind, name, user_id or current_user_id()
+    )
 
 
 def delete_line(config_model, line_id: int) -> None:
