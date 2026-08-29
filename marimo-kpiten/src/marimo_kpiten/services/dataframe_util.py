@@ -36,7 +36,12 @@ class Df:
                 for col in self.get_decimal_columns()
             ]
         )
+        self._fix_false_strings()
         return self.df
+
+    def _fix_false_strings(self):
+        """Replace the string 'false' with an empty string in string columns."""
+        self.df = self.df.with_columns(pl.col(pl.Utf8).replace("false", ""))
 
     def get_decimal_columns(self):
         "Get columns from Decimal type"
