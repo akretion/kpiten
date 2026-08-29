@@ -62,7 +62,6 @@ def _():
     import marimo as mo
     from marimo_kpiten.services.df_storage import DFStorage
     import json
-    import polars as pl
 
     df_store = DFStorage()
 
@@ -76,7 +75,7 @@ def _():
             + "then `/build` to verify if any tables exist. Then, you can create transformations, "
             + "and they'll be here !"
         ).callout("warn")
-    return df_store, json, mo, no_data_found_callout, pl
+    return df_store, json, mo, no_data_found_callout
 
 
 @app.cell
@@ -280,7 +279,7 @@ def compute_kpiten_line(
 
 
 @app.cell
-def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo, pl):
+def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
     """
     exec_kpiten_lines
     ---
@@ -288,6 +287,8 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo, p
     """
     mo.stop(not exec_context_list)
     mo.stop(len(exec_context_list) < 1)
+
+    from marimo_kpiten.services.sandbox import run
 
     ordered = {}
     to_display = []
@@ -307,18 +308,26 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo, p
         for ctx in ordered[k]:
             match ctx["context_type"]:
                 case "data":
-                    scope = {
-                        ctx["df_like"]: ctx["df"],
-                        "pl": pl,
-                        "delete_button": ctx["delete_button"],
-                    }
-                    exec(ctx["editor"].value, scope)
-                    table_html = mo.ui.table(scope[ctx["df_next_like"]])
-                    if render_opt_select.value[0] == "Reporting":
-                        table_html = ctx["style_func"](
-                            scope[ctx["df_next_like"]].limit(20)
-                        ).as_raw_html()
-                        print(table_html)
+                    try:
+                        result_df = run(
+                            ctx["editor"].value,
+                            ctx["df"],
+                            ctx["df_like"],
+                            ctx["df_next_like"],
+                        )
+                    except Exception as e:
+                        result_df = None
+                    if result_df is None:
+                        table_html = mo.md(
+                            f"**Error**\n```\n{ctx['editor'].value}\n```\n{e}"
+                        ).callout("warn")
+                    else:
+                        table_html = mo.ui.table(result_df)
+                        if render_opt_select.value[0] == "Reporting":
+                            table_html = ctx["style_func"](
+                                result_df.limit(20)
+                            ).as_raw_html()
+                            print(table_html)
                     delete_html = ctx["delete_button"].text
                     sub_parts_html += f"""
                         <div style="display:flex; flex-flow:column; width: {data_t_width}; min-width:300px; gap:0.5rem; padding:0.5rem; box-sizing:border-box">
@@ -346,11 +355,6 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo, p
                     """
                 case "ban":
                     continue
-                case _:
-                    scope = {ctx["df_like"]: ctx["df"], "pl": pl}
-                    exec(ctx["editor"].value, scope)
-                    fallback_html = mo.ui.table(scope[ctx["df_next_like"]]).text
-                    sub_parts_html += f"<div>{fallback_html}</div>"
 
         to_display.append(sub_parts_html)
 
