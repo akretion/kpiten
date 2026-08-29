@@ -50,7 +50,7 @@ def account_analytic_line(df):
 
 
 @register_union("account.analytic.line")
-def timesheets_union(union_json, full_predicates):
+def timesheets_union(union_json, full_predicates, label):
     """Union of analytic lines and workcenter productivity, pivoted by month."""
     base_model_df = (
         df_store.retrieve_df(union_json["definition"]["model"]["name"])["df"]
@@ -171,7 +171,7 @@ def timesheets_union(union_json, full_predicates):
 
     gt_table = (
         GT(final_df, rowname_col="employé", groupname_col="budget")
-        .tab_header(union_json["definition"]["label"])
+        .tab_header(label)
         .fmt_number(columns=month_labels, decimals=0)
         .summary_rows(
             fns={"TOTAL": [pl.col(m).sum() for m in month_labels]},

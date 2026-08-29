@@ -78,7 +78,7 @@ def card_case(
         exec_context_list.append(
             {
                 "context_type": "card",
-                "label": transform.get("name") or card_json.get("name"),
+                "label": transform.get("name"),
                 "value": df.to_dict()["id"][0],
             }
         )
@@ -93,7 +93,7 @@ def card_case(
 
 def union_case(transform: dict[str, Any], exec_context_list: list, full_predicates):
     union_json = json.loads(transform["content"])
-    label = union_json["definition"]["label"]
+    label = transform.get("name")
     base = union_json["definition"]["model"]
     other = union_json["definition"]["union_model"]
 
@@ -103,7 +103,7 @@ def union_case(transform: dict[str, Any], exec_context_list: list, full_predicat
             {
                 "context_type": "union",
                 "label": label,
-                "union_df": builder(union_json, full_predicates),
+                "union_df": builder(union_json, full_predicates, label),
             }
         )
         return
@@ -146,7 +146,7 @@ def graph_case(
     exec_context_list.append(
         {
             "context_type": "graph",
-            "label": graph_json["label"],
+            "label": transform.get("name"),
             "graph": graph,
             "delete_button": delete_button,
         }

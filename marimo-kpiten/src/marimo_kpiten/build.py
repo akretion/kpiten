@@ -281,7 +281,6 @@ def save_graph_form_data(
         selected_model.value[0],
         json.dumps(
             {
-                "label": form["label"].value,
                 "graph_type": form["graph_type"].value[0],
                 "from": selected_model.value[0],
                 "x": {
@@ -295,6 +294,7 @@ def save_graph_form_data(
             }
         ),
         "graph",
+        name=form["label"].value,
     )
     message = f"Successfully stored graph. Visit KPI's **{selected_model.value[0]}** section to see it !"
     callout_kind = "success"
