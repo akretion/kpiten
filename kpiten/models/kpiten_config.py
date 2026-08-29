@@ -74,10 +74,12 @@ class KpitenConfigLine(models.Model):
             ("graph", "Graph"),
             ("card", "Card"),
             ("union", "Union"),
+            ("union_old", "Union Old"),
         ],
         default="data",
         help="Representation type",
     )
+    user_id = fields.Many2one(comodel_name="res.users")
     active = fields.Boolean(default=True)
 
     @api.model
@@ -91,13 +93,16 @@ class KpitenConfigLine(models.Model):
             )
 
     @api.model
-    def create_conf_line(self, model, definition: str, kind: str, name: str = None):
+    def create_conf_line(
+        self, model, definition: str, kind: str, name: str = None, user_id=None
+    ):
         res = self.env["kpiten.config.line"].create(
             {
                 "config_id": self.get_conf_id(model),
                 "definition": definition,
                 "name": name,
                 "kind": kind,
+                "user_id": user_id or self.env.user.id,
             }
         )
         if res:

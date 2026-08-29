@@ -46,6 +46,7 @@
                                     <field name="name" />
                                     <field name="kind" widget="radio" />
                                     <field name="group_ids" widget="many2many_tags" />
+                                    <field name="user_id" />
                                     <field name="active" widget="boolean_toggle" />
                                 </group>
                             </form>
