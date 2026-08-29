@@ -9,6 +9,21 @@ from great_tables import GT, vals, style, loc
 import plotly.express as px
 
 
+def _date_filtered(df, full_predicates):
+    """Apply the date predicates when the df has a create_date column."""
+    if df.get_column("create_date", default=None) is not None:
+        return df.filter(full_predicates)
+    return df
+
+
+def _agg(source, group_col, agg_col, agg_fn):
+    if agg_fn == "sum":
+        return source.group_by(group_col).agg(pl.col(agg_col).sum())
+    if agg_fn == "count":
+        return source.group_by(group_col).agg(pl.col(agg_col).count())
+    return source
+
+
 def dataframe_case(
     used_df: pl.DataFrame,
     df_wt: dict[str, DF_META | list[Any]],
@@ -73,11 +88,7 @@ def dataframe_case(
         exec_context_list.append(
             {
                 "context_type": "data",
-                "df": (
-                    used_df.filter(full_predicates)
-                    if used_df.get_column("create_date", default=None) is not None
-                    else used_df
-                ),
+                "df": _date_filtered(used_df, full_predicates),
                 "label": used_df_label,
                 "editor": editor,
                 "df_like": df_like,
@@ -96,29 +107,22 @@ def BAN_case(
 ):
     BAN_json = json.loads(transform["content"])
     try:
-        filtered_df = (
-            used_df.filter(full_predicates)
-            if used_df.get_column("create_date", default=None) is not None
-            else used_df
-        )
-        df = filtered_df.sql(
+        df = _date_filtered(used_df, full_predicates).sql(
             f'SELECT count(id) FROM self WHERE {BAN_json.get("where")}'
         )
         if df.is_empty():
             mo.stop(True)
-        else:
-            BAN = df.to_dict()["id"][0]
         exec_context_list.append(
             {
                 "context_type": "ban",
                 "label": transform.get("name") or BAN_json.get("name"),
-                "BAN": BAN,
+                "BAN": df.to_dict()["id"][0],
             }
         )
-    except pl.exceptions.ColumnNotFoundError as err:
+    except Exception as err:
         print(
-            f"Could not load BAN {BAN_json['name']}. Please check",
-            " your spelling, and whether you have the rights to query",
+            f"Could not load BAN {transform.get('name')}. Please check "
+            "your spelling, and whether you have the rights to query"
         )
         print(f"full error :\n{err}")
 
@@ -312,78 +316,31 @@ def graph_case(
     transform: dict[str, Any], full_predicates: list[bool], exec_context_list: list
 ):
     graph_json = json.loads(transform["content"])
-    CX = graph_json["x"]
-    CY = graph_json["y"]
-    X_AGG = CX["aggregation"]
-    Y_AGG = CY["aggregation"]
+    cx = graph_json["x"]
+    cy = graph_json["y"]
+    df = df_store.retrieve_df(graph_json["from"])["df"]
 
-    source = (
-        (
-            df_store.retrieve_df(graph_json["from"])["df"]
-            .limit(500)
-            .filter(full_predicates)
-        )
-        if df_store.retrieve_df(graph_json["from"])["df"].get_column(
-            "create_date", default=None
-        )
-        is not None
-        else (df_store.retrieve_df(graph_json["from"])["df"].limit(500))
-    )
+    source = _date_filtered(df.limit(500), full_predicates)
+    source = _agg(source, cy["name"], cx["name"], cx["aggregation"])
+    source = _agg(source, cx["name"], cy["name"], cy["aggregation"])
 
-    match X_AGG:
-        case "sum":
-            source = source.group_by(graph_json["y"]["name"]).agg(
-                pl.col(graph_json["x"]["name"]).sum()
-            )
-        case "count":
-            source = source.group_by(graph_json["y"]["name"]).agg(
-                pl.col(graph_json["x"]["name"]).count()
-            )
-        case _:
-            source = source
-
-    match Y_AGG:
-        case "sum":
-            source = source = source.group_by(graph_json["x"]["name"]).agg(
-                pl.col(graph_json["y"]["name"]).sum()
-            )
-        case "count":
-            source = source.group_by(graph_json["x"]["name"]).agg(
-                pl.col(graph_json["y"]["name"]).count()
-            )
-        case _:
-            source = source
-
-    x_label = CX["name"].replace("_", " ").capitalize()
-    y_label = CY["name"].replace("_", " ").capitalize()
     labels = {
-        CX["name"]: x_label,
-        CY["name"]: y_label,
+        col: col.replace("_", " ").capitalize() for col in (cx["name"], cy["name"])
     }
-
-    common_args = dict(x=CX["name"], y=CY["name"], labels=labels)
-    match graph_json["graph_type"]:
-        case "bar":
-            fig = px.bar(source, **common_args)
-        case "point":
-            fig = px.scatter(source, **common_args)
-        case "area":
-            fig = px.area(source, **common_args)
-        case _:
-            fig = px.bar(source, **common_args)
+    common_args = dict(x=cx["name"], y=cy["name"], labels=labels)
+    chart = {"bar": px.bar, "point": px.scatter, "area": px.area}
+    fig = chart.get(graph_json["graph_type"], px.bar)(source, **common_args)
     fig.update_layout(
         autosize=True,
         margin=dict(l=20, r=20, t=40, b=20),
     )
-    label = graph_json["label"]
+
     graph = mo.ui.plotly(figure=fig)
-    # TODO make del_action works again
-    # delete_button = mo.ui.button(kind="danger", label="Suppr.", on_click=del_action)
     delete_button = mo.ui.button(kind="danger", label="Suppr.")
     exec_context_list.append(
         {
             "context_type": "graph",
-            "label": label,
+            "label": graph_json["label"],
             "graph": graph,
             "delete_button": delete_button,
         }
