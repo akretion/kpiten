@@ -23,14 +23,14 @@ def _get_odoo_env():
     from marimo_kpiten.common import _get_odoo_env
 
     env = _get_odoo_env()
-    return (env,)
+    return env
 
 
 @app.cell
 def get_json():
     import json
 
-    return (json,)
+    return json
 
 
 @app.cell

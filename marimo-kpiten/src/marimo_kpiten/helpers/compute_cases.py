@@ -383,42 +383,25 @@ def graph_case(
         CY["name"]: y_label,
     }
 
+    common_args = dict(x= CX["name"], y= CY["name"], labels= labels)
     match graph_json["graph_type"]:
         case "bar":
-            fig = px.bar(
-                source,
-                x=CX["name"],
-                y=CY["name"],
-                labels=labels,
-            )
+            fig = px.bar(source, **common_args)
         case "point":
-            fig = px.scatter(
-                source,
-                x=CX["name"],
-                y=CY["name"],
-                labels=labels,
-            )
+            fig = px.scatter(source, **common_args)
         case "area":
-            fig = px.area(
-                source,
-                x=CX["name"],
-                y=CY["name"],
-                labels=labels,
-            )
+            fig = px.area(source, **common_args)
         case _:
-            fig = px.bar(
-                source,
-                x=CX["name"],
-                y=CY["name"],
-                labels=labels,
-            )
+            fig = px.bar(source, **common_args)
     fig.update_layout(
         autosize=True,
         margin=dict(l=20, r=20, t=40, b=20),
     )
     label = graph_json["label"]
     graph = mo.ui.plotly(figure=fig)
-    delete_button = mo.ui.button(kind="danger", label="Suppr.", on_click=del_action)
+    # TODO make del_action works again
+    # delete_button = mo.ui.button(kind="danger", label="Suppr.", on_click=del_action)
+    delete_button = mo.ui.button(kind="danger", label="Suppr.")
     exec_context_list.append(
         {
             "context_type": "graph",

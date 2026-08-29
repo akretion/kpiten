@@ -319,7 +319,8 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
                         result_df = None
                     if result_df is None:
                         table_html = mo.md(
-                            f"**Error**\n```\n{ctx['editor'].value}\n```\n{e}"
+                            f"**Error**  {ctx['editor'].value}"
+                            # f"**Error**  {ctx['editor'].value}  {e}"
                         ).callout("warn")
                     else:
                         table_html = mo.ui.table(result_df)
