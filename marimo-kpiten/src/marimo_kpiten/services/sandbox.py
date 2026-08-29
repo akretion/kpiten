@@ -1,8 +1,10 @@
 """Restricted execution of user polars pipeline snippets."""
+
 import ast
 import builtins
 import polars as pl
 
+# fmt: off
 BUILTINS = {
     "abs", "all", "any", "bool", "dict", "enumerate", "float", "int",
     "isinstance", "len", "list", "max", "min", "pow", "print", "range",
@@ -69,6 +71,7 @@ BLOCKED_NODES = (
     ast.YieldFrom, ast.Await, ast.Match, ast.NamedExpr, ast.Starred,
     ast.Delete, ast.Assert,
 )
+# fmt: on
 
 
 def check(code: str) -> ast.Module:

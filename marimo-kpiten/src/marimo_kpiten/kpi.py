@@ -13,7 +13,9 @@ def page_title(mo):
 
 @app.cell
 def navigation(mo):
-    mo_nav_menu = mo.nav_menu({"/build": "New"})
+    from marimo_kpiten.helpers.ui import nav_menu
+
+    mo_nav_menu = nav_menu("/build", "New")
     return mo_nav_menu
 
 
@@ -79,11 +81,10 @@ def _():
 
 
 @app.cell
-def app_style(mo):
-    style_sheet = ""
-    with open("../styles/first.css") as f:
-        style_sheet = f.read()
-    mo.Html(f"""<style>{style_sheet}</style>""")
+def app_style():
+    from marimo_kpiten.helpers.ui import style_html
+
+    style_html()
     return
 
 
@@ -99,55 +100,43 @@ def fallback_page(exec_context_list, mo):
 
 @app.cell
 def no_data_found(mo, no_data_found_callout):
-    mo.stop(not no_data_found_callout)
-    no_data_found_callout
+    from marimo_kpiten.helpers.ui import no_data
+
+    no_data(mo, no_data_found_callout)
     return
 
 
 @app.cell
-def _get_odoo_env():
-    """
-    Makes odoo env available for all cells (if in the parameter of other cells)
-    """
-    from marimo_kpiten.common import _get_odoo_env
-
-    env = _get_odoo_env()
-    return env
-
-
-@app.cell
-def _get_config_model(env):
+def _get_config_model():
     """
     utilise odoorpc pour récupérer env['kpiten.config.line']
     """
     from marimo_kpiten.common import _get_config_model
 
-    config_model = _get_config_model(env)
+    config_model = _get_config_model()
     return config_model
 
 
 @app.cell
 def layout_selection(mo):
-    layout_options = ["Serial", "2 columns when possible"]
-    layout_select = mo.ui.multiselect(
-        options=layout_options,
-        max_selections=1,
-        value=["Serial"],
-    )
+    from marimo_kpiten.helpers.ui import select as _select
+
+    layout_select = _select(["Serial", "2 columns when possible"], ["Serial"])
     return layout_select
 
 
 @app.cell
 def render_engine_selection(mo):
-    render_opt = ["Reporting", "Exploration"]
-    render_opt_select = mo.ui.multiselect(
-        options=render_opt, max_selections=1, value=["Exploration"]
-    )
+    from marimo_kpiten.helpers.ui import select as _select
+
+    render_opt_select = _select(["Reporting", "Exploration"], ["Exploration"])
     return render_opt_select
 
 
 @app.cell
 def date_filter(mo):
+    from marimo_kpiten.helpers.ui import select as _select
+
     date_options = [
         "today only",
         "last week",
@@ -156,9 +145,7 @@ def date_filter(mo):
         "last 6 months",
         "last year",
     ]
-    date_select = mo.ui.multiselect(
-        options=date_options, max_selections=1, value=["last year"]
-    )
+    date_select = _select(date_options, ["last year"])
     return date_select
 
 
@@ -193,42 +180,28 @@ def load_kpiten_line(config_model, mo, no_data_found_callout):
     """
     load_kpiten_line
     ---
-    - Récupères la première ligne dans kpiten.config.line via odoorpc et prend la transformation
-    - Retourne la transformation et la table qui lui correspond (ici Sales Order, hardcodé)
+    - Récupère les transformations de kpiten.config.line via odoorpc et la table qui leur correspond
     """
     mo.stop(no_data_found_callout)
+    from marimo_kpiten.services.config import delete_line, load_lines
     from marimo_kpiten.services.df_storage import DFStorage as dfsv
 
-    all_df_metadata = dfsv.retrieve_all_dfs()
     df_wt_list = []
-    for meta in all_df_metadata:
+    for meta in dfsv.retrieve_all_dfs():
         transformations = []
-        line_ids = config_model.search(
-            [("config_id", "=", config_model.get_conf_id(meta["table"]))]
-        )
-        for l_id in line_ids:
+        for line in load_lines(config_model, meta["table"]):
 
-            def delete_this_transformation(arg):
-                config_model.browse(l_id).unlink()
+            def delete_this_transformation(arg, line_id=line["id"]):
+                delete_line(config_model, line_id)
                 mo.output.append(
                     mo.md(
                         "✅ Successfully **deleted** record. **Refresh the page** to see the effect"
                     )
                 )
 
-            transformations.append(
-                {
-                    "config_id": config_model.browse(l_id).config_id.id,
-                    "content": config_model.browse(l_id).definition,
-                    "name": config_model.browse(l_id).name,
-                    "kind": config_model.browse(l_id).kind,
-                    "delete_this": delete_this_transformation,
-                }
-            )
+            transformations.append({**line, "delete_this": delete_this_transformation})
 
-        dwt_d = {"df_meta": meta, "transformations": transformations}
-
-        df_wt_list.append(dwt_d)
+        df_wt_list.append({"df_meta": meta, "transformations": transformations})
     return (df_wt_list,)
 
 

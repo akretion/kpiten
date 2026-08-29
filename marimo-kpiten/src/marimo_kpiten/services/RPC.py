@@ -15,12 +15,14 @@ class RPC:
         return cls._instance
 
     def __init__(self):
+        if self.odoo is None:
+            self.connect()
+
+    def connect(self):
         self.odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
         self.odoo.login(
             env_.get("ODOO_DB"), env_.get("ODOO_LOGIN"), env_.get("ODOO_PWD")
         )
-
-        if self.odoo:
-            self.env = self.odoo.env
-        else:
+        if not self.odoo:
             raise ConnectionError("(RPC CLASS) : Odoorpc did not initialize properly.")
+        self.env = self.odoo.env

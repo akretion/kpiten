@@ -4,52 +4,30 @@ from typing import Any
 from fastapi import FastAPI, APIRouter, Response
 from fastapi.responses import RedirectResponse
 from marimo_kpiten.services.df_storage import DFStorage
-from marimo_kpiten.services.env_reader import EnvReader
 from marimo_kpiten.services.dataframe_util import Df
 from marimo_kpiten.services.file_state import FileState
+from marimo_kpiten.services.RPC import RPC
+from marimo_kpiten.services.env_reader import EnvReader
 from marimo_kpiten.services.session_handler import SESSION_STATE, SessionHandler
-from urllib.error import URLError
-from odoorpc.error import RPCError
-from odoorpc.env import Environment
-from odoorpc import ODOO
 from datetime import datetime
 
 import polars as pl
 import marimo as mo
-import odoorpc
 import logging
 
 logger = logging.getLogger(__name__)
 app = FastAPI()
 router = APIRouter()
 df_store = DFStorage()
-env_ = EnvReader()
-odoo: ODOO | None = None
-env: Environment | None = None
+env = None
 
 try:
-    odoo = odoorpc.ODOO(env_.get("ODOO_HOST"), port=env_.get("ODOO_PORT"))
-except URLError as e:
-    logger.warning(f"Odoo is not available:\n{e}")
+    env = RPC().env
 except Exception as e:
-    logger.warning(e)
-
-try:
-    odoo.login(env_.get("ODOO_DB"), env_.get("ODOO_LOGIN"), env_.get("ODOO_PWD"))
-    env = odoo.env
-except RPCError as e:
-    logger.warning(f"Odoo authentification failed: {e}")
-except Exception as e:
-    logger.warning(e)
-
-if odoo is None:
-    raise Exception("Odoo connection could not be initialized properly.")
+    logger.warning(f"Odoo connection failed:\n{e}")
 
 if env is None:
     raise Exception("Odoo environment could not be initialized properly.")
-
-app = FastAPI()
-router = APIRouter()
 
 
 @router.post("/")
@@ -114,7 +92,7 @@ def build_global_dfs():
             record_time_end = datetime.now()
             print("record cpt : ", record_time_end - record_time)
             df = pl.DataFrame(records, strict=False, infer_schema_length=None)
-            decimal = env_.get("DECIMAL_TRUNCATE") or 0
+            decimal = EnvReader.get("DECIMAL_TRUNCATE") or 0
             fmetadata_time = datetime.now()
             fields_metadata = env["kpiten"].get_fields_metadata(model)
             fmetadata_time_end = datetime.now()

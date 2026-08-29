@@ -15,17 +15,6 @@ def _():
 
 
 @app.cell
-def _get_odoo_env():
-    """
-    Makes odoo env available for all cells (if in the parameter of other cells)
-    """
-    from marimo_kpiten.common import _get_odoo_env
-
-    env = _get_odoo_env()
-    return env
-
-
-@app.cell
 def get_json():
     import json
 
@@ -34,7 +23,9 @@ def get_json():
 
 @app.cell
 def navigation(mo):
-    build_nav = mo.nav_menu({"/kpi": "KPI"})
+    from marimo_kpiten.helpers.ui import nav_menu
+
+    build_nav = nav_menu("/kpi", "KPI")
     return build_nav
 
 
@@ -58,29 +49,29 @@ def _(mo):
 
 
 @app.cell
-def app_style(mo):
-    style_sheet = ""
-    with open("../styles/first.css") as f:
-        style_sheet = f.read()
-    mo.Html(f"""<style>{style_sheet}</style>""")
+def app_style():
+    from marimo_kpiten.helpers.ui import style_html
+
+    style_html()
     return
 
 
 @app.cell
 def no_data_found(mo, no_data_found_callout):
-    mo.stop(not no_data_found_callout)
-    no_data_found_callout
+    from marimo_kpiten.helpers.ui import no_data
+
+    no_data(mo, no_data_found_callout)
     return
 
 
 @app.cell
-def _get_config_model(env):
+def _get_config_model():
     """
     utilise odoorpc pour récupérer env['kpiten.config.line']
     """
     from marimo_kpiten.common import _get_config_model
 
-    config_model = _get_config_model(env)
+    config_model = _get_config_model()
     return (config_model,)
 
 
@@ -99,11 +90,11 @@ def display_header(mo: marimo, stn_ui, build_nav, ts_ui):
 
 @app.cell
 def select_transformation_to_make(mo: marimo):
+    from marimo_kpiten.helpers.ui import select as _select
+
     transformation_selector_label = mo.md("What to build ?")
-    transformation_selector = mo.ui.multiselect(
-        options=["graph", "dataframe", "card", "union"],
-        max_selections=1,
-        value=["dataframe"],
+    transformation_selector = _select(
+        ["graph", "dataframe", "card", "union"], ["dataframe"]
     )
 
     ts_ui = mo.vstack([transformation_selector_label, transformation_selector]).style(
@@ -114,8 +105,10 @@ def select_transformation_to_make(mo: marimo):
 
 @app.cell
 def select_df_to_build(mo: marimo, tables):
+    from marimo_kpiten.helpers.ui import select as _select
+
     selected_model_label = mo.md("Select a model")
-    selected_model = mo.ui.multiselect(options=tables, max_selections=1)
+    selected_model = _select(tables)
 
     stn_ui = mo.vstack([selected_model_label, selected_model]).style(
         {"max-width": "fit-content", "color": "white"}
@@ -175,7 +168,9 @@ def save_code_input(d, mo, transformation_selector):
 
 
 @app.cell
-def store_df_code(env, mo, python_text, save, selected_model, transformation_selector):
+def store_df_code(
+    config_model, mo, python_text, save, selected_model, transformation_selector
+):
     """
     store_df_code
     ---
@@ -183,13 +178,15 @@ def store_df_code(env, mo, python_text, save, selected_model, transformation_sel
     """
     mo.stop(transformation_selector.value[0] != "dataframe")
     mo.stop(not python_text.value or not save.value or len(selected_model.value) < 1)
+    from marimo_kpiten.services.config import create_line as _create_line
+
     storedf_message = f"Successfully stored dataframe. Visit KPI's **{selected_model.value[0]}** section to see it !"
     storedf_kind = "success"
     if not python_text.value or python_text.value == "":
         storedf_message = f'Please fill in the "**Paste code**" field with python code from dataframe transformation.'
         storedf_kind = "warn"
-    record = env["kpiten.config.line"].create_conf_line(
-        selected_model.value[0], python_text.value, "data"
+    record = _create_line(
+        config_model, selected_model.value[0], python_text.value, "data"
     )
     if not record:
         storedf_message = f"An error occured, please try again."
@@ -277,7 +274,10 @@ def save_graph_form_data(
     mo.stop(transformation_selector.value[0] != "graph")
     mo.stop(not create_button.value)
 
-    form_record = config_model.create_conf_line(
+    from marimo_kpiten.services.config import create_line as _create_line
+
+    form_record = _create_line(
+        config_model,
         selected_model.value[0],
         json.dumps(
             {
@@ -285,12 +285,10 @@ def save_graph_form_data(
                 "graph_type": form["graph_type"].value[0],
                 "from": selected_model.value[0],
                 "x": {
-                    # "type": form["x"]["type"].value[0],
                     "name": form["x"]["name"].value[0],
                     "aggregation": form["x"]["aggregation"].value[0],
                 },
                 "y": {
-                    # "type": form["y"]["type"].value[0],
                     "name": form["y"]["name"].value[0],
                     "aggregation": form["y"]["aggregation"].value[0],
                 },
@@ -347,7 +345,10 @@ def save_BAN(
     mo.stop(transformation_selector.value[0] != "card")
     mo.stop(not save_BAN_btn.value)
 
-    BAN_record = config_model.create_conf_line(
+    from marimo_kpiten.services.config import create_line as _create_line
+
+    BAN_record = _create_line(
+        config_model,
         selected_model.value[0],
         json.dumps(
             {
@@ -370,10 +371,12 @@ def save_BAN(
 
 @app.cell
 def union_tables_selectors(mo: marimo, transformation_selector, tables, sanitized_tbn):
+    from marimo_kpiten.helpers.ui import select as _select
+
     mo.stop(transformation_selector.value[0] != "union")
 
     table2_sel_label = mo.md(f"Table 2 (to make an union with {sanitized_tbn})")
-    table2_selector = mo.ui.multiselect(options=tables, max_selections=1)
+    table2_selector = _select(tables)
     mo.hstack([mo.vstack([table2_sel_label, table2_selector])]).style(
         {"color": "white"}
     )

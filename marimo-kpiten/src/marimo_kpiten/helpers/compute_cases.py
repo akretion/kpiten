@@ -361,7 +361,7 @@ def graph_case(
         CY["name"]: y_label,
     }
 
-    common_args = dict(x= CX["name"], y= CY["name"], labels= labels)
+    common_args = dict(x=CX["name"], y=CY["name"], labels=labels)
     match graph_json["graph_type"]:
         case "bar":
             fig = px.bar(source, **common_args)
