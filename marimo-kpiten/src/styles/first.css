@@ -35,6 +35,11 @@ span.paragraph, span.markdown, label {
 	color: var(--text-color) !important;
 }
 
+.period-label {
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
 button#radix-_r_1c_.text-xs {
 	color: var(--text-color) !important;
 }

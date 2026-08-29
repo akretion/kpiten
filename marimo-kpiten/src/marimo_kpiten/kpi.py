@@ -61,14 +61,21 @@ def other_deps():
 
 @app.cell
 def period_label(date_select, mo):
-    from marimo_kpiten.helpers.date import period_bounds
+    from marimo_kpiten.helpers.date import (
+        TIME_COLUMN,
+        format_period,
+        period_bounds,
+        user_lang,
+    )
 
     mo.stop(not date_select.value)
     bounds = period_bounds(date_select)
-    period_md = mo.md("")
+    period_md = mo.Html("")
     if bounds:
         start, end = bounds
-        period_md = mo.md(f"**{start} → {end}**").style({"color": "white"})
+        period_md = mo.Html(
+            f'<span class="period-label">{TIME_COLUMN}: {format_period(start, end, user_lang())}</span>'
+        )
     return period_md
 
 

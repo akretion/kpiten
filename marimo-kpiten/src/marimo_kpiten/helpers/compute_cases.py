@@ -60,7 +60,7 @@ def dataframe_case(
             {
                 "context_type": "data",
                 "df": _date_filtered(used_df, full_predicates),
-                "label": used_df_label,
+                "label": transform.get("name") or used_df_label,
                 "editor": editor,
                 "df_like": df_like,
                 "style_func": DFStyleEngine.general,

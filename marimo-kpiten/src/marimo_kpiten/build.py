@@ -149,8 +149,15 @@ def code_input(d, mo: marimo, transformation_selector):
     mo.stop(transformation_selector.value[0] != "dataframe")
     mo.stop(type(d) is type(None))
     python_text = mo.ui.code_editor(language="python")
-    mo.vstack([mo.md("## Paste Code").style({"color": "white"}), python_text])
-    return (python_text,)
+    df_name = mo.ui.text(placeholder="My Kpi")
+    mo.vstack(
+        [
+            mo.md("## Paste Code").style({"color": "white"}),
+            python_text,
+            df_name,
+        ]
+    )
+    return (python_text, df_name)
 
 
 @app.cell
@@ -169,7 +176,13 @@ def save_code_input(d, mo, transformation_selector):
 
 @app.cell
 def store_df_code(
-    config_model, mo, python_text, save, selected_model, transformation_selector
+    config_model,
+    mo,
+    python_text,
+    df_name,
+    save,
+    selected_model,
+    transformation_selector,
 ):
     """
     store_df_code
@@ -186,7 +199,11 @@ def store_df_code(
         storedf_message = f'Please fill in the "**Paste code**" field with python code from dataframe transformation.'
         storedf_kind = "warn"
     record = _create_line(
-        config_model, selected_model.value[0], python_text.value, "data"
+        config_model,
+        selected_model.value[0],
+        python_text.value,
+        "data",
+        name=df_name.value,
     )
     if not record:
         storedf_message = f"An error occured, please try again."
