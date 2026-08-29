@@ -70,9 +70,19 @@ class DFStorage:
         return False
 
     @staticmethod
+    def _underscore_cols_last(df: DataFrame) -> DataFrame:
+        """Move columns ending with '_' to the end of the dataframe."""
+        underscore_cols = [c for c in df.columns if c.endswith("_")]
+        if underscore_cols:
+            rest = [c for c in df.columns if c not in underscore_cols]
+            df = df.select([*rest, *underscore_cols])
+        return df
+
+    @staticmethod
     def store_df(table: str, df: DataFrame):
         Path(f"{DATA_PATH}").mkdir(exist_ok=True)
         Path(f"{DATA_PATH}/{DFStorage.df_data_dir_name}/").mkdir(exist_ok=True)
+        df = DFStorage._underscore_cols_last(df)
         df.write_parquet(
             f"{DATA_PATH}/{DFStorage.df_data_dir_name}/{table}.{DFStorage.parquet_file_ext}"
         )
