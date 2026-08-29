@@ -68,14 +68,7 @@ def period_label(date_select, mo):
     period_md = mo.md("")
     if bounds:
         start, end = bounds
-        period_md = mo.md(f"**{start} → {end}**").style(
-            {
-                "background": "#eef2f6",
-                "color": "#1f2937",
-                "padding": "0.25rem 0.75rem",
-                "border-radius": "1rem",
-            }
-        )
+        period_md = mo.md(f"**{start} → {end}**").style({"color": "white"})
     return period_md
 
 
