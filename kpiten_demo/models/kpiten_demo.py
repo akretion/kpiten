@@ -1,4 +1,5 @@
 import logging
+import random
 from datetime import datetime, timedelta
 
 from odoo import models
@@ -59,17 +60,33 @@ class KpitenDemo(models.Model):
     def generate_demo_data(self):
         """Generate demo sales, purchase and stock data across past years."""
         self.ensure_one()
+        names = [
+            "Lara CLEYTE",
+            "Jim NASTIC",
+            "Marie STOURNE",
+            "Karl AHJUMIDE",
+            "Andy VOJHANBON",
+            "Camille HONNETE",
+            "Amar DISSOIR",
+            "Cécile HONXA",
+        ]
+        salespeople = []
+        for name in names:
+            salespeople.append(self._create_salesperson(name))
 
-        lara = self._create_salesperson("Lara Cleyte")
-        jim = self._create_salesperson("Jim Nastic")
-        salespeople = [lara, jim]
-
-        partner_a = self._get_demo_partner("Demo Customer")
-        partner_b = self._get_demo_partner("Demo Supplier")
+        names = [
+            "Jurassic Pack",
+            "Tea Panic",
+            "Terma & Louise",
+            "Barber Streisand",
+        ]
+        partners = []
+        for name in names:
+            partners.append(self._get_demo_partner(name))
         product = self._get_demo_product()
 
         today = datetime.now()
-        years_offsets = [3, 2, 1]
+        years_offsets = [4, 3, 2, 1]
 
         for offset in years_offsets:
             base_date = (today - timedelta(days=365 * offset)).replace(
@@ -78,16 +95,17 @@ class KpitenDemo(models.Model):
 
             for month in range(1, 13):
                 order_date = base_date.replace(month=month, day=1)
-                salesperson = salespeople[(month + offset) % 2]
+                salesperson = random.choice(salespeople)
 
                 # Sales order: create directly as confirmed so that
                 # date_order keeps the historical value (action_confirm
                 # overrides it with the current timestamp).
                 self.env["sale.order"].create(
                     {
-                        "partner_id": partner_a.id,
+                        "partner_id": random.choice(partners).id,
                         "user_id": salesperson.id,
                         "date_order": order_date,
+                        "create_date": order_date,
                         "state": "sale",
                         "order_line": [
                             (
@@ -107,7 +125,7 @@ class KpitenDemo(models.Model):
                 # triggering full purchase flows.
                 self.env["purchase.order"].create(
                     {
-                        "partner_id": partner_b.id,
+                        "partner_id": random.choice(partners).id,
                         "user_id": salesperson.id,
                         "date_order": order_date,
                         "date_planned": order_date,
@@ -126,8 +144,6 @@ class KpitenDemo(models.Model):
                     }
                 )
 
-                _logger.info(
-                    "Generated demo data for %s-%s", order_date.year, month
-                )
+                _logger.info("Generated demo data for %s-%s", order_date.year, month)
 
         return True

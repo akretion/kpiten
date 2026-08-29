@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <record id="kpiten_sales" model="kpiten.config">
+        <field name="model_id" ref="sale.model_sale_order" />
+    </record>
+
+    <record id="sale_count_card" model="kpiten.config.line">
+        <field name="config_id" ref="kpiten_sales" />
+        <field name="kind">ban</field>
+        <field name="name">Sales Orders count</field>
+        <field name="sequence">1</field>
+        <field name="definition">{"where": "state not in ('draft', 'sent')", "from": "sale.order"}</field>
+    </record>
+
+    <record id="kpiten_purchases" model="kpiten.config">
+        <field name="model_id" ref="purchase.model_purchase_order" />
+    </record>
+
+</odoo>

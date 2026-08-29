@@ -4,6 +4,6 @@
         <!-- You must define your own urls -->
         <field
             name="value"
-        >{"application": "Marimo", "external_url": "http://my-external-kpiten:5000": "internal_url": "http://my-internal-kpiten:5000"}</field>
+        >{"application": "Marimo", "external_url": "http://localhost:5000", "internal_url": "http://localhost:5000"}</field>
     </record>
 </odoo>

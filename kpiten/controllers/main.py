@@ -9,6 +9,8 @@ from odoo import SUPERUSER_ID, _
 from odoo.exceptions import UserError
 from odoo.http import Controller, request
 
+from ..models.kpiten_config import EXCLUDED_TYPES
+
 ROUTE = "/kpiten/<string:model>"
 
 logger = logging.getLogger(__name__)
@@ -86,6 +88,9 @@ class kpiten(Controller):
         # rules = env["ir.rule"]._compute_domain(model, mode="read")
         # where_clauses = env[model].sudo()._where_calc(rules)._where_clauses
         services = env["res.company"]._get_kpiten_services()
+        # Normalise a single service dict to a list for unified handling.
+        if isinstance(services, dict):
+            services = [services]
         for service in services:
             app = service.get("application")
             url = service.get("url")
@@ -118,5 +123,8 @@ class kpiten(Controller):
                     logger.warning(f"Error content : {res.content}")
                     if service.get("redirect"):
                         return redirect(service["redirect"])
-            except KeyError:
-                return redirect("/", code=403)
+            except (KeyError, rq.exceptions.RequestException) as err:
+                logger.warning(f"Request to {url} failed: {err}")
+                if service.get("redirect"):
+                    return redirect(service["redirect"])
+                return redirect("/", code=503)

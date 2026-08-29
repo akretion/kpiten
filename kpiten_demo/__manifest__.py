@@ -15,6 +15,7 @@
         "security/ir.model.access.csv",
         "data/demo_users.xml",
         "data/demo_orders.xml",
+        "data/demo_kpiten.xml",
     ],
     "installable": True,
 }
