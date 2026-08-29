@@ -44,11 +44,19 @@ def other_deps():
         card_case,
         dataframe_case,
         graph_case,
+        union_case,
         union_old_case,
     )
     from marimo_kpiten.helpers.date import process_dt_predicate
 
-    return (card_case, dataframe_case, graph_case, union_old_case, process_dt_predicate)
+    return (
+        card_case,
+        dataframe_case,
+        graph_case,
+        union_case,
+        union_old_case,
+        process_dt_predicate,
+    )
 
 
 @app.cell
@@ -213,6 +221,7 @@ def compute_kpiten_line(
     card_case,
     dataframe_case,
     graph_case,
+    union_case,
     union_old_case,
 ):
     """
@@ -236,6 +245,12 @@ def compute_kpiten_line(
             elif transform["kind"] == "card":
                 card_case(
                     used_df=used_df,
+                    transform=transform,
+                    exec_context_list=exec_context_list,
+                    full_predicates=full_predicates,
+                )
+            elif transform["kind"] == "union":
+                union_case(
                     transform=transform,
                     exec_context_list=exec_context_list,
                     full_predicates=full_predicates,
@@ -269,6 +284,7 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
         data_block,
         graph_block,
         layout_html,
+        union_block,
         union_old_block,
     )
 
@@ -289,6 +305,8 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
                     sub_parts_html += data_block(
                         ctx, data_t_width, render_opt_select.value[0], mo
                     )
+                case "union":
+                    sub_parts_html = union_block(ctx, mo)
                 case "union_old":
                     sub_parts_html = union_old_block(ctx, mo)
                 case "graph":

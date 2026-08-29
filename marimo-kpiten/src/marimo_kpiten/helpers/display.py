@@ -28,6 +28,15 @@ def data_block(ctx, data_t_width, render_opt, mo):
     """
 
 
+def union_block(ctx, mo):
+    return mo.vstack(
+        [
+            mo.md(f"## {ctx['label']}").style({"color": "white"}),
+            ctx["union_df"],
+        ]
+    )
+
+
 def union_old_block(ctx, mo):
     return mo.vstack(
         [

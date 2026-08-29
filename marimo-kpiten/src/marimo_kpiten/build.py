@@ -373,13 +373,18 @@ def union_tables_selectors(mo: marimo, transformation_selector, tables, sanitize
 
     mo.stop(transformation_selector.value[0] != "union")
 
+    union_name = mo.ui.text(placeholder="Union name")
     table2_sel_label = mo.md(f"Table 2 (to make an union with {sanitized_tbn})")
     table2_selector = _select(tables)
-    mo.hstack([mo.vstack([table2_sel_label, table2_selector])]).style(
-        {"color": "white"}
-    )
+    mo.hstack(
+        [
+            mo.vstack([union_name, table2_sel_label, table2_selector]).style(
+                {"color": "white"}
+            )
+        ]
+    ).style({"color": "white"})
 
-    return (table2_selector,)
+    return (table2_selector, union_name)
 
 
 @app.cell
@@ -393,10 +398,9 @@ def union_columns_selectors(
 ):
     mo.stop(transformation_selector.value[0] != "union")
     mo.stop(len(table2_selector.value) == 0)
-    # TODO Trouver un moyen de gérer l'ordre des colonnes avec moins d'intervention externe
-    sduc_label = mo.md(f"Cols of {sanitized_tbn}")
-    selected_df_ucols_selector = mo.ui.multiselect(options=d.columns)
+
     union_df = df_store.retrieve_df(table2_selector.value[0])["df"]
+    selected_df_ucols_selector = mo.ui.multiselect(options=d.columns)
     union_df_cols_selector = mo.ui.multiselect(options=union_df.columns)
 
     mo.hstack(
@@ -415,49 +419,75 @@ def union_columns_selectors(
             ).style({"color": "white"}),
         ]
     )
-    return (selected_df_ucols_selector, union_df_cols_selector)
+    return (selected_df_ucols_selector, union_df_cols_selector, union_df)
 
 
 @app.cell
 def show_ucolumn_types(
-    mo: marimo, selected_df_ucols_selector, union_df_cols_selector, union_df
+    mo: marimo,
+    selected_df_ucols_selector,
+    transformation_selector,
+    union_df_cols_selector,
 ):
     mo.stop(transformation_selector.value[0] != "union")
-    mo.stop(len(table2_selector.value) == 0)
     mo.stop(
         len(union_df_cols_selector.value) == 0
         or len(selected_df_ucols_selector.value) == 0
     )
-    selected_df_ucols_msg = "No col selected."
-    ucols_type_msg = "No col selected."
-    selected_df_ucols_type = mo.md(selected_df_ucols_msg)
-    union_df_cols_type = mo.md(ucols_type_msg)
+
     save_union_button = mo.ui.run_button(label="Save")
-
-    if selected_df_ucols_selector.value[0] is not None:
-        selected_df_ucols_msg = f"type of {selected_df_ucols_selector.value[-1]} : {d.schema[selected_df_ucols_selector.value[-1]]}"
-
-    if union_df_cols_selector.value[0] is not None:
-        ucols_type_msg = f"type of {union_df_cols_selector.value[-1]} : {union_df.schema[union_df_cols_selector.value[-1]]}"
-
     mo.hstack(
         [
-            mo.vstack([selected_df_ucols_msg, selected_df_ucols_selector.value]),
-            mo.vstack([ucols_type_msg, union_df_cols_selector.value]),
-            mo.vstack([save_union_button.style({"color": "white"})]),
+            mo.vstack([mo.md("Base cols"), selected_df_ucols_selector.value]),
+            mo.vstack([mo.md("Union cols"), union_df_cols_selector.value]),
+            save_union_button,
         ]
     ).style({"color": "white"})
+    return save_union_button
 
 
 @app.cell
-def save_union(save_union_button, selected_model, table2_selector):
+def save_union(
+    config_model,
+    json,
+    mo,
+    sanitized_tbn,
+    save_union_button,
+    selected_df_ucols_selector,
+    selected_model,
+    table2_selector,
+    transformation_selector,
+    union_df_cols_selector,
+    union_name,
+):
+    from marimo_kpiten.services.config import create_line as _create_line
+
     mo.stop(transformation_selector.value[0] != "union")
-    mo.stop(save_union_button.value is None)
+    mo.stop(not save_union_button.value)
 
+    base_model = selected_model.value[0]
+    union_model = table2_selector.value[0]
+    base_cols = selected_df_ucols_selector.value
+    union_cols = union_df_cols_selector.value
+    mapping = {
+        base_model: {c: c for c in base_cols},
+        union_model: dict(zip(union_cols, base_cols)),
+    }
+    union_record = _create_line(
+        config_model,
+        base_model,
+        json.dumps({"union_model": union_model, "mapping": mapping}),
+        "union",
+        name=union_name.value,
+    )
 
-@app.cell
-def save_union(selected_df_ucols_selector, union_df_cols_selector, save_union_data):
-    pass
+    union_message = f"Successfully stored union. Visit the **{sanitized_tbn}** section in `KPI` to see it !"
+    union_kind = "success"
+    if not union_record:
+        union_message = "Couldn't store union, please try again later."
+        union_kind = "error"
+    mo.md(union_message).callout(kind=union_kind)
+    return
 
 
 if __name__ == "__main__":

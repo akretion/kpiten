@@ -91,6 +91,24 @@ def card_case(
         logger.error("full error :\n%s", err)
 
 
+def union_case(transform: dict[str, Any], exec_context_list: list, full_predicates):
+    union_json = json.loads(transform["content"])
+    label = transform.get("name")
+    union_model = union_json["union_model"]
+    mapping = union_json["mapping"]
+    base_model = next(m for m in mapping if m != union_model)
+    dfs = [
+        _date_filtered(df_store.retrieve_df(m)["df"], full_predicates)
+        .select(mapping[m].keys())
+        .rename(mapping[m])
+        for m in (base_model, union_model)
+    ]
+    result = pl.concat(dfs, how="vertical_relaxed")
+    exec_context_list.append(
+        {"context_type": "union", "label": label, "union_df": mo.ui.table(result)}
+    )
+
+
 def union_old_case(transform: dict[str, Any], exec_context_list: list, full_predicates):
     union_json = json.loads(transform["content"])
     label = transform.get("name")
