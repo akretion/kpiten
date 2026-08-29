@@ -10,7 +10,24 @@
         <field name="kind">ban</field>
         <field name="name">Sales Orders count</field>
         <field name="sequence">1</field>
-        <field name="definition">{"where": "state not in ('draft', 'sent')", "from": "sale.order"}</field>
+        <field name="definition">{"where": "state not in ('draft', 'sent')"}</field>
+    </record>
+
+    <record id="vendor_sum_graph" model="kpiten.config.line">
+        <field name="config_id" ref="kpiten_sales" />
+        <field name="kind">graph</field>
+        <field name="name">Best vendors</field>
+        <field name="sequence">2</field>
+        <field name="definition">{"label": "Best vendors", "graph_type": "bar", "from": "sale.order", "x": {"name": "user_id.name", "aggregation": "none"}, "y": {"name": "amount_total", "aggregation": "sum"}}</field>
+    </record>
+
+    <record id="ammount_untaxed_df" model="kpiten.config.line">
+        <field name="config_id" ref="kpiten_sales" />
+        <field name="kind">data</field>
+        <field name="name">Amount untaxed</field>
+        <field name="sequence">2</field>
+        <field name="definition">d_next = d
+d_next = d_next.select([pl.col("amount_untaxed").sum().alias("amount_untaxed_sum")])</field>
     </record>
 
     <record id="kpiten_purchases" model="kpiten.config">
