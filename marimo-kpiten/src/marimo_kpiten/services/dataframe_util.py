@@ -1,8 +1,11 @@
+import logging
 import re
 import polars as pl
 from decimal import Decimal
 from typing import Any
 from marimo_kpiten.services.RPC import RPC
+
+logger = logging.getLogger(__name__)
 
 
 class Df:
@@ -17,7 +20,7 @@ class Df:
         self.decimal_truncate = decimal_truncate
 
     def get_df(self):
-        print("GET_DF")
+        logger.debug("GET_DF")
         self.set_datetime_string2date_columns()
         self.split_many2one_result()
         if self.decimal_truncate:
@@ -69,7 +72,7 @@ class Df:
             or "date" in x
             and not self.df[x].is_null().all()
         ]
-        print(f"datetime fields : {datetime_fields}")
+        logger.debug("datetime fields : %s", datetime_fields)
         self.df = self.df.with_columns(
             pl.col(datetime_fields).cast(pl.String).str.to_datetime(strict=False)
         )

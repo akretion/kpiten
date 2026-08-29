@@ -57,7 +57,7 @@ class DFStorage:
         is_forbidden = c in forbidden_columns
 
         if (is_forbidden or has_illegal_prefix) and verbose:
-            print(f"ignored forbidden column '{c}'")
+            logger.warning("ignored forbidden column '%s'", c)
 
         return not has_illegal_prefix or not is_forbidden
 
@@ -65,7 +65,7 @@ class DFStorage:
     def _is_external_column(c: str, verbose=False):
         if "." in c or c[-1] == "_":
             if verbose:
-                print(f"column {c} is recognized as external.")
+                logger.warning("column %s is recognized as external.", c)
             return True
         return False
 

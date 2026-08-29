@@ -1,4 +1,8 @@
+import logging
+
 from marimo_kpiten.services.sandbox import run
+
+logger = logging.getLogger(__name__)
 
 
 def data_block(ctx, data_t_width, render_opt, mo):
@@ -14,7 +18,7 @@ def data_block(ctx, data_t_width, render_opt, mo):
         table_html = mo.ui.table(result_df)
         if render_opt == "Reporting":
             table_html = ctx["style_func"](result_df.limit(20)).as_raw_html()
-            print(table_html)
+            logger.debug(table_html)
     delete_html = ctx["delete_button"].text
     return f"""
         <div style="display:flex; flex-flow:column; width: {data_t_width}; min-width:300px; gap:0.5rem; padding:0.5rem; box-sizing:border-box">

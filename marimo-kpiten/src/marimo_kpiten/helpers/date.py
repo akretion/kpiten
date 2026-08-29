@@ -1,7 +1,10 @@
 import datetime
+import logging
 
 import marimo as mo
 import polars as pl
+
+logger = logging.getLogger(__name__)
 
 
 def last_year_bounds(today: datetime.date) -> dict[str, datetime.date]:
@@ -35,7 +38,7 @@ def process_dt_predicate(date_select: mo.ui.multiselect):
             )
         case "last year":
             LY_info = last_year_bounds(today)
-            print(LY_info)
+            logger.debug(LY_info)
             date_predicates.append(
                 (pl.col(time_column) >= LY_info["LY_first_day"])
                 & (pl.col(time_column) <= LY_info["LY_last_day"])

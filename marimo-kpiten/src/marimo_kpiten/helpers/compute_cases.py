@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 from marimo_kpiten.services.df_storage import DF_META
 from marimo_kpiten.services.df_storage import DFStorage as df_store
@@ -7,6 +8,8 @@ import marimo as mo
 import json
 from great_tables import GT, vals, style, loc
 import plotly.express as px
+
+logger = logging.getLogger(__name__)
 
 
 def _date_filtered(df, full_predicates):
@@ -120,11 +123,12 @@ def BAN_case(
             }
         )
     except Exception as err:
-        print(
-            f"Could not load BAN {transform.get('name')}. Please check "
-            "your spelling, and whether you have the rights to query"
+        logger.error(
+            "Could not load BAN %s. Please check your spelling, "
+            "and whether you have the rights to query",
+            transform.get("name"),
         )
-        print(f"full error :\n{err}")
+        logger.error("full error :\n%s", err)
 
 
 def union_case(transform: dict[str, Any], exec_context_list: list, full_predicates):

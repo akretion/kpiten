@@ -1,21 +1,24 @@
+import logging
 import polars as pl
 import tomllib
 from great_tables import GT, loc, style as STYLE
+from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class DFStyleEngine:
-    # writen from services/
     # TODO find a way to implement Great Tables into exec_kpiten_line
-    styles_path = "../styles/dataframes/"
+    styles_path = Path(__file__).resolve().parents[2] / "styles" / "dataframes"
 
     @staticmethod
     def general(df: pl.DataFrame):
         with open(f"{DFStyleEngine.styles_path}/general.style.toml", "rb") as cfg:
             config = tomllib.load(cfg)
             great_df = GT(df)
-            print(f"BufferedReaser : {cfg}")
-            print(f"CONFIG : {config}")
+            logger.debug("BufferedReaser : %s", cfg)
+            logger.debug("CONFIG : %s", config)
             for loc_name, loc_config in config["STYLE"].items():
                 d = DFStyleEngine._parse_style(loc_name, loc_config)
                 great_df = great_df.tab_style(

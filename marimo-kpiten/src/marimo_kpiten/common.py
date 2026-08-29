@@ -1,6 +1,8 @@
+from pathlib import Path
+
 from marimo_kpiten.services.RPC import RPC
 
-DATA_PATH = "../data_dir"
+DATA_PATH = Path(__file__).resolve().parents[1] / "data_dir"
 
 
 def _get_odoo_env():

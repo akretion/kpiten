@@ -32,12 +32,12 @@ if env is None:
 
 @router.post("/")
 def auth(uuid_dict: dict[Any, Any]):
-    print(f"payload : {uuid_dict}")
+    logger.debug("payload : %s", uuid_dict)
     if uuid_dict.get("user_uuid") and env:
         log_ids = env["res.users.log"].search([("uuid", "=", uuid_dict["user_uuid"])])
         logs = env["res.users.log"].browse(log_ids)
-        print(f"LOGS : {logs}")
-        print(f"LOG_IDS : {log_ids}")
+        logger.debug("LOGS : %s", logs)
+        logger.debug("LOG_IDS : %s", log_ids)
         if len(log_ids) > 0:
             FileState.store_state(
                 data={
@@ -84,29 +84,28 @@ def build_global_dfs():
         loop_start_time = datetime.now()
         for conf in env["kpiten.config"].browse(config_ids):
             model = conf.model_id.model
-            print(f"### Loop on {model} :  statistics ###")
-            # print("Model is", model)
+            logger.info("### Loop on %s : statistics ###", model)
             # user id 2 have most of the grants
             record_time = datetime.now()
             records = env["kpiten"].get_record_vals(model, [], 2)
             record_time_end = datetime.now()
-            print("record cpt : ", record_time_end - record_time)
+            logger.info("record cpt : %s", record_time_end - record_time)
             df = pl.DataFrame(records, strict=False, infer_schema_length=None)
             decimal = EnvReader.get("DECIMAL_TRUNCATE") or 0
             fmetadata_time = datetime.now()
             fields_metadata = env["kpiten"].get_fields_metadata(model)
             fmetadata_time_end = datetime.now()
-            print("fmetadata : ", fmetadata_time_end - fmetadata_time)
+            logger.info("fmetadata : %s", fmetadata_time_end - fmetadata_time)
             transfo = Df(df, fields_metadata, decimal_truncate=int(decimal))
             df = transfo.get_df()
             df_store.store_df(model, df)
         loop_end_time = datetime.now()
         overall_end_time = datetime.now()
 
-        print("#### Overall Statistics ####\n")
-        print(f"overall time : {overall_end_time - overall_start_time}")
-        print(f"loop : {loop_end_time - loop_start_time}")
-        print("#### --- ####")
+        logger.info("#### Overall Statistics ####\n")
+        logger.info("overall time : %s", overall_end_time - overall_start_time)
+        logger.info("loop : %s", loop_end_time - loop_start_time)
+        logger.info("#### --- ####")
 
         return True
     else:
@@ -115,7 +114,7 @@ def build_global_dfs():
 
 @router.get("/build/auth")
 def check(session: str):
-    print(SessionHandler.sessions)
+    logger.debug(SessionHandler.sessions)
     if SessionHandler.check_session(session) == SESSION_STATE.VALID:
         return RedirectResponse(status_code=303, url="/build/")
     elif SESSION_STATE.EXISTS:
