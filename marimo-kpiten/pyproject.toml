@@ -24,9 +24,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 version = "0.6.0"
 
-[project.scripts]
-marimo-kpiten = "marimo_kpiten:main"
-
 [build-system]
 build-backend = "uv_build"
 requires = ["uv_build>=0.11.3,<0.12.0"]

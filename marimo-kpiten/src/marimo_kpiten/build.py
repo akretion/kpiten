@@ -1,7 +1,6 @@
 import marimo
 import polars
 
-from marimo_kpiten.services.session_handler import SessionHandler
 from marimo_kpiten.services.df_storage import DFStorage
 
 __generated_with = "0.23.9"
@@ -46,7 +45,6 @@ def _(mo):
     df_store = DFStorage()
 
     tables = df_store.list_table_names()
-    tname_to_profile_id: dict[str, int] = {}
     no_data_found_callout = None
 
     if not tables:
@@ -56,17 +54,6 @@ def _(mo):
             kind="warn",
         )
 
-    df_w_meta = []
-
-    for name in tables:
-        table_data = df_store.retrieve_df(
-            name
-        )  # récupère les tables par noms de fichier parquet
-        if table_data:
-            table_name = table_data["table"]
-            _df = table_data["df"]
-
-            df_w_meta.append({"name": table_name, "df": _df})
     return df_store, no_data_found_callout, tables
 
 

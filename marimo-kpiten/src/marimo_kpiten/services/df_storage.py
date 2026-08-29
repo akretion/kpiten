@@ -4,7 +4,6 @@ import pathlib
 from pathlib import Path
 from polars import DataFrame
 from marimo_kpiten.common import DATA_PATH
-from marimo_kpiten.services.env_reader import EnvReader
 from marimo_kpiten.services.RPC import RPC
 from marimo_kpiten.services.file_state import FileState
 from marimo_kpiten.services.dataframe_util import Df
@@ -15,8 +14,6 @@ TODO
 - change the return type of retrieve df to a pydantic type so it's easier to read and use
 - (minor) make it so that profile_id isn't stored into each table to limit duplication
 """
-
-env_ = EnvReader()
 
 
 class DF_META(TypedDict):

@@ -61,7 +61,6 @@ def display_headers(mo, mo_nav_menu, selectors_hstack, title_md):
 def _():
     import marimo as mo
     from marimo_kpiten.services.df_storage import DFStorage
-    import json
 
     df_store = DFStorage()
 
@@ -75,7 +74,7 @@ def _():
             + "then `/build` to verify if any tables exist. Then, you can create transformations, "
             + "and they'll be here !"
         ).callout("warn")
-    return df_store, json, mo, no_data_found_callout
+    return df_store, mo, no_data_found_callout
 
 
 @app.cell
@@ -244,8 +243,6 @@ def compute_kpiten_line(
     - Retourne les infos créées plus la dataframe pour que exec_kpiten_line/n'importe quelle autre cellule puisse l'utiliser
     """
     mo.stop((not df_wt_list) or (len(df_wt_list) < 1))
-
-    from marimo_kpiten.services.dataframe_util import Df
 
     exec_context_list = []
     for df_wt in df_wt_list:

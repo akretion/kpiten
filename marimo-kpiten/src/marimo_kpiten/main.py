@@ -51,12 +51,6 @@ if env is None:
 app = FastAPI()
 router = APIRouter()
 
-# # TODO : NAVIGATE TO IT USING ODOO THEN CHANGE THIS TO POST
-# @router.get("/login")  # ?id = id
-# def login(id: int):
-#     FileState.store_state(state_type="state", data={"user_id": str(id)})
-#     return RedirectResponse("/df_process", status_code=303)
-
 
 @router.post("/")
 def auth(uuid_dict: dict[Any, Any]):
@@ -68,7 +62,6 @@ def auth(uuid_dict: dict[Any, Any]):
         print(f"LOG_IDS : {log_ids}")
         if len(log_ids) > 0:
             FileState.store_state(
-                state_type="state",
                 data={
                     "user_id": str(logs[0].create_uid.id)
                 },  # the first occurence is enough

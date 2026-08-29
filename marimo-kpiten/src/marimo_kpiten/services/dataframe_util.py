@@ -17,7 +17,6 @@ class Df:
         self.decimal_truncate = decimal_truncate
 
     def get_df(self):
-        # self.remove_empty_columns()
         print("GET_DF")
         self.set_datetime_string2date_columns()
         self.split_many2one_result()
@@ -60,11 +59,6 @@ class Df:
         max_scale = significant.max()
         # Cast to Decimal avec la nouvelle scale
         return pl.col(col_name).cast(pl.Decimal(scale=max_scale))
-
-    def remove_empty_columns(self):
-        self.df = self.df.select(
-            [col for col in self.df.columns if not self.df[col].is_null().all()]
-        )
 
     def set_datetime_string2date_columns(self):
         """Set datetime string to date columns"""

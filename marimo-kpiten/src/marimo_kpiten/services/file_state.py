@@ -1,9 +1,6 @@
 from pathlib import Path
 
 from marimo_kpiten.common import DATA_PATH
-from marimo_kpiten.services.env_reader import EnvReader
-
-env_ = EnvReader()
 
 
 class FileState:
@@ -17,62 +14,19 @@ class FileState:
     The next step could very well be to transition to SQLite databases
     """
 
-    notebook_state_dir = "notebook_state"
     default_state_dir = "state"
 
     @staticmethod
-    def store_state(
-        data: dict[str, str],
-        module_name: str = None,
-        state_type: str = "notebook",
-    ):
-        # TODO : REFACTOR
-        Path(f"{DATA_PATH}").mkdir(exist_ok=True)
-        match state_type:
-            case "notebook":
-                Path(f"{DATA_PATH}").mkdir(exist_ok=True)
-                Path(f"{DATA_PATH}/{FileState.notebook_state_dir}/").mkdir(
-                    exist_ok=True
-                )
-                Path(f"{DATA_PATH}/{FileState.notebook_state_dir}/{module_name}").mkdir(
-                    exist_ok=True
-                )
-
-                for key, d in data.items():
-                    with open(
-                        f"{DATA_PATH}/{FileState.notebook_state_dir}/{module_name}/{key}.txt",
-                        "w+",
-                    ) as data_file:
-                        data_file.write(d)
-            case "state":
-                Path(f"{DATA_PATH}").mkdir(exist_ok=True)
-                Path(f"{DATA_PATH}/{FileState.default_state_dir}/").mkdir(exist_ok=True)
-
-                for key, d in data.items():
-                    with open(
-                        f"{DATA_PATH}/{FileState.default_state_dir}/{key}.txt",
-                        "w+",
-                    ) as data_file:
-                        data_file.write(d)
-                pass
-            case _:
-                pass
-
-    # TODO : Make one retrieve_state function.
-    @staticmethod
-    def retrieve_notebook_state(module_name: str):
-        try:
-            notebook_state_files = Path(
-                f"{DATA_PATH}/{FileState.notebook_state_dir}/{module_name}"
-            ).iterdir()
-            retrieved = {}
-
-            for f in notebook_state_files:
-                retrieved[f.name.strip(".txt")] = f.read_text()
-
-            return retrieved
-        except Exception:
-            return None
+    def store_state(data: dict[str, str]):
+        Path(f"{DATA_PATH}/{FileState.default_state_dir}/").mkdir(
+            parents=True, exist_ok=True
+        )
+        for key, d in data.items():
+            with open(
+                f"{DATA_PATH}/{FileState.default_state_dir}/{key}.txt",
+                "w+",
+            ) as data_file:
+                data_file.write(d)
 
     @staticmethod
     def retrieve_state(state: str):

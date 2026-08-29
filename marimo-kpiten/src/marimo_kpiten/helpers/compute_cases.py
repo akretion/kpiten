@@ -3,7 +3,6 @@ from marimo_kpiten.services.df_storage import DF_META
 from marimo_kpiten.services.df_storage import DFStorage as df_store
 from marimo_kpiten.services.df_style_engine import DFStyleEngine
 import polars as pl
-import polars.selectors as cs
 import marimo as mo
 import json
 from great_tables import GT, vals, style, loc
@@ -138,16 +137,6 @@ def union_case(transform: dict[str, Any], exec_context_list: list, full_predicat
     union_model_df = df_store.retrieve_df(
         union_json["definition"]["union_model"]["name"]
     )["df"].filter(full_predicates)
-
-    # from marimo_kpiten.services.temp_transform_engine import TransformEngine
-
-    # engine = TransformEngine(
-    #     {"model": "account.analytic.line", "df": base_model_df},
-    #     {"model": "mrp.workcenter.productivity", "df": union_model_df},from marimo_kpiten.services.temp_transform_engine import TransformEngine
-    #     "./services/mixed_timesheets.rules.toml",
-    # )
-
-    # engine.run()
 
     union_model_df = union_model_df.with_columns(
         pl.lit("production").alias("description")
@@ -328,16 +317,6 @@ def graph_case(
     X_AGG = CX["aggregation"]
     Y_AGG = CY["aggregation"]
 
-    source = None
-    fig = None
-
-    # ALTAIR
-    # if type(CX) == dict:
-    #     CX = alt.X(f"{CX['name']}:{ENCODING_DICT[CX['type']]}", sort="-y")
-
-    # if type(CY) == dict:
-    #     CY = alt.Y(f"{CY['name']}:{ENCODING_DICT[CY['type']]}")
-
     source = (
         (
             df_store.retrieve_df(graph_json["from"])["df"]
@@ -375,7 +354,6 @@ def graph_case(
         case _:
             source = source
 
-    # source = source.to_pandas()
     x_label = CX["name"].replace("_", " ").capitalize()
     y_label = CY["name"].replace("_", " ").capitalize()
     labels = {
