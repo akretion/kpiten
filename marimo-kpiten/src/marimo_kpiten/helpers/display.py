@@ -53,5 +53,7 @@ def graph_block(ctx, mo):
 
 def layout_blocks(blocks, layout, mo):
     if layout == "Serial":
-        return mo.vstack(blocks, gap="1rem")
-    return mo.hstack(blocks, wrap=True, gap="1rem")
+        container = mo.vstack(blocks, gap="1rem")
+    else:
+        container = mo.hstack(blocks, wrap=True, gap="1rem")
+    return container.style({"max-width": "1200px"})
