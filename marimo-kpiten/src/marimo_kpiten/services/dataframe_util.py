@@ -67,7 +67,7 @@ class Df:
         )
 
     def set_datetime_string2date_columns(self):
-        print("SET DATETIME STRING 2 DATE COLUMN")
+        """Set datetime string to date columns"""
         datetime_fields = [
             x
             for x in self.fields
@@ -76,8 +76,10 @@ class Df:
             and not self.df[x].is_null().all()
         ]
         print(f"datetime fields : {datetime_fields}")
-        # self.df = self.df.with_columns(pl.col(datetime_fields).str.to_datetime())
-        # self.df = self.df.with_columns(pl.col(datetime_fields).cast(pl.Date))
+        self.df = self.df.with_columns(
+            pl.col(datetime_fields).cast(pl.String).str.to_datetime(strict=False)
+        )
+        self.df = self.df.with_columns(pl.col(datetime_fields).cast(pl.Date))
 
     def split_many2one_result(self):
         """Convert Many2one list fields to 2 fields
