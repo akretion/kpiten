@@ -6,7 +6,7 @@ Register hooks here with the decorators from marimo_kpiten.helpers.hooks.
 import polars as pl
 from great_tables import GT, vals, style, loc
 
-from marimo_kpiten.helpers.hooks import register_df, register_union
+from marimo_kpiten.helpers.hooks import register_df, register_union_old
 from marimo_kpiten.services.df_storage import DFStorage as df_store
 
 MONTHS_FR = {
@@ -49,8 +49,8 @@ def account_analytic_line(df):
     )
 
 
-@register_union("account.analytic.line")
-def timesheets_union(union_json, full_predicates, label):
+@register_union_old("account.analytic.line")
+def timesheets_union_old(union_json, full_predicates, label):
     """Union of analytic lines and workcenter productivity, pivoted by month."""
     base_model_df = (
         df_store.retrieve_df(union_json["definition"]["model"]["name"])["df"]

@@ -26,8 +26,8 @@ def apply_df(table: str, df, *args, **kwargs):
     return hook(df, *args, **kwargs) if hook else df
 
 
-def register_union(model: str) -> Callable:
-    """Decorator registering a union builder for a base `model`."""
+def register_union_old(model: str) -> Callable:
+    """Decorator registering an old union builder for a base `model`."""
 
     def decorator(fn: Callable) -> Callable:
         _UNION_HOOKS[model] = fn
@@ -36,6 +36,6 @@ def register_union(model: str) -> Callable:
     return decorator
 
 
-def apply_union(model: str):
-    """Return the union builder registered for `model`, if any."""
+def apply_union_old(model: str):
+    """Return the old union builder registered for `model`, if any."""
     return _UNION_HOOKS.get(model)

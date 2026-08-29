@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 from marimo_kpiten.helpers import client_hooks  # noqa: F401
-from marimo_kpiten.helpers.hooks import apply_df, apply_union
+from marimo_kpiten.helpers.hooks import apply_df, apply_union_old
 from marimo_kpiten.services.df_storage import DF_META
 from marimo_kpiten.services.df_storage import DFStorage as df_store
 from marimo_kpiten.services.df_style_engine import DFStyleEngine
@@ -91,17 +91,17 @@ def card_case(
         logger.error("full error :\n%s", err)
 
 
-def union_case(transform: dict[str, Any], exec_context_list: list, full_predicates):
+def union_old_case(transform: dict[str, Any], exec_context_list: list, full_predicates):
     union_json = json.loads(transform["content"])
     label = transform.get("name")
     base = union_json["definition"]["model"]
     other = union_json["definition"]["union_model"]
 
-    builder = apply_union(base["name"])
+    builder = apply_union_old(base["name"])
     if builder:
         exec_context_list.append(
             {
-                "context_type": "union",
+                "context_type": "union_old",
                 "label": label,
                 "union_df": builder(union_json, full_predicates, label),
             }
@@ -114,7 +114,7 @@ def union_case(transform: dict[str, Any], exec_context_list: list, full_predicat
     df2 = df2.select(other["columns"].keys()).rename(other["columns"])
     result = pl.concat([df1, df2], how="vertical_relaxed")
     exec_context_list.append(
-        {"context_type": "union", "label": label, "union_df": mo.ui.table(result)}
+        {"context_type": "union_old", "label": label, "union_df": mo.ui.table(result)}
     )
 
 

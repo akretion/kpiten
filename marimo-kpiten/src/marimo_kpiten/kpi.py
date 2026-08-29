@@ -44,11 +44,11 @@ def other_deps():
         card_case,
         dataframe_case,
         graph_case,
-        union_case,
+        union_old_case,
     )
     from marimo_kpiten.helpers.date import process_dt_predicate
 
-    return (card_case, dataframe_case, graph_case, union_case, process_dt_predicate)
+    return (card_case, dataframe_case, graph_case, union_old_case, process_dt_predicate)
 
 
 @app.cell
@@ -207,7 +207,13 @@ def load_kpiten_line(config_model, mo, no_data_found_callout):
 
 @app.cell
 def compute_kpiten_line(
-    df_wt_list, full_predicates, mo, card_case, dataframe_case, graph_case, union_case
+    df_wt_list,
+    full_predicates,
+    mo,
+    card_case,
+    dataframe_case,
+    graph_case,
+    union_old_case,
 ):
     """
     compute_kpiten_line
@@ -234,8 +240,8 @@ def compute_kpiten_line(
                     exec_context_list=exec_context_list,
                     full_predicates=full_predicates,
                 )
-            elif transform["kind"] == "union":
-                union_case(
+            elif transform["kind"] == "union_old":
+                union_old_case(
                     transform=transform,
                     exec_context_list=exec_context_list,
                     full_predicates=full_predicates,
@@ -263,7 +269,7 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
         data_block,
         graph_block,
         layout_html,
-        union_block,
+        union_old_block,
     )
 
     selected_layout = layout_select.value[0]
@@ -283,8 +289,8 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
                     sub_parts_html += data_block(
                         ctx, data_t_width, render_opt_select.value[0], mo
                     )
-                case "union":
-                    sub_parts_html = union_block(ctx, mo)
+                case "union_old":
+                    sub_parts_html = union_old_block(ctx, mo)
                 case "graph":
                     sub_parts_html += graph_block(ctx, mo)
 
