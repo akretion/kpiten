@@ -192,17 +192,11 @@ def full_predicates(date_predicates: list[pl.Expr]):
 def display_cards(exec_context_list, full_predicates, mo):
     mo.stop(exec_context_list == [])
     mo.stop(len(full_predicates) < 1)
-    cards = []
-    for card_ctx in exec_context_list:
-        if card_ctx["context_type"] != "card":
-            continue
-        items = []
-        if card_ctx.get("delete_button"):
-            items.append(mo.hstack([card_ctx["delete_button"]], justify="start"))
-        items.append(
-            mo.stat(label=card_ctx["label"], value=card_ctx["value"], bordered=True)
-        )
-        cards.append(mo.vstack(items, gap="0.25rem"))
+    cards = [
+        mo.stat(label=card_ctx["label"], value=card_ctx["value"], bordered=True)
+        for card_ctx in exec_context_list
+        if card_ctx["context_type"] == "card"
+    ]
     mo.hstack(cards, wrap=True)
     return
 
