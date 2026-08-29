@@ -168,7 +168,7 @@ def code_input(d, mo: marimo, transformation_selector):
     """
     mo.stop(transformation_selector.value[0] is not "dataframe")
     mo.stop(type(d) is type(None))
-    python_text = mo.ui.text_area()
+    python_text = mo.ui.code_editor(language="python")
     mo.vstack([mo.md("## Paste Code").style({"color": "white"}), python_text])
     return (python_text,)
 
