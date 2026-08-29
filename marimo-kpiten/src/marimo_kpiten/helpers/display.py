@@ -20,19 +20,21 @@ def data_block(ctx, data_t_width, render_opt, mo):
             table = mo.Html(ctx["style_func"](result_df.limit(20)).as_raw_html())
             logger.debug(table)
     return mo.vstack(
-        [mo.hstack([ctx["delete_button"]], justify="start"), table],
+        (
+            [mo.hstack([ctx["delete_button"]], justify="start"), table]
+            if ctx.get("delete_button")
+            else [table]
+        ),
         gap="0.5rem",
     ).style({"width": data_t_width, "min-width": "300px"})
 
 
 def _header(ctx, mo):
-    return mo.hstack(
-        [
-            ctx["delete_button"],
-            mo.md(f"## {ctx['label']}").style({"color": "white"}),
-        ],
-        justify="start",
-    )
+    items = []
+    if ctx.get("delete_button"):
+        items.append(ctx["delete_button"])
+    items.append(mo.md(f"## {ctx['label']}").style({"color": "white"}))
+    return mo.hstack(items, justify="start")
 
 
 def union_block(ctx, mo):

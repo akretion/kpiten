@@ -192,19 +192,17 @@ def full_predicates(date_predicates: list[pl.Expr]):
 def display_cards(exec_context_list, full_predicates, mo):
     mo.stop(exec_context_list == [])
     mo.stop(len(full_predicates) < 1)
-    cards = [
-        mo.vstack(
-            [
-                mo.hstack([card_ctx["delete_button"]], justify="start"),
-                mo.stat(
-                    label=card_ctx["label"], value=card_ctx["value"], bordered=True
-                ),
-            ],
-            gap="0.25rem",
+    cards = []
+    for card_ctx in exec_context_list:
+        if card_ctx["context_type"] != "card":
+            continue
+        items = []
+        if card_ctx.get("delete_button"):
+            items.append(mo.hstack([card_ctx["delete_button"]], justify="start"))
+        items.append(
+            mo.stat(label=card_ctx["label"], value=card_ctx["value"], bordered=True)
         )
-        for card_ctx in exec_context_list
-        if card_ctx["context_type"] == "card"
-    ]
+        cards.append(mo.vstack(items, gap="0.25rem"))
     mo.hstack(cards, wrap=True)
     return
 
@@ -223,9 +221,10 @@ def load_kpiten_line(config_model, mo, no_data_found_callout, reload, set_reload
     - Récupère les transformations de kpiten.config.line via odoorpc et la table qui leur correspond
     """
     mo.stop(no_data_found_callout)
-    from marimo_kpiten.services.config import delete_line, load_lines
+    from marimo_kpiten.services.config import current_user_id, delete_line, load_lines
     from marimo_kpiten.services.df_storage import DFStorage as dfsv
 
+    current_uid = current_user_id()
     df_wt_list = []
     for meta in dfsv.retrieve_all_dfs():
         transformations = []
@@ -237,7 +236,10 @@ def load_kpiten_line(config_model, mo, no_data_found_callout, reload, set_reload
                 delete_line(config_model, line_id)
                 set_reload(reload + 1)
 
-            transformations.append({**line, "delete_this": delete_this_transformation})
+            owned = str(line["user_id"]) == current_uid
+            transformations.append(
+                {**line, "delete_this": delete_this_transformation if owned else None}
+            )
 
         df_wt_list.append({"df_meta": meta, "transformations": transformations})
     return (df_wt_list,)

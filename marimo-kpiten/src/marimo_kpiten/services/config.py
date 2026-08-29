@@ -22,6 +22,7 @@ def load_lines(config_model, table: str) -> list[dict[str, Any]]:
                 "content": line.definition,
                 "name": line.name,
                 "kind": line.kind,
+                "user_id": getattr(line.user_id, "id", None) or None,
             }
         )
     return lines

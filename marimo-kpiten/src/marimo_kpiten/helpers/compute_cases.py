@@ -29,6 +29,8 @@ def _agg(source, group_col, agg_col, agg_fn):
 
 
 def _delete_button(on_click):
+    if not on_click:
+        return None
     return mo.ui.button(
         kind="danger", label="🗑️", tooltip="Supprimer", on_click=on_click
     )
