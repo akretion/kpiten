@@ -7,7 +7,7 @@
 
     <record id="sale_count_card" model="kpiten.config.line">
         <field name="config_id" ref="kpiten_sales" />
-        <field name="kind">ban</field>
+        <field name="kind">card</field>
         <field name="name">Sales Orders count</field>
         <field name="sequence">1</field>
         <field name="definition">{"where": "state not in ('draft', 'sent')"}</field>

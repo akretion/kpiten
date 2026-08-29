@@ -72,7 +72,7 @@ class KpitenConfigLine(models.Model):
         selection=[
             ("data", "Data"),
             ("graph", "Graph"),
-            ("ban", "BAN"),
+            ("card", "Card"),
             ("union", "Union"),
         ],
         default="data",
