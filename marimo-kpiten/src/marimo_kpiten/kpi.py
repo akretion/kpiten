@@ -259,96 +259,38 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
     mo.stop(not exec_context_list)
     mo.stop(len(exec_context_list) < 1)
 
-    from marimo_kpiten.services.sandbox import run
+    from marimo_kpiten.helpers.display import (
+        data_block,
+        graph_block,
+        layout_html,
+        union_block,
+    )
 
-    ordered = {}
-    to_display = []
     selected_layout = layout_select.value[0]
     data_t_width = "80vw" if selected_layout == "Serial" else "40vw"
 
+    ordered = {}
     for c in exec_context_list:
         if c["context_type"] != "ban":
-            ordered[c["label"]] = []
+            ordered.setdefault(c["label"], []).append(c)
 
-    for c in exec_context_list:
-        if c["context_type"] != "ban":
-            ordered[c["label"]].append(c)
-
-    for k in ordered.keys():
+    blocks = []
+    for k, ctxs in ordered.items():
         sub_parts_html = f'<h1 style="width:100%;margin:0.5rem 0">{k}</h1>'
-        for ctx in ordered[k]:
+        for ctx in ctxs:
             match ctx["context_type"]:
                 case "data":
-                    try:
-                        result_df = run(
-                            ctx["editor"].value,
-                            ctx["df"],
-                            ctx["df_like"],
-                            ctx["df_next_like"],
-                        )
-                    except Exception as e:
-                        result_df = None
-                    if result_df is None:
-                        table_html = mo.md(
-                            f"**Error**  {ctx['editor'].value}"
-                            # f"**Error**  {ctx['editor'].value}  {e}"
-                        ).callout("warn")
-                    else:
-                        table_html = mo.ui.table(result_df)
-                        if render_opt_select.value[0] == "Reporting":
-                            table_html = ctx["style_func"](
-                                result_df.limit(20)
-                            ).as_raw_html()
-                            print(table_html)
-                    delete_html = ctx["delete_button"].text
-                    sub_parts_html += f"""
-                        <div style="display:flex; flex-flow:column; width: {data_t_width}; min-width:300px; gap:0.5rem; padding:0.5rem; box-sizing:border-box">
-                            <div style="overflow:scroll">{table_html}</div>
-                            {delete_html}
-                        </div>
-                    """
-                case "union":
-                    sub_parts_html = mo.vstack(
-                        [
-                            mo.md(f"## {ctx["label"]}").style({"color": "white"}),
-                            ctx["union_df"],
-                        ]
+                    sub_parts_html += data_block(
+                        ctx, data_t_width, render_opt_select.value[0], mo
                     )
-
+                case "union":
+                    sub_parts_html = union_block(ctx, mo)
                 case "graph":
-                    graph_html = ctx["graph"].text
-                    delete_html = ctx["delete_button"].text
-                    sub_parts_html += f"""
-                        <div style="display:flex; flex-flow:column; width:80vw; min-width:400px; gap:0.5rem; padding:0.5rem; box-sizing:border-box">
-                            <h2 style="margin:0">{ctx['label']}</h2>
-                            {graph_html}
-                            {delete_html}
-                        </div>
-                    """
-                case "ban":
-                    continue
+                    sub_parts_html += graph_block(ctx, mo)
 
-        to_display.append(sub_parts_html)
+        blocks.append(sub_parts_html)
 
-    common = 'div style="display:flex; flex-flow'
-    if selected_layout == "Serial":
-        inner = "".join(
-            [
-                f'<{common}:column; width:100%; gap:1rem">{block}</div>'
-                for block in to_display
-            ]
-        )
-        final_html = f'<{common}:column; width:100%; gap:2rem">{inner}</div>'
-    else:
-        inner = "".join(
-            [
-                f'<{common}:row wrap; gap:1rem; width:200%">{block}</div>'
-                for block in to_display
-            ]
-        )
-        final_html = f'<{common}:column; width:100%; gap:2rem">{inner}</div>'
-
-    mo.Html(final_html)
+    mo.Html(layout_html(blocks, selected_layout))
     return
 
 
