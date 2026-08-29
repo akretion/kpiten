@@ -142,7 +142,7 @@ def display_selected_table(df_store, mo, selected_model):
 
 @app.cell
 def show_selected_table(mo, transformation_selector, selected_table_ui):
-    mo.stop(transformation_selector.value[0] is not "dataframe")
+    mo.stop(transformation_selector.value[0] != "dataframe")
     selected_table_ui
 
 
@@ -153,7 +153,7 @@ def code_input(d, mo: marimo, transformation_selector):
     ---
     Affiche la zone de texte appelée "Paste code"
     """
-    mo.stop(transformation_selector.value[0] is not "dataframe")
+    mo.stop(transformation_selector.value[0] != "dataframe")
     mo.stop(type(d) is type(None))
     python_text = mo.ui.code_editor(language="python")
     mo.vstack([mo.md("## Paste Code").style({"color": "white"}), python_text])
@@ -167,7 +167,7 @@ def save_code_input(d, mo, transformation_selector):
     ---
     Affiche le bouton "Save to Kpiten"
     """
-    mo.stop(transformation_selector.value[0] is not "dataframe")
+    mo.stop(transformation_selector.value[0] != "dataframe")
     mo.stop(type(d) is type(None))
     save = mo.ui.run_button(label="Save code to Kpiten")
     save
@@ -181,7 +181,7 @@ def store_df_code(env, mo, python_text, save, selected_model, transformation_sel
     ---
     Stocke la transformation de dataframe via odoorpc.
     """
-    mo.stop(transformation_selector.value[0] is not "dataframe")
+    mo.stop(transformation_selector.value[0] != "dataframe")
     mo.stop(not python_text.value or not save.value or len(selected_model.value) < 1)
     storedf_message = f"Successfully stored dataframe. Visit KPI's **{selected_model.value[0]}** section to see it !"
     storedf_kind = "success"
@@ -200,7 +200,7 @@ def store_df_code(env, mo, python_text, save, selected_model, transformation_sel
 
 @app.cell
 def build_graph_form(d, mo: marimo, sanitized_tbn, transformation_selector):
-    mo.stop(transformation_selector.value[0] is not "graph")
+    mo.stop(transformation_selector.value[0] != "graph")
     mo.stop(type(d) is type(None))
 
     graph_type_options = ["bar", "point", "area"]
@@ -274,7 +274,7 @@ def save_graph_form_data(
     selected_model,
     transformation_selector,
 ):
-    mo.stop(transformation_selector.value[0] is not "graph")
+    mo.stop(transformation_selector.value[0] != "graph")
     mo.stop(not create_button.value)
 
     form_record = config_model.create_conf_line(
@@ -314,7 +314,7 @@ def save_graph_form_data(
 def build_BAN(d, mo, sanitized_tbn, transformation_selector):
     # BAN -> Big Ass Number, terme réellement utilisé pour parler des cartes de KPI avec des
     # Chiffres ou des infos dessus.
-    mo.stop(transformation_selector.value[0] is not "card")
+    mo.stop(transformation_selector.value[0] != "card")
     mo.stop(type(d) is type(None))
     ban_cell_title = mo.md(f"## Build a BAN (*KPI card*) from **{sanitized_tbn}**")
     ban_cell_desc = mo.md(
@@ -344,7 +344,7 @@ def save_BAN(
     selected_model,
     transformation_selector,
 ):
-    mo.stop(transformation_selector.value[0] is not "card")
+    mo.stop(transformation_selector.value[0] != "card")
     mo.stop(not save_BAN_btn.value)
 
     BAN_record = config_model.create_conf_line(
@@ -370,7 +370,7 @@ def save_BAN(
 
 @app.cell
 def union_tables_selectors(mo: marimo, transformation_selector, tables, sanitized_tbn):
-    mo.stop(transformation_selector.value[0] is not "union")
+    mo.stop(transformation_selector.value[0] != "union")
 
     table2_sel_label = mo.md(f"Table 2 (to make an union with {sanitized_tbn})")
     table2_selector = mo.ui.multiselect(options=tables, max_selections=1)
@@ -390,8 +390,8 @@ def union_columns_selectors(
     df_store: DFStorage,
     sanitized_tbn,
 ):
-    mo.stop(transformation_selector.value[0] is not "union")
-    mo.stop(len(table2_selector.value) is 0)
+    mo.stop(transformation_selector.value[0] != "union")
+    mo.stop(len(table2_selector.value) == 0)
     # TODO Trouver un moyen de gérer l'ordre des colonnes avec moins d'intervention externe
     sduc_label = mo.md(f"Cols of {sanitized_tbn}")
     selected_df_ucols_selector = mo.ui.multiselect(options=d.columns)
@@ -421,11 +421,11 @@ def union_columns_selectors(
 def show_ucolumn_types(
     mo: marimo, selected_df_ucols_selector, union_df_cols_selector, union_df
 ):
-    mo.stop(transformation_selector.value[0] is not "union")
-    mo.stop(len(table2_selector.value) is 0)
+    mo.stop(transformation_selector.value[0] != "union")
+    mo.stop(len(table2_selector.value) == 0)
     mo.stop(
-        len(union_df_cols_selector.value) is 0
-        or len(selected_df_ucols_selector.value) is 0
+        len(union_df_cols_selector.value) == 0
+        or len(selected_df_ucols_selector.value) == 0
     )
     selected_df_ucols_msg = "No col selected."
     ucols_type_msg = "No col selected."
@@ -450,7 +450,7 @@ def show_ucolumn_types(
 
 @app.cell
 def save_union(save_union_button, selected_model, table2_selector):
-    mo.stop(transformation_selector.value[0] is not "union")
+    mo.stop(transformation_selector.value[0] != "union")
     mo.stop(save_union_button.value is None)
 
 

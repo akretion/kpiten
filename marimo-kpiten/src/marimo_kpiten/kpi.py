@@ -1,4 +1,5 @@
 import marimo
+import polars as pl
 
 __generated_with = "0.23.9"
 app = marimo.App(width="full")
@@ -169,7 +170,7 @@ def compute_date_predicate(date_select, mo, process_dt_predicate):
 
 
 @app.cell
-def full_predicates(date_predicates: list[bool]):
+def full_predicates(date_predicates: list[pl.Expr]):
     full_predicates = [*date_predicates]
     return (full_predicates,)
 
@@ -293,11 +294,11 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
     data_t_width = "80vw" if selected_layout == "Serial" else "40vw"
 
     for c in exec_context_list:
-        if c["context_type"] is not "ban":
+        if c["context_type"] != "ban":
             ordered[c["label"]] = []
 
     for c in exec_context_list:
-        if c["context_type"] is not "ban":
+        if c["context_type"] != "ban":
             ordered[c["label"]].append(c)
 
     for k in ordered.keys():
