@@ -148,8 +148,17 @@ def render_engine_selection(mo):
 
 
 @app.cell
-def date_widgets(mo):
+def date_state(mo):
     from marimo_kpiten.helpers.date import bounds_for_option
+
+    period, set_period = mo.state(["last year"])
+    daterange, set_daterange = mo.state(bounds_for_option("last year"))
+
+    return period, set_period, daterange, set_daterange, bounds_for_option
+
+
+@app.cell
+def period_select_widget(bounds_for_option, mo, period, set_daterange, set_period):
     from marimo_kpiten.helpers.ui import select as _select
 
     date_options = [
@@ -162,8 +171,6 @@ def date_widgets(mo):
         "last 5 years",
         "last year",
     ]
-    period, set_period = mo.state(["last year"])
-    daterange, set_daterange = mo.state(bounds_for_option("last year"))
 
     def on_period_change(sel):
         set_period(sel)
@@ -172,21 +179,27 @@ def date_widgets(mo):
             if bounds:
                 set_daterange(bounds)
 
+    date_select = _select(date_options, period(), on_change=on_period_change)
+
+    return date_select
+
+
+@app.cell
+def date_range_widget(mo, daterange, set_daterange, set_period):
     def on_range_change(val):
         if val:
             set_daterange(val)
             set_period([])
 
-    date_select = _select(date_options, period(), on_change=on_period_change)
     date_range = mo.ui.date_range(value=daterange(), on_change=on_range_change)
 
-    return date_select, date_range, period, daterange
+    return date_range
 
 
 @app.cell
-def compute_date_predicate(daterange, mo, period, process_dt_predicate):
-    mo.stop(not period() and not daterange())
-    date_predicates = process_dt_predicate(period(), daterange())
+def compute_date_predicate(daterange, mo, process_dt_predicate):
+    mo.stop(not daterange())
+    date_predicates = process_dt_predicate(daterange())
     return date_predicates
 
 

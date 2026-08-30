@@ -43,24 +43,10 @@ def bounds_for_option(
     return None
 
 
-def period_bounds(
-    option: list[str] | None,
-    range_value: tuple[datetime.date, datetime.date] | None = None,
-) -> tuple[datetime.date, datetime.date] | None:
-    """Effective start/end dates: the period when selected, else the custom range."""
-    if option:
-        return bounds_for_option(option[0])
-    if range_value:
-        return range_value
-    return None
-
-
 def process_dt_predicate(
-    option: list[str] | None,
-    range_value: tuple[datetime.date, datetime.date] | None = None,
+    range_value: tuple[datetime.date, datetime.date] | None,
 ):
-    bounds = period_bounds(option, range_value)
-    if not bounds:
+    if not range_value:
         return []
-    start, end = bounds
+    start, end = range_value
     return [pl.col(TIME_COLUMN) >= start, pl.col(TIME_COLUMN) <= end]
