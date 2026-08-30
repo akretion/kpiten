@@ -13,10 +13,15 @@ import plotly.express as px
 logger = logging.getLogger(__name__)
 
 
-def _date_filtered(df, full_predicates):
-    """Apply the date predicates when the df has a create_date column."""
-    if df.get_column("create_date", default=None) is not None:
-        return df.filter(full_predicates)
+def _filtered(df, predicates):
+    """Apply the predicates whose columns exist on the df."""
+    applicable = [
+        p
+        for p in predicates
+        if all(col in df.columns for col in p.meta.root_names())
+    ]
+    if applicable:
+        return df.filter(applicable)
     return df
 
 
@@ -59,7 +64,7 @@ def dataframe_case(
         exec_context_list.append(
             {
                 "context_type": "data",
-                "df": _date_filtered(used_df, full_predicates),
+                "df": _filtered(used_df, full_predicates),
                 "label": transform.get("name") or used_df_label,
                 "editor": editor,
                 "df_like": df_like,
@@ -78,7 +83,7 @@ def card_case(
 ):
     card_json = json.loads(transform["content"])
     try:
-        df = _date_filtered(used_df, full_predicates).sql(
+        df = _filtered(used_df, full_predicates).sql(
             f'SELECT count(id) FROM self WHERE {card_json.get("where")}'
         )
         if df.is_empty():
@@ -107,7 +112,7 @@ def union_case(transform: dict[str, Any], exec_context_list: list, full_predicat
     mapping = union_json["mapping"]
     base_model = next(m for m in mapping if m != union_model)
     dfs = [
-        _date_filtered(df_store.retrieve_df(m)["df"], full_predicates)
+        _filtered(df_store.retrieve_df(m)["df"], full_predicates)
         .select(mapping[m].keys())
         .rename(mapping[m])
         for m in (base_model, union_model)
@@ -142,8 +147,8 @@ def union_old_case(transform: dict[str, Any], exec_context_list: list, full_pred
         )
         return
 
-    df1 = _date_filtered(df_store.retrieve_df(base["name"])["df"], full_predicates)
-    df2 = _date_filtered(df_store.retrieve_df(other["name"])["df"], full_predicates)
+    df1 = _filtered(df_store.retrieve_df(base["name"])["df"], full_predicates)
+    df2 = _filtered(df_store.retrieve_df(other["name"])["df"], full_predicates)
     df1 = df1.select(base["columns"].keys()).rename(base["columns"])
     df2 = df2.select(other["columns"].keys()).rename(other["columns"])
     result = pl.concat([df1, df2], how="vertical_relaxed")
@@ -165,7 +170,7 @@ def graph_case(
     cy = graph_json["y"]
     df = df_store.retrieve_df(graph_json["from"])["df"]
 
-    source = _date_filtered(df.limit(500), full_predicates)
+    source = _filtered(df.limit(500), full_predicates)
     source = _agg(source, cy["name"], cx["name"], cx["aggregation"])
     source = _agg(source, cx["name"], cy["name"], cy["aggregation"])
 

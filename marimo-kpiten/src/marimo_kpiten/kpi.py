@@ -51,6 +51,10 @@ def other_deps():
         union_old_case,
     )
     from marimo_kpiten.helpers.date import process_dt_predicate
+    from marimo_kpiten.helpers.dimension import (
+        dimension_options,
+        dimension_values,
+    )
 
     return (
         card_case,
@@ -59,17 +63,24 @@ def other_deps():
         union_case,
         union_old_case,
         process_dt_predicate,
+        dimension_options,
+        dimension_values,
     )
 
 
 @app.cell
-def display_headers(dash_select, mo, mo_nav_menu, selectors_hstack, title_md):
+def display_headers(
+    dash_select, dim_col, dim_vals, mo, mo_nav_menu, selectors_hstack, title_md
+):
     dash_ui = mo.vstack([mo.md("Dashboard"), dash_select]).style(
         {"max-width": "fit-content", "color": "white"}
     )
+    dim_ui = mo.vstack(
+        [mo.md("Dimension"), mo.hstack([dim_col, dim_vals])]
+    ).style({"max-width": "fit-content", "color": "white"})
     mo.hstack(
         [
-            mo.hstack([title_md, selectors_hstack, dash_ui]),
+            mo.hstack([title_md, selectors_hstack, dash_ui, dim_ui]),
             mo.hstack([mo_nav_menu]),
         ],
         justify="start",
@@ -207,8 +218,45 @@ def compute_date_predicate(daterange, mo, process_dt_predicate):
 
 
 @app.cell
-def full_predicates(date_predicates: list[pl.Expr]):
-    full_predicates = [*date_predicates]
+def dim_options(df_store, dimension_options):
+    dfs = [meta["df"] for meta in df_store.retrieve_all_dfs()]
+    dim_cols = dimension_options(dfs)
+    return dim_cols
+
+
+@app.cell
+def dim_col_widget(dim_cols, mo):
+    from marimo_kpiten.helpers.ui import select as _select
+
+    dim_col = _select(dim_cols)
+    return dim_col
+
+
+@app.cell
+def dim_vals_widget(df_store, dim_col, dimension_values, mo):
+    col = dim_col.value[0] if dim_col.value else None
+    vals = (
+        dimension_values(
+            [meta["df"] for meta in df_store.retrieve_all_dfs()], col
+        )
+        if col
+        else []
+    )
+    dim_vals = mo.ui.multiselect(options=vals)
+    return dim_vals
+
+
+@app.cell
+def dim_predicates(dim_col, dim_vals, pl):
+    dim_predicates = []
+    if dim_col.value and dim_vals.value:
+        dim_predicates = [pl.col(dim_col.value[0]).is_in(dim_vals.value)]
+    return dim_predicates
+
+
+@app.cell
+def full_predicates(date_predicates: list[pl.Expr], dim_predicates):
+    full_predicates = [*date_predicates, *dim_predicates]
     return (full_predicates,)
 
 
