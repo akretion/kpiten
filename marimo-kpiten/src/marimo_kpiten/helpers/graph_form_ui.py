@@ -4,11 +4,11 @@ import marimo as mo
 def graph_form_ui(
     sanitized_tbn: str,
     name_input: mo.ui.text,
-    type_of_graph_select: mo.ui.multiselect,
-    column_x_select: mo.ui.multiselect,
-    column_x_aggregation: mo.ui.multiselect,
-    column_y_select: mo.ui.multiselect,
-    column_y_aggregation: mo.ui.multiselect,
+    type_of_graph_select: mo.ui.dropdown,
+    column_x_select: mo.ui.dropdown,
+    column_x_aggregation: mo.ui.dropdown,
+    column_y_select: mo.ui.dropdown,
+    column_y_aggregation: mo.ui.dropdown,
     create_button: mo.ui.run_button,
 ):
     return mo.vstack(
@@ -16,23 +16,22 @@ def graph_form_ui(
             mo.md(f"## Build a Graph from **{sanitized_tbn}**").style(
                 {"color": "white"}
             ),
-            name_input,
-            mo.hstack(
-                [mo.md("Graph type").style({"color": "white"}), type_of_graph_select],
-                justify="start",
+            mo.vstack([mo.md("Name"), name_input]).style({"color": "white"}),
+            mo.vstack(
+                [mo.md("Graph type"), type_of_graph_select]
             ).style({"color": "white"}),
-            mo.md("### X Axis").style({"color": "white"}),
+            mo.md("### X — date ou catégorie").style({"color": "white"}),
             mo.hstack(
                 [
-                    mo.vstack([mo.md("X Column"), column_x_select]),
-                    mo.vstack([mo.md("X Aggregation"), column_x_aggregation]),
+                    mo.vstack([mo.md("X column"), column_x_select]),
+                    mo.vstack([mo.md("X aggregation"), column_x_aggregation]),
                 ]
             ).style({"color": "white"}),
-            mo.md("### Y Axis").style({"color": "white"}),
+            mo.md("### Y — valeur à agréger").style({"color": "white"}),
             mo.hstack(
                 [
-                    mo.vstack([mo.md("Y Column"), column_y_select]),
-                    mo.vstack([mo.md("Y Aggregation"), column_y_aggregation]),
+                    mo.vstack([mo.md("Y column"), column_y_select]),
+                    mo.vstack([mo.md("Y aggregation"), column_y_aggregation]),
                 ]
             ).style({"color": "white"}),
             create_button,

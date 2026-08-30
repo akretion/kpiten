@@ -245,32 +245,35 @@ def build_graph_form(d, mo: marimo, sanitized_tbn, transformation_selector):
     mo.stop(transformation_selector.value[0] != "graph")
     mo.stop(type(d) is type(None))
 
-    graph_type_options = ["bar", "point", "area"]
-    # column_types = ["quantitative", "temporal", "nominal", "ordinal"]
-    aggregation_types = ["none", "count", "sum"]
-
-    type_of_graph_select = mo.ui.multiselect(
-        options=graph_type_options, max_selections=1
-    )
-    name_input = mo.ui.text(placeholder="Graph's name...")
-    column_x_select = mo.ui.multiselect(options=d.columns, max_selections=1)
-    # column_x_type_select = mo.ui.multiselect(
-    #     label="X column specifier", options=column_types, max_selections=1
-    # )
-    column_x_aggregation = mo.ui.multiselect(
-        options=aggregation_types,
-        max_selections=1,
-        value=["none"],
+    from marimo_kpiten.helpers.graph_suggest import (
+        classify_columns,
+        suggest_aggregation,
+        suggest_graph_type,
+        suggest_name,
+        suggest_x,
+        suggest_y,
     )
 
-    column_y_select = mo.ui.multiselect(options=d.columns, max_selections=1)
-    # column_y_type_select = mo.ui.multiselect(
-    #     label="Y column specifier", options=column_types, max_selections=1
-    # )
-    column_y_aggregation = mo.ui.multiselect(
-        options=aggregation_types,
-        max_selections=1,
-        value=["none"],
+    roles = classify_columns(d)
+    x_options = roles["date"] + roles["dimension"]
+    y_options = roles["measure"]
+    sx = suggest_x(d)
+    sy = suggest_y(d)
+
+    type_of_graph_select = mo.ui.dropdown(
+        options=["bar", "point", "area"], value=suggest_graph_type(d, sx)
+    )
+    name_input = mo.ui.text(
+        placeholder="Graph's name...", value=suggest_name(sx, sy)
+    )
+    column_x_select = mo.ui.dropdown(options=x_options, value=sx)
+    column_x_aggregation = mo.ui.dropdown(
+        options=["none", "count", "sum"], value="none"
+    )
+    column_y_select = mo.ui.dropdown(options=y_options, value=sy)
+    column_y_aggregation = mo.ui.dropdown(
+        options=["none", "count", "sum"],
+        value=suggest_aggregation(d, sy) if sy else "count",
     )
 
     create_button = mo.ui.run_button(kind="neutral", label="Create")
@@ -279,12 +282,10 @@ def build_graph_form(d, mo: marimo, sanitized_tbn, transformation_selector):
         "label": name_input,
         "graph_type": type_of_graph_select,
         "x": {
-            # "type": column_x_type_select,
             "name": column_x_select,
             "aggregation": column_x_aggregation,
         },
         "y": {
-            # "type": column_y_type_select,
             "name": column_y_select,
             "aggregation": column_y_aggregation,
         },
@@ -303,7 +304,60 @@ def build_graph_form(d, mo: marimo, sanitized_tbn, transformation_selector):
         create_button,
     )
 
-    return create_button, form
+    return (
+        create_button,
+        form,
+        type_of_graph_select,
+        column_x_select,
+        column_x_aggregation,
+        column_y_select,
+        column_y_aggregation,
+    )
+
+
+@app.cell
+def graph_preview(
+    column_x_aggregation,
+    column_x_select,
+    column_y_aggregation,
+    column_y_select,
+    d,
+    mo,
+    transformation_selector,
+    type_of_graph_select,
+):
+    mo.stop(transformation_selector.value[0] != "graph")
+    mo.stop(type(d) is type(None))
+
+    import plotly.express as px
+    import polars as pl
+
+    x = column_x_select.value
+    y = column_y_select.value
+    output = mo.md(
+        "Choisis une colonne X et une colonne Y pour voir l'aperçu."
+    ).callout("info")
+    if x and y:
+        def _agg(source, group_col, agg_col, agg_fn):
+            if agg_fn == "sum":
+                return source.group_by(group_col).agg(pl.col(agg_col).sum())
+            if agg_fn == "count":
+                return source.group_by(group_col).agg(pl.col(agg_col).count())
+            return source
+
+        source = d.limit(500)
+        source = _agg(source, y, x, column_x_aggregation.value or "none")
+        source = _agg(source, x, y, column_y_aggregation.value or "none")
+
+        labels = {col: col.replace("_", " ").capitalize() for col in (x, y)}
+        chart = {"bar": px.bar, "point": px.scatter, "area": px.area}
+        fig = chart.get(type_of_graph_select.value or "bar", px.bar)(
+            source, x=x, y=y, labels=labels
+        )
+        fig.update_layout(autosize=True, margin=dict(l=20, r=20, t=40, b=20))
+        output = mo.ui.plotly(figure=fig)
+
+    return output
 
 
 @app.cell
@@ -328,15 +382,15 @@ def save_graph_form_data(
         selected_model.value[0],
         json.dumps(
             {
-                "graph_type": form["graph_type"].value[0],
+                "graph_type": form["graph_type"].value,
                 "from": selected_model.value[0],
                 "x": {
-                    "name": form["x"]["name"].value[0],
-                    "aggregation": form["x"]["aggregation"].value[0],
+                    "name": form["x"]["name"].value,
+                    "aggregation": form["x"]["aggregation"].value,
                 },
                 "y": {
-                    "name": form["y"]["name"].value[0],
-                    "aggregation": form["y"]["aggregation"].value[0],
+                    "name": form["y"]["name"].value,
+                    "aggregation": form["y"]["aggregation"].value,
                 },
             }
         ),

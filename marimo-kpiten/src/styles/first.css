@@ -62,3 +62,19 @@ input[type="date"] {
 input[type="date"]::-webkit-calendar-picker-indicator {
     filter: invert(1);
 }
+
+input[type="text"],
+input[type="search"],
+input:not([type]) {
+    background-color: #1b415e;
+    color: var(--text-color) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+
+input[type="text"]::placeholder,
+input[type="search"]::placeholder,
+input:not([type])::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
