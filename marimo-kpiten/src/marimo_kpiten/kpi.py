@@ -312,9 +312,22 @@ def dashboard_select(mo):
         dash_name_to_id = {d["name"]: d["id"] for d in dashboards}
     except Exception:
         pass
+    names = [d["name"] for d in dashboards]
+    qp = mo.query_params()
+    initial = qp.get("dashboard")
+    if initial not in names:
+        initial = names[0] if names else None
+
+    def on_dash_change(sel):
+        if sel:
+            mo.query_params()["dashboard"] = sel[0]
+        else:
+            mo.query_params().remove("dashboard")
+
     dash_select = _select(
-        [d["name"] for d in dashboards],
-        value=[dashboards[0]["name"]] if dashboards else None,
+        names,
+        value=[initial] if initial else None,
+        on_change=on_dash_change,
     )
 
     return dash_select, dash_name_to_id
