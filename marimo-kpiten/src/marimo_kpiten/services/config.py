@@ -8,21 +8,21 @@ def current_user_id():
     return FileState.retrieve_state("user_id")
 
 
-def load_dashboards(dashboard_model) -> list[dict[str, Any]]:
-    """Return the kpiten.dashboard records."""
-    records = dashboard_model.search_read(
+def load_panels(panel_model) -> list[dict[str, Any]]:
+    """Return the kpiten.panel records."""
+    records = panel_model.search_read(
         [], fields=["id", "name"], order="sequence, id"
     )
     return [{"id": rec["id"], "name": rec["name"]} for rec in records]
 
 
 def load_lines(
-    config_model, table: str, dashboard_id: int | None = None
+    config_model, table: str, panel_id: int | None = None
 ) -> list[dict[str, Any]]:
-    """Return the kpiten.config.line records for a table, optionally for a dashboard."""
+    """Return the kpiten.config.line records for a table, optionally for a panel."""
     domain = [("config_id", "=", config_model.get_conf_id(table))]
-    if dashboard_id:
-        domain.append(("dashboard_id", "=", dashboard_id))
+    if panel_id:
+        domain.append(("panel_id", "=", panel_id))
     lines = []
     for l_id in config_model.search(domain):
         line = config_model.browse(l_id)
@@ -46,10 +46,10 @@ def create_line(
     kind: str,
     name=None,
     user_id=None,
-    dashboard_id=None,
+    panel_id=None,
 ) -> bool:
     return config_model.create_conf_line(
-        model, definition, kind, name, user_id or current_user_id(), dashboard_id
+        model, definition, kind, name, user_id or current_user_id(), panel_id
     )
 
 

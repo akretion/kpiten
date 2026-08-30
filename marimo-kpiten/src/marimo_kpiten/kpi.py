@@ -82,16 +82,16 @@ def other_deps():
 @app.cell
 def display_headers(
     core,
-    dash_select,
     dim_col,
     dim_vals,
     mo,
     mo_nav_menu,
     opts,
+    panel_select,
     show_opts,
     title_md,
 ):
-    dash_ui = mo.vstack([mo.md("Dashboard"), dash_select]).style(
+    panel_ui = mo.vstack([mo.md("Panel"), panel_select]).style(
         {"max-width": "fit-content", "color": "white"}
     )
     dim_ui = mo.vstack(
@@ -100,7 +100,7 @@ def display_headers(
     opt_items = [opts] if show_opts.value else []
     mo.hstack(
         [
-            mo.hstack([title_md, core, dash_ui, dim_ui, *opt_items]),
+            mo.hstack([title_md, core, panel_ui, dim_ui, *opt_items]),
             mo.hstack([show_opts, mo_nav_menu]).style({"color-scheme": "dark"}),
         ],
         justify="start",
@@ -300,46 +300,46 @@ def reload_state(mo):
 
 
 @app.cell
-def dashboard_select(mo):
-    from marimo_kpiten.common import _get_dashboard_model
+def panel_select(mo):
+    from marimo_kpiten.common import _get_panel_model
     from marimo_kpiten.helpers.ui import select as _select
-    from marimo_kpiten.services.config import load_dashboards
+    from marimo_kpiten.services.config import load_panels
 
-    dash_name_to_id = {}
-    dashboards = []
+    panel_name_to_id = {}
+    panels = []
     try:
-        dashboards = load_dashboards(_get_dashboard_model())
-        dash_name_to_id = {d["name"]: d["id"] for d in dashboards}
+        panels = load_panels(_get_panel_model())
+        panel_name_to_id = {p["name"]: p["id"] for p in panels}
     except Exception:
         pass
-    names = [d["name"] for d in dashboards]
+    names = [p["name"] for p in panels]
     qp = mo.query_params()
-    initial = qp.get("dashboard")
+    initial = qp.get("panel")
     if initial not in names:
         initial = names[0] if names else None
 
-    def on_dash_change(sel):
+    def on_panel_change(sel):
         if sel:
-            mo.query_params()["dashboard"] = sel[0]
+            mo.query_params()["panel"] = sel[0]
         else:
-            mo.query_params().remove("dashboard")
+            mo.query_params().remove("panel")
 
-    dash_select = _select(
+    panel_select = _select(
         names,
         value=[initial] if initial else None,
-        on_change=on_dash_change,
+        on_change=on_panel_change,
     )
 
-    return dash_select, dash_name_to_id
+    return panel_select, panel_name_to_id
 
 
 @app.cell
 def load_kpiten_line(
     config_model,
-    dash_name_to_id,
-    dash_select,
     mo,
     no_data_found_callout,
+    panel_name_to_id,
+    panel_select,
     reload,
     set_reload,
 ):
@@ -353,13 +353,13 @@ def load_kpiten_line(
     from marimo_kpiten.services.df_storage import DFStorage as dfsv
 
     current_uid = current_user_id()
-    dashboard_id = (
-        dash_name_to_id.get(dash_select.value[0]) if dash_select.value else None
+    panel_id = (
+        panel_name_to_id.get(panel_select.value[0]) if panel_select.value else None
     )
     df_wt_list = []
     for meta in dfsv.retrieve_all_dfs():
         transformations = []
-        for line in load_lines(config_model, meta["table"], dashboard_id):
+        for line in load_lines(config_model, meta["table"], panel_id):
 
             def delete_this_transformation(
                 arg, line_id=line["id"], set_reload=set_reload

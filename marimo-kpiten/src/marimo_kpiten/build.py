@@ -76,33 +76,33 @@ def _get_config_model():
 
 
 @app.cell
-def dashboard_selection(mo):
-    from marimo_kpiten.common import _get_dashboard_model
+def panel_selection(mo):
+    from marimo_kpiten.common import _get_panel_model
     from marimo_kpiten.helpers.ui import select as _select
-    from marimo_kpiten.services.config import load_dashboards
+    from marimo_kpiten.services.config import load_panels
 
-    dash_name_to_id = {}
-    dashboards = []
+    panel_name_to_id = {}
+    panels = []
     try:
-        dashboards = load_dashboards(_get_dashboard_model())
-        dash_name_to_id = {d["name"]: d["id"] for d in dashboards}
+        panels = load_panels(_get_panel_model())
+        panel_name_to_id = {d["name"]: d["id"] for d in panels}
     except Exception:
         pass
-    dash_selector = _select(
-        [d["name"] for d in dashboards],
-        value=[dashboards[0]["name"]] if dashboards else None,
+    panel_selector = _select(
+        [d["name"] for d in panels],
+        value=[panels[0]["name"]] if panels else None,
     )
-    dash_ui = mo.vstack([mo.md("Dashboard"), dash_selector]).style(
+    panel_ui = mo.vstack([mo.md("Panel"), panel_selector]).style(
         {"max-width": "fit-content", "color": "white"}
     )
-    return dash_selector, dash_name_to_id, dash_ui
+    return panel_selector, panel_name_to_id, panel_ui
 
 
 @app.cell
-def display_header(dash_ui, mo: marimo, stn_ui, build_nav, ts_ui):
+def display_header(panel_ui, mo: marimo, stn_ui, build_nav, ts_ui):
     mo.hstack(
         [
-            mo.hstack([mo.md("## Build • "), stn_ui, ts_ui, dash_ui]).style(
+            mo.hstack([mo.md("## Build • "), stn_ui, ts_ui, panel_ui]).style(
                 {"max-width": "fit-content"}
             ),
             mo.hstack([build_nav]).style({"max-width": "fit-content"}),
@@ -200,8 +200,8 @@ def save_code_input(d, mo, transformation_selector):
 @app.cell
 def store_df_code(
     config_model,
-    dash_name_to_id,
-    dash_selector,
+    panel_name_to_id,
+    panel_selector,
     mo,
     python_text,
     df_name,
@@ -229,8 +229,8 @@ def store_df_code(
         python_text.value,
         "data",
         name=df_name.value,
-        dashboard_id=(
-            dash_name_to_id.get(dash_selector.value[0]) if dash_selector.value else None
+        panel_id=(
+            panel_name_to_id.get(panel_selector.value[0]) if panel_selector.value else None
         ),
     )
     if not record:
@@ -312,8 +312,8 @@ def save_graph_form_data(
     form,
     json,
     config_model,
-    dash_name_to_id,
-    dash_selector,
+    panel_name_to_id,
+    panel_selector,
     mo,
     selected_model,
     transformation_selector,
@@ -342,8 +342,8 @@ def save_graph_form_data(
         ),
         "graph",
         name=form["label"].value,
-        dashboard_id=(
-            dash_name_to_id.get(dash_selector.value[0]) if dash_selector.value else None
+        panel_id=(
+            panel_name_to_id.get(panel_selector.value[0]) if panel_selector.value else None
         ),
     )
     message = f"Successfully stored graph. Visit KPI's **{selected_model.value[0]}** section to see it !"
@@ -384,8 +384,8 @@ def save_card(
     card_sql,
     json,
     config_model,
-    dash_name_to_id,
-    dash_selector,
+    panel_name_to_id,
+    panel_selector,
     mo,
     sanitized_tbn,
     save_card_btn,
@@ -408,8 +408,8 @@ def save_card(
         ),
         "card",
         name=card_name.value,
-        dashboard_id=(
-            dash_name_to_id.get(dash_selector.value[0]) if dash_selector.value else None
+        panel_id=(
+            panel_name_to_id.get(panel_selector.value[0]) if panel_selector.value else None
         ),
     )
 
@@ -514,8 +514,8 @@ def save_union(
     transformation_selector,
     union_df_cols_selector,
     union_name,
-    dash_name_to_id,
-    dash_selector,
+    panel_name_to_id,
+    panel_selector,
 ):
     from marimo_kpiten.services.config import create_line as _create_line
 
@@ -536,8 +536,8 @@ def save_union(
         json.dumps({"union_model": union_model, "mapping": mapping}),
         "union",
         name=union_name.value,
-        dashboard_id=(
-            dash_name_to_id.get(dash_selector.value[0]) if dash_selector.value else None
+        panel_id=(
+            panel_name_to_id.get(panel_selector.value[0]) if panel_selector.value else None
         ),
     )
 

@@ -16,8 +16,8 @@ def _get_config_model():
     return env["kpiten.config.line"]
 
 
-def _get_dashboard_model():
+def _get_panel_model():
     env = _get_odoo_env()
-    if not env["ir.model"].search([("model", "=", "kpiten.dashboard")]):
+    if not env["ir.model"].search([("model", "=", "kpiten.panel")]):
         raise Exception(f"Kpiten module not installed in '{env.db}' db")
-    return env["kpiten.dashboard"]
+    return env["kpiten.panel"]
