@@ -21,7 +21,7 @@ def navigation(mo):
 
 @app.cell
 def display_selectors(date_select, date_range, layout_select, render_opt_select, mo):
-    selectors_hstack = mo.hstack(
+    core = mo.hstack(
         [
             mo.vstack([mo.md("Period"), date_select.style({"color": "white"})]).style(
                 {"max-width": "fit-content", "color": "white"}
@@ -29,6 +29,11 @@ def display_selectors(date_select, date_range, layout_select, render_opt_select,
             mo.vstack([mo.md("Dates"), date_range]).style(
                 {"max-width": "fit-content", "color": "white"}
             ),
+        ],
+        justify="start",
+    ).style({"color-scheme": "dark"})
+    opts = mo.hstack(
+        [
             mo.vstack([mo.md("Layout"), layout_select.style({"color": "white"})]).style(
                 {"max-width": "fit-content", "color": "white"}
             ),
@@ -38,7 +43,13 @@ def display_selectors(date_select, date_range, layout_select, render_opt_select,
         ],
         justify="start",
     ).style({"color-scheme": "dark"})
-    return selectors_hstack
+    return core, opts
+
+
+@app.cell
+def show_options_toggle(mo):
+    show_opts = mo.ui.switch(value=False, label="+")
+    return show_opts
 
 
 @app.cell(hide_code=True)
@@ -70,7 +81,15 @@ def other_deps():
 
 @app.cell
 def display_headers(
-    dash_select, dim_col, dim_vals, mo, mo_nav_menu, selectors_hstack, title_md
+    core,
+    dash_select,
+    dim_col,
+    dim_vals,
+    mo,
+    mo_nav_menu,
+    opts,
+    show_opts,
+    title_md,
 ):
     dash_ui = mo.vstack([mo.md("Dashboard"), dash_select]).style(
         {"max-width": "fit-content", "color": "white"}
@@ -78,10 +97,11 @@ def display_headers(
     dim_ui = mo.vstack(
         [mo.md("Dimension"), mo.hstack([dim_col, dim_vals])]
     ).style({"max-width": "fit-content", "color": "white"})
+    opt_items = [opts] if show_opts.value else []
     mo.hstack(
         [
-            mo.hstack([title_md, selectors_hstack, dash_ui, dim_ui]),
-            mo.hstack([mo_nav_menu]),
+            mo.hstack([title_md, core, dash_ui, dim_ui, *opt_items]),
+            mo.hstack([show_opts, mo_nav_menu]).style({"color-scheme": "dark"}),
         ],
         justify="start",
     )
