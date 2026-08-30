@@ -1,0 +1,50 @@
+<odoo>
+    <record id="kpiten_panel_form" model="ir.ui.view">
+        <field name="model">kpiten.panel</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <field name="name" />
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="kpiten_panel_kanban" model="ir.ui.view">
+        <field name="model">kpiten.panel</field>
+        <field name="arch" type="xml">
+            <kanban>
+                <templates>
+                    <t t-name="card">
+                        <h4>
+                            <field name="name" />
+                        </h4>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="kpiten_panel_search" model="ir.ui.view">
+        <field name="model">kpiten.panel</field>
+        <field name="arch" type="xml">
+            <search>
+                <filter name="name" />
+            </search>
+        </field>
+    </record>
+
+    <record id="kpiten_panel_action" model="ir.actions.act_window">
+        <field name="name">Panel</field>
+        <field name="res_model">kpiten.panel</field>
+        <field name="view_mode">kanban,form</field>
+    </record>
+
+    <menuitem
+        id="kpiten_panel_menu"
+        parent="kpiten.kpiten_app"
+        sequence="20"
+        action="kpiten_panel_action"
+    />
+
+</odoo>

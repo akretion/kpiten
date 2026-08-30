@@ -1,0 +1,5 @@
+<odoo noupdate="1">
+    <record model="kpiten.panel" id="panel_main">
+        <field name="name">Main</field>
+    </record>
+</odoo>

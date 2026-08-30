@@ -80,6 +80,7 @@ class KpitenConfigLine(models.Model):
         help="Representation type",
     )
     user_id = fields.Many2one(comodel_name="res.users")
+    panel_id = fields.Many2one(comodel_name="kpiten.panel")
     active = fields.Boolean(default=True)
 
     @api.model
@@ -94,7 +95,13 @@ class KpitenConfigLine(models.Model):
 
     @api.model
     def create_conf_line(
-        self, model, definition: str, kind: str, name: str = None, user_id=None
+        self,
+        model,
+        definition: str,
+        kind: str,
+        name: str = None,
+        user_id=None,
+        panel_id=None,
     ):
         res = self.env["kpiten.config.line"].create(
             {
@@ -103,6 +110,7 @@ class KpitenConfigLine(models.Model):
                 "name": name,
                 "kind": kind,
                 "user_id": user_id or self.env.user.id,
+                "panel_id": panel_id,
             }
         )
         if res:

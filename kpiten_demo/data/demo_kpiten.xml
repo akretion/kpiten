@@ -10,6 +10,7 @@
         <field name="kind">card</field>
         <field name="name">Sales Orders count</field>
         <field name="sequence">1</field>
+        <field name="panel_id" ref="panel_sale" />
         <field name="definition">{"where": "state not in ('draft', 'sent')"}</field>
     </record>
 
@@ -17,6 +18,7 @@
         <field name="config_id" ref="kpiten_sales" />
         <field name="kind">graph</field>
         <field name="name">Best vendors</field>
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">2</field>
         <field name="definition">{"graph_type": "bar", "from": "sale.order", "x": {"name": "user_id.name", "aggregation": "none"}, "y": {"name": "amount_total", "aggregation": "sum"}}</field>
     </record>
@@ -25,6 +27,7 @@
         <field name="config_id" ref="kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Amount untaxed</field>
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">2</field>
         <field name="definition">d_next = d
 d_next = d_next.select([pl.col("amount_untaxed").sum().alias("amount_untaxed_sum")])</field>
@@ -34,6 +37,7 @@ d_next = d_next.select([pl.col("amount_untaxed").sum().alias("amount_untaxed_sum
         <field name="config_id" ref="kpiten_sales" />
         <field name="kind">union</field>
         <field name="name">Union sales et puchases</field>
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">6</field>
         <field name="definition">{"union_model": "purchase.order", "mapping": {"sale.order": {"name": "name", "amount_untaxed": "amount_untaxed"}, "purchase.order": {"name": "name", "amount_untaxed": "amount_untaxed"}}}</field>
     </record>

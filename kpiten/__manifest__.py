@@ -14,7 +14,9 @@
     ],
     "data": [
         "data/ir_config_parameter.xml",
+        "data/misc.xml",
         "security/ir.model.access.csv",
         "views/kpiten.xml",
+        "views/panel.xml",
     ],
 }
