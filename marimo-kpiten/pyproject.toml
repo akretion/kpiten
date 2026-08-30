@@ -17,6 +17,7 @@ dependencies = [
   "plotly>=6.7.0",
   "numpy>=2.4.6",
   "great-tables>=0.21.0",
+  "tomli-w>=1.0",
 ]
 description = "Use marimo data exploration capabilities & dashboarding for Odoo"
 name = "marimo-kpiten"

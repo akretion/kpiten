@@ -10,15 +10,9 @@ app = marimo.App(width="full")
 @app.cell
 def _():
     import marimo as mo
+    from marimo_kpiten.services.serial import dumps
 
-    return (mo,)
-
-
-@app.cell
-def get_json():
-    import json
-
-    return json
+    return mo, dumps
 
 
 @app.cell
@@ -363,8 +357,8 @@ def graph_preview(
 @app.cell
 def save_graph_form_data(
     create_button,
+    dumps,
     form,
-    json,
     config_model,
     panel_name_to_id,
     panel_selector,
@@ -380,7 +374,7 @@ def save_graph_form_data(
     form_record = _create_line(
         config_model,
         selected_model.value[0],
-        json.dumps(
+        dumps(
             {
                 "graph_type": form["graph_type"].value,
                 "from": selected_model.value[0],
@@ -435,8 +429,8 @@ def build_card(d, mo, sanitized_tbn, transformation_selector):
 @app.cell
 def save_card(
     card_name,
+    dumps,
     card_sql,
-    json,
     config_model,
     panel_name_to_id,
     panel_selector,
@@ -454,7 +448,7 @@ def save_card(
     card_record = _create_line(
         config_model,
         selected_model.value[0],
-        json.dumps(
+        dumps(
             {
                 "where": card_sql.value,
                 "from": selected_model.value[0],
@@ -558,7 +552,7 @@ def show_ucolumn_types(
 @app.cell
 def save_union(
     config_model,
-    json,
+    dumps,
     mo,
     sanitized_tbn,
     save_union_button,
@@ -587,7 +581,7 @@ def save_union(
     union_record = _create_line(
         config_model,
         base_model,
-        json.dumps({"union_model": union_model, "mapping": mapping}),
+        dumps({"union_model": union_model, "mapping": mapping}),
         "union",
         name=union_name.value,
         panel_id=(

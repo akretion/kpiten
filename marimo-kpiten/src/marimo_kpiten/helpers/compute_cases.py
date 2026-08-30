@@ -7,7 +7,7 @@ from marimo_kpiten.services.df_storage import DFStorage as df_store
 from marimo_kpiten.services.df_style_engine import DFStyleEngine
 import polars as pl
 import marimo as mo
-import json
+from marimo_kpiten.services.serial import loads
 import plotly.express as px
 
 logger = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ def card_case(
     exec_context_list: list,
     full_predicates: list[pl.Expr],
 ):
-    card_json = json.loads(transform["content"])
+    card_json = loads(transform["content"])
     try:
         df = _filtered(used_df, full_predicates).sql(
             f'SELECT count(id) FROM self WHERE {card_json.get("where")}'
@@ -106,7 +106,7 @@ def card_case(
 
 
 def union_case(transform: dict[str, Any], exec_context_list: list, full_predicates):
-    union_json = json.loads(transform["content"])
+    union_json = loads(transform["content"])
     label = transform.get("name")
     union_model = union_json["union_model"]
     mapping = union_json["mapping"]
@@ -129,7 +129,7 @@ def union_case(transform: dict[str, Any], exec_context_list: list, full_predicat
 
 
 def union_old_case(transform: dict[str, Any], exec_context_list: list, full_predicates):
-    union_json = json.loads(transform["content"])
+    union_json = loads(transform["content"])
     label = transform.get("name")
     base = union_json["definition"]["model"]
     other = union_json["definition"]["union_model"]
@@ -165,7 +165,7 @@ def union_old_case(transform: dict[str, Any], exec_context_list: list, full_pred
 def graph_case(
     transform: dict[str, Any], full_predicates: list[bool], exec_context_list: list
 ):
-    graph_json = json.loads(transform["content"])
+    graph_json = loads(transform["content"])
     cx = graph_json["x"]
     cy = graph_json["y"]
     df = df_store.retrieve_df(graph_json["from"])["df"]
