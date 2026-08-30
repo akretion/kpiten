@@ -76,10 +76,33 @@ def _get_config_model():
 
 
 @app.cell
-def display_header(mo: marimo, stn_ui, build_nav, ts_ui):
+def dashboard_selection(mo):
+    from marimo_kpiten.common import _get_dashboard_model
+    from marimo_kpiten.helpers.ui import select as _select
+    from marimo_kpiten.services.config import load_dashboards
+
+    dash_name_to_id = {}
+    dashboards = []
+    try:
+        dashboards = load_dashboards(_get_dashboard_model())
+        dash_name_to_id = {d["name"]: d["id"] for d in dashboards}
+    except Exception:
+        pass
+    dash_selector = _select(
+        [d["name"] for d in dashboards],
+        value=[dashboards[0]["name"]] if dashboards else None,
+    )
+    dash_ui = mo.vstack([mo.md("Dashboard"), dash_selector]).style(
+        {"max-width": "fit-content", "color": "white"}
+    )
+    return dash_selector, dash_name_to_id, dash_ui
+
+
+@app.cell
+def display_header(dash_ui, mo: marimo, stn_ui, build_nav, ts_ui):
     mo.hstack(
         [
-            mo.hstack([mo.md("## Build • "), stn_ui, ts_ui]).style(
+            mo.hstack([mo.md("## Build • "), stn_ui, ts_ui, dash_ui]).style(
                 {"max-width": "fit-content"}
             ),
             mo.hstack([build_nav]).style({"max-width": "fit-content"}),
@@ -177,6 +200,8 @@ def save_code_input(d, mo, transformation_selector):
 @app.cell
 def store_df_code(
     config_model,
+    dash_name_to_id,
+    dash_selector,
     mo,
     python_text,
     df_name,
@@ -204,6 +229,9 @@ def store_df_code(
         python_text.value,
         "data",
         name=df_name.value,
+        dashboard_id=(
+            dash_name_to_id.get(dash_selector.value[0]) if dash_selector.value else None
+        ),
     )
     if not record:
         storedf_message = f"An error occured, please try again."
@@ -284,6 +312,8 @@ def save_graph_form_data(
     form,
     json,
     config_model,
+    dash_name_to_id,
+    dash_selector,
     mo,
     selected_model,
     transformation_selector,
@@ -312,6 +342,9 @@ def save_graph_form_data(
         ),
         "graph",
         name=form["label"].value,
+        dashboard_id=(
+            dash_name_to_id.get(dash_selector.value[0]) if dash_selector.value else None
+        ),
     )
     message = f"Successfully stored graph. Visit KPI's **{selected_model.value[0]}** section to see it !"
     callout_kind = "success"
@@ -351,6 +384,8 @@ def save_card(
     card_sql,
     json,
     config_model,
+    dash_name_to_id,
+    dash_selector,
     mo,
     sanitized_tbn,
     save_card_btn,
@@ -373,6 +408,9 @@ def save_card(
         ),
         "card",
         name=card_name.value,
+        dashboard_id=(
+            dash_name_to_id.get(dash_selector.value[0]) if dash_selector.value else None
+        ),
     )
 
     save_card_message = f"Successfully stored card. Visit the **{sanitized_tbn}** section in `KPI` to see it !"
@@ -476,6 +514,8 @@ def save_union(
     transformation_selector,
     union_df_cols_selector,
     union_name,
+    dash_name_to_id,
+    dash_selector,
 ):
     from marimo_kpiten.services.config import create_line as _create_line
 
@@ -496,6 +536,9 @@ def save_union(
         json.dumps({"union_model": union_model, "mapping": mapping}),
         "union",
         name=union_name.value,
+        dashboard_id=(
+            dash_name_to_id.get(dash_selector.value[0]) if dash_selector.value else None
+        ),
     )
 
     union_message = f"Successfully stored union. Visit the **{sanitized_tbn}** section in `KPI` to see it !"

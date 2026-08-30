@@ -63,10 +63,13 @@ def other_deps():
 
 
 @app.cell
-def display_headers(mo, mo_nav_menu, selectors_hstack, title_md):
+def display_headers(dash_select, mo, mo_nav_menu, selectors_hstack, title_md):
+    dash_ui = mo.vstack([mo.md("Dashboard"), dash_select]).style(
+        {"max-width": "fit-content", "color": "white"}
+    )
     mo.hstack(
         [
-            mo.hstack([title_md, selectors_hstack]),
+            mo.hstack([title_md, selectors_hstack, dash_ui]),
             mo.hstack([mo_nav_menu]),
         ],
         justify="start",
@@ -229,7 +232,36 @@ def reload_state(mo):
 
 
 @app.cell
-def load_kpiten_line(config_model, mo, no_data_found_callout, reload, set_reload):
+def dashboard_select(mo):
+    from marimo_kpiten.common import _get_dashboard_model
+    from marimo_kpiten.helpers.ui import select as _select
+    from marimo_kpiten.services.config import load_dashboards
+
+    dash_name_to_id = {}
+    dashboards = []
+    try:
+        dashboards = load_dashboards(_get_dashboard_model())
+        dash_name_to_id = {d["name"]: d["id"] for d in dashboards}
+    except Exception:
+        pass
+    dash_select = _select(
+        [d["name"] for d in dashboards],
+        value=[dashboards[0]["name"]] if dashboards else None,
+    )
+
+    return dash_select, dash_name_to_id
+
+
+@app.cell
+def load_kpiten_line(
+    config_model,
+    dash_name_to_id,
+    dash_select,
+    mo,
+    no_data_found_callout,
+    reload,
+    set_reload,
+):
     """
     load_kpiten_line
     ---
@@ -240,10 +272,13 @@ def load_kpiten_line(config_model, mo, no_data_found_callout, reload, set_reload
     from marimo_kpiten.services.df_storage import DFStorage as dfsv
 
     current_uid = current_user_id()
+    dashboard_id = (
+        dash_name_to_id.get(dash_select.value[0]) if dash_select.value else None
+    )
     df_wt_list = []
     for meta in dfsv.retrieve_all_dfs():
         transformations = []
-        for line in load_lines(config_model, meta["table"]):
+        for line in load_lines(config_model, meta["table"], dashboard_id):
 
             def delete_this_transformation(
                 arg, line_id=line["id"], set_reload=set_reload

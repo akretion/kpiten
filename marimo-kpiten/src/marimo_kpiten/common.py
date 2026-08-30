@@ -14,3 +14,10 @@ def _get_config_model():
     if not env["ir.model"].search([("model", "=", "kpiten.config")]):
         raise Exception(f"Kpiten module not installed in '{env.db}' db")
     return env["kpiten.config.line"]
+
+
+def _get_dashboard_model():
+    env = _get_odoo_env()
+    if not env["ir.model"].search([("model", "=", "kpiten.dashboard")]):
+        raise Exception(f"Kpiten module not installed in '{env.db}' db")
+    return env["kpiten.dashboard"]
