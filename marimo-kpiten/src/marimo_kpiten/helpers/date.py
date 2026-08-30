@@ -1,13 +1,9 @@
 import datetime
-import logging
 
-import marimo as mo
 import polars as pl
 
 from marimo_kpiten.services.RPC import RPC
 from marimo_kpiten.services.file_state import FileState
-
-logger = logging.getLogger(__name__)
 
 TIME_COLUMN = "create_date"
 
@@ -20,14 +16,16 @@ def last_year_bounds(today: datetime.date) -> dict[str, datetime.date]:
     }
 
 
-def period_bounds(
-    date_select: mo.ui.multiselect,
+def bounds_for_option(
+    option: str | None,
 ) -> tuple[datetime.date, datetime.date] | None:
-    """Start and end dates implied by the selected period."""
+    """Start and end dates implied by a predefined period option."""
     from datetime import date, timedelta
 
+    if not option:
+        return None
     today = date.today()
-    match date_select.value[0]:
+    match option:
         case "today only":
             return today, today
         case "last week":
@@ -45,6 +43,18 @@ def period_bounds(
         case "last year":
             bounds = last_year_bounds(today)
             return bounds["LY_first_day"], bounds["LY_last_day"]
+    return None
+
+
+def period_bounds(
+    option: list[str] | None,
+    range_value: tuple[datetime.date, datetime.date] | None = None,
+) -> tuple[datetime.date, datetime.date] | None:
+    """Effective start/end dates: the period when selected, else the custom range."""
+    if option:
+        return bounds_for_option(option[0])
+    if range_value:
+        return range_value
     return None
 
 
@@ -76,38 +86,12 @@ def format_period(start: datetime.date, end: datetime.date, lang: str) -> str:
     return f"{start.strftime(fmt)} → {end.strftime(fmt)}"
 
 
-def process_dt_predicate(date_select: mo.ui.multiselect):
-    from datetime import date, timedelta
-
-    date_predicates: list[pl.Expr] = []
-    time_column = TIME_COLUMN
-    today = date.today()
-    match date_select.value[0]:
-        case "today only":
-            date_predicates.append(pl.col(time_column) >= today)
-        case "last week":
-            date_predicates.append(pl.col(time_column) >= today - timedelta(days=7))
-        case "last 30 days":
-            date_predicates.append(pl.col(time_column) >= today - timedelta(days=30))
-        case "last 90 days":
-            date_predicates.append(pl.col(time_column) >= today - timedelta(days=90))
-        case "last 6 months":
-            date_predicates.append(
-                pl.col(time_column) >= today - timedelta(days=31 * 6)
-            )
-        case "last 1 year":
-            date_predicates.append(pl.col(time_column) >= today - timedelta(days=365))
-        case "last 5 years":
-            date_predicates.append(
-                pl.col(time_column) >= today - timedelta(days=365 * 5)
-            )
-        case "last year":
-            LY_info = last_year_bounds(today)
-            logger.debug(LY_info)
-            date_predicates.append(
-                (pl.col(time_column) >= LY_info["LY_first_day"])
-                & (pl.col(time_column) <= LY_info["LY_last_day"])
-            )
-        case _:
-            date_predicates.append(pl.col(time_column) >= today - timedelta(days=30))
-    return date_predicates
+def process_dt_predicate(
+    option: list[str] | None,
+    range_value: tuple[datetime.date, datetime.date] | None = None,
+):
+    bounds = period_bounds(option, range_value)
+    if not bounds:
+        return []
+    start, end = bounds
+    return [pl.col(TIME_COLUMN) >= start, pl.col(TIME_COLUMN) <= end]

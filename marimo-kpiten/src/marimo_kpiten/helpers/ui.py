@@ -10,7 +10,7 @@ def load_style() -> str:
 
 
 def style_html():
-    return mo.Html(f"<style>{load_style()}</style>")
+    return mo.Html(f'<style title="marimo-kpiten">{load_style()}</style>')
 
 
 def nav_menu(target: str, label: str):
@@ -22,8 +22,10 @@ def no_data(mo, callout):
     return callout
 
 
-def select(options: list, value=None, max_selections: int = 1):
+def select(options: list, value=None, max_selections: int = 1, on_change=None):
     kwargs = {"options": options, "max_selections": max_selections}
     if value is not None:
         kwargs["value"] = value
+    if on_change is not None:
+        kwargs["on_change"] = on_change
     return mo.ui.multiselect(**kwargs)

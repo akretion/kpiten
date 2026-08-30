@@ -20,10 +20,13 @@ def navigation(mo):
 
 
 @app.cell
-def display_selectors(date_select, layout_select, render_opt_select, mo):
+def display_selectors(date_select, date_range, layout_select, render_opt_select, mo):
     selectors_hstack = mo.hstack(
         [
             mo.vstack([mo.md("Period"), date_select.style({"color": "white"})]).style(
+                {"max-width": "fit-content", "color": "white"}
+            ),
+            mo.vstack([mo.md("Dates"), date_range]).style(
                 {"max-width": "fit-content", "color": "white"}
             ),
             mo.vstack([mo.md("Layout"), layout_select.style({"color": "white"})]).style(
@@ -60,7 +63,7 @@ def other_deps():
 
 
 @app.cell
-def period_label(date_select, mo):
+def period_label(daterange, mo, period):
     from marimo_kpiten.helpers.date import (
         TIME_COLUMN,
         format_period,
@@ -68,8 +71,7 @@ def period_label(date_select, mo):
         user_lang,
     )
 
-    mo.stop(not date_select.value)
-    bounds = period_bounds(date_select)
+    bounds = period_bounds(period(), daterange())
     period_md = mo.Html("")
     if bounds:
         start, end = bounds
@@ -165,7 +167,8 @@ def render_engine_selection(mo):
 
 
 @app.cell
-def date_filter(mo):
+def date_widgets(mo):
+    from marimo_kpiten.helpers.date import bounds_for_option
     from marimo_kpiten.helpers.ui import select as _select
 
     date_options = [
@@ -178,14 +181,31 @@ def date_filter(mo):
         "last 5 years",
         "last year",
     ]
-    date_select = _select(date_options, ["last year"])
-    return date_select
+    period, set_period = mo.state(["last year"])
+    daterange, set_daterange = mo.state(bounds_for_option("last year"))
+
+    def on_period_change(sel):
+        set_period(sel)
+        if sel:
+            bounds = bounds_for_option(sel[0])
+            if bounds:
+                set_daterange(bounds)
+
+    def on_range_change(val):
+        if val:
+            set_daterange(val)
+            set_period([])
+
+    date_select = _select(date_options, period(), on_change=on_period_change)
+    date_range = mo.ui.date_range(value=daterange(), on_change=on_range_change)
+
+    return date_select, date_range, period, daterange
 
 
 @app.cell
-def compute_date_predicate(date_select, mo, process_dt_predicate):
-    mo.stop(not date_select.value)
-    date_predicates = process_dt_predicate(date_select)
+def compute_date_predicate(daterange, mo, period, process_dt_predicate):
+    mo.stop(not period() and not daterange())
+    date_predicates = process_dt_predicate(period(), daterange())
     return date_predicates
 
 
