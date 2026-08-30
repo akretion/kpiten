@@ -344,7 +344,7 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
             ordered.setdefault(c["label"], []).append(c)
 
     groups = []
-    for k, ctxs in ordered.items():
+    for ctxs in ordered.values():
         ctx_blocks = []
         for ctx in ctxs:
             match ctx["context_type"]:
@@ -358,12 +358,7 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
                     ctx_blocks.append(union_old_block(ctx, mo))
                 case "graph":
                     ctx_blocks.append(graph_block(ctx, mo))
-        groups.append(
-            mo.vstack(
-                [mo.md(f"# {k}").style({"color": "white"}), *ctx_blocks],
-                gap="0.5rem",
-            )
-        )
+        groups.append(mo.vstack(ctx_blocks, gap="0.5rem"))
 
     layout_blocks(groups, selected_layout, mo)
     return

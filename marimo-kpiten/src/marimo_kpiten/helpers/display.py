@@ -20,11 +20,7 @@ def data_block(ctx, data_t_width, render_opt, mo):
             table = mo.Html(ctx["style_func"](result_df.limit(20)).as_raw_html())
             logger.debug(table)
     return mo.vstack(
-        (
-            [mo.hstack([ctx["delete_button"]], justify="start"), table]
-            if ctx.get("delete_button")
-            else [table]
-        ),
+        [_header(ctx, mo), table],
         gap="0.5rem",
     ).style({"width": data_t_width, "min-width": "300px"})
 
