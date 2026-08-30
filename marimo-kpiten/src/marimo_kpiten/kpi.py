@@ -37,7 +37,7 @@ def display_selectors(date_select, date_range, layout_select, render_opt_select,
             ).style({"max-width": "fit-content", "color": "white"}),
         ],
         justify="start",
-    )
+    ).style({"color-scheme": "dark"})
     return selectors_hstack
 
 
@@ -63,30 +63,11 @@ def other_deps():
 
 
 @app.cell
-def period_label(daterange, mo, period):
-    from marimo_kpiten.helpers.date import (
-        TIME_COLUMN,
-        format_period,
-        period_bounds,
-        user_lang,
-    )
-
-    bounds = period_bounds(period(), daterange())
-    period_md = mo.Html("")
-    if bounds:
-        start, end = bounds
-        period_md = mo.Html(
-            f'<span class="period-label">{TIME_COLUMN}: {format_period(start, end, user_lang())}</span>'
-        )
-    return period_md
-
-
-@app.cell
-def display_headers(mo, mo_nav_menu, period_md, selectors_hstack, title_md):
+def display_headers(mo, mo_nav_menu, selectors_hstack, title_md):
     mo.hstack(
         [
             mo.hstack([title_md, selectors_hstack]),
-            mo.hstack([period_md, mo_nav_menu]),
+            mo.hstack([mo_nav_menu]),
         ],
         justify="start",
     )

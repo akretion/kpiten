@@ -3,7 +3,6 @@
 } */
 
 :root {
-    color-scheme: dark;
     --text-color: white;
     --bg-from: #19244b;
     --bg-to: #1b415e;
@@ -36,9 +35,11 @@ span.paragraph, span.markdown, label {
 	color: var(--text-color) !important;
 }
 
-.period-label {
-    color: #ffffff !important;
-    font-weight: 600;
+marimo-stat,
+marimo-nav-menu,
+marimo-table {
+    color-scheme: light;
+    --text-color: #0f172a;
 }
 
 button#radix-_r_1c_.text-xs {

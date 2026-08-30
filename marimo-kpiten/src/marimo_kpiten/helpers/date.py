@@ -2,9 +2,6 @@ import datetime
 
 import polars as pl
 
-from marimo_kpiten.services.RPC import RPC
-from marimo_kpiten.services.file_state import FileState
-
 TIME_COLUMN = "create_date"
 
 
@@ -56,34 +53,6 @@ def period_bounds(
     if range_value:
         return range_value
     return None
-
-
-def user_lang() -> str:
-    """Language of the logged Odoo user."""
-    uid = FileState.retrieve_state("user_id")
-    if not uid:
-        return "en_US"
-    try:
-        return RPC().env["res.users"].browse(int(uid)).lang
-    except Exception:
-        return "en_US"
-
-
-def _date_format(lang: str) -> str:
-    formats = {
-        "fr": "%d/%m/%Y",
-        "en": "%m/%d/%Y",
-        "de": "%d.%m.%Y",
-    }
-    for prefix, fmt in formats.items():
-        if lang.lower().startswith(prefix):
-            return fmt
-    return "%Y-%m-%d"
-
-
-def format_period(start: datetime.date, end: datetime.date, lang: str) -> str:
-    fmt = _date_format(lang)
-    return f"{start.strftime(fmt)} → {end.strftime(fmt)}"
 
 
 def process_dt_predicate(
