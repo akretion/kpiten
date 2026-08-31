@@ -41,6 +41,10 @@ def union_old_block(ctx, mo):
     return mo.vstack([_header(ctx, mo), ctx["union_df"]])
 
 
+def pivot_block(ctx, mo):
+    return mo.vstack([_header(ctx, mo), ctx["pivot_df"]])
+
+
 def graph_block(ctx, mo):
     return mo.vstack([_header(ctx, mo), ctx["graph"]], gap="0.5rem").style(
         {"width": "80vw", "min-width": "400px"}

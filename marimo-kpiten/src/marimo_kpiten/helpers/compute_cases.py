@@ -8,6 +8,7 @@ from marimo_kpiten.services.df_style_engine import DFStyleEngine
 import polars as pl
 import marimo as mo
 from marimo_kpiten.services.serial import loads
+from marimo_kpiten.helpers.pivot_suggest import apply_monthly, is_date
 import plotly.express as px
 
 logger = logging.getLogger(__name__)
@@ -16,9 +17,7 @@ logger = logging.getLogger(__name__)
 def _filtered(df, predicates):
     """Apply the predicates whose columns exist on the df."""
     applicable = [
-        p
-        for p in predicates
-        if all(col in df.columns for col in p.meta.root_names())
+        p for p in predicates if all(col in df.columns for col in p.meta.root_names())
     ]
     if applicable:
         return df.filter(applicable)
@@ -158,6 +157,36 @@ def union_old_case(transform: dict[str, Any], exec_context_list: list, full_pred
             "label": label,
             "union_df": mo.ui.table(result),
             "delete_button": delete_button,
+        }
+    )
+
+
+def pivot_case(used_df, transform, exec_context_list, full_predicates):
+    pivot_json = loads(transform["content"])
+    index = pivot_json["index"]
+    column = pivot_json["column"]
+    measure = pivot_json["measure"]
+    aggregation = pivot_json.get("aggregation", "sum")
+    monthly = pivot_json.get("monthly", False)
+
+    df = _filtered(used_df, full_predicates)
+    if monthly and column and is_date(df, column):
+        df = apply_monthly(df, column)
+    elif monthly and index and is_date(df, index):
+        df = apply_monthly(df, index)
+
+    result = df.pivot(
+        index=index,
+        on=column,
+        values=measure,
+        aggregate_function=aggregation,
+    )
+    exec_context_list.append(
+        {
+            "context_type": "pivot",
+            "label": transform.get("name"),
+            "pivot_df": mo.ui.table(result),
+            "delete_button": _delete_button(transform["delete_this"]),
         }
     )
 

@@ -111,7 +111,7 @@ def select_transformation_to_make(mo: marimo):
 
     transformation_selector_label = mo.md("What to build ?")
     transformation_selector = _select(
-        ["graph", "dataframe", "card", "union"], ["dataframe"]
+        ["graph", "dataframe", "card", "union", "pivot"], ["dataframe"]
     )
 
     ts_ui = mo.vstack([transformation_selector_label, transformation_selector]).style(
@@ -224,7 +224,9 @@ def store_df_code(
         "data",
         name=df_name.value,
         panel_id=(
-            panel_name_to_id.get(panel_selector.value[0]) if panel_selector.value else None
+            panel_name_to_id.get(panel_selector.value[0])
+            if panel_selector.value
+            else None
         ),
     )
     if not record:
@@ -257,9 +259,7 @@ def build_graph_form(d, mo: marimo, sanitized_tbn, transformation_selector):
     type_of_graph_select = mo.ui.dropdown(
         options=["bar", "point", "area"], value=suggest_graph_type(d, sx)
     )
-    name_input = mo.ui.text(
-        placeholder="Graph's name...", value=suggest_name(sx, sy)
-    )
+    name_input = mo.ui.text(placeholder="Graph's name...", value=suggest_name(sx, sy))
     column_x_select = mo.ui.dropdown(options=x_options, value=sx)
     column_x_aggregation = mo.ui.dropdown(
         options=["none", "count", "sum"], value="none"
@@ -332,6 +332,7 @@ def graph_preview(
         "Choisis une colonne X et une colonne Y pour voir l'aperçu."
     ).callout("info")
     if x and y:
+
         def _agg(source, group_col, agg_col, agg_fn):
             if agg_fn == "sum":
                 return source.group_by(group_col).agg(pl.col(agg_col).sum())
@@ -391,7 +392,9 @@ def save_graph_form_data(
         "graph",
         name=form["label"].value,
         panel_id=(
-            panel_name_to_id.get(panel_selector.value[0]) if panel_selector.value else None
+            panel_name_to_id.get(panel_selector.value[0])
+            if panel_selector.value
+            else None
         ),
     )
     message = f"Successfully stored graph. Visit KPI's **{selected_model.value[0]}** section to see it !"
@@ -457,7 +460,9 @@ def save_card(
         "card",
         name=card_name.value,
         panel_id=(
-            panel_name_to_id.get(panel_selector.value[0]) if panel_selector.value else None
+            panel_name_to_id.get(panel_selector.value[0])
+            if panel_selector.value
+            else None
         ),
     )
 
@@ -585,7 +590,9 @@ def save_union(
         "union",
         name=union_name.value,
         panel_id=(
-            panel_name_to_id.get(panel_selector.value[0]) if panel_selector.value else None
+            panel_name_to_id.get(panel_selector.value[0])
+            if panel_selector.value
+            else None
         ),
     )
 
@@ -595,6 +602,151 @@ def save_union(
         union_message = "Couldn't store union, please try again later."
         union_kind = "error"
     mo.md(union_message).callout(kind=union_kind)
+    return
+
+
+@app.cell
+def build_pivot_form(d, mo, sanitized_tbn, transformation_selector):
+    mo.stop(transformation_selector.value[0] != "pivot")
+    mo.stop(type(d) is type(None))
+
+    from marimo_kpiten.helpers.pivot_suggest import (
+        pivot_roles,
+        suggest_pivot,
+    )
+
+    pivot_role_map = pivot_roles(d)
+    pivot_axis = pivot_role_map["date"] + pivot_role_map["dimension"]
+    pivot_measures = pivot_role_map["measure"]
+    pivot_defaults = suggest_pivot(d)
+
+    pivot_name = mo.ui.text(placeholder="Pivot's name...", value="Pivot")
+    pivot_index = mo.ui.dropdown(options=pivot_axis, value=pivot_defaults["index"])
+    pivot_column = mo.ui.dropdown(options=pivot_axis, value=pivot_defaults["column"])
+    pivot_measure = mo.ui.dropdown(
+        options=pivot_measures, value=pivot_defaults["measure"]
+    )
+    pivot_aggregation = mo.ui.dropdown(
+        options=["sum", "mean", "count", "min", "max"], value="sum"
+    )
+    pivot_monthly = mo.ui.switch(value=True, label="Group dates by month")
+    pivot_create = mo.ui.run_button(kind="neutral", label="Create")
+
+    mo.vstack(
+        [
+            mo.md(f"## Build a pivot from **{sanitized_tbn}**"),
+            mo.vstack([mo.md("Rows (index)"), pivot_index]).style({"color": "white"}),
+            mo.vstack([mo.md("Columns"), pivot_column]).style({"color": "white"}),
+            mo.vstack([mo.md("Measure"), pivot_measure]).style({"color": "white"}),
+            mo.vstack([mo.md("Aggregation"), pivot_aggregation]).style(
+                {"color": "white"}
+            ),
+            pivot_monthly,
+            pivot_create,
+        ]
+    )
+
+    return (
+        pivot_create,
+        pivot_index,
+        pivot_column,
+        pivot_measure,
+        pivot_aggregation,
+        pivot_monthly,
+        pivot_name,
+    )
+
+
+@app.cell
+def pivot_preview(
+    d,
+    mo,
+    pivot_aggregation,
+    pivot_column,
+    pivot_index,
+    pivot_measure,
+    pivot_monthly,
+    transformation_selector,
+):
+    mo.stop(transformation_selector.value[0] != "pivot")
+    mo.stop(type(d) is type(None))
+
+    from marimo_kpiten.helpers.pivot_suggest import apply_monthly, is_date
+
+    index = pivot_index.value
+    column = pivot_column.value
+    measure = pivot_measure.value
+
+    pivot_output = mo.md(
+        "Choisis un index, une colonne et une mesure pour voir l'aperçu."
+    ).callout("info")
+    if index and measure:
+        pivot_src = d.limit(500)
+        if pivot_monthly.value and column and is_date(pivot_src, column):
+            pivot_src = apply_monthly(pivot_src, column)
+        elif pivot_monthly.value and index and is_date(pivot_src, index):
+            pivot_src = apply_monthly(pivot_src, index)
+
+        pivot_res = pivot_src.pivot(
+            index=index,
+            on=column,
+            values=measure,
+            aggregate_function=pivot_aggregation.value or "sum",
+        )
+        pivot_output = mo.ui.table(pivot_res)
+    return pivot_output
+
+
+@app.cell
+def save_pivot(
+    config_model,
+    dumps,
+    mo,
+    panel_name_to_id,
+    panel_selector,
+    pivot_aggregation,
+    pivot_column,
+    pivot_create,
+    pivot_index,
+    pivot_measure,
+    pivot_monthly,
+    pivot_name,
+    selected_model,
+    transformation_selector,
+):
+    mo.stop(transformation_selector.value[0] != "pivot")
+    mo.stop(not pivot_create.value)
+
+    from marimo_kpiten.services.config import create_line as _create_line
+
+    pivot_record = _create_line(
+        config_model,
+        selected_model.value[0],
+        dumps(
+            {
+                "from": selected_model.value[0],
+                "index": pivot_index.value,
+                "column": pivot_column.value,
+                "measure": pivot_measure.value,
+                "aggregation": pivot_aggregation.value,
+                "monthly": bool(pivot_monthly.value),
+            }
+        ),
+        "pivot",
+        name=pivot_name.value,
+        panel_id=(
+            panel_name_to_id.get(panel_selector.value[0])
+            if panel_selector.value
+            else None
+        ),
+    )
+    pivot_message = "Successfully stored pivot. Visit KPI's section to see it !"
+    callout_type = "success"
+    if not pivot_record:
+        pivot_message = "Couldn't store pivot, please try again later."
+        callout_type = "error"
+
+    mo.md(pivot_message).callout(kind=callout_type)
     return
 
 

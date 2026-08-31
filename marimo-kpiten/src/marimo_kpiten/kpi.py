@@ -58,6 +58,7 @@ def other_deps():
         card_case,
         dataframe_case,
         graph_case,
+        pivot_case,
         union_case,
         union_old_case,
     )
@@ -71,6 +72,7 @@ def other_deps():
         card_case,
         dataframe_case,
         graph_case,
+        pivot_case,
         union_case,
         union_old_case,
         process_dt_predicate,
@@ -94,9 +96,9 @@ def display_headers(
     panel_ui = mo.vstack([mo.md("Panel"), panel_select]).style(
         {"max-width": "fit-content", "color": "white"}
     )
-    dim_ui = mo.vstack(
-        [mo.md("Dimension"), mo.hstack([dim_col, dim_vals])]
-    ).style({"max-width": "fit-content", "color": "white"})
+    dim_ui = mo.vstack([mo.md("Dimension"), mo.hstack([dim_col, dim_vals])]).style(
+        {"max-width": "fit-content", "color": "white"}
+    )
     opt_items = [opts] if show_opts.value else []
     mo.hstack(
         [
@@ -256,9 +258,7 @@ def dim_col_widget(dim_cols, mo):
 def dim_vals_widget(df_store, dim_col, dimension_values, mo):
     col = dim_col.value[0] if dim_col.value else None
     vals = (
-        dimension_values(
-            [meta["df"] for meta in df_store.retrieve_all_dfs()], col
-        )
+        dimension_values([meta["df"] for meta in df_store.retrieve_all_dfs()], col)
         if col
         else []
     )
@@ -384,6 +384,7 @@ def compute_kpiten_line(
     card_case,
     dataframe_case,
     graph_case,
+    pivot_case,
     union_case,
     union_old_case,
 ):
@@ -418,6 +419,13 @@ def compute_kpiten_line(
                     exec_context_list=exec_context_list,
                     full_predicates=full_predicates,
                 )
+            elif transform["kind"] == "pivot":
+                pivot_case(
+                    used_df=used_df,
+                    transform=transform,
+                    exec_context_list=exec_context_list,
+                    full_predicates=full_predicates,
+                )
             elif transform["kind"] == "union_old":
                 union_old_case(
                     transform=transform,
@@ -447,6 +455,7 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
         data_block,
         graph_block,
         layout_blocks,
+        pivot_block,
         union_block,
         union_old_block,
     )
@@ -472,6 +481,8 @@ def exec_kpiten_lines(exec_context_list, layout_select, render_opt_select, mo):
                     ctx_blocks.append(union_block(ctx, mo))
                 case "union_old":
                     ctx_blocks.append(union_old_block(ctx, mo))
+                case "pivot":
+                    ctx_blocks.append(pivot_block(ctx, mo))
                 case "graph":
                     ctx_blocks.append(graph_block(ctx, mo))
         groups.append(mo.vstack(ctx_blocks, gap="0.5rem"))
