@@ -1,5 +1,6 @@
 import logging
 
+from marimo_kpiten.services.i18n import t
 from marimo_kpiten.services.sandbox import run
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,7 @@ def data_block(ctx, data_t_width, render_opt, mo):
     except Exception:
         result_df = None
     if result_df is None:
-        table = mo.md(f"**Error**  {ctx['editor'].value}").callout("warn")
+        table = mo.md(f"**{t('Error')}**  {ctx['editor'].value}").callout("warn")
     else:
         table = mo.ui.table(result_df)
         if render_opt == "Reporting":

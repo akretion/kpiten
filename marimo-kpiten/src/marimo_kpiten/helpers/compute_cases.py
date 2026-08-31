@@ -9,6 +9,7 @@ import polars as pl
 import marimo as mo
 from marimo_kpiten.services.serial import loads
 from marimo_kpiten.helpers.pivot_suggest import apply_monthly, is_date
+from marimo_kpiten.services.i18n import t
 import plotly.express as px
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ def _delete_button(on_click):
     if not on_click:
         return None
     return mo.ui.button(
-        kind="danger", label="🗑️", tooltip="Supprimer", on_click=on_click
+        kind="danger", label="🗑️", tooltip=t("Supprimer"), on_click=on_click
     )
 
 

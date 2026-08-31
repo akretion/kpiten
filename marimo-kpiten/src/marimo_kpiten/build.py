@@ -18,14 +18,16 @@ def _():
 @app.cell
 def navigation(mo):
     from marimo_kpiten.helpers.ui import nav_menu
+    from marimo_kpiten.services.i18n import t as _t
 
-    build_nav = nav_menu("/kpi", "KPI")
+    build_nav = nav_menu("/kpi", _t("KPI"))
     return build_nav
 
 
 @app.cell(hide_code=True)
 def _(mo):
     from marimo_kpiten.services.df_storage import DFStorage
+    from marimo_kpiten.services.i18n import t as _t
 
     df_store = DFStorage()
 
@@ -34,8 +36,9 @@ def _(mo):
 
     if not tables:
         no_data_found_callout = mo.callout(
-            "There isn't any data to work on. "
-            + "Create a valid 'kpiten.config' record in Odoo.",
+            _t(
+                "There isn't any data to work on. Create a valid 'kpiten.config' record in Odoo."
+            ),
             kind="warn",
         )
 
@@ -74,6 +77,7 @@ def panel_selection(mo):
     from marimo_kpiten.common import _get_panel_model
     from marimo_kpiten.helpers.ui import select as _select
     from marimo_kpiten.services.config import load_panels
+    from marimo_kpiten.services.i18n import t as _t
 
     panel_name_to_id = {}
     panels = []
@@ -86,7 +90,7 @@ def panel_selection(mo):
         [d["name"] for d in panels],
         value=[panels[0]["name"]] if panels else None,
     )
-    panel_ui = mo.vstack([mo.md("Panel"), panel_selector]).style(
+    panel_ui = mo.vstack([mo.md(_t("Panel")), panel_selector]).style(
         {"max-width": "fit-content", "color": "white"}
     )
     return panel_selector, panel_name_to_id, panel_ui
@@ -94,9 +98,11 @@ def panel_selection(mo):
 
 @app.cell
 def display_header(panel_ui, mo: marimo, stn_ui, build_nav, ts_ui):
+    from marimo_kpiten.services.i18n import t as _t
+
     mo.hstack(
         [
-            mo.hstack([mo.md("## Build • "), stn_ui, ts_ui, panel_ui]).style(
+            mo.hstack([mo.md(f"## {_t('Build')} • "), stn_ui, ts_ui, panel_ui]).style(
                 {"max-width": "fit-content"}
             ),
             mo.hstack([build_nav]).style({"max-width": "fit-content"}),
@@ -108,10 +114,12 @@ def display_header(panel_ui, mo: marimo, stn_ui, build_nav, ts_ui):
 @app.cell
 def select_transformation_to_make(mo: marimo):
     from marimo_kpiten.helpers.ui import select as _select
+    from marimo_kpiten.services.i18n import t as _t, tr_options as _tr
 
-    transformation_selector_label = mo.md("What to build ?")
+    transformation_selector_label = mo.md(_t("What to build ?"))
     transformation_selector = _select(
-        ["graph", "dataframe", "card", "union", "pivot"], ["dataframe"]
+        _tr(["graph", "dataframe", "card", "union", "pivot"]),
+        ["dataframe"],
     )
 
     ts_ui = mo.vstack([transformation_selector_label, transformation_selector]).style(
@@ -123,8 +131,9 @@ def select_transformation_to_make(mo: marimo):
 @app.cell
 def select_df_to_build(mo: marimo, tables):
     from marimo_kpiten.helpers.ui import select as _select
+    from marimo_kpiten.services.i18n import t as _t
 
-    selected_model_label = mo.md("Select a model")
+    selected_model_label = mo.md(_t("Select a model"))
     selected_model = _select(tables)
 
     stn_ui = mo.vstack([selected_model_label, selected_model]).style(
@@ -135,9 +144,11 @@ def select_df_to_build(mo: marimo, tables):
 
 @app.cell
 def display_selected_table(df_store, mo, selected_model):
-    page_title = mo.md("# Create KPIs")
-    display_title = mo.md("## No table selected")
-    build_df = mo.md("> Select a table to start building KPIs.")
+    from marimo_kpiten.services.i18n import t as _t
+
+    page_title = mo.md("# " + _t("Create KPIs"))
+    display_title = mo.md("## " + _t("No table selected"))
+    build_df = mo.md("> " + _t("Select a table to start building KPIs."))
     d = None
     if len(selected_model.value) >= 1:
         sanitized_tbn = selected_model.value[0].replace(".", " ").capitalize()
@@ -163,13 +174,15 @@ def code_input(d, mo: marimo, transformation_selector):
     ---
     Affiche la zone de texte appelée "Paste code"
     """
+    from marimo_kpiten.services.i18n import t as _t
+
     mo.stop(transformation_selector.value[0] != "dataframe")
     mo.stop(type(d) is type(None))
     python_text = mo.ui.code_editor(language="python")
-    df_name = mo.ui.text(placeholder="My Kpi")
+    df_name = mo.ui.text(placeholder=_t("My Kpi"))
     mo.vstack(
         [
-            mo.md("## Paste Code").style({"color": "white"}),
+            mo.md("## " + _t("Paste Code")).style({"color": "white"}),
             python_text,
             df_name,
         ]
@@ -184,9 +197,11 @@ def save_code_input(d, mo, transformation_selector):
     ---
     Affiche le bouton "Save to Kpiten"
     """
+    from marimo_kpiten.services.i18n import t as _t
+
     mo.stop(transformation_selector.value[0] != "dataframe")
     mo.stop(type(d) is type(None))
-    save = mo.ui.run_button(label="Save code to Kpiten")
+    save = mo.ui.run_button(label=_t("Save code to Kpiten"))
     save
     return (save,)
 
@@ -211,11 +226,17 @@ def store_df_code(
     mo.stop(transformation_selector.value[0] != "dataframe")
     mo.stop(not python_text.value or not save.value or len(selected_model.value) < 1)
     from marimo_kpiten.services.config import create_line as _create_line
+    from marimo_kpiten.services.i18n import t as _t
 
-    storedf_message = f"Successfully stored dataframe. Visit KPI's **{selected_model.value[0]}** section to see it !"
+    storedf_message = _t(
+        "Successfully stored dataframe. Visit KPI's **{table}** section to see it !",
+        table=selected_model.value[0],
+    )
     storedf_kind = "success"
     if not python_text.value or python_text.value == "":
-        storedf_message = f'Please fill in the "**Paste code**" field with python code from dataframe transformation.'
+        storedf_message = _t(
+            'Please fill in the "**Paste code**" field with python code from dataframe transformation.'
+        )
         storedf_kind = "warn"
     record = _create_line(
         config_model,
@@ -230,7 +251,7 @@ def store_df_code(
         ),
     )
     if not record:
-        storedf_message = f"An error occured, please try again."
+        storedf_message = _t("An error occured, please try again.")
         storedf_kind = "error"
     mo.md(storedf_message).callout(kind=storedf_kind)
     return
@@ -249,6 +270,7 @@ def build_graph_form(d, mo: marimo, sanitized_tbn, transformation_selector):
         suggest_x,
         suggest_y,
     )
+    from marimo_kpiten.services.i18n import t as _t
 
     roles = classify_columns(d)
     x_options = roles["date"] + roles["dimension"]
@@ -259,7 +281,9 @@ def build_graph_form(d, mo: marimo, sanitized_tbn, transformation_selector):
     type_of_graph_select = mo.ui.dropdown(
         options=["bar", "point", "area"], value=suggest_graph_type(d, sx)
     )
-    name_input = mo.ui.text(placeholder="Graph's name...", value=suggest_name(sx, sy))
+    name_input = mo.ui.text(
+        placeholder=_t("Graph's name..."), value=suggest_name(sx, sy)
+    )
     column_x_select = mo.ui.dropdown(options=x_options, value=sx)
     column_x_aggregation = mo.ui.dropdown(
         options=["none", "count", "sum"], value="none"
@@ -270,7 +294,7 @@ def build_graph_form(d, mo: marimo, sanitized_tbn, transformation_selector):
         value=suggest_aggregation(d, sy) if sy else "count",
     )
 
-    create_button = mo.ui.run_button(kind="neutral", label="Create")
+    create_button = mo.ui.run_button(kind="neutral", label=_t("Create"))
 
     form = {
         "label": name_input,
@@ -325,12 +349,11 @@ def graph_preview(
 
     import plotly.express as px
     import polars as pl
+    from marimo_kpiten.services.i18n import t as _t
 
     x = column_x_select.value
     y = column_y_select.value
-    output = mo.md(
-        "Choisis une colonne X et une colonne Y pour voir l'aperçu."
-    ).callout("info")
+    output = mo.md(_t("Choose an X and a Y column to see the preview.")).callout("info")
     if x and y:
 
         def _agg(source, group_col, agg_col, agg_fn):
@@ -371,6 +394,7 @@ def save_graph_form_data(
     mo.stop(not create_button.value)
 
     from marimo_kpiten.services.config import create_line as _create_line
+    from marimo_kpiten.services.i18n import t as _t
 
     form_record = _create_line(
         config_model,
@@ -397,10 +421,13 @@ def save_graph_form_data(
             else None
         ),
     )
-    message = f"Successfully stored graph. Visit KPI's **{selected_model.value[0]}** section to see it !"
+    message = _t(
+        "Successfully stored graph. Visit KPI's **{table}** section to see it !",
+        table=selected_model.value[0],
+    )
     callout_kind = "success"
     if not form_record:
-        message = "Couldn't store graph, please try again later."
+        message = _t("Couldn't store graph, please try again later.")
         callout_kind = "error"
 
     mo.md(
@@ -411,19 +438,21 @@ def save_graph_form_data(
 
 @app.cell
 def build_card(d, mo, sanitized_tbn, transformation_selector):
+    from marimo_kpiten.services.i18n import t as _t
+
     mo.stop(transformation_selector.value[0] != "card")
     mo.stop(type(d) is type(None))
     card_cell_title = mo.md(f"## Build a card from **{sanitized_tbn}**")
     card_cell_desc = mo.md(
-        "> You provide an SQL query that generates an interesting number / short "
-        "information about your company, and the result will be displayed as a "
-        "KPI Card in the `KPI` section."
+        _t(
+            "> You provide an SQL query that generates an interesting number / short information about your company, and the result will be displayed as a KPI Card in the `KPI` section."
+        )
     )
-    card_name = mo.ui.text(placeholder="Name")
+    card_name = mo.ui.text(placeholder=_t("Name"))
     card_sql = mo.ui.code_editor(
         placeholder="state IN ('draft', 'sent')", language="sql"
     )
-    save_card_btn = mo.ui.run_button(kind="neutral", label="Save")
+    save_card_btn = mo.ui.run_button(kind="neutral", label=_t("Save"))
 
     mo.vstack([card_cell_title, card_cell_desc, card_name, card_sql, save_card_btn])
     return card_name, card_sql, save_card_btn
@@ -447,6 +476,7 @@ def save_card(
     mo.stop(not save_card_btn.value)
 
     from marimo_kpiten.services.config import create_line as _create_line
+    from marimo_kpiten.services.i18n import t as _t
 
     card_record = _create_line(
         config_model,
@@ -466,10 +496,13 @@ def save_card(
         ),
     )
 
-    save_card_message = f"Successfully stored card. Visit the **{sanitized_tbn}** section in `KPI` to see it !"
+    save_card_message = _t(
+        "Successfully stored card. Visit the **{table}** section in `KPI` to see it !",
+        table=sanitized_tbn,
+    )
     save_card_kind = "success"
     if not card_record:
-        save_card_message = "Couldn't store card, please try again later."
+        save_card_message = _t("Couldn't store card, please try again later.")
         save_card_kind = "error"
     mo.md(save_card_message).callout(kind=save_card_kind)
     return
@@ -478,11 +511,14 @@ def save_card(
 @app.cell
 def union_tables_selectors(mo: marimo, transformation_selector, tables, sanitized_tbn):
     from marimo_kpiten.helpers.ui import select as _select
+    from marimo_kpiten.services.i18n import t as _t
 
     mo.stop(transformation_selector.value[0] != "union")
 
-    union_name = mo.ui.text(placeholder="Union name")
-    table2_sel_label = mo.md(f"Table 2 (to make an union with {sanitized_tbn})")
+    union_name = mo.ui.text(placeholder=_t("Union name"))
+    table2_sel_label = mo.md(
+        _t("Table 2 (to make an union with {table})", table=sanitized_tbn)
+    )
     table2_selector = _select(tables)
     mo.hstack(
         [
@@ -504,6 +540,8 @@ def union_columns_selectors(
     df_store: DFStorage,
     sanitized_tbn,
 ):
+    from marimo_kpiten.services.i18n import t as _t
+
     mo.stop(transformation_selector.value[0] != "union")
     mo.stop(len(table2_selector.value) == 0)
 
@@ -515,13 +553,13 @@ def union_columns_selectors(
         [
             mo.vstack(
                 [
-                    mo.md(f"Cols of {sanitized_tbn}"),
+                    mo.md(_t("Cols of {table}", table=sanitized_tbn)),
                     selected_df_ucols_selector,
                 ]
             ).style({"color": "white"}),
             mo.vstack(
                 [
-                    mo.md(f"Cols of {table2_selector.value[0]}"),
+                    mo.md(_t("Cols of {table}", table=table2_selector.value[0])),
                     union_df_cols_selector,
                 ]
             ).style({"color": "white"}),
@@ -537,17 +575,19 @@ def show_ucolumn_types(
     transformation_selector,
     union_df_cols_selector,
 ):
+    from marimo_kpiten.services.i18n import t as _t
+
     mo.stop(transformation_selector.value[0] != "union")
     mo.stop(
         len(union_df_cols_selector.value) == 0
         or len(selected_df_ucols_selector.value) == 0
     )
 
-    save_union_button = mo.ui.run_button(label="Save")
+    save_union_button = mo.ui.run_button(label=_t("Save"))
     mo.hstack(
         [
-            mo.vstack([mo.md("Base cols"), selected_df_ucols_selector.value]),
-            mo.vstack([mo.md("Union cols"), union_df_cols_selector.value]),
+            mo.vstack([mo.md(_t("Base cols")), selected_df_ucols_selector.value]),
+            mo.vstack([mo.md(_t("Union cols")), union_df_cols_selector.value]),
             save_union_button,
         ]
     ).style({"color": "white"})
@@ -571,6 +611,7 @@ def save_union(
     panel_selector,
 ):
     from marimo_kpiten.services.config import create_line as _create_line
+    from marimo_kpiten.services.i18n import t as _t
 
     mo.stop(transformation_selector.value[0] != "union")
     mo.stop(not save_union_button.value)
@@ -596,10 +637,13 @@ def save_union(
         ),
     )
 
-    union_message = f"Successfully stored union. Visit the **{sanitized_tbn}** section in `KPI` to see it !"
+    union_message = _t(
+        "Successfully stored union. Visit the **{table}** section in `KPI` to see it !",
+        table=sanitized_tbn,
+    )
     union_kind = "success"
     if not union_record:
-        union_message = "Couldn't store union, please try again later."
+        union_message = _t("Couldn't store union, please try again later.")
         union_kind = "error"
     mo.md(union_message).callout(kind=union_kind)
     return
@@ -607,6 +651,8 @@ def save_union(
 
 @app.cell
 def build_pivot_form(d, mo, sanitized_tbn, transformation_selector):
+    from marimo_kpiten.services.i18n import t as _t
+
     mo.stop(transformation_selector.value[0] != "pivot")
     mo.stop(type(d) is type(None))
 
@@ -620,7 +666,7 @@ def build_pivot_form(d, mo, sanitized_tbn, transformation_selector):
     pivot_measures = pivot_role_map["measure"]
     pivot_defaults = suggest_pivot(d)
 
-    pivot_name = mo.ui.text(placeholder="Pivot's name...", value="Pivot")
+    pivot_name = mo.ui.text(placeholder=_t("Pivot's name..."), value="Pivot")
     pivot_index = mo.ui.dropdown(options=pivot_axis, value=pivot_defaults["index"])
     pivot_column = mo.ui.dropdown(options=pivot_axis, value=pivot_defaults["column"])
     pivot_measure = mo.ui.dropdown(
@@ -629,16 +675,18 @@ def build_pivot_form(d, mo, sanitized_tbn, transformation_selector):
     pivot_aggregation = mo.ui.dropdown(
         options=["sum", "mean", "count", "min", "max"], value="sum"
     )
-    pivot_monthly = mo.ui.switch(value=True, label="Group dates by month")
-    pivot_create = mo.ui.run_button(kind="neutral", label="Create")
+    pivot_monthly = mo.ui.switch(value=True, label=_t("Group dates by month"))
+    pivot_create = mo.ui.run_button(kind="neutral", label=_t("Create"))
 
     mo.vstack(
         [
             mo.md(f"## Build a pivot from **{sanitized_tbn}**"),
-            mo.vstack([mo.md("Rows (index)"), pivot_index]).style({"color": "white"}),
-            mo.vstack([mo.md("Columns"), pivot_column]).style({"color": "white"}),
-            mo.vstack([mo.md("Measure"), pivot_measure]).style({"color": "white"}),
-            mo.vstack([mo.md("Aggregation"), pivot_aggregation]).style(
+            mo.vstack([mo.md(_t("Rows (index)")), pivot_index]).style(
+                {"color": "white"}
+            ),
+            mo.vstack([mo.md(_t("Columns")), pivot_column]).style({"color": "white"}),
+            mo.vstack([mo.md(_t("Measure")), pivot_measure]).style({"color": "white"}),
+            mo.vstack([mo.md(_t("Aggregation")), pivot_aggregation]).style(
                 {"color": "white"}
             ),
             pivot_monthly,
@@ -668,6 +716,8 @@ def pivot_preview(
     pivot_monthly,
     transformation_selector,
 ):
+    from marimo_kpiten.services.i18n import t as _t
+
     mo.stop(transformation_selector.value[0] != "pivot")
     mo.stop(type(d) is type(None))
 
@@ -678,7 +728,7 @@ def pivot_preview(
     measure = pivot_measure.value
 
     pivot_output = mo.md(
-        "Choisis un index, une colonne et une mesure pour voir l'aperçu."
+        _t("Choose an index, a column and a measure to see the preview.")
     ).callout("info")
     if index and measure:
         pivot_src = d.limit(500)
@@ -718,6 +768,7 @@ def save_pivot(
     mo.stop(not pivot_create.value)
 
     from marimo_kpiten.services.config import create_line as _create_line
+    from marimo_kpiten.services.i18n import t as _t
 
     pivot_record = _create_line(
         config_model,
@@ -740,10 +791,10 @@ def save_pivot(
             else None
         ),
     )
-    pivot_message = "Successfully stored pivot. Visit KPI's section to see it !"
+    pivot_message = _t("Successfully stored pivot. Visit KPI's section to see it !")
     callout_type = "success"
     if not pivot_record:
-        pivot_message = "Couldn't store pivot, please try again later."
+        pivot_message = _t("Couldn't store pivot, please try again later.")
         callout_type = "error"
 
     mo.md(pivot_message).callout(kind=callout_type)

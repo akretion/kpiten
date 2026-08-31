@@ -1,5 +1,7 @@
 import polars as pl
 
+from marimo_kpiten.services.i18n import t
+
 MAX_DIM_DISTINCT = 50
 
 _NUMERIC = (
@@ -65,4 +67,4 @@ def suggest_graph_type(df: pl.DataFrame, x_column: str) -> str:
 def suggest_name(x_column: str | None, y_column: str | None) -> str:
     if not x_column or not y_column:
         return ""
-    return f"Total {y_column} by {x_column}"
+    return t("Total {y} by {x}", y=y_column, x=x_column)

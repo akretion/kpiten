@@ -14,31 +14,34 @@ def page_title(mo):
 @app.cell
 def navigation(mo):
     from marimo_kpiten.helpers.ui import nav_menu
+    from marimo_kpiten.services.i18n import t as _t
 
-    mo_nav_menu = nav_menu("/build", "New")
+    mo_nav_menu = nav_menu("/build", _t("New"))
     return mo_nav_menu
 
 
 @app.cell
 def display_selectors(date_select, date_range, layout_select, render_opt_select, mo):
-    core = mo.hstack(
+    from marimo_kpiten.services.i18n import t as _t
+
+    core = mo.vstack(
         [
-            mo.vstack([mo.md("Period"), date_select.style({"color": "white"})]).style(
-                {"max-width": "fit-content", "color": "white"}
-            ),
-            mo.vstack([mo.md("Dates"), date_range]).style(
+            mo.vstack(
+                [mo.md(_t("Period")), date_select.style({"color": "white"})]
+            ).style({"max-width": "fit-content", "color": "white"}),
+            mo.vstack([date_range]).style(
                 {"max-width": "fit-content", "color": "white"}
             ),
         ],
-        justify="start",
+        gap="0.25rem",
     ).style({"color-scheme": "dark"})
     opts = mo.hstack(
         [
-            mo.vstack([mo.md("Layout"), layout_select.style({"color": "white"})]).style(
-                {"max-width": "fit-content", "color": "white"}
-            ),
             mo.vstack(
-                [mo.md("Display"), render_opt_select.style({"color": "white"})]
+                [mo.md(_t("Layout")), layout_select.style({"color": "white"})]
+            ).style({"max-width": "fit-content", "color": "white"}),
+            mo.vstack(
+                [mo.md(_t("Display")), render_opt_select.style({"color": "white"})]
             ).style({"max-width": "fit-content", "color": "white"}),
         ],
         justify="start",
@@ -93,10 +96,12 @@ def display_headers(
     show_opts,
     title_md,
 ):
-    panel_ui = mo.vstack([mo.md("Panel"), panel_select]).style(
+    from marimo_kpiten.services.i18n import t as _t
+
+    panel_ui = mo.vstack([mo.md(_t("Panel")), panel_select]).style(
         {"max-width": "fit-content", "color": "white"}
     )
-    dim_ui = mo.vstack([mo.md("Dimension"), mo.hstack([dim_col, dim_vals])]).style(
+    dim_ui = mo.vstack([mo.md(_t("Dimension")), mo.hstack([dim_col, dim_vals])]).style(
         {"max-width": "fit-content", "color": "white"}
     )
     opt_items = [opts] if show_opts.value else []
@@ -114,6 +119,7 @@ def display_headers(
 def _():
     import marimo as mo
     from marimo_kpiten.services.df_storage import DFStorage
+    from marimo_kpiten.services.i18n import t as _t
 
     df_store = DFStorage()
 
@@ -123,9 +129,9 @@ def _():
     no_data_found_callout = None
     if not table_names:
         no_data_found_callout = mo.md(
-            "There is **no transformations**, nor any **tables** in general to work on. Try to visit `'/'`,"
-            + "then `/build` to verify if any tables exist. Then, you can create transformations, "
-            + "and they'll be here !"
+            _t(
+                "No data available. Visit '/' then /build to create tables and transformations."
+            )
         ).callout("warn")
     return df_store, mo, no_data_found_callout
 
@@ -140,10 +146,15 @@ def app_style():
 
 @app.cell
 def fallback_page(exec_context_list, mo):
+    from marimo_kpiten.services.i18n import t as _t
+
     mo.stop(len(exec_context_list) >= 1)
     mo.md(
-        "## That's where your transformations will be\n"
-        "> Make transformations via the `build` page, then go right back here."
+        "## "
+        + _t("That's where your transformations will be")
+        + "\n"
+        + "> "
+        + _t("Make transformations via the build page, then go right back here.")
     )
     return
 
@@ -170,16 +181,18 @@ def _get_config_model():
 @app.cell
 def layout_selection(mo):
     from marimo_kpiten.helpers.ui import select as _select
+    from marimo_kpiten.services.i18n import tr_options as _tr
 
-    layout_select = _select(["Serial", "2 columns when possible"], ["Serial"])
+    layout_select = _select(_tr(["Serial", "2 columns when possible"]), ["Serial"])
     return layout_select
 
 
 @app.cell
 def render_engine_selection(mo):
     from marimo_kpiten.helpers.ui import select as _select
+    from marimo_kpiten.services.i18n import tr_options as _tr
 
-    render_opt_select = _select(["Reporting", "Exploration"], ["Exploration"])
+    render_opt_select = _select(_tr(["Reporting", "Exploration"]), ["Exploration"])
     return render_opt_select
 
 
@@ -196,6 +209,7 @@ def date_state(mo):
 @app.cell
 def period_select_widget(bounds_for_option, mo, period, set_daterange, set_period):
     from marimo_kpiten.helpers.ui import select as _select
+    from marimo_kpiten.services.i18n import tr_options as _tr
 
     date_options = [
         "today only",
@@ -215,7 +229,7 @@ def period_select_widget(bounds_for_option, mo, period, set_daterange, set_perio
             if bounds:
                 set_daterange(bounds)
 
-    date_select = _select(date_options, period(), on_change=on_period_change)
+    date_select = _select(_tr(date_options), period(), on_change=on_period_change)
 
     return date_select
 
