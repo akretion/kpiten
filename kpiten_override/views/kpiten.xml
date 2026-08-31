@@ -7,6 +7,7 @@
                 <list>
                     <field name="definition" />
                     <field name="kind" />
+                    <field name="name" />
                     <field name="group_ids" widget="many2many_tags" />
                     <field name="active" widget="boolean_toggle" />
                 </list>
