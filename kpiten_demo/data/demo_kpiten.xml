@@ -11,7 +11,7 @@
         <field name="name">Sales Orders count</field>
         <field name="sequence">1</field>
         <field name="panel_id" ref="panel_sale" />
-        <field name="definition">{"where": "state not in ('draft', 'sent')"}</field>
+        <field name="definition">where = "state not in ('draft', 'sent')"</field>
     </record>
 
     <record id="vendor_sum_graph" model="kpiten.config.line">
@@ -20,7 +20,15 @@
         <field name="name">Best vendors</field>
         <field name="panel_id" ref="panel_sale" />
         <field name="sequence">2</field>
-        <field name="definition">{"graph_type": "bar", "from": "sale.order", "x": {"name": "user_id.name", "aggregation": "none"}, "y": {"name": "amount_total", "aggregation": "sum"}}</field>
+        <field name="definition">graph_type = "bar"
+from = "sale.order"
+[x]
+name = "user_id.name"
+aggregation = "none"
+[y]
+name = "amount_untaxed"
+aggregation = "sum"
+</field>
     </record>
 
     <record id="ammount_untaxed_df" model="kpiten.config.line">
@@ -39,7 +47,14 @@ d_next = d_next.select([pl.col("amount_untaxed").sum().alias("amount_untaxed_sum
         <field name="name">Union sales et puchases</field>
         <field name="panel_id" ref="panel_sale" />
         <field name="sequence">6</field>
-        <field name="definition">{"union_model": "purchase.order", "mapping": {"sale.order": {"name": "name", "amount_untaxed": "amount_untaxed"}, "purchase.order": {"name": "name", "amount_untaxed": "amount_untaxed"}}}</field>
+        <field name="definition">union_model = "purchase.order"
+[mapping."sale.order"]
+name = "name"
+amount_untaxed = "amount_untaxed"
+[mapping."purchase.order"]
+name = "name"
+amount_untaxed = "amount_untaxed"
+</field>
     </record>
 
     <record id="kpiten_purchases" model="kpiten.config">

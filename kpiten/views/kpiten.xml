@@ -42,13 +42,21 @@
                             </kanban>
                             <form>
                                 <group>
-                                    <field name="definition" widget="ace" options="{'mode': 'python'}" />
-                                    <field name="name" />
-                                    <field name="kind" widget="radio" />
-                                    <field name="panel_id" />
-                                    <field name="group_ids" widget="many2many_tags" />
-                                    <field name="user_id" />
-                                    <field name="active" widget="boolean_toggle" />
+                                    <group colspan="2">
+                                        <field name="definition" widget="ace" options="{'mode': 'python'}" />
+                                    </group>
+                                    <group>
+                                        <group>
+                                            <field name="kind" widget="radio" />
+                                        </group>
+                                        <group>
+                                            <field name="name" />
+                                            <field name="panel_id" />
+                                            <field name="group_ids" widget="many2many_tags" />
+                                            <field name="user_id" />
+                                            <field name="active" widget="boolean_toggle" />
+                                        </group>
+                                    </group>
                                 </group>
                             </form>
                         </field>

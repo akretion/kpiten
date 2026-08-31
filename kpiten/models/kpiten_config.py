@@ -75,6 +75,7 @@ class KpitenConfigLine(models.Model):
             ("card", "Card"),
             ("union", "Union"),
             ("union_old", "Union Old"),
+            ("pivot", "Pivot"),
         ],
         default="data",
         help="Representation type",

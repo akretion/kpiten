@@ -10,6 +10,7 @@
         "sale_management",
         "purchase",
         "stock",
+        "l10n_fr_account",
     ],
     "data": [
         "security/ir.model.access.csv",
