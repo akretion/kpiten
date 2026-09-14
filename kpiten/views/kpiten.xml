@@ -1,0 +1,160 @@
+<odoo>
+    <record id="kpiten_form" model="ir.ui.view">
+        <field name="model">kt.dataset</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field
+                        name="state"
+                        widget="statusbar"
+                        statusbar_visible="draft,validated"
+                    />
+                </header>
+                <sheet>
+                    <group name="main">
+                        <group name="left">
+                            <field name="model_id" />
+                            <field name="name" />
+                        </group>
+                        <group name="right">
+                            <field name="group_ids" widget="many2many_tags" />
+                            <field
+                                name="company_id"
+                                groups="base.group_multi_company"
+                            />
+                        </group>
+                    </group>
+                    <group colspan="1">
+                        <field name="line_ids" nolabel="1">
+                            <kanban>
+                                <templates>
+                                    <t t-name="card">
+                                        <field name="name" />
+                                        <field name="kind" />
+                                        <field name="active" optional="hide" />
+                                        <field
+                                            name="group_ids"
+                                            widget="many2many_tags"
+                                        />
+                                    </t>
+                                </templates>
+                            </kanban>
+                            <form>
+                                <group>
+                                    <group colspan="2">
+                                        <field name="definition" widget="ace" options="{'mode': 'python'}" />
+                                    </group>
+                                    <group>
+                                        <group>
+                                            <field name="kind" widget="radio" />
+                                            <field name="group_ids" widget="many2many_tags" />
+                                            <field name="user_id" />
+                                        </group>
+                                        <group>
+                                            <field name="name" />
+                                            <field name="panel_id" />
+                                            <field name="col_span" />
+                                            <field name="tile_height" />
+                                            <field name="active" widget="boolean_toggle" />
+                                        </group>
+                                    </group>
+                                </group>
+                            </form>
+                        </field>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="kpiten_kanban" model="ir.ui.view">
+        <field name="model">kt.dataset</field>
+        <field name="arch" type="xml">
+            <kanban>
+                <templates>
+                    <t t-name="card">
+                        <h4>
+                            <field name="model_id" />
+                        </h4>
+                        <field name="name" />
+                        <field name="sequence" widget="handle" />
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="kpiten_search" model="ir.ui.view">
+        <field name="model">kt.dataset</field>
+        <field name="arch" type="xml">
+            <search>
+                <filter name="name" />
+            </search>
+        </field>
+    </record>
+
+    <menuitem
+        id="kpiten_app"
+        name="KpiTen"
+        web_icon="kpiten,static/description/icon.png"
+        sequence="50"
+    />
+
+    <record id="kpiten_action" model="ir.actions.act_window">
+        <field name="name">Datasets</field>
+        <field name="res_model">kt.dataset</field>
+        <field name="view_mode">kanban,form</field>
+    </record>
+
+    <menuitem
+        id="kpiten_menu"
+        parent="kpiten_app"
+        sequence="10"
+        action="kpiten_action"
+    />
+
+    <record id="action_redirect_to_kpiten" model="ir.actions.server">
+        <field name="name">KPIten Editor 🡥</field>
+        <field name="model_id" ref="model_kt" />
+        <field name="state">code</field>
+        <field name="code">action = model.action_redirect_to_kpiten(application="marimo")</field>
+    </record>
+
+    <!-- explicit link per application (menu names = app names) -->
+    <record id="action_redirect_to_shiny" model="ir.actions.server">
+        <field name="name">Shiny 🡥</field>
+        <field name="model_id" ref="model_kt" />
+        <field name="state">code</field>
+        <field name="code">action = model.action_redirect_to_kpiten(application="shiny")</field>
+    </record>
+
+    <record id="action_redirect_to_nicegui" model="ir.actions.server">
+        <field name="name">NiceGUI 🡥</field>
+        <field name="model_id" ref="model_kt" />
+        <field name="state">code</field>
+        <field name="code">action = model.action_redirect_to_kpiten(application="nicegui")</field>
+    </record>
+
+    <menuitem
+        id="menu_kpiten_redirect"
+        parent="kpiten_app"
+        sequence="99"
+        action="action_redirect_to_kpiten"
+    />
+
+    <menuitem
+        id="menu_shiny_redirect"
+        parent="kpiten_app"
+        name="Shiny"
+        sequence="95"
+        action="action_redirect_to_shiny"
+    />
+
+    <menuitem
+        id="menu_nicegui_redirect"
+        parent="kpiten_app"
+        name="NiceGUI"
+        sequence="96"
+        action="action_redirect_to_nicegui"
+    />
+</odoo>

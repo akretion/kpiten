@@ -1,0 +1,223 @@
+import logging
+import tomllib
+
+from odoo import _, api, exceptions, fields, models
+
+logger = logging.getLogger(__name__)
+
+# TODO remove
+EXCLUDED_TYPES = [
+    "many2many",
+    "one2many",
+    "properties",
+    "properties_definition",
+    "binary",
+]
+
+
+class KtDataset(models.Model):
+    _name = "kt.dataset"
+    _description = "Data source for kpiten"
+    _rec_name = "model_id"
+
+    name = fields.Char(compute="_compute_name", readonly=False)
+    state = fields.Selection(selection=[("draft", "Draft"), ("validated", "Validated")])
+    line_ids = fields.One2many(
+        comodel_name="kt.dataset.line", inverse_name="dataset_id"
+    )
+    model_id = fields.Many2one(
+        comodel_name="ir.model",
+        required=True,
+        ondelete="cascade",
+        help="Main model to produce dataframe",
+    )
+    sequence = fields.Integer()
+    company_id = fields.Many2one(comodel_name="res.company")
+    group_ids = fields.Many2many(comodel_name="res.groups")
+
+    @api.depends("model_id")
+    def _compute_name(self):
+        for rec in self:
+            if rec.model_id:
+                rec.name = rec.model_id.name
+
+    def _sync_auditlog_rule(self):
+        """Subscribe an auditlog rule logging deletions on each dataset model."""
+        if "auditlog.rule" not in self.env:
+            return
+        Rule = self.env["auditlog.rule"]
+        for rec in self:
+            if not rec.model_id:
+                continue
+            rule = Rule.search([("model_id", "=", rec.model_id.id)], limit=1)
+            if not rule:
+                rule = Rule.create(
+                    {
+                        "name": "kpiten deletions",
+                        "model_id": rec.model_id.id,
+                        "log_create": False,
+                        "log_write": False,
+                        "log_read": False,
+                        "log_unlink": True,
+                        "capture_record": False,
+                        "log_type": "fast",
+                    }
+                )
+            if rule.state != "subscribed":
+                rule.subscribe()
+
+    def _unsubscribe_freed_models(self, model_ids):
+        """Drop the audit rule of models no longer used by any dataset."""
+        if not model_ids or "auditlog.rule" not in self.env:
+            return
+        Rule = self.env["auditlog.rule"]
+        for model_id in model_ids:
+            if self.env["kt.dataset"].search([("model_id", "=", model_id)], limit=1):
+                continue
+            rule = Rule.search([("model_id", "=", model_id)], limit=1)
+            if rule:
+                rule.unlink()
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        recs = super().create(vals_list)
+        recs._sync_auditlog_rule()
+        return recs
+
+    def write(self, vals):
+        old_models = {rec.model_id.id for rec in self if rec.model_id}
+        res = super().write(vals)
+        if "model_id" in vals:
+            self._sync_auditlog_rule()
+            self._unsubscribe_freed_models(old_models)
+        return res
+
+    def unlink(self):
+        freed = {rec.model_id.id for rec in self if rec.model_id}
+        res = super().unlink()
+        self._unsubscribe_freed_models(freed)
+        return res
+
+    @api.model
+    def _auditlog_installed_sync(self):
+        """Configure deletion audit rules for all existing dataset models."""
+        self.search([])._sync_auditlog_rule()
+
+    def _register_hook(self):
+        res = super()._register_hook()
+        # Ensure deletion audit rules exist once auditlog is installed.
+        if "auditlog.rule" in self.pool and self.env.registry.ready:
+            try:
+                self._auditlog_installed_sync()
+            except Exception:
+                pass
+        return res
+
+    # TODO remove: replace by get_fields()
+    @api.model
+    def get_stored_fields(self, user_id, model_name, m2o=False):
+        res = (
+            self.env["ir.model.fields"]
+            .with_user(user_id)
+            .search([("model", "=", model_name)])
+            .filtered(lambda s: s.store)
+        )
+        if m2o:
+            res = res.filtered(lambda s: s.ttype == "many2one")
+        else:
+            res = res.filtered(lambda s: s.ttype not in EXCLUDED_TYPES)
+        useless_fields = self.env["kt"].get_useless_fields().get(model_name)
+        if useless_fields:
+            res = res.filtered(lambda s: s.name not in useless_fields)
+        return res
+
+
+class KpitenConfigLine(models.Model):
+    _name = "kt.dataset.line"
+    _description = "Configuration lines for kpiten"
+    _order = "sequence"
+
+    dataset_id = fields.Many2one(comodel_name="kt.dataset", required=True)
+    definition = fields.Text(required=True, help="Store settings for kpi")
+    name = fields.Char()
+    group_ids = fields.Many2many(comodel_name="res.groups")
+    sequence = fields.Integer()
+    kind = fields.Selection(
+        selection=[
+            ("data", "Data"),
+            ("graph", "Graph"),
+            ("card", "Card"),
+            ("union", "Union"),
+            ("pivot", "Pivot"),
+        ],
+        default="data",
+        help="Representation type",
+    )
+    user_id = fields.Many2one(comodel_name="res.users")
+    panel_id = fields.Many2one(comodel_name="kt.panel")
+    # Grid layout of the panel
+    col_span = fields.Integer(
+        default=1,
+        help="Number of grid columns spanned by the tile",
+    )
+    tile_height = fields.Integer(
+        default=260,
+        help="Height of the tile in pixels",
+    )
+    active = fields.Boolean(default=True)
+
+    @api.model
+    def get_conf_id(self, model):
+        model_id = self.env["ir.model"].search([("model", "=", model)])
+        if len(model_id) >= 1:
+            return self.env["kt.dataset"].search([("model_id", "=", model_id.id)]).id
+
+    @api.model
+    def create_tile(
+        self,
+        model: str,
+        definition: str,
+        kind: str,
+        name: str = None,
+        user_id: int = None,
+        panel_id: int = None,
+    ) -> bool:
+        """Create a new tile line for the dataset of `model`."""
+        self._check_definition(definition, kind)
+        res = self.create(
+            {
+                "dataset_id": self.get_conf_id(model),
+                "definition": definition,
+                "name": name,
+                "kind": kind,
+                "user_id": user_id or self.env.user.id,
+                "panel_id": panel_id,
+            }
+        )
+        return bool(res)
+
+    def _check_definition(self, definition: str, kind: str) -> None:
+        """The definition must be valid TOML (polars code for kind=data)."""
+        if kind == "data":
+            return  # definition is polars code, not TOML
+        try:
+            tomllib.loads(definition)
+        except tomllib.TOMLDecodeError as err:
+            raise exceptions.ValidationError(
+                _("Tile definition must be valid TOML :\n%s") % err
+            )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get("definition") and vals.get("kind", "data") != "data":
+                self._check_definition(vals["definition"], vals["kind"])
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if vals.get("definition"):
+            for line in self:
+                kind = vals.get("kind") or line.kind
+                if kind != "data":
+                    self._check_definition(vals["definition"], kind)
+        return super().write(vals)
