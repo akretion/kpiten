@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- KPI configs used for functional tests of the shiny dashboard -->
+
+    <record id="sale_count_card" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_sales" />
+        <field name="kind">card</field>
+        <field name="name">Sales Orders count</field>
+        <field name="sequence">1</field>
+        <field name="panel_id" ref="panel_sale" />
+        <field name="col_span">1</field>
+        <field name="definition">where = "state not in ('draft', 'sent')"</field>
+    </record>
+
+    <record id="vendor_sum_graph" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_sales" />
+        <field name="kind">graph</field>
+        <field name="name">Best vendors</field>
+        <field name="sequence">2</field>
+        <field name="panel_id" ref="panel_sale" />
+        <field name="col_span">2</field>
+        <field name="definition">graph_type = "bar"
+[x]
+name = "user_id.name"
+aggregation = "none"
+[y]
+name = "amount_untaxed"
+aggregation = "sum"
+</field>
+    </record>
+
+    <record id="ammount_untaxed_df" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_sales" />
+        <field name="kind">data</field>
+        <field name="name">Amount untaxed</field>
+        <field name="panel_id" ref="panel_sale" />
+        <field name="sequence">3</field>
+        <field name="definition">d_next = d
+d_next = d_next.select([pl.col("amount_untaxed").sum().alias("amount_untaxed_sum")])</field>
+    </record>
+
+    <record id="monthly_sales_pivot" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_sales" />
+        <field name="kind">pivot</field>
+        <field name="name">Monthly sales by salesperson</field>
+        <field name="sequence">4</field>
+        <field name="panel_id" ref="panel_sale" />
+        <field name="col_span">2</field>
+        <field name="definition">index = "user_id.name"
+column = "date_order.year"
+measure = "amount_untaxed"
+aggregation = "sum"
+</field>
+    </record>
+
+    <record id="sale_purchases_union" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_sales" />
+        <field name="kind">union</field>
+        <field name="name">Union sales et purchases</field>
+        <field name="panel_id" ref="panel_sale" />
+        <field name="sequence">6</field>
+        <field name="definition">union_model = "purchase.order"
+[mapping."sale.order"]
+name = "name"
+amount_untaxed = "amount_untaxed"
+[mapping."purchase.order"]
+name = "name"
+amount_untaxed = "amount_untaxed"
+</field>
+    </record>
+
+    <!-- sale.order.line tiles -->
+    <record id="top_products_graph" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_sales_lines" />
+        <field name="kind">graph</field>
+        <field name="name">Best products (qty)</field>
+        <field name="panel_id" ref="panel_sale" />
+        <field name="sequence">7</field>
+        <field name="col_span">2</field>
+        <field name="definition">graph_type = "bar"
+[x]
+name = "product_id.name"
+aggregation = "none"
+[y]
+name = "product_uom_qty"
+aggregation = "sum"
+</field>
+    </record>
+
+    <record id="salesperson_qty_graph" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_sales_lines" />
+        <field name="kind">graph</field>
+        <field name="name">Qty sold per salesperson</field>
+        <field name="panel_id" ref="panel_sale" />
+        <field name="sequence">8</field>
+        <field name="definition">graph_type = "area"
+[x]
+name = "salesman_id.name"
+aggregation = "none"
+[y]
+name = "product_uom_qty"
+aggregation = "sum"
+</field>
+    </record>
+
+    <!-- purchases tiles -->
+    <record id="vendor_purchased_graph" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_purchases_lines" />
+        <field name="kind">graph</field>
+        <field name="name">Qty purchased</field>
+        <field name="panel_id" ref="panel_purchase" />
+        <field name="sequence">1</field>
+        <field name="definition">graph_type = "bar"
+[x]
+name = "product_id.name"
+aggregation = "none"
+[y]
+name = "product_qty"
+aggregation = "sum"
+</field>
+    </record>
+
+    <record id="purchase_amount_spend_graph" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_purchases" />
+        <field name="kind">graph</field>
+        <field name="name">Spend by vendor</field>
+        <field name="panel_id" ref="panel_purchase" />
+        <field name="sequence">2</field>
+        <field name="col_span">2</field>
+        <field name="definition">graph_type = "bar"
+[x]
+name = "partner_id.commercial_partner_id.name"
+aggregation = "none"
+[y]
+name = "amount_untaxed"
+aggregation = "sum"
+</field>
+    </record>
+
+    <record id="purchase_orders_pivot" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_purchases" />
+        <field name="kind">pivot</field>
+        <field name="name">Monthly spend</field>
+        <field name="panel_id" ref="panel_purchase" />
+        <field name="sequence">3</field>
+        <field name="col_span">2</field>
+        <field name="definition">index = "date_order"
+column = "date_order.year"
+measure = "amount_untaxed"
+aggregation = "sum"
+</field>
+    </record>
+
+</odoo>
