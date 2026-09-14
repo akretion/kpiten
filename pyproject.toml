@@ -1,0 +1,33 @@
+[project]
+authors = [
+  {name = "David Beal", email = "david.beal@akretion.com"},
+]
+dependencies = [
+  "dotenv>=0.9.9",
+  "fastapi>=0.135.3",
+  "uvicorn>=0.44.0",
+  "shiny>=1.6.0",
+  "great-tables>=0.21.0",
+  "kpiten-core",
+  "requests>=2.34.2",
+  "pyppeteer>=0.0.25",
+]
+description = "Kpi dashboard (shiny) on top of kpiten-core reading Odoo config"
+name = "shiny-kpiten"
+readme = "README.md"
+requires-python = ">=3.12"
+version = "0.1.0"
+
+[build-system]
+build-backend = "uv_build"
+requires = ["uv_build>=0.11.3,<0.12.0"]
+
+[dependency-groups]
+dev = [
+  "black>=26.5.1",
+  "pytest>=8",
+  "pytest-playwright>=0.9.0",
+]
+
+[tool.uv.sources]
+kpiten-core = { path = "../kpiten-core", editable = true }
