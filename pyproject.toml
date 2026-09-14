@@ -1,0 +1,26 @@
+[project]
+authors = [
+  {name = "David Beal", email = "david.beal@akretion.com"},
+]
+dependencies = [
+  "dotenv>=0.9.9",
+  "nicegui>=2.0",
+  "fastapi>=0.111.0",
+  "uvicorn>=0.30.0",
+  "kpiten-core",
+]
+description = "Kpi dashboard (nicegui - simplified) on top of kpiten-core"
+name = "nicegui-kpiten"
+readme = "README.md"
+requires-python = ">=3.12"
+version = "0.1.0"
+
+[build-system]
+build-backend = "uv_build"
+requires = ["uv_build>=0.11.3,<0.12.0"]
+
+[dependency-groups]
+dev = ["black>=26.5.1"]
+
+[tool.uv.sources]
+kpiten-core = { path = "../kpiten-core", editable = true }
