@@ -1,6 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo noupdate="1">
-
     <!-- KPI configs used for functional tests of the shiny dashboard -->
 
     <record id="sale_count_card" model="kt.dataset.line">
@@ -151,5 +150,4 @@ measure = "amount_untaxed"
 aggregation = "sum"
 </field>
     </record>
-
 </odoo>

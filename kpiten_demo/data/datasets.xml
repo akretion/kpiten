@@ -1,5 +1,4 @@
 <odoo noupdate="1">
-
     <record id="kpiten_sales" model="kt.dataset">
         <field name="model_id" ref="sale.model_sale_order" />
     </record>
@@ -15,5 +14,4 @@
     <record id="kpiten_purchases_lines" model="kt.dataset">
         <field name="model_id" ref="purchase.model_purchase_order_line" />
     </record>
-
 </odoo>

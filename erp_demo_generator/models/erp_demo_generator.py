@@ -2,7 +2,8 @@ import logging
 import random
 from datetime import date, datetime, timedelta
 
-from odoo import Command as cmd, models
+from odoo import Command as cmd
+from odoo import models
 
 _logger = logging.getLogger(__name__)
 

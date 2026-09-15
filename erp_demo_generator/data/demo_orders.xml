@@ -1,11 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <data noupdate="1">
         <!-- light demo volume : ~15% of the full set -->
-        <record id="demo_generator" model="erp.demo.generator"/>
+        <record id="demo_generator" model="erp.demo.generator" />
         <function model="erp.demo.generator" name="generate_demo_data">
-            <function eval="[[('id', '=', ref('demo_generator'))]]" model="erp.demo.generator" name="search"/>
-            <value eval="2"/>
+            <function
+                eval="[[('id', '=', ref('demo_generator'))]]"
+                model="erp.demo.generator"
+                name="search"
+            />
+            <value eval="2" />
         </function>
     </data>
 </odoo>

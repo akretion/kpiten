@@ -1,10 +1,14 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <data noupdate="1">
         <!-- full demo volume (17: dedicated module, install manually) -->
-        <record id="demo_generator_full" model="erp.demo.generator"/>
+        <record id="demo_generator_full" model="erp.demo.generator" />
         <function model="erp.demo.generator" name="generate_full_demo_data">
-            <function eval="[[('id', '=', ref('demo_generator_full'))]]" model="erp.demo.generator" name="search"/>
+            <function
+                eval="[[('id', '=', ref('demo_generator_full'))]]"
+                model="erp.demo.generator"
+                name="search"
+            />
         </function>
     </data>
 </odoo>
