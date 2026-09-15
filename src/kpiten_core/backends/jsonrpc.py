@@ -74,21 +74,11 @@ class JsonrpcBackend:
     def get_chart_config(self) -> dict:
         """Chart default styling from the single kt.config record.
 
-        Falls back to the legacy `ir.config_parameter kt_config` json so a
-        database that predates the kt.config model keeps working.
-
         i.e. {"graph": {"layout": {"colorway": ["#00dc82", "#34cdfe"]}}}
         """
-        try:
-            if self.env["ir.model"].search([("model", "=", "kt.config")]):
-                return self.env["kt.config"].ensure_single().get_config_json()
-        except Exception:
-            pass
-        params = self.env["ir.config_parameter"]
-        try:
-            return json.loads(params.get_param("kt_config") or "{}")
-        except json.JSONDecodeError:
-            return {}
+        if self.env["ir.model"].search([("model", "=", "kt.config")]):
+            return self.env["kt.config"].ensure_single().get_config_json()
+        return {}
 
     def get_panel_lines(self, model: str, panel_id: int | None = None) -> list[dict]:
         """Fetch kt.dataset.line records for a model, optionally a panel."""

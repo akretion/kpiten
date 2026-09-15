@@ -129,7 +129,7 @@ def graph_case(content, table, store, full_predicates):
 
 
 # Chart styling defaults, set by the UI apps from their odoo config
-# (`ir.config_parameter kt_config` json: {"graph": {"layout": {...}}})
+# (single `kt.config` record : {"graph": {"layout": {...}}})
 CHART_CONFIG: dict = {}
 
 
