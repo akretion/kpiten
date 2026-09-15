@@ -14,7 +14,7 @@
                             <field name="sequence" />
                         </group>
                     </group>
-                    <field name="filter_config" widget="ace" options="{'mode': 'json'}" />
+                    <field name="filter_config" widget="ace" options="{'mode': 'python'}" />
                     <notebook>
                         <page string="Tiles">
                             <field name="config_line_ids">
