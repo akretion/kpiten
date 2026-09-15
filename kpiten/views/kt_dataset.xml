@@ -1,0 +1,118 @@
+<odoo>
+    <record id="kt_dataset_form" model="ir.ui.view">
+        <field name="model">kt.dataset</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field
+                        name="state"
+                        widget="statusbar"
+                        statusbar_visible="draft,validated"
+                    />
+                </header>
+                <sheet>
+                    <group name="main">
+                        <group name="left">
+                            <field name="model_id" />
+                            <field name="name" />
+                        </group>
+                        <group name="right">
+                            <field name="group_ids" widget="many2many_tags" />
+                            <field
+                                name="company_id"
+                                groups="base.group_multi_company"
+                            />
+                        </group>
+                    </group>
+                    <group colspan="1">
+                        <field name="line_ids" nolabel="1">
+                            <kanban>
+                                <templates>
+                                    <t t-name="card">
+                                        <field name="name" />
+                                        <field name="kind" />
+                                        <field name="active" optional="hide" />
+                                        <field
+                                            name="group_ids"
+                                            widget="many2many_tags"
+                                        />
+                                    </t>
+                                </templates>
+                            </kanban>
+                            <form>
+                                <group>
+                                    <group colspan="2">
+                                        <field
+                                            name="definition"
+                                            widget="ace"
+                                            options="{'mode': 'python'}"
+                                        />
+                                    </group>
+                                    <group>
+                                        <group>
+                                            <field name="kind" widget="radio" />
+                                            <field
+                                                name="group_ids"
+                                                widget="many2many_tags"
+                                            />
+                                            <field name="user_id" />
+                                        </group>
+                                        <group>
+                                            <field name="name" />
+                                            <field name="panel_id" />
+                                            <field name="col_span" />
+                                            <field name="tile_height" />
+                                            <field
+                                                name="active"
+                                                widget="boolean_toggle"
+                                            />
+                                        </group>
+                                    </group>
+                                </group>
+                            </form>
+                        </field>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="kt_dataset_kanban" model="ir.ui.view">
+        <field name="model">kt.dataset</field>
+        <field name="arch" type="xml">
+            <kanban>
+                <templates>
+                    <t t-name="card">
+                        <h4>
+                            <field name="model_id" />
+                        </h4>
+                        <field name="name" />
+                        <field name="sequence" widget="handle" />
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="kt_dataset_search" model="ir.ui.view">
+        <field name="model">kt.dataset</field>
+        <field name="arch" type="xml">
+            <search>
+                <filter name="name" />
+            </search>
+        </field>
+    </record>
+
+    <record id="kt_dataset_action" model="ir.actions.act_window">
+        <field name="name">Datasets</field>
+        <field name="res_model">kt.dataset</field>
+        <field name="view_mode">kanban,form</field>
+    </record>
+
+    <menuitem
+        id="kpiten_menu"
+        parent="kpiten_app"
+        sequence="10"
+        action="kt_dataset_action"
+    />
+</odoo>

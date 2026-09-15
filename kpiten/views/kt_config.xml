@@ -1,0 +1,38 @@
+<odoo>
+    <record id="kt_config_form" model="ir.ui.view">
+        <field name="model">kt.config</field>
+        <field name="arch" type="xml">
+            <form create="0">
+                <sheet>
+                    <group string="Graph defaults">
+                        <group>
+                            <field name="graph_title_font_color" widget="color" />
+                            <field name="graph_color_1" widget="color" />
+                            <field name="graph_color_2" widget="color" />
+                        </group>
+                        <group>
+                            <field name="graph_color_3" widget="color" />
+                            <field name="graph_color_4" widget="color" />
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="kt_config_act_window" model="ir.actions.act_window">
+        <field name="name">Configuration</field>
+        <field name="res_model">kt.config</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="kt_config_form" />
+        <field name="res_id" ref="only_one" />
+    </record>
+
+    <menuitem
+        id="menu_kpiten_config"
+        parent="kpiten_app"
+        name="Configuration"
+        sequence="100"
+        action="kt_config_act_window"
+    />
+</odoo>

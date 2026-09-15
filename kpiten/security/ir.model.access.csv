@@ -4,3 +4,4 @@ access_kt_dataset_line,access_kt_dataset_line,kpiten.model_kt_dataset_line,base.
 access_kt_panel,access_kt_panel,kpiten.model_kt_panel,base.group_user,1,1,1,1
 access_kt,access_kt,kpiten.model_kt,base.group_user,1,1,1,1
 access_kt_config,access_kt_config,kpiten.model_kt_config,base.group_user,1,1,1,0
+access_kt_card_wizard,access_kt_card_wizard,kpiten.model_kt_card_wizard,base.group_user,1,1,1,1

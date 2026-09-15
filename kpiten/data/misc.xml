@@ -3,4 +3,6 @@
         <field name="name">Main</field>
         <field name="sequence">50</field>
     </record>
+
+    <record model="kt.config" id="only_one" />
 </odoo>

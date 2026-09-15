@@ -1,28 +1,39 @@
-from odoo import api, fields, models, _
+from odoo import _, api, fields, models
+
+NUM_COLORS = 4
 
 
 class KtConfig(models.Model):
-    """Chart / app defaults previously stored as the `kt_config` system param.
-
-    One record only : the form view is the single entry point, with one field
-    per key of the legacy json (`{"graph": {"layout": {...}}}`). Color fields
-    render their swatch in the form.
+    """
+    One record only : the form view
+    The configuration page in old way
+    Easy to maintain
     """
 
     _name = "kt.config"
     _description = "KpiTen configuration"
+    _rec_name = "title"
 
+    title = fields.Char(default="Configuration")
     graph_title_font_color = fields.Char(
         string="Graph title font color",
         help="Color of the chart title font (hex, e.g. #dbe4ef).",
     )
-    graph_colorway = fields.Char(
-        string="Graph colorway",
-        help="Comma-separated hex colors used for the chart series.",
+    graph_color_1 = fields.Char(
+        string="Color 1",
+        help="First hex color of the chart colorway (e.g. #00dc82).",
     )
-    graph_colorway_preview = fields.Html(
-        string="Colorway preview",
-        compute="_compute_colorway_preview",
+    graph_color_2 = fields.Char(
+        string="Color 2",
+        help="Second hex color of the chart colorway.",
+    )
+    graph_color_3 = fields.Char(
+        string="Color 3",
+        help="Third hex color of the chart colorway.",
+    )
+    graph_color_4 = fields.Char(
+        string="Color 4",
+        help="Fourth hex color of the chart colorway.",
     )
 
     @api.model_create_multi
@@ -32,41 +43,3 @@ class KtConfig(models.Model):
                 _("Only one KpiTen configuration record is allowed.")
             )
         return super().create(vals_list)
-
-    @api.depends("graph_colorway")
-    def _compute_colorway_preview(self):
-        for rec in self:
-            rec.graph_colorway_preview = self._colorway_html(rec.graph_colorway)
-
-    @staticmethod
-    def _colorway_html(value: str) -> str:
-        """Render a comma-separated colorway as colored swatches."""
-        colors = [c.strip() for c in (value or "").split(",") if c.strip()]
-        if not colors:
-            return ""
-        spans = "".join(
-            f'<span style="display:inline-block;width:28px;height:28px;'
-            f"margin:2px;border-radius:4px;border:1px solid #ccc;"
-            f'background:{c};" title="{c}"></span>'
-            for c in colors
-        )
-        return f"<div>{spans}</div>"
-
-    def get_config_json(self) -> dict:
-        """Serialize the record back to the legacy `kt_config` json shape."""
-        self.ensure_one()
-        graph: dict = {"layout": {}}
-        if self.graph_title_font_color:
-            graph["layout"]["title_font_color"] = self.graph_title_font_color
-        if self.graph_colorway:
-            graph["layout"]["colorway"] = [
-                c.strip() for c in self.graph_colorway.split(",") if c.strip()
-            ]
-        return {"graph": graph} if graph["layout"] else {}
-
-    def ensure_single(self) -> "KtConfig":
-        """Return the unique config record, creating it if missing."""
-        rec = self.search([], limit=1)
-        if not rec:
-            rec = self.create({})
-        return rec

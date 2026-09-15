@@ -14,7 +14,11 @@
                             <field name="sequence" />
                         </group>
                     </group>
-                    <field name="filter_config" widget="ace" options="{'mode': 'python'}" />
+                    <field
+                        name="filter_config"
+                        widget="ace"
+                        options="{'mode': 'python'}"
+                    />
                     <notebook>
                         <page string="Tiles">
                             <field name="config_line_ids">
@@ -70,5 +74,4 @@
         sequence="20"
         action="kpiten_panel_action"
     />
-
 </odoo>

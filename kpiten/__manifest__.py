@@ -17,6 +17,8 @@
         "data/misc.xml",
         "security/ir.model.access.csv",
         "views/kpiten.xml",
-        "views/panel.xml",
+        "views/kt_dataset.xml",
+        "views/kt_panel.xml",
+        "views/kt_config.xml",
     ],
 }

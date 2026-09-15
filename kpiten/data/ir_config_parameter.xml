@@ -6,11 +6,4 @@
             name="value"
         >{"marimo": {"application": "Marimo", "external_url": "http://localhost:5000", "internal_url": "http://localhost:5000"}, "shiny": {"application": "Shiny", "external_url": "http://localhost:5000", "internal_url": "http://localhost:5000"}, "nicegui": {"application": "NiceGUI", "external_url": "http://localhost:5001", "internal_url": "http://localhost:5001"}}</field>
     </record>
-    <!-- Chart default styling consumed by the UI apps -->
-    <record model="ir.config_parameter" id="kt_setting_chart_config">
-        <field name="key">kt_config</field>
-        <field
-            name="value"
-        >{"graph": {"layout": {"colorway": ["#00dc82", "#34cdfe", "#a06b2a", "#e8ecf8"], "title_font_color": "#dbe4ef"}}}</field>
-    </record>
 </odoo>

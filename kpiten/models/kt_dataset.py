@@ -1,4 +1,5 @@
 import logging
+
 import tomllib
 
 from odoo import _, api, exceptions, fields, models
