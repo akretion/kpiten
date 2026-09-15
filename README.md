@@ -8,7 +8,7 @@ Interactive dashboard read of the Odoo-held KPI configs, sitting on
 ```bash
 cd kpiten/shiny-kpiten
 uv sync
-uv run python src/shiny_kpiten/main.py  # port 5000
+uv run python -m uvicorn shiny_kpiten.main:this_app --host 0.0.0.0 --port 5000
 ```
 
 ## Odoo side
