@@ -24,7 +24,9 @@ class KtDataset(models.Model):
     name = fields.Char(compute="_compute_name", readonly=False)
     state = fields.Selection(selection=[("draft", "Draft"), ("validated", "Validated")])
     line_ids = fields.One2many(
-        comodel_name="kt.dataset.line", inverse_name="dataset_id"
+        comodel_name="kt.dataset.line",
+        inverse_name="dataset_id",
+        context={"active_test": False},
     )
     model_id = fields.Many2one(
         comodel_name="ir.model",
