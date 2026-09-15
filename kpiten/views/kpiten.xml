@@ -157,4 +157,49 @@
         sequence="96"
         action="action_redirect_to_nicegui"
     />
+
+    <record id="kt_config_form" model="ir.ui.view">
+        <field name="model">kt.config</field>
+        <field name="arch" type="xml">
+            <form string="Configuration">
+                <sheet>
+                    <group string="Graph defaults">
+                        <group>
+                            <field
+                                name="graph_title_font_color"
+                                widget="color"
+                            />
+                            <field name="graph_colorway" />
+                        </group>
+                        <group>
+                            <field name="graph_colorway_preview" />
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="kt_config_act_window" model="ir.actions.act_window">
+        <field name="name">Configuration</field>
+        <field name="res_model">kt.config</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="kt_config_form" />
+    </record>
+
+    <!-- opens the single kt.config record in a form -->
+    <record id="kt_config_action" model="ir.actions.server">
+        <field name="name">Configuration</field>
+        <field name="model_id" ref="model_kt_config" />
+        <field name="state">code</field>
+        <field name="code">config = env["kt.config"].ensure_single() ; action = env["ir.actions.act_window"]._for_xml_id("kpiten.kt_config_act_window") ; action["res_id"] = config.id</field>
+    </record>
+
+    <menuitem
+        id="menu_kpiten_config"
+        parent="kpiten_app"
+        name="Configuration"
+        sequence="20"
+        action="kt_config_action"
+    />
 </odoo>

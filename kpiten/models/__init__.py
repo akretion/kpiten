@@ -5,4 +5,5 @@ from . import (
     res_users_log,
     kt,
     kt_panel,
+    kt_config,
 )
