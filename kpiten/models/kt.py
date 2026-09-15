@@ -211,6 +211,15 @@ class Kt(models.AbstractModel):
             return False
         return record.create_date or False
 
+    @api.model
+    def get_count(self, model: str, domain: list, user_id: int) -> int:
+        """Number of records matching `domain` (search_count).
+
+        Used to report the progress (%) of a progressive load without pulling
+        the whole table just to know how many records remain.
+        """
+        return self.env[model].with_user(user_id).search_count(domain)
+
     def _get_model_direct_fields(self, model: str) -> set:
         """
         Introspect the Odoo model to return all its direct fields
