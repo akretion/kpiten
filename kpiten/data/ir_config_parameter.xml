@@ -6,4 +6,12 @@
             name="value"
         >{"marimo": {"application": "Marimo", "external_url": "http://localhost:5000", "internal_url": "http://localhost:5000"}, "shiny": {"application": "Shiny", "external_url": "http://localhost:5000", "internal_url": "http://localhost:5000"}, "nicegui": {"application": "NiceGUI", "external_url": "http://localhost:5001", "internal_url": "http://localhost:5001"}}</field>
     </record>
+
+    <record model="ir.config_parameter" id="kpiten_staging_dir">
+        <field name="key">kpiten_staging_dir</field>
+        <!-- Shared-volume dir where Odoo dumps JSONL staging chunks that the
+             app consolidates into the final parquets. Must point to the same
+             path as the app's DATA_PATH/staging on the shared volume. -->
+        <field name="value">/home/dav/dvp/dashdb/kpiten/data_dir/staging</field>
+    </record>
 </odoo>

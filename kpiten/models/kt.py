@@ -1,10 +1,29 @@
+import json
 import logging
+import pathlib
+from datetime import date, datetime
+from decimal import Decimal
 
 import requests
 
 from odoo import SUPERUSER_ID, api, exceptions, models
+from odoo.tools.translate import _
 
 logger = logging.getLogger(__name__)
+
+
+def _jsonl_default(value):
+    """Serialize Odoo values to match what the jsonrpc layer would return.
+
+    The staging JSONL is consumed by kpiten-core exactly like the `kt` data
+    coming back through odoorpc : monetary (Decimal) -> float, datetimes ->
+    space-separated string, many2one [id, name] kept as a list.
+    """
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (datetime, date)):
+        return value.strftime("%Y-%m-%d %H:%M:%S")
+    return value
 
 
 class Kt(models.AbstractModel):
@@ -219,6 +238,57 @@ class Kt(models.AbstractModel):
         the whole table just to know how many records remain.
         """
         return self.env[model].with_user(user_id).search_count(domain)
+
+    def _staging_dir(self) -> str:
+        """Shared-volume dir where kpiten-core consumes the staging chunks.
+
+        Single source of truth : the app reads the same path back through
+        `get_staging_dir` to consolidate the JSONL into the final parquet.
+        """
+        param = self.env["ir.config_parameter"].get_param("kpiten_staging_dir")
+        if not param:
+            raise exceptions.UserError(
+                _("Missing 'kpiten_staging_dir' system parameter")
+            )
+        return param
+
+    @api.model
+    def get_staging_dir(self) -> str:
+        """Expose the staging dir so the app consolidates from the same volume."""
+        return self._staging_dir()
+
+    @api.model
+    def write_staging_chunk(
+        self,
+        model: str,
+        offset: int,
+        limit: int,
+        domain: list = None,
+        order: str = "",
+        user_id: int = None,
+    ) -> int:
+        """Fetch a paginated chunk and append it as JSONL in the staging dir.
+
+        Minimal work on Odoo's side : it only runs the existing SQL extraction
+        (`get_record_vals`) and appends the raw values as one JSON object per
+        line (`json` stdlib). No normalization, no parquet, no pyarrow — the
+        app reads the raw JSONL back and normalizes/consolidates itself.
+
+        Returns the number of records written (0 when the chunk is empty).
+        """
+        uid = user_id or self.env.user.id
+        raw_vals = self.get_record_vals(
+            model, domain or [], uid, limit=limit, offset=offset, order=order
+        )
+        if not raw_vals:
+            return 0
+        table_dir = pathlib.Path(self._staging_dir()) / self.env.cr.dbname / model
+        table_dir.mkdir(parents=True, exist_ok=True)
+        path = table_dir / f"{offset}.jsonl"
+        with open(path, "w") as fh:
+            for row in raw_vals:
+                fh.write(json.dumps(row, default=_jsonl_default) + "\n")
+        return len(raw_vals)
 
     def _get_model_direct_fields(self, model: str) -> set:
         """
