@@ -1,10 +1,10 @@
 <odoo>
-    <record id="kpiten_form" model="ir.ui.view">
+    <record id="kt_dataset_form" model="ir.ui.view">
         <field name="model">kt.dataset</field>
-        <field name="inherit_id" ref="kpiten.kpiten_form" />
+        <field name="inherit_id" ref="kpiten.kt_dataset_form" />
         <field name="arch" type="xml">
             <xpath expr="//field[@name='line_ids']/kanban" position="before">
-                <list>
+                <list decoration-muted="not active">
                     <field name="sequence" widget="handle" />
                     <field name="name" />
                     <field name="kind" />
