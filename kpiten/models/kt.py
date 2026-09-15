@@ -91,14 +91,27 @@ class Kt(models.AbstractModel):
 
     @api.model
     def get_record_vals(
-        self, model: str, domain: list, user_id: int, limit: int = None
+        self,
+        model: str,
+        domain: list,
+        user_id: int,
+        limit: int = None,
+        offset: int = 0,
+        order: str = "",
     ) -> list[dict]:
         """
-        i.e. env['kt'].get_record_vals("sale.order.line", [], 2, limit=10)
+        i.e. env['kt'].get_record_vals("sale.order.line", [], 2, limit=10, offset=10)
 
         Returns a list of dicts for each model record,
         by automatically discovering all its direct fields by introspection,
         and by enriching via the relational fields defined in FIELDS_MAP.
+
+        `limit` / `offset` allow paginated extraction of huge tables so the
+        RPC call never fetches the whole table in one shot.
+
+        `order` is an optional Odoo search ordering string (e.g.
+        "create_date desc, id desc") used to paginate from the most recent to
+        the oldest records.
 
         :param user_id:  ID de l'utilisateur pour le contrôle d'accès
         :return:         Liste de dicts avec toutes les valeurs résolues
@@ -114,7 +127,11 @@ class Kt(models.AbstractModel):
         # sont déjà dans direct_fields (détectés comme many2one)
 
         # 3. Recherche des enregistrements
-        records = self.env[model].with_user(user_id).search(domain, limit=limit)
+        records = (
+            self.env[model]
+            .with_user(user_id)
+            .search(domain, limit=limit, offset=offset, order=order)
+        )
         if not records:
             return []
 
@@ -177,6 +194,22 @@ class Kt(models.AbstractModel):
             )
 
         return list(data_by_id.values())
+
+    @api.model
+    def get_max_create_date(self, model: str, user_id: int):
+        """Most recent create_date of a model, or False if the table is empty.
+
+        Used as the frozen upper bound for a recent->oldest paginated extract,
+        so concurrent writes during the load don't shift the offsets.
+        """
+        record = (
+            self.env[model]
+            .with_user(user_id)
+            .search([], order="create_date desc", limit=1)
+        )
+        if not record:
+            return False
+        return record.create_date or False
 
     def _get_model_direct_fields(self, model: str) -> set:
         """
