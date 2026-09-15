@@ -47,16 +47,31 @@ def _table_lock(table: str, df_dir: str):
     return _lock()
 
 
+def _is_text_dtype(dtype) -> bool:
+    """Whether a polars dtype is a string/utf8 type."""
+    return any(
+        dtype == t
+        for t in (pl.String, getattr(pl, "Utf8", None), getattr(pl, "Utf8View", None))
+        if t is not None
+    )
+
+
 def _align_schema(new_df: pl.DataFrame, current: pl.DataFrame) -> pl.DataFrame:
-    """Order the delta columns as the stored parquet (missing -> null)."""
-    selects = [
-        (
-            pl.col(c).cast(current[c].dtype, strict=False)
-            if c in new_df.columns
-            else pl.lit(None, dtype=current[c].dtype).alias(c)
-        )
-        for c in current.columns
-    ]
+    """Order the delta columns as the stored parquet (missing -> null).
+
+    The stored schema may carry a narrow dtype (e.g. Boolean) inherited from a
+    chunk where a text field was null (legacy `False`). Casting text into such
+    a non-text dtype would fail, so we keep the source (wider) dtype instead ;
+    the relaxed concat then converges the parquet schema.
+    """
+    selects = []
+    for c in current.columns:
+        if c not in new_df.columns:
+            selects.append(pl.lit(None, dtype=current[c].dtype).alias(c))
+        elif _is_text_dtype(new_df[c].dtype) and not _is_text_dtype(current[c].dtype):
+            selects.append(pl.col(c))  # keep the text dtype, avoid bad cast
+        else:
+            selects.append(pl.col(c).cast(current[c].dtype, strict=False))
     return new_df.select(selects)
 
 
