@@ -26,6 +26,7 @@ class JsonrpcBackend:
 
     def __init__(self, db: str | None = None):
         self.odoo = odoorpc.ODOO(env.get("ODOO_HOST"), port=env.get("ODOO_PORT"))
+        self.odoo.config["timeout"] = env.odoo_timeout
         self.db = db or env.get("ODOO_DB")
         self.odoo.login(self.db, env.get("ODOO_LOGIN"), env.get("ODOO_PWD"))
         self.env = self.odoo.env
@@ -194,20 +195,22 @@ class JsonrpcBackend:
         return [self.env["ir.model"].browse(ds["model_id"][0]).model for ds in datasets]
 
     def get_record_vals(
-        self, model: str, domain: list, user_id: int, limit: int | None = None
-    ) -> list[dict]:
-        return self.env["kt"].get_record_vals(model, domain, user_id, limit)
-
-    def get_updated_record_vals(
         self,
         model: str,
-        since: str,
+        domain: list,
         user_id: int,
         limit: int | None = None,
+        offset: int = 0,
+        order: str = "",
     ) -> list[dict]:
-        """Records created or written after `since` (sql datetime string)."""
-        domain = ["|", ("write_date", ">", since), ("create_date", ">", since)]
-        return self.get_record_vals(model, domain, user_id, limit)
+        return self.env["kt"].get_record_vals(
+            model, domain, user_id, limit, offset, order
+        )
+
+    def get_max_create_date(self, model: str, user_id: int) -> str | None:
+        """Most recent create_date of a model, None if the table is empty."""
+        value = self.env["kt"].get_max_create_date(model, user_id)
+        return value if value else None
 
     def get_deletions(self, model: str, since: str) -> list[int]:
         """Ids of records deleted after `since` (module auditlog)."""

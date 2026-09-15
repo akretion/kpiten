@@ -23,6 +23,30 @@ def _now_utc() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _table_lock(table: str, df_dir: str):
+    """Advisory file lock serializing parquet writes for a table.
+
+    Two dashboard processes (shiny / nicegui) may target the same parquet
+    dir ; the lock prevents them from corrupting a file on concurrent writes.
+    """
+    import fcntl
+    import contextlib
+
+    lock_path = pathlib.Path(df_dir) / f"{table}.lock"
+
+    @contextlib.contextmanager
+    def _lock():
+        pathlib.Path(df_dir + "/").mkdir(exist_ok=True, parents=True)
+        with open(lock_path, "w") as fh:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+
+    return _lock()
+
+
 def _align_schema(new_df: pl.DataFrame, current: pl.DataFrame) -> pl.DataFrame:
     """Order the delta columns as the stored parquet (missing -> null)."""
     selects = [
@@ -56,8 +80,9 @@ class DFStorage:
     @classmethod
     def _df_dir(cls) -> str:
         """Parquet dir : DATA_PATH/[db/]parquet (scoping per odoo database)."""
-        if env.current_db:
-            return f"{env.data_path}/{env.current_db}/{cls.df_data_dir_name}"
+        db = env.active_db()
+        if db:
+            return f"{env.data_path}/{db}/{cls.df_data_dir_name}"
         return f"{env.data_path}/{cls.df_data_dir_name}"
 
     @staticmethod
@@ -83,11 +108,29 @@ class DFStorage:
         """Store the parquet file + json metadata beside it."""
         pathlib.Path(cls._df_dir() + "/").mkdir(exist_ok=True, parents=True)
         df = cls._cols_last(df)
-        df.write_parquet(cls._parquet_path(table))
-        cls.write_meta(table, {**metadata, "last_sync": _now_utc()})
+        with _table_lock(table, cls._df_dir()):
+            df.write_parquet(cls._parquet_path(table))
+            cls.write_meta(table, {**metadata, "last_sync": _now_utc()})
+
+    @classmethod
+    def init_table(
+        cls, table: str, raw_vals: list[dict], metadata: dict, df: pl.DataFrame
+    ):
+        """Create a table's parquet + fields metadata WITHOUT setting last_sync.
+
+        Used by the progressive recent->oldest load : the table is considered
+        partial until it leaves the completion queue, so `last_sync` is only
+        set once the whole table has been pulled (see `touch_sync`).
+        """
+        pathlib.Path(cls._df_dir() + "/").mkdir(exist_ok=True, parents=True)
+        df = cls._cols_last(df)
+        with _table_lock(table, cls._df_dir()):
+            df.write_parquet(cls._parquet_path(table))
+            cls.write_meta(table, metadata)
 
     @classmethod
     def write_meta(cls, table: str, metadata: dict):
+        pathlib.Path(cls._df_dir() + "/").mkdir(exist_ok=True, parents=True)
         pathlib.Path(cls._meta_path(table)).write_text(json.dumps(metadata))
 
     @classmethod
@@ -110,41 +153,112 @@ class DFStorage:
         return cls.read_meta(table).get("last_sync")
 
     @classmethod
+    def table_exists(cls, table: str) -> bool:
+        """Whether the table's parquet file has been written."""
+        return pathlib.Path(cls._parquet_path(table)).exists()
+
+    # ---- resumable sync state ------------------------------------------
+    # A full table extract can be interrupted (RPC timeout). We persist a
+    # per-table progress marker in the meta.json so the next sync resumes at
+    # the same `offset` instead of restarting from scratch.
+
+    @classmethod
+    def get_sync_state(cls, table: str) -> dict | None:
+        """Return the in-progress extraction marker for a table, or None."""
+        return cls.read_meta(table).get("sync_state")
+
+    @classmethod
+    def set_sync_state(cls, table: str, state: dict):
+        """Persist the extraction progress (model, offset, started_at)."""
+        meta = cls.read_meta(table)
+        meta["sync_state"] = {**state, "started_at": _now_utc()}
+        cls.write_meta(table, meta)
+
+    @classmethod
+    def clear_sync_state(cls, table: str):
+        """Drop the extraction progress marker (table fully synced)."""
+        meta = cls.read_meta(table)
+        if "sync_state" in meta:
+            del meta["sync_state"]
+            cls.write_meta(table, meta)
+
+    # ---- progressive load state (recent->oldest) -----------------------
+    # On a fresh db, tables are pulled by priority (panel first) and by
+    # decreasing create_date. A global `prog` marker in `prog.json` keeps the
+    # completion queue so background passes resume across app restarts.
+
+    @classmethod
+    def _prog_path(cls) -> str:
+        return f"{cls._df_dir()}/prog.json"
+
+    @classmethod
+    def get_prog(cls) -> dict:
+        """Completion queue state, or an empty dict when nothing is pending."""
+        try:
+            return json.loads(pathlib.Path(cls._prog_path()).read_text())
+        except FileNotFoundError:
+            return {}
+
+    @classmethod
+    def set_prog(cls, state: dict):
+        """Persist the completion queue state."""
+        pathlib.Path(cls._df_dir() + "/").mkdir(exist_ok=True, parents=True)
+        pathlib.Path(cls._prog_path()).write_text(json.dumps(state))
+
+    @classmethod
+    def clear_prog(cls):
+        """Drop the completion queue (all tables fully loaded)."""
+        pathlib.Path(cls._df_dir() + "/").mkdir(exist_ok=True, parents=True)
+        pathlib.Path(cls._prog_path()).write_text("{}")
+
+    @classmethod
+    def partial_tables(cls) -> set[str]:
+        """Models still being pulled by the progressive load (partial parquet)."""
+        prog = cls.get_prog()
+        tables = set(prog.get("order", []))
+        current = prog.get("current")
+        if current and current.get("model"):
+            tables.add(current["model"])
+        return tables
+
+    @classmethod
     def append_records(cls, table: str, raw_vals: list[dict]) -> pl.DataFrame:
         """Upsert rows in the stored parquet (delta-sync).
 
         The normalization (Df) is applied only to the new/updated rows, then
         they replace the matching `id` in the existing dataframe.
         """
-        try:
-            current = pl.read_parquet(cls._parquet_path(table))
-        except FileNotFoundError:
-            current = None
         new_df = Df.from_raw(table, raw_vals, cls.read_meta(table)).get_df()
-        if current is None or current.height == 0:
-            df = new_df
-        else:
-            new_df = _align_schema(new_df, current)
-            ids = new_df["id"].to_list()
-            keep = current.filter(~pl.col("id").is_in(ids))
-            df = pl.concat([keep, new_df], how="vertical_relaxed")
-        df = cls._cols_last(df)
-        df.write_parquet(cls._parquet_path(table))
-        return df
+        with _table_lock(table, cls._df_dir()):
+            try:
+                current = pl.read_parquet(cls._parquet_path(table))
+            except FileNotFoundError:
+                current = None
+            if current is None or current.height == 0:
+                df = new_df
+            else:
+                new_df = _align_schema(new_df, current)
+                ids = new_df["id"].to_list()
+                keep = current.filter(~pl.col("id").is_in(ids))
+                df = pl.concat([keep, new_df], how="vertical_relaxed")
+            df = cls._cols_last(df)
+            df.write_parquet(cls._parquet_path(table))
+            return df
 
     @classmethod
     def delete_records(cls, table: str, res_ids: list[int]) -> pl.DataFrame | None:
         """Drop deleted-record rows (from auditlog unlink logs) and rewrite the parquet."""
         if not res_ids:
             return None
-        try:
-            current = pl.read_parquet(cls._parquet_path(table))
-        except FileNotFoundError:
-            return None
-        df = current.filter(~pl.col("id").is_in(res_ids))
-        if df.height != current.height:
-            df.write_parquet(cls._parquet_path(table))
-        return df
+        with _table_lock(table, cls._df_dir()):
+            try:
+                current = pl.read_parquet(cls._parquet_path(table))
+            except FileNotFoundError:
+                return None
+            df = current.filter(~pl.col("id").is_in(res_ids))
+            if df.height != current.height:
+                df.write_parquet(cls._parquet_path(table))
+            return df
 
     @classmethod
     def retrieve_df(

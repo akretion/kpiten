@@ -33,8 +33,18 @@ class Backend:
         raise NotImplementedError
 
     def get_record_vals(
-        self, model: str, domain: list, user_id: int, limit: int | None = None
+        self,
+        model: str,
+        domain: list,
+        user_id: int,
+        limit: int | None = None,
+        offset: int = 0,
+        order: str = "",
     ) -> list[dict]:
+        raise NotImplementedError
+
+    def get_max_create_date(self, model: str, user_id: int) -> str | None:
+        """Most recent create_date of a model (None if the table is empty)."""
         raise NotImplementedError
 
     def get_fields_metadata(self, model: str) -> dict:
