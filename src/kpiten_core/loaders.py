@@ -17,6 +17,7 @@ import polars as pl
 
 from kpiten_core import env
 from kpiten_core.dfnorm import Df
+from kpiten_core.stage import Stage
 from kpiten_core.store import DFStorage
 
 if TYPE_CHECKING:
@@ -214,7 +215,7 @@ def panel_model_order(backend: "Backend", panel_id: int | None) -> list[str]:
     return ordered
 
 
-def _pull_model_batch(
+def _pull_model_staged(
     backend: "Backend",
     model: str,
     extraction_uid: int,
@@ -223,40 +224,31 @@ def _pull_model_batch(
     budget: int,
     progress: ProgressFn | None = None,
 ):
-    """Pull up to `budget` records of `model`, most recent create_date first.
+    """Stage up to `budget` records of `model`, most recent create_date first.
 
-    Each chunk is committed to the parquet as soon as it is fetched (first
-    chunk initializes the table, following ones upsert), so an interruption
-    only loses the in-flight chunk.
+    Each chunk is dumped by Odoo as JSONL on the shared volume (no data over
+    the wire), so an interruption only loses the in-flight chunk ; the next
+    call resumes from `Stage.next_offset`. When the table is fully staged the
+    chunks are consolidated into the final parquet in a single pass.
 
     Returns (rows_pulled, done) ; done=True when every record up to `max_date`
-    has been pulled.
+    has been staged.
     """
-    page = env.sync_page_size
     domain = [("create_date", "<=", max_date)]
     order = "create_date desc, id desc"
-    metadata = None if offset else backend.get_fields_metadata(model)
-    rows = 0
-    done = False
-    while rows < budget:
-        raw_vals = backend.get_record_vals(
-            model, domain, extraction_uid, limit=page, offset=offset, order=order
-        )
-        if not raw_vals:
-            done = True
-            break
-        if offset == 0:
-            df = Df.from_raw(model, raw_vals, metadata).get_df()
-            DFStorage.init_table(model, raw_vals, metadata, df)
-        else:
-            df = DFStorage.append_records(model, raw_vals)
-        rows += len(raw_vals)
-        offset += len(raw_vals)
-        if progress:
-            progress(model, "initial", offset, len(raw_vals), page)
-        if len(raw_vals) < page:
-            done = True
-            break
+    rows, done = Stage.pull_batch(
+        backend,
+        model,
+        offset,
+        domain,
+        order,
+        budget,
+        env.sync_page_size,
+        extraction_uid,
+        progress,
+    )
+    if done:
+        Stage.consolidate(backend, model, backend.get_fields_metadata(model))
     return rows, done
 
 
@@ -313,14 +305,13 @@ def complete_store(
         current["total"] = backend.get_count(
             model, [("create_date", "<=", max_date)], extraction_uid
         )
-    offset = current.get("offset", 0)
-    rows, done = _pull_model_batch(
+    offset = Stage.next_offset(backend, model)
+    rows, done = _pull_model_staged(
         backend, model, extraction_uid, offset, max_date, env.sync_batch_size, progress
     )
     if done:
         # table fully loaded : mark last_sync so delta syncs take over
-        if DFStorage.table_exists(model):
-            DFStorage.touch_sync(model)
+        DFStorage.touch_sync(model)
         current = {}
     else:
         current = {

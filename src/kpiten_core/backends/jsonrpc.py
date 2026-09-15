@@ -214,6 +214,24 @@ class JsonrpcBackend:
         """Number of records matching `domain` (search_count)."""
         return self.env["kt"].get_count(model, domain, user_id)
 
+    def get_staging_dir(self) -> str:
+        """Shared-volume dir where Odoo dumps JSONL staging chunks."""
+        return self.env["kt"].get_staging_dir()
+
+    def write_staging_chunk(
+        self,
+        model: str,
+        offset: int,
+        limit: int,
+        domain: list = None,
+        order: str = "",
+        user_id: int = None,
+    ) -> int:
+        """Ask Odoo to fetch a chunk and append it as JSONL in its staging dir."""
+        return self.env["kt"].write_staging_chunk(
+            model, offset, limit, domain, order, user_id=user_id
+        )
+
     def get_deletions(self, model: str, since: str) -> list[int]:
         """Ids of records deleted after `since` (module auditlog)."""
         ir_model = self.env["ir.model"].search([("model", "=", model)])

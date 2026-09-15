@@ -51,6 +51,22 @@ class Backend:
         """Number of records matching `domain` (search_count)."""
         raise NotImplementedError
 
+    def get_staging_dir(self) -> str:
+        """Shared-volume dir where Odoo dumps JSONL staging chunks."""
+        raise NotImplementedError
+
+    def write_staging_chunk(
+        self,
+        model: str,
+        offset: int,
+        limit: int,
+        domain: list = None,
+        order: str = "",
+        user_id: int = None,
+    ) -> int:
+        """Ask Odoo to fetch a paginated chunk and append it as JSONL in its staging dir."""
+        raise NotImplementedError
+
     def get_fields_metadata(self, model: str) -> dict:
         raise NotImplementedError
 
