@@ -26,7 +26,6 @@ from kpiten_core.backend import Backend
 from kpiten_core.loaders import (
     last_sync,
     load_store,
-    pending_tables,
     user_store,
 )
 from kpiten_core.service import service as kpiten_service
@@ -526,14 +525,30 @@ def dashboard(theme: str = DEFAULT_THEME, db: str | None = None):
                 ui.label("⏱ " + stamp).classes("text-xs opacity-55").tooltip(
                     "Data as of " + stamp + " — 'Refresh data' syncs with Odoo"
                 )
-            pending = pending_tables()
-            if pending:
-                ui.label(f"⏳ loading : {len(pending)} table(s) in progress").classes(
-                    "text-xs opacity-55"
-                ).tooltip(
-                    "Recent data is ready ; older records are still being pulled "
-                    "in the background without overloading Odoo."
-                )
+            progress_label = (
+                ui.label("").classes("text-xs opacity-55").set_visibility(False)
+            )
+
+            def _update_progress():
+                info = kpiten_service.get_progress(backend.db)
+                current = info["current"]
+                queued = info["queued"]
+                if not current and not queued:
+                    progress_label.set_visibility(False)
+                    return
+                parts = []
+                if current:
+                    parts.append(
+                        f"Import de {current['model']} : {current['percent']}% "
+                        f"({current['offset']}/{current['total']})"
+                    )
+                if queued:
+                    parts.append(f"{len(queued)} table(s) en attente")
+                progress_label.set_text("⏳ " + " · ".join(parts))
+                progress_label.set_visibility(True)
+
+            _update_progress()
+            ui.timer(2.0, _update_progress)
         with ui.column().classes("w-full"):
             filters_row = ui.row().classes("w-full items-end gap-4")
             cards_grid = ui.element("div").classes("tile-grid card-grid w-full")
