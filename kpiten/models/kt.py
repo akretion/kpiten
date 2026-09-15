@@ -164,7 +164,7 @@ class Kt(models.AbstractModel):
                 row = data_by_id[record.id]
                 related = getattr(record, root_field, None)
                 if not related:
-                    row[path] = False
+                    row[path] = None
                     continue
                 try:
                     values = related.mapped(sub_path)
@@ -174,7 +174,7 @@ class Kt(models.AbstractModel):
                         # recordset (Many2one imbriqué) → valeur scalaire
                         row[path] = values[0] if len(values) == 1 else list(values)
                 except Exception:
-                    row[path] = False
+                    row[path] = None
 
         # 6. Remplacer les Many2one bruts (id, name) par juste l'id
         #    pour les champs dont on a déjà la valeur via dot-notation
