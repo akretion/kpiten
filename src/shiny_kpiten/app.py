@@ -136,6 +136,7 @@ def app_ui(req):  # noqa: ANN001
             ),
         ),
         ui.tags.div(ui.output_ui("data_freshness"), class_="freshness-bar"),
+        ui.tags.div(ui.output_ui("loading_state"), class_="loading-bar"),
         ui.div(ui.output_ui("tiles")),
     )
 
@@ -223,6 +224,28 @@ def server(input, output, session):
     data_version = reactive.Value(0)
     layout_version = reactive.Value(0)
 
+    def _progress_cb(p):
+        """Return a sync progress callback feeding a ui.Progress bar.
+
+        Rows are unknown up-front, so the bar reflects activity (one step per
+        extracted chunk) and the detail shows the current model + rows so far.
+        """
+        totals: dict[str, int] = {}
+
+        def cb(model, mode, offset, count, page_size):
+            totals[model] = totals.get(model, 0) + count
+            kind = {
+                "full": "initial extract",
+                "initial": "progressive load",
+                "delta": "update",
+            }.get(mode, "update")
+            p.inc(
+                1,
+                detail=f"{kind} : {model} — {totals[model]} records",
+            )
+
+        return cb
+
     @reactive.effect
     def _db_changed():
         db = input.db()  # the select re-fires on init : switch only on change
@@ -299,7 +322,16 @@ def server(input, output, session):
         user_id = SessionHandler.user_id or backend.env.user.id
         content = data_layer.user_store(backend, user_id)
         if not content:
-            data_layer.sync_store(backend, backend.env.user.id)
+            # fresh database : ask kpiten-core to load it (panel first)
+            with ui.Progress(min=1, max=100) as p:
+                with reactive.isolate():
+                    try:
+                        panel_id = int(input.panel())
+                    except (KeyError, TypeError, ValueError):
+                        panel_id = None
+                data_layer.request_load(
+                    backend.db, panel_id, wait=True, progress=_progress_cb(p)
+                )
             content = data_layer.user_store(backend, user_id)
         return content
 
@@ -318,6 +350,21 @@ def server(input, output, session):
             title="Data as of "
             + stamp
             + " — parquet snapshot time ; 'Refresh data' syncs with Odoo",
+        )
+
+    @render.ui
+    def loading_state():
+        """Notice while tables are still being progressively loaded."""
+        data_version()  # re-render after each background completion pass
+        pending = data_layer.pending_tables()
+        if not pending:
+            return ui.tags.span("", class_="loading-state")
+        return ui.tags.span(
+            f"⏳ loading : {len(pending)} table(s) in progress",
+            class_="loading-state",
+            title="Recent data is ready ; older records are still being pulled "
+            "in the background. Data will complete gradually without "
+            "overloading Odoo.",
         )
 
     @reactive.calc
@@ -445,7 +492,10 @@ def server(input, output, session):
         input.refresh_data()
         with reactive.isolate():
             backend = backend_rv()
-            data_layer.sync_store(backend, backend.env.user.id)
+            with ui.Progress(min=1, max=100) as p:
+                data_layer.request_refresh(
+                    backend.db, wait=True, progress=_progress_cb(p)
+                )
             data_version.set(data_version() + 1)
             ui.notification_show("Data synced with Odoo.", duration=3)
 

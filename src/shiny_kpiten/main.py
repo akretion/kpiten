@@ -9,18 +9,33 @@
 
 import json
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, Response
 
 from kpiten_core.backend import Backend
+from kpiten_core.service import service as kpiten_service
 
 from .app import app as shiny_app
 from .sessions import SessionHandler
 
 logger = logging.getLogger(__name__)
 
-this_app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app):
+    # kpiten-core owns the background sync (one queue per database) ; the app
+    # only requests loads / refreshes and lets the service complete in the
+    # background without overloading Odoo.
+    kpiten_service.start()
+    try:
+        yield
+    finally:
+        kpiten_service.stop()
+
+
+this_app = FastAPI(lifespan=lifespan)
 
 
 @this_app.post("/")
@@ -39,14 +54,12 @@ def auth(payload: dict):
             content=json.dumps({"error": "No user matches this uuid"}),
         )
     try:
-        # incremental parquet refresh on login (delta since last sync),
-        # scoped to the database's own parquet dir
         from kpiten_core import env
 
         env.current_db = backend.db
-        from . import data as data_layer
-
-        data_layer.sync_store(backend, user_id)
+        # ask kpiten-core to load this db ; the background service fills the
+        # older data progressively (the dashboard seeds it on first render).
+        kpiten_service.request_load(backend.db, wait=False)
     except Exception:
         logger.exception("data refresh failed")
         return Response(
