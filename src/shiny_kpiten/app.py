@@ -220,6 +220,17 @@ def tile_error_html(line: dict, error: str, info: str = "") -> str:
     )
 
 
+def tile_loading_html(line: dict) -> str:
+    """Neutral placeholder while the tile's data is still being imported."""
+    col_span = line.get("col_span") or 1
+    height = max((line.get("tile_height") or 260) - 40, 120)
+    return (
+        f'<div class="tile" style="grid-column: span {col_span}; '
+        f'min-height: {height}px"><h3>{line["name"]}</h3>'
+        f'<p style="color: #9aa4b0; font-style: italic">⏳ data loading…</p></div>'
+    )
+
+
 def server(input, output, session):
     from kpiten_core import env
 
@@ -586,6 +597,9 @@ def server(input, output, session):
         edit_mode_on = bool(input.edit_mode())
         logger.info("predicates : %s", [str(p) for p in predicate_list])
         cards, blocks = [], []
+        # while the progressive load is running, missing tables are expected :
+        # show a neutral placeholder instead of a red error
+        importing = bool(data_layer.pending_tables())
         for line in tile_lines:
             try:
                 result = core_tiles.exec_tile(
@@ -598,11 +612,14 @@ def server(input, output, session):
                 )
             except Exception as err:
                 logger.exception("tile %s failed", line["name"])
-                rendered = (
-                    tile_error_item_html(line, err)
-                    if edit_mode_on
-                    else tile_error_html(line, str(err), tile_info(line))
-                )
+                if importing:
+                    rendered = tile_loading_html(line)
+                else:
+                    rendered = (
+                        tile_error_item_html(line, err)
+                        if edit_mode_on
+                        else tile_error_html(line, str(err), tile_info(line))
+                    )
             # cards have a fixed height : their own grid section, right
             # below the filters and above the other kpis
             (cards if line["kind"] == "card" else blocks).append(rendered)
