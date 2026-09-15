@@ -56,23 +56,30 @@ def _is_text_dtype(dtype) -> bool:
     )
 
 
-def _align_schema(new_df: pl.DataFrame, current: pl.DataFrame) -> pl.DataFrame:
-    """Order the delta columns as the stored parquet (missing -> null).
+def _merge_schema(
+    new_df: pl.DataFrame, current: pl.DataFrame
+) -> tuple[pl.DataFrame, list[str]]:
+    """Align a delta df to the stored parquet schema, adding new columns.
 
-    The stored schema may carry a narrow dtype (e.g. Boolean) inherited from a
-    chunk where a text field was null (legacy `False`). Casting text into such
-    a non-text dtype would fail, so we keep the source (wider) dtype instead ;
-    the relaxed concat then converges the parquet schema.
+    Returns (aligned_new_df, gained_columns) where `gained_columns` are the
+    columns present in `new_df` but missing from the stored parquet (i.e. new
+    Odoo fields). The aligned df keeps the current column order and appends the
+    new columns ; the relaxed concat then widens the parquet schema.
     """
+    gained = [c for c in new_df.columns if c not in current.columns]
+    union = [*current.columns, *gained]
     selects = []
-    for c in current.columns:
-        if c not in new_df.columns:
-            selects.append(pl.lit(None, dtype=current[c].dtype).alias(c))
-        elif _is_text_dtype(new_df[c].dtype) and not _is_text_dtype(current[c].dtype):
-            selects.append(pl.col(c))  # keep the text dtype, avoid bad cast
+    for c in union:
+        if c in new_df and c in current:
+            if _is_text_dtype(new_df[c].dtype) and not _is_text_dtype(current[c].dtype):
+                selects.append(pl.col(c))  # keep the text dtype, avoid bad cast
+            else:
+                selects.append(pl.col(c).cast(current[c].dtype, strict=False))
+        elif c in new_df:
+            selects.append(pl.col(c))  # new column : keep as extracted
         else:
-            selects.append(pl.col(c).cast(current[c].dtype, strict=False))
-    return new_df.select(selects)
+            selects.append(pl.lit(None, dtype=current[c].dtype).alias(c))
+    return new_df.select(selects), gained
 
 
 class DF_META(TypedDict):
@@ -245,7 +252,9 @@ class DFStorage:
         """Upsert rows in the stored parquet (delta-sync).
 
         The normalization (Df) is applied only to the new/updated rows, then
-        they replace the matching `id` in the existing dataframe.
+        they replace the matching `id` in the existing dataframe. New columns
+        brought by the delta (new Odoo fields) are added to the parquet schema,
+        with NULL on the already-stored rows.
         """
         new_df = Df.from_raw(table, raw_vals, cls.read_meta(table)).get_df()
         with _table_lock(table, cls._df_dir()):
@@ -256,9 +265,14 @@ class DFStorage:
             if current is None or current.height == 0:
                 df = new_df
             else:
-                new_df = _align_schema(new_df, current)
+                new_df, gained = _merge_schema(new_df, current)
                 ids = new_df["id"].to_list()
                 keep = current.filter(~pl.col("id").is_in(ids))
+                # align the existing rows to the widened schema (new cols = NULL)
+                if gained:
+                    keep = keep.with_columns(
+                        [pl.lit(None, dtype=new_df[c].dtype).alias(c) for c in gained]
+                    )
                 df = pl.concat([keep, new_df], how="vertical_relaxed")
             df = cls._cols_last(df)
             df.write_parquet(cls._parquet_path(table))

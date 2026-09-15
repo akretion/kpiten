@@ -426,9 +426,7 @@ def sync_store(
         DFStorage.set_sync_state(model, {"mode": "delta", "offset": 0, "since": since})
         try:
             store.update(
-                _extract_delta_model(
-                    backend, model, since, extraction_uid, progress=progress
-                )
+                _extract_delta_model(backend, model, since, extraction_uid, 0, progress)
             )
         except Exception:
             logger.exception("delta sync of %s interrupted", model)
