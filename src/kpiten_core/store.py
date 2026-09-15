@@ -74,16 +74,20 @@ def _is_external_column(c: str) -> bool:
 
 
 class DFStorage:
-    df_data_dir_name = "parquet"
     parquet_file_ext = "parquet"
 
     @classmethod
     def _df_dir(cls) -> str:
-        """Parquet dir : DATA_PATH/[db/]parquet (scoping per odoo database)."""
+        """Parquet dir : DATA_PATH/[db/] (scoping per odoo database).
+
+        Files live directly in the data dir (no intermediate `parquet` subdir) :
+        DATA_PATH/<db>/<table>.parquet, or DATA_PATH/<table>.parquet when no
+        database is scoped.
+        """
         db = env.active_db()
         if db:
-            return f"{env.data_path}/{db}/{cls.df_data_dir_name}"
-        return f"{env.data_path}/{cls.df_data_dir_name}"
+            return f"{env.data_path}/{db}"
+        return f"{env.data_path}"
 
     @staticmethod
     def _cols_last(df: pl.DataFrame) -> pl.DataFrame:

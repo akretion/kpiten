@@ -308,6 +308,11 @@ def complete_store(
             DFStorage.set_prog({"order": order, "current": None})
             return bool(order)
         current["max_date"] = max_date
+    # count once so the front can report a reliable % without a full scan
+    if "total" not in current:
+        current["total"] = backend.get_count(
+            model, [("create_date", "<=", max_date)], extraction_uid
+        )
     offset = current.get("offset", 0)
     rows, done = _pull_model_batch(
         backend, model, extraction_uid, offset, max_date, env.sync_batch_size, progress
@@ -318,7 +323,12 @@ def complete_store(
             DFStorage.touch_sync(model)
         current = {}
     else:
-        current = {"model": model, "offset": offset + rows, "max_date": max_date}
+        current = {
+            "model": model,
+            "offset": offset + rows,
+            "max_date": max_date,
+            "total": current["total"],
+        }
     DFStorage.set_prog({"order": order, "current": current or None})
     return bool(order) or bool(current)
 
@@ -326,6 +336,32 @@ def complete_store(
 def pending_tables() -> set[str]:
     """Models still being progressively loaded (partial parquet)."""
     return DFStorage.partial_tables()
+
+
+def progress_info() -> dict:
+    """Progress of the ongoing progressive load, read from the stored state.
+
+    Returns :
+    - `current` : the table being imported, with its offset/total and percent,
+      or None when nothing is in flight.
+    - `queued`  : tables not started yet (still to import), in priority order.
+    """
+    prog = DFStorage.get_prog()
+    order = prog.get("order", [])
+    current = prog.get("current") or {}
+    model = current.get("model")
+    info = {"current": None, "queued": list(order)}
+    if model:
+        total = current.get("total", 0)
+        offset = current.get("offset", 0)
+        percent = round(offset / total * 100) if total else 0
+        info["current"] = {
+            "model": model,
+            "offset": offset,
+            "total": total,
+            "percent": percent,
+        }
+    return info
 
 
 def sync_store(

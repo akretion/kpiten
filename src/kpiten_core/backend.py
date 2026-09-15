@@ -47,6 +47,10 @@ class Backend:
         """Most recent create_date of a model (None if the table is empty)."""
         raise NotImplementedError
 
+    def get_count(self, model: str, domain: list, user_id: int) -> int:
+        """Number of records matching `domain` (search_count)."""
+        raise NotImplementedError
+
     def get_fields_metadata(self, model: str) -> dict:
         raise NotImplementedError
 

@@ -72,10 +72,18 @@ class JsonrpcBackend:
         return rec
 
     def get_chart_config(self) -> dict:
-        """Chart default styling from ir.config_parameter kt_config (json).
+        """Chart default styling from the single kt.config record.
+
+        Falls back to the legacy `ir.config_parameter kt_config` json so a
+        database that predates the kt.config model keeps working.
 
         i.e. {"graph": {"layout": {"colorway": ["#00dc82", "#34cdfe"]}}}
         """
+        try:
+            if self.env["ir.model"].search([("model", "=", "kt.config")]):
+                return self.env["kt.config"].ensure_single().get_config_json()
+        except Exception:
+            pass
         params = self.env["ir.config_parameter"]
         try:
             return json.loads(params.get_param("kt_config") or "{}")
@@ -211,6 +219,10 @@ class JsonrpcBackend:
         """Most recent create_date of a model, None if the table is empty."""
         value = self.env["kt"].get_max_create_date(model, user_id)
         return value if value else None
+
+    def get_count(self, model: str, domain: list, user_id: int) -> int:
+        """Number of records matching `domain` (search_count)."""
+        return self.env["kt"].get_count(model, domain, user_id)
 
     def get_deletions(self, model: str, since: str) -> list[int]:
         """Ids of records deleted after `since` (module auditlog)."""

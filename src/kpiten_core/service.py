@@ -79,6 +79,11 @@ class SyncService:
         """Incremental delta sync of a db (Refresh data button)."""
         self._run(db, wait, lambda b, uid: loaders.sync_store(b, uid, progress))
 
+    def get_progress(self, db: str) -> dict:
+        """Progress of the progressive load of a db (no Odoo call needed)."""
+        with env.db_scope(db):
+            return loaders.progress_info()
+
     # ---- internals -----------------------------------------------------
     def _activate(self, db: str):
         with self._lock:
