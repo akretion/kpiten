@@ -26,6 +26,7 @@ from kpiten_core.backend import Backend
 from kpiten_core.loaders import (
     last_sync,
     load_store,
+    pending_tables,
     user_store,
 )
 from kpiten_core.service import service as kpiten_service
@@ -293,6 +294,14 @@ def error_view(line: dict, error: str, info: str = ""):
         ui.label(str(error)[:200]).classes("text-sm text-red-400")
 
 
+def loading_view(line: dict):
+    """Neutral placeholder while the tile's data is still being imported."""
+    tile = ui.column().classes("tile")
+    with tile:
+        ui.label(line.get("name") or "").classes("text-base font-semibold")
+        ui.label("⏳ data loading…").classes("text-sm italic text-gray-400")
+
+
 @ui.page("/")
 def dashboard(theme: str = DEFAULT_THEME, db: str | None = None):
     ui.add_head_html(f"<style>{CSS}</style>")
@@ -397,8 +406,14 @@ def dashboard(theme: str = DEFAULT_THEME, db: str | None = None):
                         )
                 except Exception as err:
                     logger.exception("tile %s failed", line.get("name"))
-                    with tiles_grid:
-                        error_view(line, err, info)
+                    if pending_tables():
+                        # progressive load still running : missing table is
+                        # expected, show a neutral placeholder instead
+                        with tiles_grid:
+                            loading_view(line)
+                    else:
+                        with tiles_grid:
+                            error_view(line, err, info)
         if edit_state["on"]:
             ui.add_head_html(f"<style>{EDIT_CSS}</style>")
             ui.run_javascript(EDIT_JS)
