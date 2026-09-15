@@ -112,6 +112,12 @@ def app_ui(req):  # noqa: ANN001
     return ui.page_fluid(
         {"class": "kpiten-dashboard"},
         ui.output_ui("theme_style"),
+        ui.tags.script(
+            "(function(){ if (window.__kpitenPoll) return; window.__kpitenPoll=true; "
+            "setInterval(function(){ if (window.Shiny) { "
+            "Shiny.setInputValue('__progress_poll', Math.random(), {priority:'event'});"
+            " } }, 2000); })();"
+        ),
         ui.row(
             ui.column(
                 2,
@@ -223,6 +229,15 @@ def server(input, output, session):
     env.current_db = SessionHandler.db
     data_version = reactive.Value(0)
     layout_version = reactive.Value(0)
+    # bumped by a light poll so the loading % refreshes while the kpiten-core
+    # background service keeps pulling data (without reloading the whole store)
+    progress_tick = reactive.Value(0)
+
+    @reactive.effect
+    def _poll_progress():
+        input.__progress_poll()  # fired by a JS interval in the UI
+        if data_layer.pending_tables():
+            progress_tick.set(progress_tick() + 1)
 
     def _progress_cb(p):
         """Return a sync progress callback feeding a ui.Progress bar.
@@ -354,17 +369,27 @@ def server(input, output, session):
 
     @render.ui
     def loading_state():
-        """Notice while tables are still being progressively loaded."""
-        data_version()  # re-render after each background completion pass
-        pending = data_layer.pending_tables()
-        if not pending:
+        """Live progress of the progressive load (current % + queue)."""
+        progress_tick()  # re-render while the background service pulls data
+        backend = backend_rv()
+        info = data_layer.progress(backend.db)
+        current = info["current"]
+        queued = info["queued"]
+        if not current and not queued:
             return ui.tags.span("", class_="loading-state")
+        parts = []
+        if current:
+            parts.append(
+                f"Import de {current['model']} : {current['percent']}% "
+                f"({current['offset']}/{current['total']})"
+            )
+        if queued:
+            parts.append(f"{len(queued)} table(s) en attente")
         return ui.tags.span(
-            f"⏳ loading : {len(pending)} table(s) in progress",
+            "⏳ " + " · ".join(parts),
             class_="loading-state",
             title="Recent data is ready ; older records are still being pulled "
-            "in the background. Data will complete gradually without "
-            "overloading Odoo.",
+            "in the background. Data completes gradually without overloading Odoo.",
         )
 
     @reactive.calc

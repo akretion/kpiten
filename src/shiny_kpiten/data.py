@@ -32,6 +32,11 @@ def pending_tables() -> set[str]:
     return loaders.pending_tables()
 
 
+def progress(db: str) -> dict:
+    """Progress of the progressive load of a db (current %, queued tables)."""
+    return kpiten_service.get_progress(db)
+
+
 def last_sync(backend: Backend, user_id: int) -> str | None:
     """Data age, in the user timezone, minutes precision."""
     return loaders.last_sync(backend, user_id)
