@@ -313,6 +313,8 @@ def dashboard(theme: str = DEFAULT_THEME, db: str | None = None):
 
     env.current_db = SessionHandler.db
     backend = Backend.create(db=SessionHandler.db)
+    # Apply the odoo-side chart defaults (colors) once per page load.
+    core_tiles.set_chart_config(backend.get_chart_config())
     panels = backend.get_panels()
     if not panels:
         ui.label("No kpiten.panel found in Odoo").classes("text-xl")
@@ -348,6 +350,9 @@ def dashboard(theme: str = DEFAULT_THEME, db: str | None = None):
         panel_label["id"] = int(e.value)
         filt.update(date="last 5 years", dims={})
         draw_filters()
+        # Data (store_cache) is independent of the panel : just redraw the
+        # tiles of the selected panel, no need to sync again with Odoo.
+        draw_tiles()
 
     def draw_filters():
         filters_row.clear()
