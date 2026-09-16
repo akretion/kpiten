@@ -111,6 +111,10 @@ def graph_case(content, table, store, full_predicates):
     source = filter_df(df, full_predicates)
     source = _agg(source, cy["name"], cx["name"], cx["aggregation"])
     source = _agg(source, cx["name"], cy["name"], cy["aggregation"])
+    # Default order : largest to smallest on the y axis, unless the x axis
+    # is temporal (a date keeps its natural chronological order).
+    if not is_date(source, cx["name"]):
+        source = source.sort(cy["name"], descending=True)
 
     labels = {
         col: col.replace("_", " ").capitalize() for col in (cx["name"], cy["name"])
@@ -125,7 +129,28 @@ def graph_case(content, table, store, full_predicates):
     if CHART_CONFIG.get("graph"):
         layout = {**CHART_CONFIG["graph"].get("layout", {}), **layout}
     fig.update_layout(**layout)
+    _apply_colorway(
+        fig, (CHART_CONFIG.get("graph") or {}).get("layout", {}).get("colorway")
+    )
     return fig
+
+
+def _apply_colorway(fig, colorway: list | None) -> None:
+    """Apply the configured colorway to each bar element.
+
+    px.bar sets a single scalar `marker.color` on the trace, which makes
+    plotly color every bar the same and ignore the layout `colorway`. We
+    therefore expand the palette per element (cycling) so the configured
+    colors actually show up.
+    """
+    if not colorway:
+        return
+    for trace in fig.data:
+        if trace.type != "bar":
+            continue
+        x = trace.x if trace.x is not None else (trace.y if trace.y is not None else [])
+        n = len(x)
+        trace.marker.color = [colorway[i % len(colorway)] for i in range(n)]
 
 
 # Chart styling defaults, set by the UI apps from their odoo config

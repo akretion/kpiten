@@ -77,7 +77,7 @@ class JsonrpcBackend:
         i.e. {"graph": {"layout": {"colorway": ["#00dc82", "#34cdfe"]}}}
         """
         if self.env["ir.model"].search([("model", "=", "kt.config")]):
-            return self.env["kt.config"].ensure_single().get_config_json()
+            return self.env["kt.config"].get_config_json()
         return {}
 
     def get_panel_lines(self, model: str, panel_id: int | None = None) -> list[dict]:
