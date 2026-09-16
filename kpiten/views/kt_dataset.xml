@@ -47,6 +47,15 @@
                                             widget="ace"
                                             options="{'mode': 'python'}"
                                         />
+                                        <field
+                                            name="validation_msg"
+                                            string="Validation"
+                                            readonly="1"
+                                            colspan="2"
+                                            decoration-danger="validation_msg"
+                                            invisible="not validation_msg"
+                                            placeholder="Definition validated"
+                                        />
                                     </group>
                                     <group>
                                         <group>

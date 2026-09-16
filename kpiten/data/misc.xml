@@ -4,5 +4,10 @@
         <field name="sequence">50</field>
     </record>
 
-    <record model="kt.config" id="only_one" />
+    <record model="kt.config" id="only_one">
+        <field name="graph_color_1">#33d17a</field>
+        <field name="graph_color_2">#1c71d8</field>
+        <field name="graph_color_3">#c061cb</field>
+        <field name="graph_color_4">#865e3c</field>
+    </record>
 </odoo>

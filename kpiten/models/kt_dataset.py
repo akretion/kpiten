@@ -1,10 +1,15 @@
 import logging
 
 import tomllib
+from kpiten_core.validate import validate_toml as kt_validate_toml
 
 from odoo import _, api, exceptions, fields, models
 
 logger = logging.getLogger(__name__)
+
+# Suffixes of date columns added dynamically by kpiten-core
+# (see kpiten_core.tiles.DERIVED_DT_SUFFIX).
+DERIVED_DT_SUFFIX = {"year", "quarter", "month", "week", "day"}
 
 # TODO remove
 EXCLUDED_TYPES = [
@@ -168,6 +173,11 @@ class KpitenConfigLine(models.Model):
         help="Height of the tile in pixels",
     )
     active = fields.Boolean(default=True)
+    validation_msg = fields.Text(
+        compute="_compute_validation_msg",
+        store=True,
+        help="Structural validation messages for the definition (non blocking).",
+    )
 
     @api.model
     def get_conf_id(self, model):
@@ -209,6 +219,52 @@ class KpitenConfigLine(models.Model):
             raise exceptions.ValidationError(
                 _("Tile definition must be valid TOML :\n%s") % err
             )
+
+    @api.depends("definition", "kind", "dataset_id")
+    def _compute_validation_msg(self):
+        for rec in self:
+            messages = self._structural_messages(rec)
+            rec.validation_msg = "\n".join(messages) if messages else False
+
+    @api.model
+    def _structural_messages(self, rec) -> list:
+        """Run the kpiten-core structural validation on a line definition."""
+        if rec.kind == "data" or not rec.definition:
+            return []
+        fields = self._valid_columns(rec)
+        try:
+            return kt_validate_toml(rec.definition, rec.kind, fields)
+        except tomllib.TOMLDecodeError:
+            return [_("Definition is not valid TOML.")]
+
+    def _valid_columns(self, rec) -> set:
+        """Set of valid column names for the dataset model.
+
+        Stored fields + dotted relational paths (as produced by the
+        extraction) plus the derived date columns (`<date>.year`, ...).
+        """
+        model = rec.dataset_id.model_id.model
+        if not model:
+            return set()
+        columns = self.env["kt"].get_allowed_fields(model, self.env.user.id)
+        columns = set(columns)
+        for col in list(columns):
+            if self._is_date_column(model, col):
+                for suffix in DERIVED_DT_SUFFIX:
+                    columns.add(f"{col}.{suffix}")
+        return columns
+
+    def _is_date_column(self, model: str, name: str) -> bool:
+        """True if `name` is a stored date/datetime column of `model`."""
+        field = self.env["ir.model.fields"].search(
+            [
+                ("model", "=", model),
+                ("name", "=", name),
+                ("ttype", "in", ("date", "datetime")),
+            ],
+            limit=1,
+        )
+        return bool(field)
 
     @api.model_create_multi
     def create(self, vals_list):
