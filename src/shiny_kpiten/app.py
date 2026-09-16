@@ -236,8 +236,11 @@ def server(input, output, session):
 
     # active odoo database : sso session db, switched reactively by the
     # Database select (each db has its own parquet snapshot)
-    backend_rv = reactive.Value(Backend.create(db=SessionHandler.db))
+    initial_backend = Backend.create(db=SessionHandler.db)
+    backend_rv = reactive.Value(initial_backend)
     env.current_db = SessionHandler.db
+    # Apply the odoo-side chart defaults (colors) once per session.
+    core_tiles.set_chart_config(initial_backend.get_chart_config())
     data_version = reactive.Value(0)
     layout_version = reactive.Value(0)
     # bumped by a light poll so the loading % refreshes while the kpiten-core
@@ -283,6 +286,7 @@ def server(input, output, session):
             SessionHandler.db = db
             env.current_db = db
             backend_rv.set(new_backend)
+            core_tiles.set_chart_config(new_backend.get_chart_config())
             data_version.set(data_version() + 1)
             layout_version.set(layout_version() + 1)
             ui.notification_show(f"Database switched to {db}")
