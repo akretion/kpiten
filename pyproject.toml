@@ -7,6 +7,7 @@ dependencies = [
   "odoorpc>=0.10.1",
   "polars>=1.39.3",
   "pyarrow>=23.0.1",
+  "connectorx>=0.3.2",
   "plotly[express]>=6.7.0",
   "great-tables>=0.21.0",
   "tomli-w>=1.0",

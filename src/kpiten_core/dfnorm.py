@@ -75,12 +75,17 @@ class Df:
     def normalize_decimal_col(self, df: pl.DataFrame, col_name: str) -> pl.Expr:
         """Reduce the scale of a Decimal column to its column max significant places."""
         series = df[col_name]
+        if series.null_count() == series.len() or series.len() == 0:
+            # all-null / empty Decimal column : nothing to normalize
+            return pl.col(col_name)
         as_str = series.cast(pl.String)
         decimal_parts = as_str.str.extract(r"\.(\d+)$", 1)
         significant = decimal_parts.map_elements(
             lambda s: len(s.rstrip("0")) if s else 0, return_dtype=pl.Int32
         )
         max_scale = significant.max()
+        if max_scale is None:
+            return pl.col(col_name)
         return pl.col(col_name).cast(pl.Decimal(scale=max_scale))
 
     def set_datetime_string2date_columns(self):

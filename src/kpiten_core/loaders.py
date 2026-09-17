@@ -56,6 +56,59 @@ def _iter_chunks(
         offset += len(raw_vals)
 
 
+# ---- direct Postgres extraction (EXTRACT_MODE = sql | view) -----------
+# The app streams the Odoo-generated SELECT straight from Postgres with
+# connectorx, bypassing the ORM and the JSONL staging. The result is
+# normalized by `Df` exactly like the jsonrpc path, so the parquet is
+# schema-equivalent.
+
+
+def _pg_uri(db: str | None) -> str:
+    """Postgres connection URI for a database (default = scoped db)."""
+    database = env.pg_db or db or env.active_db() or ""
+    return (
+        f"postgresql://{env.pg_user}:{env.pg_pwd}"
+        f"@{env.pg_host}:{env.pg_port}/{database}"
+    )
+
+
+def _read_sql_df(uri: str, query: str) -> "pl.DataFrame":
+    """Stream `query` from Postgres into a polars DataFrame (connectorx)."""
+    import connectorx as cx
+
+    df = cx.read_sql(uri, query, return_type="polars")
+    # connectorx reads odoo integer PKs as Int32 ; normalize to Int64 to match
+    # the jsonrpc extraction
+    return df.with_columns(pl.col("id").cast(pl.Int64))
+
+
+def _extract_full_model_sql(
+    backend: "Backend",
+    model: str,
+    extraction_uid: int,
+    progress: ProgressFn | None = None,
+):
+    """Full extract of one model straight from Postgres (one streamed query).
+
+    Much faster than the paginated ORM/JSONL path for large tables. The
+    records are normalized by `Df` and stored once ; no resume offset is
+    needed since the query is a single bounded stream.
+    """
+    logger.info("extracting %s via direct SQL", model)
+    metadata = backend.get_fields_metadata(model)
+    uri = _pg_uri(backend.env.db)
+    if env.extract_mode == "view":
+        query = f"SELECT * FROM {backend.get_view_name(model)}"
+    else:
+        query = backend.get_sql_query(model, [], "create_date desc, id desc")
+    df = _read_sql_df(uri, query)
+    norm = Df(df, fields=metadata).get_df()
+    if progress:
+        progress(model, env.extract_mode, 0, norm.height, norm.height)
+    DFStorage.store_raw(model, [], metadata, norm)
+    return {model: norm}
+
+
 def last_sync(backend: "Backend", user_id: int) -> str | None:
     """Most recent last_sync across the stored tables, in the user timezone.
 
@@ -132,6 +185,11 @@ def build_store(
     """
     store: dict[str, pl.DataFrame] = {}
     for model in backend.get_dataset_models():
+        if env.extract_mode != "jsonrpc":
+            store.update(
+                _extract_full_model_sql(backend, model, extraction_uid, progress)
+            )
+            continue
         state = DFStorage.get_sync_state(model)
         offset = state["offset"] if state and state.get("mode") == "full" else 0
         if offset:
@@ -263,7 +321,16 @@ def initial_load(
     Current panel tables come first, so they are pulled (and completed) before
     the others ; the background `complete_store` continues filling the older
     data without overloading Odoo.
+
+    In direct-SQL mode (`EXTRACT_MODE = sql`/`view`) the whole store is pulled
+    in one streamed pass : no recent->oldest background needed, so we extract
+    everything and mark each table as synced.
     """
+    if env.extract_mode != "jsonrpc":
+        store = build_store(backend, extraction_uid, progress)
+        for model in store:
+            DFStorage.touch_sync(model)
+        return store
     prog = DFStorage.get_prog()
     if not prog:
         # only seed the queue when nothing has ever been started for this db

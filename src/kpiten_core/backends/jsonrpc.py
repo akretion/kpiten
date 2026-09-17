@@ -252,6 +252,14 @@ class JsonrpcBackend:
     def get_fields_metadata(self, model: str) -> dict:
         return self.env["kt"].get_fields_metadata(model)
 
+    def get_sql_query(self, model: str, domain: list = None, order: str = "") -> str:
+        """SELECT reading `model` straight from Postgres (see kt module)."""
+        return self.env["kt"].get_sql_query(model, domain or [], order)
+
+    def get_view_name(self, model: str) -> str:
+        """Persistent SQL view name for `model` (see kt module)."""
+        return self.env["kt"].create_sql_view(model)
+
     def get_allowed_fields(self, model: str, user_id: int) -> list[str]:
         return self.env["kt"].get_allowed_fields(model, user_id)
 
