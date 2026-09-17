@@ -6,5 +6,6 @@ from . import (
     kt,
     kt_panel,
     kt_config,
+    kt_sql,
     kt_card_wizard,
 )

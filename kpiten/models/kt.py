@@ -9,6 +9,8 @@ import requests
 from odoo import SUPERUSER_ID, api, exceptions, models
 from odoo.tools.translate import _
 
+from . import kt_sql
+
 logger = logging.getLogger(__name__)
 
 
@@ -289,6 +291,24 @@ class Kt(models.AbstractModel):
             for row in raw_vals:
                 fh.write(json.dumps(row, default=_jsonl_default) + "\n")
         return len(raw_vals)
+
+    @api.model
+    def get_sql_query(self, model: str, domain: list = None, order: str = "") -> str:
+        """Bare SELECT reading `model` straight from Postgres.
+
+        Equivalent of `get_record_vals` for the direct-Postgres extraction
+        path : the kpiten app streams this query with connectorx / polars and
+        normalizes the result with `Df`, producing the same parquet.
+        """
+        return kt_sql.build_select(self.env, model, domain, order)
+
+    @api.model
+    def create_sql_view(self, model: str) -> str:
+        """Create (or replace) the persistent SQL view `kpiten_<model>`.
+
+        Used by the 'view' extraction mode. Returns the view name.
+        """
+        return kt_sql.create_sql_view(self.env, model)
 
     def _get_model_direct_fields(self, model: str) -> set:
         """
