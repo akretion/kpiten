@@ -73,7 +73,7 @@ def _pg_uri(db: str | None) -> str:
 
 
 def _read_sql_df(uri: str, query: str) -> "pl.DataFrame":
-    """Stream `query` from Postgres into a polars DataFrame (connectorx)."""
+    """Run `query` against Postgres into a polars DataFrame (connectorx)."""
     import connectorx as cx
 
     df = cx.read_sql(uri, query, return_type="polars")
@@ -82,30 +82,61 @@ def _read_sql_df(uri: str, query: str) -> "pl.DataFrame":
     return df.with_columns(pl.col("id").cast(pl.Int64))
 
 
+def _iter_sql_pages(uri: str, base_query: str, page_size: int):
+    """Yield `base_query`'s rows by bounded pages, keyset-paginated on id.
+
+    `base_query` is wrapped so its own ORDER BY (if any) is irrelevant : id is
+    the model's primary key, so ordering and paging on it is always valid and
+    lets Postgres use the index instead of an ever-growing OFFSET scan.
+    """
+    last_id = -1
+    while True:
+        page_query = (
+            f"SELECT * FROM ({base_query}) AS kt_page "
+            f"WHERE id > {last_id} ORDER BY id LIMIT {page_size}"
+        )
+        page = _read_sql_df(uri, page_query)
+        if page.height == 0:
+            return
+        yield page
+        last_id = int(page["id"][-1])
+        if page.height < page_size:
+            return
+
+
 def _extract_full_model_sql(
     backend: "Backend",
     model: str,
     extraction_uid: int,
     progress: ProgressFn | None = None,
 ):
-    """Full extract of one model straight from Postgres (one streamed query).
+    """Full extract of one model straight from Postgres, paged by id.
 
-    Much faster than the paginated ORM/JSONL path for large tables. The
-    records are normalized by `Df` and stored once ; no resume offset is
-    needed since the query is a single bounded stream.
+    Each page is one bounded connectorx query (`env.sync_page_size` rows), so
+    a single call never has to hold an arbitrarily large result in memory the
+    way one unbounded query over the whole table would. Pages are normalized
+    as they arrive and only concatenated once, right before the single
+    parquet write.
     """
     logger.info("extracting %s via direct SQL", model)
     metadata = backend.get_fields_metadata(model)
     uri = _pg_uri(backend.env.db)
     if env.extract_mode == "view":
-        query = f"SELECT * FROM {backend.get_view_name(model)}"
+        base_query = f"SELECT * FROM {backend.get_view_name(model)}"
     else:
-        query = backend.get_sql_query(model, [], "create_date desc, id desc")
-    df = _read_sql_df(uri, query)
-    df = resolve.inject_display_names(backend, df, metadata)
-    norm = Df(df, fields=metadata).get_df()
-    if progress:
-        progress(model, env.extract_mode, 0, norm.height, norm.height)
+        base_query = backend.get_sql_query(model, [], "")
+    chunks = []
+    total = 0
+    for page in _iter_sql_pages(uri, base_query, env.sync_page_size):
+        page = resolve.inject_display_names(backend, page, metadata)
+        chunks.append(Df(page, fields=metadata).get_df())
+        total += page.height
+        if progress:
+            progress(model, env.extract_mode, total, page.height, env.sync_page_size)
+    if not chunks:
+        logger.warning("no records for %s", model)
+        return {}
+    norm = pl.concat(chunks, how="vertical_relaxed")
     DFStorage.store_raw(model, [], metadata, norm)
     return {model: norm}
 
@@ -136,43 +167,41 @@ def _extract_full_model(
     backend: "Backend",
     model: str,
     extraction_uid: int,
-    offset: int = 0,
     progress: ProgressFn | None = None,
 ):
-    """Paginated full extract of one model, resuming at `offset`.
+    """Full extract of one model, staged as bounded JSONL chunks then
+    consolidated into the parquet in a single pass (see `Stage`).
 
-    Each bounded chunk is committed to the parquet as soon as it is fetched
-    (first chunk overwrites, following ones upsert), so an interruption only
-    loses the in-flight chunk and the saved offset lets the next call resume.
+    Staging keeps memory bounded to one page at a time, and an interruption
+    resumes from the chunks already on disk (`Stage.next_offset`) instead of
+    re-reading and rewriting the whole growing parquet on every chunk (the
+    old behaviour, quadratic on a large table like sale.order.line).
     """
-    logger.info("extracting %s (offset=%s)", model, offset)
-    store: dict[str, pl.DataFrame] = {}
+    logger.info("extracting %s", model)
     metadata = backend.get_fields_metadata(model)
-    # resume (offset > 0) : the parquet already holds earlier chunks, append ;
-    # fresh start (offset == 0) : the first chunk overwrites the table
-    first = offset == 0
-    for chunk in _iter_chunks(
-        backend,
-        model,
-        [],
-        extraction_uid,
-        offset=offset,
-        progress=progress,
-        mode="full",
-    ):
-        if first:
-            df = Df.from_raw(model, chunk, metadata).get_df()
-            DFStorage.store_raw(model, chunk, metadata, df)
-            first = False
-        else:
-            df = DFStorage.append_records(model, chunk)
-        store[model] = df
-        offset += len(chunk)
-        # persist progress so an interruption resumes at the last committed chunk
-        DFStorage.set_sync_state(model, {"mode": "full", "offset": offset})
-    if first:
+    offset = Stage.next_offset(backend, model)
+    if offset:
+        logger.info("resuming staged extract of %s at offset=%s", model, offset)
+    done = False
+    while not done:
+        _, done = Stage.pull_batch(
+            backend,
+            model,
+            offset,
+            [],
+            "",
+            env.sync_batch_size,
+            env.sync_page_size,
+            extraction_uid,
+            progress,
+            mode="full",
+        )
+        offset = Stage.next_offset(backend, model)
+    if offset == 0:
         logger.warning("no records for %s", model)
-    return store
+        return {}
+    Stage.consolidate(backend, model, metadata)
+    return {model: DFStorage.retrieve_df(model)["df"]}
 
 
 def build_store(
@@ -191,20 +220,13 @@ def build_store(
                 _extract_full_model_sql(backend, model, extraction_uid, progress)
             )
             continue
-        state = DFStorage.get_sync_state(model)
-        offset = state["offset"] if state and state.get("mode") == "full" else 0
-        if offset:
-            logger.info("resuming full extract of %s at offset=%s", model, offset)
-        DFStorage.set_sync_state(model, {"mode": "full", "offset": offset})
         try:
-            store.update(
-                _extract_full_model(backend, model, extraction_uid, offset, progress)
-            )
+            store.update(_extract_full_model(backend, model, extraction_uid, progress))
         except Exception:
-            # keep the state so the next sync resumes where we stopped
+            # the staged JSONL chunks are kept on disk, so the next sync
+            # resumes where we stopped (see Stage.next_offset)
             logger.exception("full extract of %s interrupted", model)
             raise
-        DFStorage.clear_sync_state(model)
     return store
 
 
@@ -447,22 +469,9 @@ def sync_store(
         state = DFStorage.get_sync_state(model)
         last_sync = DFStorage.last_sync(model)
         if state:
-            # resume an interrupted extraction, whatever its mode
-            mode, offset = state["mode"], state["offset"]
-            if mode == "full":
-                DFStorage.set_sync_state(model, {"mode": "full", "offset": offset})
-                try:
-                    store.update(
-                        _extract_full_model(
-                            backend, model, extraction_uid, offset, progress
-                        )
-                    )
-                except Exception:
-                    logger.exception("full extract of %s interrupted", model)
-                    raise
-                DFStorage.clear_sync_state(model)
-                continue
-            # delta resume
+            # resume an interrupted delta extraction (a full extract resumes
+            # on its own from the staged JSONL chunks, see Stage.next_offset)
+            offset = state["offset"]
             since = state.get("since") or last_sync
             try:
                 store.update(
