@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_polars_pivot_code_wizard,polars.pivot.code.wizard,model_polars_pivot_code_wizard,base.group_user,1,1,1,1
+access_polars_pivot_column,polars.pivot.column,model_polars_pivot_column,base.group_user,1,1,1,1

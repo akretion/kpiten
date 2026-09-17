@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_polars_pivot_code_wizard_form" model="ir.ui.view">
+        <field name="name">polars.pivot.code.wizard.form</field>
+        <field name="model">polars.pivot.code.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Polars Pivot Code Generator">
+
+                <group string="Data Source">
+                    <group>
+                        <field name="model_id" options="{'no_create': True}"/>
+                        <field name="model_name" invisible="1"/>
+                        <field name="sample_filename" filename="sample_filename" readonly="1"/>
+                        <field name="sample_file" filename="sample_filename" invisible="1"/>
+                    </group>
+                    <group>
+                        <button name="action_extract_sample" type="object"
+                                string="Extract Sample Data" class="btn-secondary"/>
+                    </group>
+                </group>
+
+                <field name="column_ids" invisible="1"/>
+
+                <group string="Pivot Parameters">
+                    <group>
+                        <field name="index_field" domain="[('wizard_id', '=', id)]"/>
+                        <field name="column_field" domain="[('wizard_id', '=', id)]"/>
+                    </group>
+                    <group>
+                        <field name="aggregate_function"/>
+                        <field name="value_field"
+                               domain="[('wizard_id', '=', id)]"
+                               invisible="aggregate_function == 'len'"
+                               required="aggregate_function != 'len'"/>
+                    </group>
+                </group>
+
+                <group string="Date Handling">
+                    <field name="has_date"/>
+                    <field name="date_axis" invisible="not has_date" required="has_date"/>
+                    <field name="date_granularity" invisible="not has_date" required="has_date"/>
+                </group>
+
+                <group string="Finishing Options">
+                    <group>
+                        <field name="fill_null"/>
+                        <field name="fill_null_value" invisible="not fill_null"/>
+                    </group>
+                    <group>
+                        <field name="sort_result"/>
+                        <field name="df_var"/>
+                    </group>
+                </group>
+
+                <separator string="Pivot Table Preview"/>
+                <field name="pivot_html" invisible="1"/>
+                <field name="pivot_preview" nolabel="1"/>
+
+                <separator string="Generated Polars Code"/>
+                <field name="generated_code" invisible="1"/>
+                <field name="code_preview" nolabel="1"/>
+
+                <footer>
+                    <button name="action_generate_code" type="object"
+                            string="Generate Code &amp; Preview" class="btn-primary"/>
+                    <button string="Close" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_polars_pivot_code_wizard" model="ir.actions.act_window">
+        <field name="name">Polars Pivot Code Generator</field>
+        <field name="res_model">polars.pivot.code.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_polars_code_root" name="Polars Code Generator" sequence="100"/>
+    <menuitem id="menu_polars_pivot_code_wizard"
+              name="Generate Pivot"
+              parent="menu_polars_code_root"
+              action="action_polars_pivot_code_wizard"
+              sequence="10"/>
+
+</odoo>

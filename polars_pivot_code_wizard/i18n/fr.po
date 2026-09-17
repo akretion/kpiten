@@ -1,0 +1,313 @@
+#  Translation of Polars Pivot Code Generator
+# This file contains the translation of the following module:
+#	* polars_pivot_code_wizard
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Polars Pivot Code Generator\n"
+"POT-Creation-Date: 2026-09-16 00:00+0000\n"
+"PO-Revision-Date: 2026-09-16 00:00+0000\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: \n"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__model_id
+msgid "Model"
+msgstr "Modèle"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,help:polars_pivot_code_wizard.field_polars_pivot_code_wizard__model_id
+msgid "Odoo model to sample data from and build the pivot for."
+msgstr "Modèle Odoo depuis lequel échantillonner les données et construire le pivot."
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__model_name
+msgid "Technical Model Name"
+msgstr "Nom technique du modèle"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__sample_file
+msgid "Sample Parquet File"
+msgstr "Fichier Parquet d'échantillon"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__sample_filename
+msgid "Sample Filename"
+msgstr "Nom du fichier d'échantillon"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__available_columns_json
+msgid "Available Columns (technical)"
+msgstr "Colonnes disponibles (technique)"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__columns_meta_json
+msgid "Columns Metadata (technical)"
+msgstr "Métadonnées des colonnes (technique)"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__index_field
+msgid "Index Field (rows)"
+msgstr "Champ Index (lignes)"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__column_field
+msgid "Column Field (on)"
+msgstr "Champ Colonnes (on)"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__value_field
+msgid "Value Field (values)"
+msgstr "Champ Valeur (values)"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,help:polars_pivot_code_wizard.field_polars_pivot_code_wizard__value_field
+msgid "Leave empty to just count rows (aggregate_function='len')."
+msgstr "Laisser vide pour simplement compter les lignes (aggregate_function='len')."
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__aggregate_function
+msgid "Aggregate Function"
+msgstr "Fonction d'agrégation"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields.selection,name:polars_pivot_code_wizard.selection__polars_pivot_code_wizard__aggregate_function__len
+msgid "Count"
+msgstr "Compter"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields.selection,name:polars_pivot_code_wizard.selection__polars_pivot_code_wizard__aggregate_function__sum
+msgid "Sum"
+msgstr "Somme"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields.selection,name:polars_pivot_code_wizard.selection__polars_pivot_code_wizard__aggregate_function__mean
+msgid "Mean"
+msgstr "Moyenne"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields.selection,name:polars_pivot_code_wizard.selection__polars_pivot_code_wizard__aggregate_function__min
+msgid "Minimum"
+msgstr "Minimum"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields.selection,name:polars_pivot_code_wizard.selection__polars_pivot_code_wizard__aggregate_function__max
+msgid "Maximum"
+msgstr "Maximum"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields.selection,name:polars_pivot_code_wizard.selection__polars_pivot_code_wizard__aggregate_function__first
+msgid "First Value"
+msgstr "Première valeur"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields.selection,name:polars_pivot_code_wizard.selection__polars_pivot_code_wizard__aggregate_function__median
+msgid "Median"
+msgstr "Médiane"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__has_date
+msgid "One Axis Is a Date"
+msgstr "Un des deux axes est une date"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__date_axis
+msgid "Date Axis"
+msgstr "Axe concerné par la date"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields.selection,name:polars_pivot_code_wizard.selection__polars_pivot_code_wizard__date_axis__index
+msgid "Index (rows)"
+msgstr "Index (lignes)"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields.selection,name:polars_pivot_code_wizard.selection__polars_pivot_code_wizard__date_axis__column
+msgid "Column (on)"
+msgstr "Colonnes (on)"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__date_granularity
+msgid "Granularity"
+msgstr "Granularité"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields.selection,name:polars_pivot_code_wizard.selection__polars_pivot_code_wizard__date_granularity__day
+msgid "Day"
+msgstr "Jour"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields.selection,name:polars_pivot_code_wizard.selection__polars_pivot_code_wizard__date_granularity__week
+msgid "Week"
+msgstr "Semaine"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields.selection,name:polars_pivot_code_wizard.selection__polars_pivot_code_wizard__date_granularity__month
+msgid "Month"
+msgstr "Mois"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields.selection,name:polars_pivot_code_wizard.selection__polars_pivot_code_wizard__date_granularity__quarter
+msgid "Quarter"
+msgstr "Trimestre"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields.selection,name:polars_pivot_code_wizard.selection__polars_pivot_code_wizard__date_granularity__year
+msgid "Year"
+msgstr "Année"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__fill_null
+msgid "Fill Missing Values"
+msgstr "Remplacer les valeurs manquantes"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__fill_null_value
+msgid "Fill Value"
+msgstr "Valeur de remplacement"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__sort_result
+msgid "Sort Result by Index"
+msgstr "Trier le résultat par l'index"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__df_var
+msgid "DataFrame Variable Name"
+msgstr "Nom de la variable DataFrame"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__generated_code
+msgid "Generated Polars Code (raw)"
+msgstr "Code Polars généré (brut)"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__code_preview
+msgid "Polars Code Preview"
+msgstr "Aperçu du code Polars"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__pivot_markdown
+msgid "Generated Pivot Table (Markdown, raw)"
+msgstr "Table pivot générée (Markdown, brut)"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.model.fields,field_description:polars_pivot_code_wizard.field_polars_pivot_code_wizard__pivot_preview
+msgid "Pivot Table Preview (Markdown)"
+msgstr "Aperçu de la table pivot (Markdown)"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.ui.view,arch_db:polars_pivot_code_wizard.view_polars_pivot_code_wizard_form
+msgid "Polars Pivot Code Generator"
+msgstr "Générateur de code Polars (pivot)"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.ui.view,arch_db:polars_pivot_code_wizard.view_polars_pivot_code_wizard_form
+msgid "Data Source"
+msgstr "Source des données"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.ui.view,arch_db:polars_pivot_code_wizard.view_polars_pivot_code_wizard_form
+msgid "Extract Sample Data"
+msgstr "Extraire l'échantillon"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.ui.view,arch_db:polars_pivot_code_wizard.view_polars_pivot_code_wizard_form
+msgid "Pivot Parameters"
+msgstr "Paramètres du pivot"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.ui.view,arch_db:polars_pivot_code_wizard.view_polars_pivot_code_wizard_form
+msgid "Date Handling"
+msgstr "Gestion de la date"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.ui.view,arch_db:polars_pivot_code_wizard.view_polars_pivot_code_wizard_form
+msgid "Finishing Options"
+msgstr "Options de finition"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.ui.view,arch_db:polars_pivot_code_wizard.view_polars_pivot_code_wizard_form
+msgid "Generated Polars Code"
+msgstr "Code Polars généré"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.ui.view,arch_db:polars_pivot_code_wizard.view_polars_pivot_code_wizard_form
+msgid "Generate Code &amp; Preview"
+msgstr "Générer le code &amp; l'aperçu"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.ui.view,arch_db:polars_pivot_code_wizard.view_polars_pivot_code_wizard_form
+msgid "Close"
+msgstr "Fermer"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.ui.menu,name:polars_pivot_code_wizard.menu_polars_code_root
+msgid "Polars Code Generator"
+msgstr "Générateur de code Polars"
+
+#. module: polars_pivot_code_wizard
+#: model:ir.ui.menu,name:polars_pivot_code_wizard.menu_polars_pivot_code_wizard
+#: model:ir.actions.act_window,name:polars_pivot_code_wizard.action_polars_pivot_code_wizard
+msgid "Generate Pivot"
+msgstr "Générer un pivot"
+
+#. module: polars_pivot_code_wizard
+#: code:addons/polars_pivot_code_wizard/wizards/polars_code_wizard.py:0
+msgid "Please select a model first."
+msgstr "Merci de sélectionner un modèle."
+
+#. module: polars_pivot_code_wizard
+#: code:addons/polars_pivot_code_wizard/wizards/polars_code_wizard.py:0
+msgid ""
+"The 'polars' Python package is required on the Odoo server to extract "
+"sample data. Install it with: pip install polars"
+msgstr ""
+"Le paquet Python 'polars' est requis sur le serveur Odoo pour extraire "
+"l'échantillon. Installez-le avec : pip install polars"
+
+#. module: polars_pivot_code_wizard
+#: code:addons/polars_pivot_code_wizard/wizards/polars_code_wizard.py:0
+msgid "The selected model has no records to sample from."
+msgstr "Le modèle sélectionné ne contient aucun enregistrement à échantillonner."
+
+#. module: polars_pivot_code_wizard
+#: code:addons/polars_pivot_code_wizard/wizards/polars_code_wizard.py:0
+msgid "Could not build the sample DataFrame: %s"
+msgstr "Impossible de construire le DataFrame d'échantillon : %s"
+
+#. module: polars_pivot_code_wizard
+#: code:addons/polars_pivot_code_wizard/wizards/polars_code_wizard.py:0
+msgid "Please select an Index Field and a Column Field."
+msgstr "Merci de sélectionner un champ Index et un champ Colonnes."
+
+#. module: polars_pivot_code_wizard
+#: code:addons/polars_pivot_code_wizard/wizards/polars_code_wizard.py:0
+msgid ""
+"Please select a Value Field for this aggregate function (only 'Count' "
+"can work without one)."
+msgstr ""
+"Merci de sélectionner un champ Valeur pour cette fonction d'agrégation "
+"(seul 'Compter' peut s'en passer)."
+
+#. module: polars_pivot_code_wizard
+#: code:addons/polars_pivot_code_wizard/wizards/polars_code_wizard.py:0
+msgid "Please extract sample data first."
+msgstr "Merci d'extraire d'abord l'échantillon de données."
+
+#. module: polars_pivot_code_wizard
+#: code:addons/polars_pivot_code_wizard/wizards/polars_code_wizard.py:0
+msgid ""
+"The 'polars' Python package is required on the Odoo server. Install it "
+"with: pip install polars"
+msgstr ""
+"Le paquet Python 'polars' est requis sur le serveur Odoo. Installez-le "
+"avec : pip install polars"
+
+#. module: polars_pivot_code_wizard
+#: code:addons/polars_pivot_code_wizard/wizards/polars_code_wizard.py:0
+msgid "Error while computing the pivot: %s"
+msgstr "Erreur lors du calcul du pivot : %s"
