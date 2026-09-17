@@ -82,6 +82,15 @@ class Backend:
         """Name of the persistent SQL view exposing `model` (view mode)."""
         raise NotImplementedError
 
+    def get_display_names(self, model: str, ids: list[int]) -> dict[int, str]:
+        """Bulk-resolve `ids` of `model` to their Odoo display_name.
+
+        Used by the direct-SQL extraction path (`sql`/`view` modes) to turn
+        the bare foreign keys `kt.get_sql_query` emits back into the same
+        display name the ORM would have produced (see `kpiten_core.resolve`).
+        """
+        raise NotImplementedError
+
     def get_chart_config(self) -> dict:
         """Chart defaults stored in odoo (ir.config_parameter kt_config)."""
         raise NotImplementedError

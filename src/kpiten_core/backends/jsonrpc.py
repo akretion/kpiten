@@ -260,6 +260,19 @@ class JsonrpcBackend:
         """Persistent SQL view name for `model` (see kt module)."""
         return self.env["kt"].create_sql_view(model)
 
+    def get_display_names(self, model: str, ids: list[int]) -> dict[int, str]:
+        """Bulk-resolve `ids` of `model` to their `display_name`.
+
+        One batched `read`, so models overriding `name_get`/`display_name`
+        are resolved correctly (unlike a SQL guess of the "right" text
+        column). `read` silently skips ids of records deleted since the m2o
+        column was extracted.
+        """
+        if not ids:
+            return {}
+        records = self.env[model].read(list(ids), ["display_name"])
+        return {rec["id"]: rec["display_name"] for rec in records}
+
     def get_allowed_fields(self, model: str, user_id: int) -> list[str]:
         return self.env["kt"].get_allowed_fields(model, user_id)
 

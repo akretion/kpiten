@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 
 import polars as pl
 
-from kpiten_core import env
+from kpiten_core import env, resolve
 from kpiten_core.dfnorm import Df
 from kpiten_core.stage import Stage
 from kpiten_core.store import DFStorage
@@ -102,6 +102,7 @@ def _extract_full_model_sql(
     else:
         query = backend.get_sql_query(model, [], "create_date desc, id desc")
     df = _read_sql_df(uri, query)
+    df = resolve.inject_display_names(backend, df, metadata)
     norm = Df(df, fields=metadata).get_df()
     if progress:
         progress(model, env.extract_mode, 0, norm.height, norm.height)
