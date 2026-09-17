@@ -4,9 +4,10 @@ The kpiten app can build its parquet snapshot straight from Postgres (via
 connectorx / polars) instead of going through the Odoo ORM. This module turns
 a dataset model into the equivalent SELECT of `kt.get_record_vals` :
 
-- direct stored fields of the model
-- many2one fields emitted as `ARRAY[id::text, rec_name]` so kpiten-core's
-  `Df.split_many2one_result` normalizes them exactly like the JSON-RPC path
+- direct stored fields of the model, many2one included as their bare foreign
+  key id (no join, no display name : kpiten-core resolves it in bulk, see
+  `kpiten_core.resolve`, since Odoo's own `display_name`/`name_get` logic is
+  what a SQL guess of the "right" text column can't reliably reproduce)
 - relational dot-paths (`user_id.name`, `categ_id.name`...) joined through
   `_follow_relational_fields`
 
@@ -155,42 +156,12 @@ def _table_columns(cr, table: str) -> dict[str, str]:
     return {row[0]: row[1] for row in cr.fetchall()}
 
 
-_TEXT_TYPES = {"character varying", "text", "character", "name"}
-
-
-def _rec_name_column(env, comodel):
-    """Return (column, is_jsonb) usable as the display name of `comodel`.
-
-    Only text columns are valid display names ; a translatable `_rec_name`
-    stored as jsonb (Odoo 18, e.g. `{"en_US": "value"}`) is extracted through
-    the `->>` operator on the `en_US` key.
-    """
-    model = env[comodel]
-    cols = _table_columns(env.cr, model._table)
-    text_cols = {c for c, t in cols.items() if t in _TEXT_TYPES}
-    jsonb_cols = {c for c, t in cols.items() if t == "jsonb"}
-    rec_name = model._rec_name
-    if rec_name in text_cols:
-        return rec_name, False
-    if rec_name in jsonb_cols:
-        return rec_name, True
-    if "name" in text_cols:
-        return "name", False
-    if "name" in jsonb_cols:
-        return "name", True
-    for col in sorted(text_cols):
-        if col != "id":
-            return col, False
-    # no text column : keep the integer id (caller may skip / fall back)
-    return "id", False
-
-
 def build_select(env, model: str, domain: list = None, order: str = "") -> str:
     """Build the SELECT equivalent of `kt.get_record_vals(model, domain, order)`.
 
-    Many2one fields are emitted as `ARRAY[id::text, rec_name]` (NULL when the
-    relation is empty) so kpiten-core's `Df` normalizes them the same way as
-    the JSON-RPC path. Relational dot-paths are joined from
+    Many2one fields are emitted as their bare foreign key id (a plain column
+    of the model's own table, no join needed) ; kpiten-core resolves the
+    display name in bulk afterwards. Relational dot-paths are joined from
     `_follow_relational_fields`.
     """
     model_obj = env[model]
@@ -204,7 +175,7 @@ def build_select(env, model: str, domain: list = None, order: str = "") -> str:
     scalar_cols = [
         fname
         for fname in env["kt"]._get_model_direct_fields(model)
-        if fname in real_cols and fname != "id" and fname not in m2o_cols
+        if fname in real_cols and fname != "id"
     ]
     id_col = sql.Identifier(table)
 
@@ -298,89 +269,6 @@ def build_select(env, model: str, domain: list = None, order: str = "") -> str:
         selects.append(
             _alias(final_ref + sql.SQL(".") + sql.Identifier(segments[-1]), path)
         )
-
-    # direct many2one -> ARRAY[id::text, rec_name] for Df normalization
-    for fname in sorted(m2o_cols):
-        comodel = model_obj._fields[fname].comodel_name
-        if not comodel:
-            continue
-        model_c = env[comodel]
-        # join the model's own table on the m2o foreign key
-        join_table = model_c._table
-        target_alias = join_alias(fname)
-        joins.append(
-            sql.SQL("LEFT JOIN ")
-            + sql.Identifier(join_table)
-            + sql.SQL(" AS ")
-            + target_alias
-            + sql.SQL(" ON ")
-            + target_alias
-            + sql.SQL(".")
-            + sql.Identifier("id")
-            + sql.SQL(" = ")
-            + id_col
-            + sql.SQL(".")
-            + sql.Identifier(fname)
-        )
-        # resolve the display column, following delegation inheritance
-        if getattr(model_c, "_inherits", None):
-            # e.g. product.product -> {"product.template": "product_tmpl_id"} :
-            # the display name lives in the parent table.
-            parent_model, link_field = next(iter(model_c._inherits.items()))
-            parent = env[parent_model]
-            parent_alias = join_alias(fname)
-            joins.append(
-                sql.SQL("LEFT JOIN ")
-                + sql.Identifier(parent._table)
-                + sql.SQL(" AS ")
-                + parent_alias
-                + sql.SQL(" ON ")
-                + parent_alias
-                + sql.SQL(".")
-                + sql.Identifier("id")
-                + sql.SQL(" = ")
-                + target_alias
-                + sql.SQL(".")
-                + sql.Identifier(link_field)
-            )
-            rec_name, rec_jsonb = _rec_name_column(env, parent_model)
-            rec_ref = parent_alias
-        else:
-            rec_name, rec_jsonb = _rec_name_column(env, comodel)
-            rec_ref = target_alias
-        if rec_jsonb:
-            # translatable name stored as jsonb : read the default language key
-            rec_expr = (
-                rec_ref
-                + sql.SQL(".")
-                + sql.Identifier(rec_name)
-                + sql.SQL("->>")
-                + sql.Literal("en_US")
-            )
-        elif rec_name == "id":
-            # no text column at all : no display name (avoid text/integer mix)
-            rec_expr = sql.SQL("NULL")
-        else:
-            rec_expr = rec_ref + sql.SQL(".") + sql.Identifier(rec_name)
-        arr = (
-            sql.SQL("ARRAY[")
-            + id_col
-            + sql.SQL(".")
-            + sql.Identifier(fname)
-            + sql.SQL("::text, ")
-            + rec_expr
-            + sql.SQL("]")
-        )
-        m2o_expr = (
-            sql.SQL("CASE WHEN ")
-            + id_col
-            + sql.SQL(".")
-            + sql.Identifier(fname)
-            + sql.SQL(" IS NULL THEN NULL ELSE ")
-            + arr
-            + sql.SQL(" END")
-        )
-        selects.append(_alias(m2o_expr, fname))
 
     where = _domain_to_sql(model_obj, domain or [], m2o_suffix="")
     query = (
