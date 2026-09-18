@@ -92,7 +92,7 @@ def _m2o_id(value):
     return value
 
 
-def _leaf_sql(model, field, op, value, m2o_fields, m2o_suffix="_") -> str:
+def _leaf_sql(model, field, op, value, m2o_fields, m2o_suffix="_", table=None) -> str:
     sqlop = _OPS.get(op)
     if not sqlop:
         raise ValidationError(_("Unsupported domain operator '%s'." % op))
@@ -100,6 +100,9 @@ def _leaf_sql(model, field, op, value, m2o_fields, m2o_suffix="_") -> str:
     # Odoo table (no suffix) or the de-normalized `<field>_` id used by the
     # parquet / card-wizard convention.
     column = f"{field}{m2o_suffix}" if field in m2o_fields else field
+    if table:
+        # qualified : the joined tables have write_date, create_date, name...
+        column = f'"{table}"."{column}"'
     if op in ("in", "not in"):
         values = ", ".join(_sql_value(v) for v in value)
         return f"{column} {sqlop} ({values})"
@@ -113,32 +116,36 @@ def _leaf_sql(model, field, op, value, m2o_fields, m2o_suffix="_") -> str:
     return f"{column} {sqlop} {_sql_value(value)}"
 
 
-def _parse_domain(model, domain, i, m2o_fields, m2o_suffix="_"):
+def _parse_domain(model, domain, i, m2o_fields, m2o_suffix="_", table=None):
     tok = domain[i]
     if tok == "&":
-        left, i = _parse_domain(model, domain, i + 1, m2o_fields, m2o_suffix)
-        right, i = _parse_domain(model, domain, i, m2o_fields, m2o_suffix)
+        left, i = _parse_domain(model, domain, i + 1, m2o_fields, m2o_suffix, table)
+        right, i = _parse_domain(model, domain, i, m2o_fields, m2o_suffix, table)
         return f"({left} AND {right})", i
     if tok == "|":
-        left, i = _parse_domain(model, domain, i + 1, m2o_fields, m2o_suffix)
-        right, i = _parse_domain(model, domain, i, m2o_fields, m2o_suffix)
+        left, i = _parse_domain(model, domain, i + 1, m2o_fields, m2o_suffix, table)
+        right, i = _parse_domain(model, domain, i, m2o_fields, m2o_suffix, table)
         return f"({left} OR {right})", i
     if tok == "!":
-        left, i = _parse_domain(model, domain, i + 1, m2o_fields, m2o_suffix)
+        left, i = _parse_domain(model, domain, i + 1, m2o_fields, m2o_suffix, table)
         return f"(NOT {left})", i
     field, op, value = tok
-    return _leaf_sql(model, field, op, value, m2o_fields, m2o_suffix), i + 1
+    return _leaf_sql(model, field, op, value, m2o_fields, m2o_suffix, table), i + 1
 
 
-def _domain_to_sql(model, domain, m2o_suffix="_") -> str:
-    """Convert an Odoo domain to a SQL `where` clause."""
+def _domain_to_sql(model, domain, m2o_suffix="_", table=None) -> str:
+    """Convert an Odoo domain to a SQL `where` clause.
+
+    With `table`, the columns are qualified by it (needed when the query
+    joins other tables, as `build_select` does).
+    """
     m2o_fields = {fname for fname, f in model._fields.items() if f.type == "many2one"}
     if not domain:
         return ""
     parts = []
     i = 0
     while i < len(domain):
-        sql, i = _parse_domain(model, domain, i, m2o_fields, m2o_suffix)
+        sql, i = _parse_domain(model, domain, i, m2o_fields, m2o_suffix, table)
         parts.append(sql)
     return " AND ".join(parts) if len(parts) > 1 else parts[0]
 
@@ -270,7 +277,10 @@ def build_select(env, model: str, domain: list = None, order: str = "") -> str:
             _alias(final_ref + sql.SQL(".") + sql.Identifier(segments[-1]), path)
         )
 
-    where = _domain_to_sql(model_obj, domain or [], m2o_suffix="")
+    # `table` is reassigned while walking the joins : use the model's own one
+    where = _domain_to_sql(
+        model_obj, domain or [], m2o_suffix="", table=model_obj._table
+    )
     query = (
         sql.SQL("SELECT ") + sql.SQL(", ").join(selects) + sql.SQL(" FROM ") + id_col
     )

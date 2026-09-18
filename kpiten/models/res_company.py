@@ -27,6 +27,9 @@ class ResCompany(models.Model):
         )
         if not settings:
             raise exceptions.UserError(_("Missing kpiten services parameters"))
+        # system parameters are readable by the Settings group only, while any
+        # dashboard user needs the app urls (they hold no secret)
+        settings = settings.sudo()
         try:
             root = safe_eval(settings.value)
             if not isinstance(root, dict):
