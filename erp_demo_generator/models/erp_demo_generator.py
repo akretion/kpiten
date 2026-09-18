@@ -94,6 +94,24 @@ class ErpDemoGenerator(models.Model):
             }
         )
 
+    def _set_create_date(self, records, dt):
+        """Force create_date to `dt` via SQL.
+
+        The ORM only lets `create()`/`write()` set create_date when running
+        as superuser during module installation (`pool.ready` False) — see
+        `BaseModel._prepare_create_values`. That doesn't hold once the
+        module is installed (button re-run, `erp_demo_data_full`, or any
+        real database), so create_date silently falls back to "now". Direct
+        SQL works unconditionally.
+        """
+        if not records:
+            return
+        self.env.cr.execute(
+            f'UPDATE "{records._table}" SET create_date = %s WHERE id IN %s',
+            (dt, tuple(records.ids)),
+        )
+        records.invalidate_recordset(["create_date"])
+
     def _setup_demo_access_rights(self, salespeople):
         """Login/password of demo users = first name ; salespeople see only
         their own sales orders, Camille HONNETE all of them, Andy VOJHANBON
@@ -134,7 +152,6 @@ class ErpDemoGenerator(models.Model):
                 "partner_id": partner.id,
                 "user_id": salesperson.id,
                 "date_order": order_date,
-                "create_date": order_date,
                 "state": "sale",
                 "order_line": [
                     cmd.create(
@@ -147,6 +164,8 @@ class ErpDemoGenerator(models.Model):
                 ],
             }
         )
+        self._set_create_date(so, order_date)
+        self._set_create_date(so.order_line, order_date)
         invoice = self._create_customer_invoice(so, order_date)
         return {"sale_order": so, "invoice": invoice}
 
@@ -170,6 +189,8 @@ class ErpDemoGenerator(models.Model):
             ],
         }
         invoice = self.env["account.move"].create(invoice_vals)
+        self._set_create_date(invoice, order_date)
+        self._set_create_date(invoice.invoice_line_ids, order_date)
         try:
             invoice.action_post()
         except Exception as err:
@@ -196,6 +217,10 @@ class ErpDemoGenerator(models.Model):
                 ],
             }
         )
+        self._set_create_date(po, order_date)
+        self._set_create_date(po.order_line, order_date)
+        self._set_create_date(po.picking_ids, order_date)
+        self._set_create_date(po.picking_ids.move_ids, order_date)
         receipt = self._validate_receipt(po)
         bill = self._create_vendor_bill(po, order_date)
         return {"purchase_order": po, "receipt": receipt, "bill": bill}
@@ -236,6 +261,8 @@ class ErpDemoGenerator(models.Model):
             ],
         }
         bill = self.env["account.move"].create(invoice_vals)
+        self._set_create_date(bill, order_date)
+        self._set_create_date(bill.invoice_line_ids, order_date)
         try:
             bill.action_post()
         except Exception as err:
