@@ -7,6 +7,8 @@ from kpiten_core.filters import (  # noqa: F401
     DATE_OPTIONS,
     bounds_of_option,
     describe_filters,
+    describe_previous,
     dimension_choices,
     make_predicates,
+    make_previous_predicates,
 )

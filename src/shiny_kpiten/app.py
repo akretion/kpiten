@@ -19,7 +19,7 @@ import polars as pl
 from shiny import App, reactive, render, req, ui
 from shiny.types import SilentException
 
-from kpiten_core import links
+from kpiten_core import comparison, links
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
 
@@ -189,7 +189,9 @@ def tile_html(
         return (
             f'<div class="tile kpi-card" data-tile-id="{line["id"]}"{tooltip}>'
             f'<div class="kpi-label">{line["name"] or ""}</div>'
-            f'<div class="value">{result.text}</div></div>'
+            f'<div class="value">{result.text}</div>'
+            + (comparison.html_block(result.comparison) if result.comparison else "")
+            + "</div>"
         )
     parts = [f"<h3>{line['name'] or result.kind}</h3>"]
     tile_height = (line.get("tile_height") or 260) - 40
@@ -429,7 +431,8 @@ def server(input, output, session):
         return ui.tags.div("")
 
     @reactive.calc
-    def predicates():
+    def filter_state():
+        """(panel filter config, period bounds, selected dimension values)."""
         current_panel = panel_settings()
         config = current_panel.get("filter_config") or {}
         date_value = None
@@ -444,7 +447,21 @@ def server(input, output, session):
                     dim_values[dim["name"]] = input[key]()
                 except (KeyError, TypeError):
                     raise SilentException()
-        return filterstate.make_predicates(config, date_value, dim_values)
+        return config, date_value, dim_values
+
+    @reactive.calc
+    def predicates():
+        return filterstate.make_predicates(*filter_state())
+
+    @reactive.calc
+    def previous():
+        """(predicates, label) of the period before the selected one, for the
+        cards that compare themselves ; (None, None) without a period."""
+        config, date_value, dim_values = filter_state()
+        return (
+            filterstate.make_previous_predicates(config, date_value, dim_values),
+            filterstate.describe_previous(date_value),
+        )
 
     def tile_info(line: dict) -> str:
         """Tooltip text : active panel filters + tile own WHERE (card)."""
@@ -562,13 +579,19 @@ def server(input, output, session):
         tile_lines = lines()
         store_data = store()
         predicate_list = predicates()
+        previous_predicates, previous_label = previous()
         edit_mode_on = bool(input.edit_mode())
         logger.info("predicates : %s", [str(p) for p in predicate_list])
         cards, blocks = [], []
         for line in tile_lines:
             try:
                 result = core_tiles.exec_tile(
-                    line, line["model"], store_data, predicate_list
+                    line,
+                    line["model"],
+                    store_data,
+                    predicate_list,
+                    previous_predicates,
+                    previous_label,
                 )
                 rendered = (
                     tile_edit_item(line, theme, result)

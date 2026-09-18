@@ -72,8 +72,8 @@ class Theme:
   width: auto;
   min-width: 160px;
   max-width: 280px;
-  min-height: 0 !important;
-  height: 86px;
+  min-height: 86px !important;  /* grows for a card with a change line */
+  height: auto;
   justify-content: center;
   gap: 2px;
 }}
@@ -85,6 +85,8 @@ class Theme:
   text-overflow: ellipsis;
 }}
 .card-grid .tile .value {{ font-size: 30px; font-weight: 700; line-height: 1.1 }}
+.kpi-delta {{ font-size: 12px; font-weight: 600; margin-top: 2px }}
+.kpi-delta-descr {{ font-weight: 400; opacity: .65 }}
 .tile {{
   background: {p["surface"]};
   color: {p["text"]};
