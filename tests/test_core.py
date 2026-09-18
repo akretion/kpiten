@@ -48,3 +48,12 @@ def test_df_norm_many2one_split():
     assert df["user_id"][0] == "Alice"
     assert df["user_id_"][0] == 1
     assert df["date_order"].dtype == pl.Date
+
+
+def test_df_norm_keeps_the_day():
+    """Day level kpis (late, last 7 days, days to order) need exact dates."""
+    recs = [{"id": 1, "date_order": "2025-01-17 23:59:00"}]
+    df = Df(
+        pl.DataFrame(recs, strict=False), fields={"date_order": {"type": "datetime"}}
+    ).get_df()
+    assert df["date_order"][0] == datetime.date(2025, 1, 17)

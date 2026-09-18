@@ -4,7 +4,10 @@ Framework agnostic: returns plain objects (`TileResult`), no UI
 dependency, usable from any dashboarding framework (shiny, nicegui...).
 """
 
+import datetime
+import decimal
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -14,6 +17,7 @@ import polars as pl
 
 from kpiten_core import serial, sandbox
 from kpiten_core.month import apply_monthly, is_date
+from kpiten_core.validate import CARD_AGGREGATIONS, DERIVE_RE
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +33,17 @@ class TileResult:
     df: pl.DataFrame | None = None
     figure: go.Figure | None = None
     value: Any = None
+    display: str | None = None  # formatted `value` (cards : unit, decimals)
     meta: dict[str, Any] = field(default_factory=dict)
 
     @property
     def is_empty(self) -> bool:
         return self.df is None and self.figure is None and self.value is None
+
+    @property
+    def text(self) -> str:
+        """What a card shows : the formatted value, else the raw value."""
+        return self.display if self.display is not None else str(self.value)
 
 
 def filter_df(df, predicates):
@@ -69,8 +79,8 @@ def exec_tile(
     label = line.get("name") or kind
     try:
         if kind == "card":
-            value = card_case(line["content"], table, store, full_predicates)
-            return TileResult("card", label, value=value)
+            value, display = card_case(line["content"], table, store, full_predicates)
+            return TileResult("card", label, value=value, display=display)
         if kind == "graph":
             fig = graph_case(line["content"], table, store, full_predicates)
             return TileResult("graph", label, figure=fig)
@@ -91,15 +101,85 @@ def exec_tile(
     raise TileError(f"unknown kind '{kind}' for tile '{label}'")
 
 
+TODAY_RE = re.compile(r"\{today(?:-(\d+))?\}")
+
+
+def expand_today(where: str, today: datetime.date | None = None) -> str:
+    """Replace `{today}` / `{today-N}` by an ISO date (N days back), so that a
+    `where` can express « late » (`date_planned < '{today}'`) or « last 7
+    days » (`date_approve >= '{today-7}'`)."""
+    today = today or datetime.date.today()
+
+    def day(match):
+        return (today - datetime.timedelta(days=int(match.group(1) or 0))).isoformat()
+
+    return TODAY_RE.sub(day, where)
+
+
+def derive_columns(df: pl.DataFrame, derive: dict[str, str]) -> pl.DataFrame:
+    """Add derived columns : `{"days_to_order": "date_approve - create_date"}`
+    gives the whole days between two date columns (null if one is null)."""
+    exprs = []
+    for name, expression in derive.items():
+        match = DERIVE_RE.match(expression)
+        if not match:
+            raise TileError(f"derive '{name}' : expected '<date> - <date>'")
+        end, start = match.groups()
+        for column in (end, start):
+            if column not in df.columns:
+                raise TileError(f"derive '{name}' : unknown column '{column}'")
+        exprs.append((pl.col(end) - pl.col(start)).dt.total_days().alias(name))
+    return df.with_columns(exprs) if exprs else df
+
+
+def format_card_value(value, aggregation: str, card: dict) -> str:
+    """Card text : thousands separated by a narrow space, `decimals`
+    (default 0 for count/sum, 1 otherwise) and an optional `unit`."""
+    if value is None:
+        return "–"
+    decimals = card.get("decimals", 0 if aggregation in ("count", "sum") else 1)
+    text = f"{value:,.{decimals}f}".replace(",", " ")
+    unit = card.get("unit")
+    return f"{text} {unit}" if unit else text
+
+
+def _without_period(df: pl.DataFrame, predicates):
+    """The predicates that are not on a date column : the panel dimension
+    filters (vendor...) stay, the Period filter goes. It also excludes the
+    future, which « waiting » or « to send » kpis must count."""
+    return [
+        p
+        for p in predicates
+        if not any(is_date(df, name) for name in p.meta.root_names())
+    ]
+
+
 def card_case(content, table, store, full_predicates):
+    """One number : `aggregation` (count by default) of `measure` over the
+    rows matching `where` (SQL, optional). Returns `(value, display)`."""
     card_json = serial.loads(content)
+    aggregation = card_json.get("aggregation", "count")
+    if aggregation not in CARD_AGGREGATIONS:
+        raise TileError(f"unknown card aggregation '{aggregation}'")
+    measure = card_json.get("measure")
     # `from` is optional : defaults to the tile's dataset model (`table`)
-    used_df = _resolve_table(store, card_json.get("from", table))
-    used_df = filter_df(used_df, full_predicates)
-    df = used_df.sql(f'SELECT count(id) FROM self WHERE {card_json.get("where")}')
-    if df.is_empty():
-        raise TileError(f"Card returned no row")
-    return df.to_dict()["id"][0]
+    df = _resolve_table(store, card_json.get("from", table))
+    if card_json.get("ignore_period"):
+        full_predicates = _without_period(df, full_predicates)
+    df = filter_df(df, full_predicates)
+    df = derive_columns(df, card_json.get("derive") or {})
+    if card_json.get("where"):
+        df = df.sql(f"SELECT * FROM self WHERE {expand_today(card_json['where'])}")
+
+    if aggregation == "count":
+        value = df[measure].count() if measure else df.height
+    elif measure not in df.columns:
+        raise TileError(f"card '{aggregation}' needs a `measure` column")
+    else:
+        value = df.select(getattr(pl.col(measure), aggregation)()).item()
+        if isinstance(value, decimal.Decimal):
+            value = float(value)
+    return value, format_card_value(value, aggregation, card_json)
 
 
 def graph_case(content, table, store, full_predicates):

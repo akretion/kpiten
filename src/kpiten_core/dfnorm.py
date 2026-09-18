@@ -1,7 +1,9 @@
 """Dataframe normalization after extraction from Odoo.
 
 Port of marimo-kpiten `services/dataframe_util.py`, without marimo:
-- string datetimes -> Date columns (times truncated to the month)
+- string datetimes -> Date columns (the time is dropped, the day is kept :
+  day level kpis like « late » or « last 7 days » need it ; group by month
+  with the `monthly` option of a tile instead)
 - many2one `[id, name]` pairs split into `col` (name) + `col_id_` (id)
 - decimal scale normalization
 """
@@ -30,7 +32,6 @@ class Df:
 
     def get_df(self) -> pl.DataFrame:
         self.set_datetime_string2date_columns()
-        self._truncate_dates()
         self.split_many2one_result()
         if self.decimal_truncate:
             self.df = self.df.with_columns(
@@ -46,24 +47,6 @@ class Df:
 
     def _fix_false_strings(self):
         self.df = self.df.with_columns(pl.col(pl.String).replace("false", ""))
-
-    def _truncate_dates(self):
-        """Truncate date/datetime columns to the month as Date.
-
-        create_date and write_date are left untouched.
-        """
-        excluded = {"create_date", "write_date"}
-        date_cols = [
-            c
-            for c, dtype in zip(self.df.columns, self.df.dtypes)
-            if dtype in (pl.Date, pl.Datetime) and c not in excluded
-        ]
-        if not date_cols:
-            return
-        self.df = self.df.with_columns(
-            pl.col(c).cast(pl.Datetime).dt.truncate("1mo").cast(pl.Date)
-            for c in date_cols
-        )
 
     def get_decimal_columns(self) -> list[str]:
         return [
@@ -145,7 +128,7 @@ class Df:
         metadata: dict | None = None,
         decimal_truncate: int | None = None,
     ) -> "Df":
-        """Build the Df helper from raw record vals (see Backend.get_record_vals)."""
+        """Build the Df helper from a list of raw record dicts (id -> value)."""
         df = pl.DataFrame(raw_vals, strict=False, infer_schema_length=None)
         return cls(
             df,

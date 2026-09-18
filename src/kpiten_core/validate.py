@@ -10,11 +10,14 @@ It never touches Odoo : the caller may pass the set of valid column names
 structure is validated.
 """
 
+import re
 import tomllib
 from typing import Any, Optional
 
 AGGREGATIONS = {"sum", "count", "mean", "none"}
+CARD_AGGREGATIONS = {"count", "sum", "mean", "median", "min", "max"}
 GRAPH_TYPES = {"bar", "point", "area"}
+DERIVE_RE = re.compile(r"^\s*([\w.]+)\s*-\s*([\w.]+)\s*$")
 
 
 def validate(
@@ -98,9 +101,37 @@ class _Check:
 
 def _card(check: _Check, data: dict) -> None:
     section = "card"
-    check.expect_keys(data, section, {"where", "from"})
-    check.expect_str(data, "where", section)
-    check.expect_str(data, "from", section)
+    check.expect_keys(
+        data,
+        section,
+        {
+            "where",
+            "from",
+            "aggregation",
+            "measure",
+            "unit",
+            "decimals",
+            "derive",
+            "ignore_period",
+        },
+    )
+    for key in ("where", "from", "measure", "unit"):
+        check.expect_str(data, key, section)
+    check.expect_bool(data, "ignore_period", section)
+    check.expect_enum(data, "aggregation", section, CARD_AGGREGATIONS)
+    check.expect_type(data, "decimals", section, int)
+    aggregation = data.get("aggregation", "count")
+    derive = data.get("derive", {})
+    if not isinstance(derive, dict):
+        check.msg("Key 'derive' in card must be a table")
+        derive = {}
+    if aggregation != "count" and not data.get("measure"):
+        check.msg(f"Aggregation '{aggregation}' in card needs a 'measure'")
+    for name, expression in derive.items():
+        if not isinstance(expression, str) or not DERIVE_RE.match(expression):
+            check.msg(f"Derived column '{name}' must be '<date> - <date>'")
+    if data.get("measure") and data["measure"] not in derive:
+        check.check_column(data["measure"], section)
 
 
 def _graph(check: _Check, data: dict) -> None:
