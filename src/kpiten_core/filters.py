@@ -7,6 +7,8 @@ filter_config JSON schema ::
 All expressions are polars predicates (list[pl.Expr]).
 """
 
+import datetime
+
 import polars as pl
 
 from kpiten_core import date_filter, dimension
@@ -52,6 +54,35 @@ def make_predicates(
         if selected:
             exprs.append(pl.col(column).is_in(selected))
     return exprs
+
+
+def previous_bounds(date_value) -> tuple[datetime.date, datetime.date] | None:
+    """The period right before `date_value`, as long as it (same number of days) :
+    the one a card compares itself with. None without a period."""
+    if not date_value:
+        return None
+    start, end = date_value
+    previous_end = start - datetime.timedelta(days=1)
+    return previous_end - (end - start), previous_end
+
+
+def make_previous_predicates(
+    filter_config: dict, date_value, dim_values: dict[str, list]
+) -> list[pl.Expr] | None:
+    """The predicates of the previous period, with the same dimension filters.
+    None when there is no period to go back from (full range, no date column)."""
+    previous = previous_bounds(date_value)
+    if previous is None or not date_fields(filter_config):
+        return None
+    return make_predicates(filter_config, previous, dim_values)
+
+
+def describe_previous(date_value) -> str | None:
+    """`2026-04-20 → 2026-06-18`, the previous period as text (a tooltip)."""
+    previous = previous_bounds(date_value)
+    if previous is None:
+        return None
+    return f"{previous[0]:%Y-%m-%d} → {previous[1]:%Y-%m-%d}"
 
 
 def dimension_choices(store: dict[str, pl.DataFrame], column: str) -> list[str]:

@@ -46,6 +46,11 @@ class TileResult:
         return self.meta.get("note")
 
     @property
+    def comparison(self) -> dict[str, Any] | None:
+        """How a card compares with the previous period (see `card_comparison`)."""
+        return self.meta.get("comparison")
+
+    @property
     def text(self) -> str:
         """What a card shows : the formatted value, else the raw value."""
         return self.display if self.display is not None else str(self.value)
@@ -118,19 +123,32 @@ def exec_tile(
     table: str,
     store: dict[str, pl.DataFrame | pl.LazyFrame],
     full_predicates: list[pl.Expr],
+    previous_predicates: list[pl.Expr] | None = None,
+    previous_label: str | None = None,
 ) -> TileResult:
     """Exec one tile from a kt.dataset.line record dict.
 
     `line` structure is what `Backend.get_panel_lines` yields.
     `table` is the technical model name of the tile's dataset ; its df
-    is looked up in `store`.
+    is looked up in `store`. A card with `compare = true` also gets its value
+    for the period before (`previous_predicates`, see
+    `filters.make_previous_predicates`) as `TileResult.comparison`.
     """
     kind = line.get("kind")
     label = line.get("name") or kind
     try:
         if kind == "card":
             value, display = card_case(line["content"], table, store, full_predicates)
-            return TileResult("card", label, value=value, display=display)
+            comparison = card_comparison(
+                line["content"],
+                table,
+                store,
+                value,
+                previous_predicates,
+                previous_label,
+            )
+            meta = {"comparison": comparison} if comparison else {}
+            return TileResult("card", label, value=value, display=display, meta=meta)
         if kind == "graph":
             fig, meta = graph_case(line["content"], table, store, full_predicates)
             return TileResult("graph", label, figure=fig, meta=meta)
@@ -265,6 +283,46 @@ def _bound_categories(
         top = pl.concat([top, others])
         note += " (rest in Others)"
     return top, note
+
+
+def card_comparison(
+    content, table, store, value, previous_predicates, previous_label=None
+) -> dict | None:
+    """The card against the period before, like the baseline of an Odoo scorecard.
+
+    Only for a card with `compare = true`, a period to go back from and no
+    `ignore_period`. Returns `{direction, text, description, previous, period}` :
+    `direction` up / down / neutral, `text` the change as a percentage of the
+    previous value (`|value - previous| / previous`, `n/a` when that is 0),
+    `previous` the previous value as the card shows it.
+    """
+    card_json = serial.loads(content)
+    if (
+        not card_json.get("compare")
+        or card_json.get("ignore_period")
+        or previous_predicates is None
+        or value is None
+    ):
+        return None
+    previous, previous_display = card_case(content, table, store, previous_predicates)
+    if previous is None:
+        return None
+    change = value - previous
+    direction = "up" if change > 0 else "down" if change < 0 else "neutral"
+    if change == 0:
+        text = "0.0%"
+    elif previous == 0:
+        text = "n/a"
+    else:
+        text = f"{abs(change) / abs(previous) * 100:.1f}%"
+    return {
+        "direction": direction,
+        "text": text,
+        "description": "since last period",
+        "previous": previous_display,
+        "previous_value": previous,
+        "period": previous_label,
+    }
 
 
 def graph_case(content, table, store, full_predicates):

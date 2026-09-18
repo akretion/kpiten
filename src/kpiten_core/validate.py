@@ -113,11 +113,13 @@ def _card(check: _Check, data: dict) -> None:
             "decimals",
             "derive",
             "ignore_period",
+            "compare",
         },
     )
     for key in ("where", "from", "measure", "unit"):
         check.expect_str(data, key, section)
     check.expect_bool(data, "ignore_period", section)
+    check.expect_bool(data, "compare", section)
     check.expect_enum(data, "aggregation", section, CARD_AGGREGATIONS)
     check.expect_type(data, "decimals", section, int)
     aggregation = data.get("aggregation", "count")

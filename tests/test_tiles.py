@@ -371,3 +371,86 @@ def test_period_on_a_table_that_names_the_date_differently():
     )
     assert tiles.filter_df(lines, predicates)["id"].to_list() == [2, 3]
     assert tiles.filter_df(DF, predicates)["id"].to_list() == [2, 3]
+
+
+def test_card_compares_with_the_previous_period():
+    """`compare = true` : the card against the period right before, as a
+    percentage of the previous value, like an Odoo scorecard."""
+    from kpiten_core import filters
+
+    config = {"date": {"field": "date_order"}}
+    df = pl.DataFrame(
+        {
+            "id": range(1, 8),
+            "state": ["sale"] * 7,
+            "amount_untaxed": [10.0] * 3 + [10.0] * 4,
+            "date_order": [datetime.date(2025, 1, d) for d in (2, 3, 4)]
+            + [datetime.date(2025, 1, d) for d in (12, 13, 14, 15)],
+        }
+    )
+    period = (datetime.date(2025, 1, 11), datetime.date(2025, 1, 20))
+    assert filters.previous_bounds(period) == (
+        datetime.date(2025, 1, 1),
+        datetime.date(2025, 1, 10),
+    )
+    assert filters.describe_previous(period) == "2025-01-01 → 2025-01-10"
+    line = {
+        "kind": "card",
+        "name": "Orders",
+        "content": "where = \"state = 'sale'\"\ncompare = true\n",
+    }
+    res = tiles.exec_tile(
+        line,
+        "sale.order",
+        {"sale.order": df},
+        filters.make_predicates(config, period, {}),
+        filters.make_previous_predicates(config, period, {}),
+        filters.describe_previous(period),
+    )
+    assert res.value == 4  # 4 orders in the period, 3 before
+    cmp = res.comparison
+    assert (cmp["direction"], cmp["text"], cmp["previous"]) == ("up", "33.3%", "3")
+    assert cmp["period"] == "2025-01-01 → 2025-01-10"
+
+    # nothing to compare : no `compare`, no period, `ignore_period`
+    plain = {**line, "content": "where = \"state = 'sale'\"\n"}
+    args = ({"sale.order": df}, filters.make_predicates(config, period, {}))
+    assert (
+        tiles.exec_tile(
+            plain,
+            "sale.order",
+            *args,
+            filters.make_previous_predicates(config, period, {}),
+        ).comparison
+        is None
+    )
+    assert tiles.exec_tile(line, "sale.order", *args, None).comparison is None
+    assert filters.make_previous_predicates(config, None, {}) is None
+    ignored = {**line, "content": line["content"] + "ignore_period = true\n"}
+    assert (
+        tiles.exec_tile(
+            ignored,
+            "sale.order",
+            *args,
+            filters.make_previous_predicates(config, period, {}),
+        ).comparison
+        is None
+    )
+
+    # a fall, an unchanged value, a previous period without any row
+    def compare(now, before):
+        rows = pl.DataFrame({"tag": ["before"] * before})
+        return tiles.card_comparison(
+            "compare = true\n", "t", {"t": rows}, now, [pl.col("tag") == "before"]
+        )
+
+    fall = compare(5, 10)
+    assert (fall["direction"], fall["text"], fall["previous"]) == (
+        "down",
+        "50.0%",
+        "10",
+    )
+    same = compare(10, 10)
+    assert (same["direction"], same["text"]) == ("neutral", "0.0%")
+    new = compare(3, 0)
+    assert (new["direction"], new["text"]) == ("up", "n/a")
