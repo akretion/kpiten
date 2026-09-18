@@ -148,6 +148,115 @@ aggregation = "sum"
 column = "date_order.year"
 measure = "amount_untaxed"
 aggregation = "sum"
+monthly = true
+</field>
+    </record>
+
+    <!-- purchase KPI cards, like the Odoo purchase dashboard : {today} and
+        {today-N} in a `where` are replaced by the date (N days back) -->
+    <record id="purchase_rfq_to_send_card" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_purchases" />
+        <field name="kind">card</field>
+        <field name="name">RFQs to send</field>
+        <field name="panel_id" ref="panel_purchase" />
+        <field name="sequence">10</field>
+        <field name="definition">where = "state = 'draft'"
+ignore_period = true
+</field>
+    </record>
+
+    <record id="purchase_rfq_waiting_card" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_purchases" />
+        <field name="kind">card</field>
+        <field name="name">RFQs waiting</field>
+        <field name="panel_id" ref="panel_purchase" />
+        <field name="sequence">11</field>
+        <field
+            name="definition"
+        >where = "state = 'sent' and date_order &gt;= '{today}'"
+ignore_period = true
+</field>
+    </record>
+
+    <record id="purchase_rfq_late_card" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_purchases" />
+        <field name="kind">card</field>
+        <field name="name">Late RFQs</field>
+        <field name="panel_id" ref="panel_purchase" />
+        <field name="sequence">12</field>
+        <field
+            name="definition"
+        >where = "state in ('draft', 'sent', 'to approve') and date_order &lt; '{today}'"
+ignore_period = true
+</field>
+    </record>
+
+    <record id="purchase_receipt_late_card" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_purchases" />
+        <field name="kind">card</field>
+        <field name="name">Late receipts</field>
+        <field name="panel_id" ref="panel_purchase" />
+        <field name="sequence">13</field>
+        <field
+            name="definition"
+        >where = "state in ('purchase', 'done') and receipt_status in ('pending', 'partial') and date_planned &lt; '{today}'"
+ignore_period = true
+</field>
+    </record>
+
+    <record id="purchase_last_7_days_card" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_purchases" />
+        <field name="kind">card</field>
+        <field name="name">Purchased last 7 days</field>
+        <field name="panel_id" ref="panel_purchase" />
+        <field name="sequence">14</field>
+        <field name="definition">where = "state in ('purchase', 'done') and date_approve &gt;= '{today-7}'"
+aggregation = "sum"
+measure = "amount_untaxed"
+ignore_period = true
+</field>
+    </record>
+
+    <record id="purchase_avg_order_value_card" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_purchases" />
+        <field name="kind">card</field>
+        <field name="name">Avg order value</field>
+        <field name="panel_id" ref="panel_purchase" />
+        <field name="sequence">15</field>
+        <field name="definition">where = "state in ('purchase', 'done')"
+aggregation = "mean"
+measure = "amount_untaxed"
+decimals = 0
+</field>
+    </record>
+
+    <record id="purchase_days_to_order_card" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_purchases" />
+        <field name="kind">card</field>
+        <field name="name">Days to order</field>
+        <field name="panel_id" ref="panel_purchase" />
+        <field name="sequence">16</field>
+        <field name="definition">where = "state in ('purchase', 'done')"
+aggregation = "mean"
+measure = "days_to_order"
+unit = "days"
+[derive]
+days_to_order = "date_approve - create_date"
+</field>
+    </record>
+
+    <record id="purchase_days_to_receive_card" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_purchases" />
+        <field name="kind">card</field>
+        <field name="name">Days to receive</field>
+        <field name="panel_id" ref="panel_purchase" />
+        <field name="sequence">17</field>
+        <field name="definition">where = "state in ('purchase', 'done')"
+aggregation = "mean"
+measure = "days_to_receive"
+unit = "days"
+[derive]
+days_to_receive = "effective_date - date_approve"
 </field>
     </record>
 </odoo>
