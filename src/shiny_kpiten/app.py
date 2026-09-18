@@ -341,7 +341,7 @@ def server(input, output, session):
         )
 
     @reactive.calc
-    def store() -> dict[str, pl.DataFrame]:
+    def store() -> dict[str, pl.LazyFrame]:
         data_version()
         backend = backend_rv()
         user_id = current_user_id()
