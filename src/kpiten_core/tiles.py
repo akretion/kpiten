@@ -15,7 +15,7 @@ import plotly.express as px
 import plotly.graph_objs as go
 import polars as pl
 
-from kpiten_core import serial, sandbox
+from kpiten_core import env, serial, sandbox
 from kpiten_core.month import apply_monthly, is_date
 from kpiten_core.validate import CARD_AGGREGATIONS, DERIVE_RE
 
@@ -41,9 +41,33 @@ class TileResult:
         return self.df is None and self.figure is None and self.value is None
 
     @property
+    def note(self) -> str | None:
+        """Why the tile shows less than the whole data (None when complete)."""
+        return self.meta.get("note")
+
+    @property
     def text(self) -> str:
         """What a card shows : the formatted value, else the raw value."""
         return self.display if self.display is not None else str(self.value)
+
+
+def _fmt_int(n: int) -> str:
+    return f"{n:,}".replace(",", " ")
+
+
+def cap_rows(df: pl.DataFrame) -> tuple[pl.DataFrame, dict[str, Any]]:
+    """Keep the first `env.tile_max_rows` rows of a table tile.
+
+    Returns (df, meta) ; `meta["note"]` says what was cut off. The front never
+    gets more rows than it can render.
+    """
+    total = df.height
+    if total <= env.tile_max_rows:
+        return df, {}
+    return df.head(env.tile_max_rows), {
+        "total_rows": total,
+        "note": f"First {_fmt_int(env.tile_max_rows)} of {_fmt_int(total)} rows",
+    }
 
 
 def filter_df(df, predicates):
@@ -82,17 +106,20 @@ def exec_tile(
             value, display = card_case(line["content"], table, store, full_predicates)
             return TileResult("card", label, value=value, display=display)
         if kind == "graph":
-            fig = graph_case(line["content"], table, store, full_predicates)
-            return TileResult("graph", label, figure=fig)
+            fig, meta = graph_case(line["content"], table, store, full_predicates)
+            return TileResult("graph", label, figure=fig, meta=meta)
         if kind == "pivot":
             df = pivot_case(line["content"], table, store, full_predicates)
-            return TileResult("pivot", label, df=df)
+            df, meta = cap_rows(df)
+            return TileResult("pivot", label, df=df, meta=meta)
         if kind == "union":
             df = union_case(line, store, full_predicates)
-            return TileResult("union", label, df=df)
+            df, meta = cap_rows(df)
+            return TileResult("union", label, df=df, meta=meta)
         if kind == "data":
             df = dataframe_case(line["content"], table, store, full_predicates)
-            return TileResult("data", label, df=df)
+            df, meta = cap_rows(df)
+            return TileResult("data", label, df=df, meta=meta)
     except TileError:
         raise
     except Exception as err:
@@ -182,19 +209,64 @@ def card_case(content, table, store, full_predicates):
     return value, format_card_value(value, aggregation, card_json)
 
 
+def _bound_dates(source: pl.DataFrame, column: str) -> tuple[pl.DataFrame, str | None]:
+    """Group a date axis by month when it has more days than `tile_max_points`
+    (before aggregating, so a mean stays a real mean). Returns (df, note)."""
+    if source[column].n_unique() <= env.tile_max_points:
+        return source, None
+    return apply_monthly(source, column), "Grouped by month"
+
+
+def _bound_categories(
+    source: pl.DataFrame, x: str, y: str, aggregation: str
+) -> tuple[pl.DataFrame, str | None]:
+    """Keep the `tile_max_categories` biggest bars of a sorted (desc) graph
+    source ; the rest is folded in an "Others" bar when that is meaningful
+    (sum / count of a text axis). Returns (df, note)."""
+    total = source.height
+    limit = env.tile_max_categories
+    if total <= limit:
+        return source, None
+    top, rest = source.head(limit), source.tail(total - limit)
+    note = f"Top {_fmt_int(limit)} of {_fmt_int(total)}"
+    if aggregation in ("sum", "count") and source.schema[x] == pl.String:
+        others = pl.DataFrame(
+            {x: ["Others"], y: [rest[y].sum()]},
+            schema={x: source.schema[x], y: source.schema[y]},
+        )
+        top = pl.concat([top, others])
+        note += " (rest in Others)"
+    return top, note
+
+
 def graph_case(content, table, store, full_predicates):
+    """Build the plotly figure of a graph tile. Returns `(figure, meta)` ;
+    `meta["note"]` says how the data was reduced to stay drawable."""
     graph_json = serial.loads(content)
     cx = graph_json["x"]
     cy = graph_json["y"]
     df = _resolve_table(store, graph_json.get("from", table))
+    notes = []
 
     source = filter_df(df, full_predicates)
+    temporal = is_date(source, cx["name"])
+    if temporal:
+        source, note = _bound_dates(source, cx["name"])
+        notes.append(note)
     source = _agg(source, cy["name"], cx["name"], cx["aggregation"])
     source = _agg(source, cx["name"], cy["name"], cy["aggregation"])
     # Default order : largest to smallest on the y axis, unless the x axis
     # is temporal (a date keeps its natural chronological order).
-    if not is_date(source, cx["name"]):
+    if temporal:
+        if source.height > env.tile_max_points:  # still too many : latest ones
+            source = source.sort(cx["name"]).tail(env.tile_max_points)
+            notes.append(f"Latest {_fmt_int(env.tile_max_points)} points")
+    else:
         source = source.sort(cy["name"], descending=True)
+        source, note = _bound_categories(
+            source, cx["name"], cy["name"], cy["aggregation"]
+        )
+        notes.append(note)
 
     labels = {
         col: col.replace("_", " ").capitalize() for col in (cx["name"], cy["name"])
@@ -212,7 +284,8 @@ def graph_case(content, table, store, full_predicates):
     _apply_colorway(
         fig, (CHART_CONFIG.get("graph") or {}).get("layout", {}).get("colorway")
     )
-    return fig
+    notes = [n for n in notes if n]
+    return fig, ({"note": ". ".join(notes)} if notes else {})
 
 
 def _apply_colorway(fig, colorway: list | None) -> None:
@@ -285,6 +358,13 @@ def pivot_case(content, table, store, full_predicates):
     elif monthly and index and is_date(df, index):
         df = apply_monthly(df, index)
 
+    distinct = df[column].n_unique() if column else 0
+    if distinct > env.tile_max_pivot_columns:
+        raise TileError(
+            f"pivot column '{column}' has {_fmt_int(distinct)} distinct values "
+            f"(max {env.tile_max_pivot_columns}) : pick a coarser column "
+            "(e.g. `.year` / `.month`) or filter the period"
+        )
     return df.pivot(
         index=index,
         on=column,

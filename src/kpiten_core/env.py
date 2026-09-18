@@ -26,6 +26,19 @@ allow_rpc_user = get("ALLOW_RPC_USER", "0") == "1"
 # Number of rows fetched per connectorx page during the parquet sync
 sync_page_size = int(get("SYNC_PAGE_SIZE", "5000"))
 
+# Guardrails on what a tile hands to the front : a table of 800k rows or a bar
+# chart with 100k bars freezes the browser tab, whatever the server does.
+# Rows kept by a table tile (pivot / union / data), the rest is cut off
+tile_max_rows = int(get("TILE_MAX_ROWS", "500"))
+# Bars kept by a graph on a categorical axis (the rest is folded in "Others")
+tile_max_categories = int(get("TILE_MAX_CATEGORIES", "50"))
+# Points kept by a graph on a date axis (above : grouped by month, then cut)
+tile_max_points = int(get("TILE_MAX_POINTS", "1000"))
+# Distinct values of the pivot `column` (one html column each)
+tile_max_pivot_columns = int(get("TILE_MAX_PIVOT_COLUMNS", "100"))
+# Values offered by a panel dimension filter (most frequent first)
+dimension_max_values = int(get("DIMENSION_MAX_VALUES", "1000"))
+
 # Direct-Postgres extraction mode (see loaders / the Odoo `kt` module) :
 #   - "sql"  : Polars streams the Odoo-generated SELECT through connectorx (default)
 #   - "view" : same but reads a persistent SQL view created by Odoo

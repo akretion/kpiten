@@ -1,13 +1,21 @@
 """Dimension helpers for panel filters."""
 
+import logging
+
 import polars as pl
 
-MAX_DISTINCT = 50
-MIN_DISTINCT = 2
+from kpiten_core import env
+
+logger = logging.getLogger(__name__)
 
 
 def dimension_values(dfs: list[pl.DataFrame], column: str) -> list[str]:
-    """Distinct sorted values of a column across the tables that have it."""
+    """Distinct sorted values of a column across the tables that have it.
+
+    A dimension with more than `env.dimension_max_values` values (a customer
+    or an order number) would make a dropdown that freezes the browser : only
+    the most frequent values are offered.
+    """
     series = [
         df[column]
         for df in dfs
@@ -15,4 +23,14 @@ def dimension_values(dfs: list[pl.DataFrame], column: str) -> list[str]:
     ]
     if not series:
         return []
-    return pl.concat(series).unique().sort().to_list()
+    values = pl.concat(series)
+    if values.n_unique() <= env.dimension_max_values:
+        return values.unique().sort().to_list()
+    logger.warning(
+        "dimension %s has %s values : offering the %s most frequent",
+        column,
+        values.n_unique(),
+        env.dimension_max_values,
+    )
+    top = values.drop_nulls().value_counts(sort=True).head(env.dimension_max_values)
+    return top[column].sort().to_list()
