@@ -114,12 +114,23 @@ def _card(check: _Check, data: dict) -> None:
             "derive",
             "ignore_period",
             "compare",
+            "best",
+            "detail",
+            "detail_label",
         },
     )
     for key in ("where", "from", "measure", "unit"):
         check.expect_str(data, key, section)
     check.expect_bool(data, "ignore_period", section)
     check.expect_bool(data, "compare", section)
+    for key in ("best", "detail", "detail_label"):
+        check.expect_str(data, key, section)
+    if data.get("best"):
+        if not data.get("measure"):
+            check.msg("Card 'best' needs a 'measure' to rank the groups")
+        for key in ("best", "detail"):
+            if isinstance(data.get(key), str):
+                check.check_column(data[key], section)
     check.expect_enum(data, "aggregation", section, CARD_AGGREGATIONS)
     check.expect_type(data, "decimals", section, int)
     aggregation = data.get("aggregation", "count")
@@ -139,12 +150,15 @@ def _card(check: _Check, data: dict) -> None:
 def _graph(check: _Check, data: dict) -> None:
     section = "graph"
     check.expect_keys(
-        data, section, {"graph_type", "from", "x", "y", "where", "monthly"}
+        data,
+        section,
+        {"graph_type", "from", "x", "y", "where", "monthly", "others"},
     )
     check.expect_enum(data, "graph_type", section, GRAPH_TYPES)
     check.expect_str(data, "from", section)
     check.expect_str(data, "where", section)
     check.expect_bool(data, "monthly", section)
+    check.expect_bool(data, "others", section)
     if "x" not in data:
         check.msg("Missing key 'x' in graph")
     if "y" not in data:

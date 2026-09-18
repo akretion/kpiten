@@ -51,7 +51,8 @@ sync_page_size = int(get("SYNC_PAGE_SIZE", "100000"))
 # chart with 100k bars freezes the browser tab, whatever the server does.
 # Rows kept by a table tile (pivot / union / data), the rest is cut off
 tile_max_rows = int(get("TILE_MAX_ROWS", "500"))
-# Bars kept by a graph on a categorical axis (the rest is folded in "Others")
+# Bars kept by a graph on a categorical axis (the rest is dropped, or folded in
+# an "Others" bar with `others = true`)
 tile_max_categories = int(get("TILE_MAX_CATEGORIES", "50"))
 # Points kept by a graph on a date axis (above : grouped by month, then cut)
 tile_max_points = int(get("TILE_MAX_POINTS", "1000"))

@@ -46,6 +46,11 @@ class TileResult:
         return self.meta.get("note")
 
     @property
+    def subtitle(self) -> str | None:
+        """A line under a card's value (`best` cards : the units sold)."""
+        return self.meta.get("subtitle")
+
+    @property
     def comparison(self) -> dict[str, Any] | None:
         """How a card compares with the previous period (see `card_comparison`)."""
         return self.meta.get("comparison")
@@ -138,7 +143,9 @@ def exec_tile(
     label = line.get("name") or kind
     try:
         if kind == "card":
-            value, display = card_case(line["content"], table, store, full_predicates)
+            value, display, subtitle = card_value(
+                line["content"], table, store, full_predicates
+            )
             comparison = card_comparison(
                 line["content"],
                 table,
@@ -148,6 +155,8 @@ def exec_tile(
                 previous_label,
             )
             meta = {"comparison": comparison} if comparison else {}
+            if subtitle:
+                meta["subtitle"] = subtitle
             return TileResult("card", label, value=value, display=display, meta=meta)
         if kind == "graph":
             fig, meta = graph_case(line["content"], table, store, full_predicates)
@@ -228,6 +237,46 @@ def _without_period(df: pl.DataFrame, predicates):
 def card_case(content, table, store, full_predicates):
     """One number : `aggregation` (count by default) of `measure` over the
     rows matching `where` (SQL, optional). Returns `(value, display)`."""
+    value, display, _ = card_value(content, table, store, full_predicates)
+    return value, display
+
+
+def _best_case(card_json, df):
+    """The `best` card : the name of the group (`best` column) with the biggest
+    sum of `measure`, and under it the sum of `detail` for that group
+    (`detail_label` after it). Returns `(name, display, subtitle)`."""
+    best, measure, detail = (
+        card_json["best"],
+        card_json.get("measure"),
+        card_json.get("detail"),
+    )
+    schema = df.collect_schema()
+    for column in (best, measure, detail):
+        if column and column not in schema:
+            raise TileError(f"card 'best' : unknown column '{column}'")
+    aggregates = [pl.col(measure).sum().alias("__rank")]
+    if detail:
+        aggregates.append(pl.col(detail).sum().alias("__detail"))
+    top = _collect(
+        df.filter(pl.col(best).is_not_null())
+        .group_by(best)
+        .agg(aggregates)
+        .sort(["__rank", best], descending=[True, False])
+        .head(1)
+    )
+    if top.height == 0:
+        return None, "–", None
+    name = top[best][0]
+    subtitle = None
+    if detail:
+        units = f"{float(top['__detail'][0]):,.0f}".replace(",", " ")
+        subtitle = f"{units} {card_json.get('detail_label', '')}".strip()
+    return name, str(name), subtitle
+
+
+def card_value(content, table, store, full_predicates):
+    """A card's `(value, display, subtitle)` : one number (see `card_case`), or
+    with `best` the name of the best group and a line under it."""
     card_json = serial.loads(content)
     aggregation = card_json.get("aggregation", "count")
     if aggregation not in CARD_AGGREGATIONS:
@@ -242,6 +291,9 @@ def card_case(content, table, store, full_predicates):
     if card_json.get("where"):
         df = df.sql(f"SELECT * FROM self WHERE {expand_today(card_json['where'])}")
 
+    if card_json.get("best"):
+        return _best_case(card_json, df)
+
     if aggregation == "count":
         expr = pl.col(measure).count() if measure else pl.len()
     elif measure not in df.collect_schema():
@@ -251,7 +303,7 @@ def card_case(content, table, store, full_predicates):
     value = _collect(df.select(expr)).item()
     if isinstance(value, decimal.Decimal):
         value = float(value)
-    return value, format_card_value(value, aggregation, card_json)
+    return value, format_card_value(value, aggregation, card_json), None
 
 
 def _bound_dates(source: pl.LazyFrame, column: str) -> tuple[pl.LazyFrame, str | None]:
@@ -264,23 +316,25 @@ def _bound_dates(source: pl.LazyFrame, column: str) -> tuple[pl.LazyFrame, str |
 
 
 def _bound_categories(
-    source: pl.DataFrame, x: str, y: str, aggregation: str
+    source: pl.DataFrame, x: str, y: str, aggregation: str, others: bool = False
 ) -> tuple[pl.DataFrame, str | None]:
     """Keep the `tile_max_categories` biggest bars of a sorted (desc) graph
-    source ; the rest is folded in an "Others" bar when that is meaningful
-    (sum / count of a text axis). Returns (df, note)."""
+    source. With `others` the rest is folded in one more bar, when that is
+    meaningful (sum / count of a text axis) : useful for a share of the total,
+    harmful for a ranking, where that bar (all the small ones together) is by
+    far the biggest and flattens the others. Returns (df, note)."""
     total = source.height
     limit = env.tile_max_categories
     if total <= limit:
         return source, None
     top, rest = source.head(limit), source.tail(total - limit)
     note = f"Top {_fmt_int(limit)} of {_fmt_int(total)}"
-    if aggregation in ("sum", "count") and source.schema[x] == pl.String:
-        others = pl.DataFrame(
+    if others and aggregation in ("sum", "count") and source.schema[x] == pl.String:
+        folded = pl.DataFrame(
             {x: ["Others"], y: [rest[y].sum()]},
             schema={x: source.schema[x], y: source.schema[y]},
         )
-        top = pl.concat([top, others])
+        top = pl.concat([top, folded])
         note += " (rest in Others)"
     return top, note
 
@@ -301,7 +355,7 @@ def card_comparison(
         not card_json.get("compare")
         or card_json.get("ignore_period")
         or previous_predicates is None
-        or value is None
+        or not isinstance(value, (int, float))
     ):
         return None
     previous, previous_display = card_case(content, table, store, previous_predicates)
@@ -329,8 +383,9 @@ def graph_case(content, table, store, full_predicates):
     """Build the plotly figure of a graph tile. Returns `(figure, meta)` ;
     `meta["note"]` says how the data was reduced to stay drawable.
 
-    Optional keys : `where` (SQL over the rows, like a card's) and `monthly`
-    (a date x axis is grouped by month).
+    Optional keys : `where` (SQL over the rows, like a card's), `monthly` (a date
+    x axis is grouped by month) and `others` (the bars past the limit are
+    folded in an "Others" bar instead of being dropped).
     """
     graph_json = serial.loads(content)
     cx = graph_json["x"]
@@ -363,7 +418,11 @@ def graph_case(content, table, store, full_predicates):
         # ties on y are ordered by x : the bars do not swap between two runs
         source = source.sort([cy["name"], cx["name"]], descending=[True, False])
         source, note = _bound_categories(
-            source, cx["name"], cy["name"], cy["aggregation"]
+            source,
+            cx["name"],
+            cy["name"],
+            cy["aggregation"],
+            bool(graph_json.get("others")),
         )
         notes.append(note)
 

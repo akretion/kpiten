@@ -454,3 +454,77 @@ def test_card_compares_with_the_previous_period():
     assert (same["direction"], same["text"]) == ("neutral", "0.0%")
     new = compare(3, 0)
     assert (new["direction"], new["text"]) == ("up", "n/a")
+
+
+def test_best_card_shows_the_name_of_the_best_group():
+    """`best` : the name with the biggest revenue, the units sold under it (the
+    Best Seller / Best Category scorecards of Odoo's Product dashboard)."""
+    from kpiten_core import validate_toml
+
+    lines = pl.DataFrame(
+        {
+            "state": ["sale", "sale", "sale", "draft", "sale"],
+            "product_id": ["Chair", "Desk", "Chair", "Sofa", None],
+            "price_subtotal": [10.0, 100.0, 60.0, 9999.0, 5000.0],
+            "product_uom_qty": [2.0, 1.0, 3.0, 50.0, 7.0],
+        }
+    )
+    content = (
+        'where = "state = \'sale\'"\nbest = "product_id"\n'
+        'measure = "price_subtotal"\ndetail = "product_uom_qty"\ndetail_label = "sold"\n'
+    )
+    res = tiles.exec_tile(
+        {"kind": "card", "name": "Best Seller", "content": content},
+        "sale.order.line",
+        {"sale.order.line": lines},
+        [],
+    )
+    # Desk 100 > Chair 70 ; the draft Sofa and the line without product do not count
+    assert (res.value, res.text, res.subtitle) == ("Desk", "Desk", "1 sold")
+    assert res.comparison is None
+    # nothing matches : a dash, no subtitle
+    empty = tiles.exec_tile(
+        {"kind": "card", "name": "x", "content": content.replace("'sale'", "'none'")},
+        "sale.order.line",
+        {"sale.order.line": lines},
+        [],
+    )
+    assert (empty.value, empty.text, empty.subtitle) == (None, "–", None)
+    assert validate_toml(content, "card", set(lines.columns)) == []
+    assert validate_toml('best = "product_id"\n', "card") == [
+        "Card 'best' needs a 'measure' to rank the groups"
+    ]
+
+
+def test_graph_keeps_the_biggest_bars_and_folds_the_rest_only_on_request(monkeypatch):
+    from kpiten_core import env, validate_toml
+
+    monkeypatch.setattr(env, "tile_max_categories", 3)
+    df = pl.DataFrame(
+        {"name": list("abcdef"), "amount_untaxed": [60.0, 50.0, 40.0, 30.0, 20.0, 10.0]}
+    )
+
+    def bars(extra):
+        content = serial.dumps(
+            {
+                "graph_type": "bar",
+                "x": {"name": "name", "aggregation": "none"},
+                "y": {"name": "amount_untaxed", "aggregation": "sum"},
+                **extra,
+            }
+        )
+        assert validate_toml(content, "graph") == []
+        res = tiles.exec_tile(
+            {"kind": "graph", "name": "g", "content": content},
+            "sale.order",
+            {"sale.order": df},
+            NO_PREDICATES,
+        )
+        trace = res.figure.data[0]
+        return dict(zip(trace.x, trace.y)), res.note
+
+    # a ranking : the three biggest, nothing that flattens them
+    assert bars({}) == ({"a": 60.0, "b": 50.0, "c": 40.0}, "Top 3 of 6")
+    folded, note = bars({"others": True})
+    assert folded == {"a": 60.0, "b": 50.0, "c": 40.0, "Others": 60.0}
+    assert note == "Top 3 of 6 (rest in Others)"
