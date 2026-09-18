@@ -63,9 +63,8 @@ class Df:
             return pl.col(col_name)
         as_str = series.cast(pl.String)
         decimal_parts = as_str.str.extract(r"\.(\d+)$", 1)
-        significant = decimal_parts.map_elements(
-            lambda s: len(s.rstrip("0")) if s else 0, return_dtype=pl.Int32
-        )
+        # significant decimals = digits left once the trailing zeros are gone
+        significant = decimal_parts.str.strip_chars_end("0").str.len_chars()
         max_scale = significant.max()
         if max_scale is None:
             return pl.col(col_name)
