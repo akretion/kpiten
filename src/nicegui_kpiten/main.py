@@ -14,7 +14,6 @@ No SSO and no edit mode (that's the "simplified" part of the port).
 
 import logging
 import pathlib
-from contextlib import asynccontextmanager
 
 from kpiten_core.gtable import gt_table
 from fastapi.responses import RedirectResponse
@@ -26,7 +25,6 @@ from kpiten_core.backend import Backend
 from kpiten_core.loaders import (
     last_sync,
     load_store,
-    pending_tables,
     user_store,
 )
 from kpiten_core.service import service as kpiten_service
@@ -251,7 +249,7 @@ def tile_view(
             # odoo-dashboard style kpi : compact single value, no big title
             container.classes("kpi-card")
             ui.label(line["name"] or "").classes("kpi-label text-xs")
-            ui.label(str(result.value)).classes("text-3xl font-bold")
+            ui.label(result.text).classes("text-3xl font-bold")
             return
         with ui.row().classes("w-full items-center no-wrap gap-2"):
             ui.label(line["name"] or result.kind).classes("text-base font-semibold")
@@ -294,14 +292,6 @@ def error_view(line: dict, error: str, info: str = ""):
         ui.label(str(error)[:200]).classes("text-sm text-red-400")
 
 
-def loading_view(line: dict):
-    """Neutral placeholder while the tile's data is still being imported."""
-    tile = ui.column().classes("tile")
-    with tile:
-        ui.label(line.get("name") or "").classes("text-base font-semibold")
-        ui.label("⏳ data loading…").classes("text-sm italic text-gray-400")
-
-
 @ui.page("/")
 def dashboard(theme: str = DEFAULT_THEME, db: str | None = None):
     ui.add_head_html(f"<style>{CSS}</style>")
@@ -337,8 +327,8 @@ def dashboard(theme: str = DEFAULT_THEME, db: str | None = None):
 
     store_cache = user_store(backend, user_id)
     if not store_cache:
-        # fresh database : ask kpiten-core to load it (panel first, recent->oldest)
-        kpiten_service.request_load(backend.db, state_panel, wait=True)
+        # fresh database : ask kpiten-core for a full connectorx extract
+        kpiten_service.request_refresh(backend.db)
         store_cache = user_store(backend, user_id)
 
     panel_label = {"id": state_panel}
@@ -411,14 +401,8 @@ def dashboard(theme: str = DEFAULT_THEME, db: str | None = None):
                         )
                 except Exception as err:
                     logger.exception("tile %s failed", line.get("name"))
-                    if pending_tables():
-                        # progressive load still running : missing table is
-                        # expected, show a neutral placeholder instead
-                        with tiles_grid:
-                            loading_view(line)
-                    else:
-                        with tiles_grid:
-                            error_view(line, err, info)
+                    with tiles_grid:
+                        error_view(line, err, info)
         if edit_state["on"]:
             ui.add_head_html(f"<style>{EDIT_CSS}</style>")
             ui.run_javascript(EDIT_JS)
@@ -462,11 +446,7 @@ def dashboard(theme: str = DEFAULT_THEME, db: str | None = None):
 
     def _sync_progress(bar, model, mode, offset, count, page_size):
         # runs in the worker thread : schedule the bar update on the UI loop
-        kind = {
-            "full": "initial extract",
-            "initial": "progressive load",
-            "delta": "update",
-        }.get(mode, "update")
+        kind = {"full": "initial extract", "delta": "update"}.get(mode, "update")
         bar.set_value(offset + count).set_text(f"{kind} : {model}")
         bar.set_visibility(True)
 
@@ -479,7 +459,7 @@ def dashboard(theme: str = DEFAULT_THEME, db: str | None = None):
                     sync_holder["bar"], model, mode, offset, count, page_size
                 )
 
-        await run.io_bound(kpiten_service.request_refresh, backend.db, True, _progress)
+        await run.io_bound(kpiten_service.request_refresh, backend.db, _progress)
         store_cache.update(load_store())
         ui.notify("Data synced with Odoo")
         if sync_holder["bar"] is not None:
@@ -545,30 +525,6 @@ def dashboard(theme: str = DEFAULT_THEME, db: str | None = None):
                 ui.label("⏱ " + stamp).classes("text-xs opacity-55").tooltip(
                     "Data as of " + stamp + " — 'Refresh data' syncs with Odoo"
                 )
-            progress_label = (
-                ui.label("").classes("text-xs opacity-55").set_visibility(False)
-            )
-
-            def _update_progress():
-                info = kpiten_service.get_progress(backend.db)
-                current = info["current"]
-                queued = info["queued"]
-                if not current and not queued:
-                    progress_label.set_visibility(False)
-                    return
-                parts = []
-                if current:
-                    parts.append(
-                        f"Import de {current['model']} : {current['percent']}% "
-                        f"({current['offset']}/{current['total']})"
-                    )
-                if queued:
-                    parts.append(f"{len(queued)} table(s) en attente")
-                progress_label.set_text("⏳ " + " · ".join(parts))
-                progress_label.set_visibility(True)
-
-            _update_progress()
-            ui.timer(2.0, _update_progress)
         with ui.column().classes("w-full"):
             filters_row = ui.row().classes("w-full items-end gap-4")
             cards_grid = ui.element("div").classes("tile-grid card-grid w-full")
@@ -582,25 +538,15 @@ def create_server():
     """FastAPI wrapper exposing the nicegui dashboard + SSO (shiny-like).
 
     - POST / : Odoo posts {"user_uuid": ...} ; we validate it against Odoo
-      (kpiten-core Backend), refresh the parquet snapshot and return a
-      session token.
+      (kpiten-core Backend) and return a session token ; the dashboard
+      syncs the data itself.
     - GET /dashboard/auth?session=... : validates the token, then
       redirects to the nicegui UI mounted at /dashboard.
     """
     from fastapi import FastAPI
     from fastapi.responses import JSONResponse
 
-    @asynccontextmanager
-    async def lifespan(app):
-        # kpiten-core owns the background sync (one queue per database) ; the
-        # app only requests loads / refreshes.
-        kpiten_service.start()
-        try:
-            yield
-        finally:
-            kpiten_service.stop()
-
-    sso_app = FastAPI(lifespan=lifespan)
+    sso_app = FastAPI()
 
     @sso_app.post("/kpiten/tile-order")
     def tile_order(payload: dict):
@@ -632,10 +578,10 @@ def create_server():
                 )
             from kpiten_core import env
 
+            # scope the parquet store to this db ; the dashboard triggers the
+            # actual sync itself (empty store on first render, or the
+            # "Refresh data" button).
             env.current_db = backend.db
-            # ask kpiten-core to load this db ; the background service fills
-            # the older data progressively (seeded on first dashboard render)
-            kpiten_service.request_load(backend.db, wait=False)
         except Exception:
             logger.exception("sso auth failed")
             return JSONResponse(
