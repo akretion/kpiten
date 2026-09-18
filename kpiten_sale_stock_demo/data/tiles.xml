@@ -90,4 +90,21 @@ d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]))
 d_next = d_next.sort(["amount_untaxed", "invoice_status", "date_order", "id"], descending=[True, False, True, True]).head(10)
 d_next = d_next.select(["partner_id", "user_id", "amount_untaxed"]).rename({"partner_id": "Customer", "user_id": "Salesperson", "amount_untaxed": "Revenue"})</field>
     </record>
+
+    <!-- "Top Quotations" of the same dashboard : the ten quotations (draft or
+        sent) with the biggest untaxed amount, then the default order of
+        sale.order, with the panel period -->
+    <record id="sale_top_quotations_table" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="kind">data</field>
+        <field name="name">Top Quotations</field>
+        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+        <field name="definition">d_next = d
+d_next = d_next.filter(pl.col("state").is_in(["draft", "sent"]))
+d_next = d_next.sort(["amount_untaxed", "date_order", "id"], descending=[True, True, True]).head(10)
+d_next = d_next.select(["partner_id", "user_id", "amount_untaxed"]).rename({"partner_id": "Customer", "user_id": "Salesperson", "amount_untaxed": "Revenue"})</field>
+    </record>
 </odoo>
