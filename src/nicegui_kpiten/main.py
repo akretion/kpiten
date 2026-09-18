@@ -251,7 +251,13 @@ def tile_view(
             # odoo-dashboard style kpi : compact single value, no big title
             container.classes("kpi-card")
             ui.label(line["name"] or "").classes("kpi-label text-xs")
-            ui.label(result.text).classes("text-3xl font-bold")
+            # a name (best seller...) is text : smaller, it can be long
+            big = "text-base" if isinstance(result.value, str) else "text-3xl"
+            ui.label(result.text).classes(f"{big} font-bold ellipsis").style(
+                "max-width: 250px"
+            )
+            if result.subtitle:
+                ui.label(result.subtitle).classes("text-xs opacity-70")
             if result.comparison:
                 # variation against the period before, like an Odoo scorecard
                 delta = result.comparison
