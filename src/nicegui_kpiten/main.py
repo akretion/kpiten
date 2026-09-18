@@ -262,6 +262,15 @@ def tile_view(
         else:
             assert result.df is not None
             ui.html(gt_table(result.df.head(20), palette).as_raw_html())
+        note = result.note
+        if result.df is not None:
+            # 20 rows shown, out of what the tile holds (`total_rows` when the
+            # core already cut it off)
+            total = result.meta.get("total_rows", result.df.height)
+            if total > 20:
+                note = f"First 20 of {total:,} rows".replace(",", " ")
+        if note:
+            ui.label(note).classes("text-xs opacity-60")
 
 
 def edit_toolbar(line: dict, act):
