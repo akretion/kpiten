@@ -5,16 +5,11 @@ service ; reading back the per-user dataframes and the sync status is done
 here, on top of the shared kpiten-core store.
 """
 
-import logging
-
 import polars as pl
 
 from kpiten_core.backend import Backend
 from kpiten_core import loaders
 from kpiten_core.service import service as kpiten_service
-from kpiten_core.store import DFStorage
-
-logger = logging.getLogger(__name__)
 
 
 def request_refresh(db: str, progress=None):
@@ -28,19 +23,10 @@ def last_sync(backend: Backend, user_id: int) -> str | None:
 
 
 def user_store(backend: Backend, user_id: int) -> dict[str, pl.DataFrame]:
-    """Per-user view of the store.
+    """Per-user view of the store (see `kpiten_core.loaders.user_store`) :
 
     - columns are filtered by the user ACL (`kpiten.get_allowed_fields`)
+    - rows are filtered by the user record rules (`kpiten.get_access_query`)
     - translatable struct columns are destructured by the user lang
     """
-    lang = backend.get_user_lang(user_id)
-    store: dict[str, pl.DataFrame] = {}
-    for table in DFStorage.list_table_names():
-        try:
-            allowed = backend.get_allowed_fields(table, user_id)
-            row = DFStorage.retrieve_df(table, allowed_fields=allowed, lang=lang)
-            if row:
-                store[table] = row["df"]
-        except Exception:
-            logger.exception("user store fetch failed for %s", table)
-    return store
+    return loaders.user_store(backend, user_id)

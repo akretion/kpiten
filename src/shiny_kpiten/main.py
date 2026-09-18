@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse, Response
 from kpiten_core.backend import Backend
 
 from .app import app as shiny_app
-from .sessions import SessionHandler
+from .sessions import SESSION_COOKIE, SessionHandler
 
 logger = logging.getLogger(__name__)
 
@@ -50,12 +50,24 @@ def auth(payload: dict):
 
 @this_app.get("/dashboard/auth")
 def check(session: str):
-    if not SessionHandler.check_session(session):
+    sso = SessionHandler.get(session)
+    if sso is None:
         return HTMLResponse(
             status_code=403,
             content="<h1>Auth failed</h1><p>No session registered for this token.</p>",
         )
-    return Response(status_code=303, headers={"Location": "/dashboard"})
+    # the token goes in a cookie : the dashboard reads it to know who is
+    # connected (one session per user, nothing shared between users)
+    response = Response(status_code=303, headers={"Location": "/dashboard"})
+    response.set_cookie(
+        SESSION_COOKIE,
+        session,
+        httponly=True,
+        samesite="lax",
+        path="/dashboard",
+        max_age=int(sso.VALIDITY_TIME.total_seconds()),
+    )
+    return response
 
 
 this_app.mount("/dashboard", shiny_app)

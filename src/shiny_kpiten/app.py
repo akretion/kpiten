@@ -25,7 +25,7 @@ from kpiten_core.backend import Backend
 from . import data as data_layer
 from . import filterstate
 from . import themes
-from .sessions import SessionHandler
+from .sessions import SESSION_COOKIE, SessionHandler
 
 STATIC_DIR = pathlib.Path(__file__).parent / "static"
 
@@ -108,6 +108,16 @@ THEME_PERSIST_JS = """
 
 
 def app_ui(req):  # noqa: ANN001
+    from kpiten_core import env
+
+    if not env.allow_rpc_user and not SessionHandler.get(
+        req.cookies.get(SESSION_COOKIE)
+    ):
+        return ui.page_fluid(
+            {"class": "kpiten-dashboard"},
+            ui.h3("Not connected"),
+            ui.p("Open the dashboard from Odoo : menu KpiTen → Dashboard."),
+        )
     logo = "static/logo.png"  # relative : works at app root and under /dashboard
     return ui.page_fluid(
         {"class": "kpiten-dashboard"},
@@ -216,11 +226,24 @@ def tile_error_html(line: dict, error: str, info: str = "") -> str:
 def server(input, output, session):
     from kpiten_core import env
 
-    # active odoo database : sso session db, switched reactively by the
-    # Database select (each db has its own parquet snapshot)
-    initial_backend = Backend.create(db=SessionHandler.db)
+    # who is connected : the SSO session of this browser (cookie), nothing is
+    # shared with the other users. Only the dev mode (ALLOW_RPC_USER) runs
+    # without one, as the rpc login user.
+    sso = SessionHandler.get(session.http_conn.cookies.get(SESSION_COOKIE))
+    if sso is None and not env.allow_rpc_user:
+        return  # app_ui shows « log in from Odoo »
+
+    # active odoo database : the sso session one (an SSO user is bound to it),
+    # switched reactively by the Database select in dev mode (each db has its
+    # own parquet snapshot)
+    initial_backend = Backend.create(db=sso.db if sso else None)
     backend_rv = reactive.Value(initial_backend)
-    env.current_db = SessionHandler.db
+    env.current_db = initial_backend.db
+
+    def current_user_id() -> int:
+        """Odoo user of this session (dev mode : the rpc login user)."""
+        return sso.user_id if sso else backend_rv().env.user.id
+
     # Apply the odoo-side chart defaults (colors) once per session.
     core_tiles.set_chart_config(initial_backend.get_chart_config())
     data_version = reactive.Value(0)
@@ -248,11 +271,9 @@ def server(input, output, session):
     def _db_changed():
         db = input.db()  # the select re-fires on init : switch only on change
         with reactive.isolate():
-            if db == SessionHandler.db or not db:
-                return
+            if sso is not None or db == backend_rv().db or not db:
+                return  # an SSO session is bound to its database
             new_backend = Backend.create(db=db)
-            SessionHandler.user_id = None  # rpc login user of that db
-            SessionHandler.db = db
             env.current_db = db
             backend_rv.set(new_backend)
             core_tiles.set_chart_config(new_backend.get_chart_config())
@@ -264,7 +285,7 @@ def server(input, output, session):
     def db_select():
         """Odoo database selector (each db has its own parquet snapshot)."""
         try:
-            databases = backend_rv().list_databases()
+            databases = [sso.db] if sso else backend_rv().list_databases()
         except Exception:
             databases = [backend_rv().db]
         return ui.input_select(
@@ -317,8 +338,7 @@ def server(input, output, session):
     def store() -> dict[str, pl.DataFrame]:
         data_version()
         backend = backend_rv()
-        # sso session user, fallback to the rpc login user (dev/testing)
-        user_id = SessionHandler.user_id or backend.env.user.id
+        user_id = current_user_id()
         content = data_layer.user_store(backend, user_id)
         if not content:
             # fresh database : ask kpiten-core for a full connectorx extract
@@ -332,8 +352,7 @@ def server(input, output, session):
         """Discrete data-age stamp (details in the tooltip)."""
         data_version()  # re-render after each sync
         backend = backend_rv()
-        user_id = SessionHandler.user_id or backend.env.user.id
-        stamp = data_layer.last_sync(backend, user_id)
+        stamp = data_layer.last_sync(backend, current_user_id())
         if not stamp:
             return ui.tags.span("", class_="data-freshness")
         return ui.tags.span(
@@ -349,7 +368,7 @@ def server(input, output, session):
         req(input.panel())
         backend = backend_rv()
         layout_version()  # tiles layout changed (edit mode save/delete)
-        res = backend.get_panel_tiles(int(input.panel()), backend.env.user.id)
+        res = backend.get_panel_tiles(int(input.panel()), current_user_id())
         logger.info(
             "lines : db=%s panel=%s count=%s", backend.db, input.panel(), len(res)
         )

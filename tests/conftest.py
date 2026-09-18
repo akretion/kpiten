@@ -11,5 +11,6 @@ for key, value in {
     "ODOO_LOGIN": "admin",
     "ODOO_PWD": "admin",
     "DATA_PATH": str(ROOT / "data_dir"),
+    "ALLOW_RPC_USER": "1",  # the e2e tests open the dashboard without SSO
 }.items():
     os.environ.setdefault(key, value)
