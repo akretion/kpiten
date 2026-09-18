@@ -62,7 +62,7 @@ def inject_display_names(
     for fname, comodel in m2o_fields.items():
         if fname not in df.columns or df.schema[fname] not in (pl.Int64, pl.Int32):
             continue
-        ids = set(df[fname].drop_nulls().to_list())
+        ids = set(df[fname].drop_nulls().unique().to_list())
         names = _resolve(backend, comodel, ids) if ids else {}
         updates[fname] = (
             pl.when(pl.col(fname).is_null())

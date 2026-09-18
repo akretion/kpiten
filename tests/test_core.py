@@ -57,3 +57,16 @@ def test_df_norm_keeps_the_day():
         pl.DataFrame(recs, strict=False), fields={"date_order": {"type": "datetime"}}
     ).get_df()
     assert df["date_order"][0] == datetime.date(2025, 1, 17)
+
+
+def test_find_dotenv_does_not_depend_on_the_working_directory(tmp_path, monkeypatch):
+    from kpiten_core import env
+
+    project = tmp_path / "kpiten-core"
+    (project / "src" / "kpiten_core").mkdir(parents=True)
+    (project / ".env").write_text("ODOO_DB=big\n")
+    elsewhere = tmp_path / "cron-cwd"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    found = env.find_dotenv(project / "src" / "kpiten_core" / "env.py")
+    assert found == str(project / ".env")

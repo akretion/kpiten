@@ -1,10 +1,27 @@
 import os
+import pathlib
 import threading
 from contextlib import contextmanager
 
 import dotenv
 
-dotenv.load_dotenv()
+
+def find_dotenv(start: pathlib.Path | None = None) -> str:
+    """The `.env` of the project, whatever the way the process was started.
+
+    python-dotenv looks from the file that imports it, or from the working
+    directory (`python -m`, `python -c`, interactive) : the same code then
+    reads different files, or none, depending on where a cron job or a shell
+    happens to be. Here it is the first `.env` above the package sources
+    (src/kpiten-core/.env), else the one of the working directory.
+    """
+    for parent in (start or pathlib.Path(__file__)).resolve().parents:
+        if (parent / ".env").is_file():
+            return str(parent / ".env")
+    return dotenv.find_dotenv(usecwd=True)
+
+
+dotenv.load_dotenv(find_dotenv())
 
 
 def get(env_var, default=None):
@@ -23,8 +40,12 @@ odoo_timeout = int(get("ODOO_TIMEOUT", "300"))
 # Off by default : without a session the dashboard asks to log in from Odoo.
 allow_rpc_user = get("ALLOW_RPC_USER", "0") == "1"
 
-# Number of rows fetched per connectorx page during the parquet sync
-sync_page_size = int(get("SYNC_PAGE_SIZE", "5000"))
+# Number of rows fetched per connectorx page during the parquet sync. Each page
+# is one query : ~30 ms of fixed cost (connection, planning of the joined
+# select) + ~9 us per row, so small pages are dominated by the fixed cost
+# (5 000 rows : 67k rows/s, 100 000 : 161k rows/s). A page is about one block
+# of PARTITION_SIZE ids, which the sync holds in memory anyway.
+sync_page_size = int(get("SYNC_PAGE_SIZE", "100000"))
 
 # Guardrails on what a tile hands to the front : a table of 800k rows or a bar
 # chart with 100k bars freezes the browser tab, whatever the server does.

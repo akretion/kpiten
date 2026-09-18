@@ -14,6 +14,8 @@ applied from the `auditlog` module (unlink logs).
 """
 
 import logging
+import queue
+import threading
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Callable
 from zoneinfo import ZoneInfo
@@ -73,6 +75,53 @@ def _iter_sql_pages(uri: str, base_query: str, page_size: int):
             return
 
 
+def _read_ahead(pages, depth: int = 1):
+    """Iterate `pages` in a thread, up to `depth` pages ahead of the consumer.
+
+    Reading a page is a wait on Postgres (connectorx works without the GIL)
+    while a block is resolved, normalized and written by the consumer : run
+    one after the other they add up, side by side the sync takes the time of
+    the longer one. Memory grows by the pages in flight, `depth` + 1.
+
+    The pages come out in order ; an error of the reading is raised to the
+    consumer ; if the consumer stops early the thread is told to stop.
+    """
+    ahead: queue.Queue = queue.Queue(maxsize=depth)
+    stop = threading.Event()
+    end = object()
+
+    def put(item) -> bool:
+        while not stop.is_set():
+            try:
+                ahead.put(item, timeout=0.2)
+                return True
+            except queue.Full:
+                pass
+        return False
+
+    def read():
+        try:
+            for page in pages:
+                if not put(page):
+                    return
+        except BaseException as err:  # handed to the consumer
+            put(err)
+            return
+        put(end)
+
+    threading.Thread(target=read, name="kpiten-read-ahead", daemon=True).start()
+    try:
+        while True:
+            item = ahead.get()
+            if item is end:
+                return
+            if isinstance(item, BaseException):
+                raise item
+            yield item
+    finally:
+        stop.set()
+
+
 def _normalize_block(backend: "Backend", chunks: list, metadata: dict) -> pl.DataFrame:
     """Raw rows of one block -> resolved m2o names -> normalized dataframe.
 
@@ -102,7 +151,8 @@ def _stream_blocks(
     chunks: list[pl.DataFrame] = []
     current = None
     total = 0
-    for page in _iter_sql_pages(uri, base_query, env.sync_page_size):
+    pages = _iter_sql_pages(uri, base_query, env.sync_page_size)
+    for page in _read_ahead(pages):
         total += page.height
         if progress:
             progress(model, mode, total, page.height, env.sync_page_size)

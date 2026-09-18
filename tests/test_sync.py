@@ -182,3 +182,55 @@ def test_service_waits_for_a_sync_started_elsewhere(data, monkeypatch):
     monkeypatch.setattr(service, "POLL_SECONDS", 0)
     service.SyncService().request_refresh("testdb")
     assert list(running) == []  # waited until the lock was free
+
+
+# --- read ahead -----------------------------------------------------------
+
+
+def test_read_ahead_keeps_the_order_and_reads_in_advance():
+    import threading
+
+    read = []
+
+    def pages():
+        for i in range(5):
+            read.append(i)
+            yield i
+
+    it = loaders._read_ahead(pages(), depth=1)
+    assert next(it) == 0
+    # the reader did not wait for the consumer : the next page is already read
+    for _ in range(100):
+        if len(read) >= 2:
+            break
+        threading.Event().wait(0.01)
+    assert len(read) >= 2
+    assert [0, *it] == [0, 1, 2, 3, 4]
+
+
+def test_read_ahead_raises_the_error_of_the_reading_in_the_consumer():
+    def pages():
+        yield 1
+        raise RuntimeError("postgres went away")
+
+    it = loaders._read_ahead(pages())
+    assert next(it) == 1
+    with pytest.raises(RuntimeError, match="postgres went away"):
+        next(it)
+
+
+def test_read_ahead_thread_stops_when_the_consumer_gives_up():
+    import threading
+
+    def endless():
+        while True:
+            yield 1
+
+    it = loaders._read_ahead(endless())
+    next(it)
+    it.close()  # e.g. the normalization of a block failed
+    for _ in range(100):
+        if not [t for t in threading.enumerate() if t.name == "kpiten-read-ahead"]:
+            break
+        threading.Event().wait(0.05)
+    assert not [t for t in threading.enumerate() if t.name == "kpiten-read-ahead"]
