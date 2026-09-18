@@ -21,7 +21,7 @@ from fastapi.responses import RedirectResponse
 from nicegui import app, ui, run
 
 from kpiten_core import filters
-from kpiten_core import links
+from kpiten_core import comparison, links
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
 from kpiten_core.loaders import (
@@ -252,6 +252,15 @@ def tile_view(
             container.classes("kpi-card")
             ui.label(line["name"] or "").classes("kpi-label text-xs")
             ui.label(result.text).classes("text-3xl font-bold")
+            if result.comparison:
+                # variation against the period before, like an Odoo scorecard
+                delta = result.comparison
+                color = comparison.COLORS[delta["direction"]]
+                with ui.row().classes("items-baseline gap-1 text-xs"):
+                    ui.label(comparison.label(delta)).classes("font-semibold").style(
+                        f"color: {color}" if color else ""
+                    ).tooltip(comparison.tooltip(delta))
+                    ui.label(delta["description"]).classes("opacity-60")
             return
         with ui.row().classes("w-full items-center no-wrap gap-2"):
             ui.label(line["name"] or result.kind).classes("text-base font-semibold")
@@ -399,6 +408,10 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
         config = get_config()
         date_value = filters.bounds_of_option(filt["date"])
         predicates = filters.make_predicates(config, date_value, filt["dims"])
+        previous_predicates = filters.make_previous_predicates(
+            config, date_value, filt["dims"]
+        )
+        previous_label = filters.describe_previous(date_value)
         info = filters.describe_filters(config, date_value, filt["dims"])
         logger.info("predicates : %s", [str(p) for p in predicates])
         cards_grid.clear()
@@ -407,7 +420,12 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
             for line in backend.get_panel_tiles(panel_label["id"], user_id):
                 try:
                     result = core_tiles.exec_tile(
-                        line, line["model"], store_cache, predicates
+                        line,
+                        line["model"],
+                        store_cache,
+                        predicates,
+                        previous_predicates,
+                        previous_label,
                     )
                     grid = cards_grid if line["kind"] == "card" else tiles_grid
                     with grid:
