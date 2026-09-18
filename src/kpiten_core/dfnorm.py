@@ -86,6 +86,9 @@ class Df:
             pl.col(datetime_fields).cast(pl.String).str.to_datetime(strict=False)
         )
         self.df = self.df.with_columns(pl.col(datetime_fields).cast(pl.Date))
+        # the dotted relational paths (`order_id.date_order`) are not in the
+        # fields metadata : same rule for every datetime column, the day is kept
+        self.df = self.df.with_columns(pl.col(pl.Datetime).cast(pl.Date))
 
     def split_many2one_result(self):
         """Convert Many2one list fields to 2 columns.

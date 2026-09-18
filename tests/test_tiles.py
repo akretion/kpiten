@@ -340,3 +340,34 @@ def test_graph_where_and_monthly():
     from kpiten_core import validate_toml
 
     assert validate_toml(content, "graph", set(df.columns)) == []
+
+
+def test_period_on_a_table_that_names_the_date_differently():
+    """One Period filter, two date columns : each table keeps the predicate of
+    the column it has (orders : date_order, their lines : order_id.date_order)."""
+    from kpiten_core import filters
+
+    config = {"date": {"field": ["date_order", "order_id.date_order"]}}
+    period = (datetime.date(2025, 2, 1), datetime.date(2025, 3, 31))
+    predicates = filters.make_predicates(config, period, {})
+    assert len(predicates) == 4
+    assert "date_order, order_id.date_order" in filters.describe_filters(
+        config, period, {}
+    )
+    # a single name keeps working
+    assert (
+        len(filters.make_predicates({"date": {"field": "date_order"}}, period, {})) == 2
+    )
+
+    lines = pl.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "order_id.date_order": [
+                datetime.date(2025, 1, 5),
+                datetime.date(2025, 2, 5),
+                datetime.date(2025, 3, 5),
+            ],
+        }
+    )
+    assert tiles.filter_df(lines, predicates)["id"].to_list() == [2, 3]
+    assert tiles.filter_df(DF, predicates)["id"].to_list() == [2, 3]

@@ -70,3 +70,22 @@ def test_find_dotenv_does_not_depend_on_the_working_directory(tmp_path, monkeypa
     monkeypatch.chdir(elsewhere)
     found = env.find_dotenv(project / "src" / "kpiten_core" / "env.py")
     assert found == str(project / ".env")
+
+
+def test_a_relational_path_datetime_is_a_day_like_the_other_dates():
+    """`order_id.date_order` is not in the fields metadata but is a datetime :
+    it must be a Date like `date_order`, or the end day of a period is cut."""
+    import datetime
+
+    from kpiten_core.dfnorm import Df
+
+    raw = pl.DataFrame(
+        {
+            "id": [1],
+            "date_order": [datetime.datetime(2026, 9, 18, 19, 5)],
+            "order_id.date_order": [datetime.datetime(2026, 9, 18, 19, 5)],
+        }
+    )
+    out = Df(raw, fields={"date_order": {"type": "datetime"}}).get_df()
+    assert out.schema["date_order"] == pl.Date
+    assert out.schema["order_id.date_order"] == pl.Date
