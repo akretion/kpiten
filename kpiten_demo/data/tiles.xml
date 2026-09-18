@@ -29,16 +29,6 @@ aggregation = "sum"
 </field>
     </record>
 
-    <record id="ammount_untaxed_df" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_sales" />
-        <field name="kind">data</field>
-        <field name="name">Amount untaxed</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">3</field>
-        <field name="definition">d_next = d
-d_next = d_next.select([pl.col("amount_untaxed").sum().alias("amount_untaxed_sum")])</field>
-    </record>
-
     <record id="monthly_sales_pivot" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_sales" />
         <field name="kind">pivot</field>

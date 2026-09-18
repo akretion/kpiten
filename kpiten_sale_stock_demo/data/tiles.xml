@@ -146,4 +146,100 @@ d_next = d_next.group_by("user_id").agg([pl.len().alias("Orders"), pl.col("amoun
 d_next = d_next.sort(["Revenue", "user_id"], descending=[True, False]).head(10)
 d_next = d_next.rename({"user_id": "Salesperson"})</field>
     </record>
+
+    <!-- "Top Customers" of the same dashboard : per customer, the confirmed orders and their revenue, the ten best. The customer is a link to its form in Odoo -->
+    <record id="sale_top_customers_table" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="kind">data</field>
+        <field name="name">Top Customers</field>
+        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+        <field name="definition">d_next = d
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("partner_id").is_not_null())
+d_next = d_next.group_by(["partner_id", "partner_id_"]).agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
+d_next = d_next.sort(["Revenue", "partner_id"], descending=[True, False]).head(10)
+d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/res.partner/"), pl.col("partner_id_").cast(pl.String), pl.lit(")")]).alias("Customer"), pl.col("Orders"), pl.col("Revenue")])</field>
+    </record>
+
+    <!-- "Top Categories" : per product category, the orders it is in and its revenue, on the order lines. The category is shown with its path, as Odoo does -->
+    <record id="sale_top_categories_table" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_demo.kpiten_sales_lines" />
+        <field name="kind">data</field>
+        <field name="name">Top Categories</field>
+        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+        <field name="definition">d_next = d
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("product_id.categ_id.complete_name").is_not_null())
+d_next = d_next.group_by("product_id.categ_id.complete_name").agg([pl.col("order_id_").n_unique().alias("Orders"), pl.col("price_subtotal").sum().alias("Revenue")])
+d_next = d_next.sort(["Revenue", "product_id.categ_id.complete_name"], descending=[True, False]).head(10)
+d_next = d_next.rename({"product_id.categ_id.complete_name": "Category"})</field>
+    </record>
+
+    <!-- "Top Sales Teams" : per sales team, the confirmed orders and their revenue -->
+    <record id="sale_top_sales_teams_table" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="kind">data</field>
+        <field name="name">Top Sales Teams</field>
+        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+        <field name="definition">d_next = d
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("team_id").is_not_null())
+d_next = d_next.group_by("team_id").agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
+d_next = d_next.sort(["Revenue", "team_id"], descending=[True, False]).head(10)
+d_next = d_next.rename({"team_id": "Sales Team"})</field>
+    </record>
+
+    <!-- "Top Sources" : per campaign source, the confirmed orders and their revenue (empty while no order has a source) -->
+    <record id="sale_top_sources_table" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="kind">data</field>
+        <field name="name">Top Sources</field>
+        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+        <field name="definition">d_next = d
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("source_id").is_not_null())
+d_next = d_next.group_by("source_id").agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
+d_next = d_next.sort(["Revenue", "source_id"], descending=[True, False]).head(10)
+d_next = d_next.rename({"source_id": "Source"})</field>
+    </record>
+
+    <!-- "Top Mediums" : per campaign medium, the confirmed orders and their revenue (empty while no order has a medium) -->
+    <record id="sale_top_mediums_table" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="kind">data</field>
+        <field name="name">Top Mediums</field>
+        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+        <field name="definition">d_next = d
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("medium_id").is_not_null())
+d_next = d_next.group_by("medium_id").agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
+d_next = d_next.sort(["Revenue", "medium_id"], descending=[True, False]).head(10)
+d_next = d_next.rename({"medium_id": "Medium"})</field>
+    </record>
+
+    <!-- "Top Countries" : per customer country, the confirmed orders and their revenue (empty while no customer has a country) -->
+    <record id="sale_top_countries_table" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="kind">data</field>
+        <field name="name">Top Countries</field>
+        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+        <field name="definition">d_next = d
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("partner_id.country_id.name").is_not_null())
+d_next = d_next.group_by("partner_id.country_id.name").agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
+d_next = d_next.sort(["Revenue", "partner_id.country_id.name"], descending=[True, False]).head(10)
+d_next = d_next.rename({"partner_id.country_id.name": "Country"})</field>
+    </record>
 </odoo>
