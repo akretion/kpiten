@@ -86,6 +86,8 @@ class Theme:
 }}
 .card-grid .tile .value {{ font-size: 30px; font-weight: 700; line-height: 1.1 }}
 .kpi-delta {{ font-size: 12px; font-weight: 600; margin-top: 2px }}
+.card-grid .tile .value.kpi-text {{ font-size: 16px; line-height: 1.25; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }}
+.kpi-sub {{ font-size: 12px; opacity: .7 }}
 .kpi-delta-descr {{ font-weight: 400; opacity: .65 }}
 .tile {{
   background: {p["surface"]};

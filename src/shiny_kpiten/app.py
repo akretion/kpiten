@@ -15,6 +15,8 @@ import logging
 import pathlib
 import re
 
+from html import escape as html_escape
+
 import polars as pl
 from shiny import App, reactive, render, req, ui
 from shiny.types import SilentException
@@ -189,7 +191,14 @@ def tile_html(
         return (
             f'<div class="tile kpi-card" data-tile-id="{line["id"]}"{tooltip}>'
             f'<div class="kpi-label">{line["name"] or ""}</div>'
-            f'<div class="value">{result.text}</div>'
+            # a name (best seller...) is text : smaller, it can be long
+            f'<div class="value{" kpi-text" if isinstance(result.value, str) else ""}">'
+            f"{html_escape(result.text)}</div>"
+            + (
+                f'<div class="kpi-sub">{html_escape(result.subtitle)}</div>'
+                if result.subtitle
+                else ""
+            )
             + (comparison.html_block(result.comparison) if result.comparison else "")
             + "</div>"
         )
