@@ -1,0 +1,282 @@
+import logging
+import random
+from datetime import timedelta
+
+from odoo import fields, models
+
+from odoo.addons.erp_demo_generator.models.erp_demo_generator import (
+    CUSTOMER_NAMES,
+    PRODUCTS,
+    SALESPERSONS,
+)
+
+_logger = logging.getLogger(__name__)
+
+# more customers than erp_demo_generator's 4, for richer "sales by customer" charts
+EXTRA_COMPANY_NAMES = [
+    "Atelier Dubois",
+    "Brasserie du Port",
+    "Cabinet Lambert & associés",
+    "Domaine des Lilas",
+    "Ets Marchand",
+    "Fromagerie Roussel",
+    "Garage de la Gare",
+    "Hôtel Beau Rivage",
+    "Imprimerie Moderne",
+    "Jardineries Vertes",
+    "Librairie du Centre",
+    "Menuiserie Perrin",
+    "Nettoyage Express",
+    "Optique Saint-Michel",
+    "Pâtisserie Girard",
+    "Résidence Les Cèdres",
+]
+EXTRA_PERSON_NAMES = [
+    "Alice Moreau",
+    "Bruno Lefebvre",
+    "Chloé Garnier",
+    "David Faure",
+    "Élodie Blanc",
+    "François Mercier",
+    "Gaëlle Robin",
+    "Hugo Chevalier",
+    "Inès Fontaine",
+    "Julien Roger",
+]
+BATCH_SIZE = 500
+
+SALE_STATES = ["draft", "sent", "cancel", "sale"]
+SALE_STATE_WEIGHTS = [0.06, 0.08, 0.03, 0.83]
+
+# sale.order columns forced in SQL : {column: SQL type}. delivery_status and
+# effective_date come from sale_stock.
+ORDER_COLUMNS = {
+    "state": "varchar",
+    "invoice_status": "varchar",
+    "delivery_status": "varchar",
+    "effective_date": "timestamp",
+    "create_date": "timestamp",
+}
+LINE_COLUMNS = {
+    "state": "varchar",
+    "invoice_status": "varchar",
+    "qty_delivered": "numeric",
+    "qty_invoiced": "numeric",
+    "qty_to_invoice": "numeric",
+    "create_date": "timestamp",
+}
+
+
+def _bulk_update(cr, table, columns, rows):
+    """Mass UPDATE : `columns` = {column: SQL type}, `rows` = tuples
+    (id, value_col1, value_col2, ...). Explicit casts allow NULLs."""
+    if not rows:
+        return
+    assignments = ", ".join(f'"{col}" = v."{col}"' for col in columns)
+    names = ", ".join(f'"{col}"' for col in columns)
+    casts = ["%s::int"] + [f"%s::{sql_type}" for sql_type in columns.values()]
+    cr.execute_values(
+        f'UPDATE "{table}" AS t SET {assignments} '
+        f"FROM (VALUES %s) AS v(id, {names}) WHERE t.id = v.id",
+        rows,
+        template="(" + ", ".join(casts) + ")",
+    )
+
+
+def _plan_sale(rng, now, date_start):
+    """Draw the lifecycle of one sales order.
+
+    Returns a dict : state, create_date (= date_order), commitment_date
+    (promised delivery), effective_date (actual delivery), delivery_status,
+    invoice_status, delivered (delivered share), invoiced (bool).
+    """
+    state = rng.choices(SALE_STATES, SALE_STATE_WEIGHTS)[0]
+    plan = {
+        "state": state,
+        "commitment_date": None,  # None (NULL in SQL), not False
+        "effective_date": None,
+        "delivery_status": None,
+        "invoice_status": "no",
+        "delivered": 0,
+        "invoiced": False,
+    }
+    if state in ("draft", "sent"):
+        # open quotations are recent
+        plan["create_date"] = now - timedelta(days=rng.uniform(0, 45))
+        return plan
+
+    # slightly growing activity : more orders in recent years
+    plan["create_date"] = date_start + (now - date_start) * (rng.random() ** 0.8)
+    if state == "cancel":
+        return plan
+
+    create_date = plan["create_date"]
+    commitment_date = create_date + timedelta(days=rng.randint(2, 14))
+    plan["commitment_date"] = commitment_date
+
+    # delivery : ~70% on time (or early), the others 1 to 7 days late ;
+    # otherwise the order is still waiting for its delivery.
+    if rng.random() < 0.7:
+        delivery = commitment_date + timedelta(days=rng.randint(-2, 0))
+    else:
+        delivery = commitment_date + timedelta(days=rng.randint(1, 7))
+    if rng.random() < 0.93 and delivery <= now:
+        plan["effective_date"] = delivery
+        plan["delivery_status"] = "full"
+        plan["delivered"] = 1
+        # only fully delivered orders can be fully invoiced
+        plan["invoiced"] = rng.random() < 0.85 and delivery < now - timedelta(days=3)
+    elif rng.random() < 0.3 and commitment_date <= now:
+        plan["effective_date"] = commitment_date
+        plan["delivery_status"] = "partial"
+        plan["delivered"] = 0.5
+    else:
+        plan["delivery_status"] = "pending"
+    plan["invoice_status"] = "invoiced" if plan["invoiced"] else "to invoice"
+    return plan
+
+
+class ErpDemoSaleStock(models.Model):
+    _inherit = "erp.demo.generator"
+
+    def _demo_customers(self):
+        """erp_demo_generator's customers + extra ones (customers only : the
+        inherited `_get_demo_partner` would also flag them as vendors)."""
+        partner = self.env["res.partner"]
+        names = CUSTOMER_NAMES + EXTRA_COMPANY_NAMES + EXTRA_PERSON_NAMES
+        customers = partner.search([("name", "in", names)])
+        existing = set(customers.mapped("name"))
+        missing = [name for name in names if name not in existing]
+        return customers | partner.create(
+            [
+                {
+                    "name": name,
+                    "is_company": name not in EXTRA_PERSON_NAMES,
+                    "customer_rank": 1,
+                }
+                for name in missing
+            ]
+        )
+
+    def _demo_salespeople(self):
+        """The salespeople : demo users with a sales group (this excludes the
+        buyer, who only has the purchase group)."""
+        return self.env["res.users"].search(
+            [
+                ("name", "in", SALESPERSONS),
+                ("groups_id", "in", self.env.ref("sales_team.group_sale_salesman").id),
+            ]
+        )
+
+    def _sale_order_vals(self, rng, plan, salesperson, customer, products):
+        vals = {
+            "partner_id": customer.id,
+            "user_id": salesperson.id,
+            "date_order": plan["create_date"],
+            "order_line": [
+                (
+                    0,
+                    0,
+                    {
+                        "product_id": product.id,
+                        "product_uom_qty": rng.randint(1, 12),
+                        "price_unit": round(
+                            product.list_price * rng.uniform(0.95, 1.05), 2
+                        ),
+                    },
+                )
+                for product in rng.sample(products, rng.randint(1, 4))
+            ],
+        }
+        if plan["commitment_date"]:
+            vals["commitment_date"] = plan["commitment_date"]
+        return vals
+
+    def _force_sale_lifecycle(self, orders, plans):
+        """Write state, delivery and invoicing statuses in SQL : no real
+        deliveries nor customer invoices are created (fast,
+        dashboard-oriented)."""
+        cr = self.env.cr
+        _bulk_update(
+            cr,
+            "sale_order",
+            ORDER_COLUMNS,
+            [(o.id, *(p[c] for c in ORDER_COLUMNS)) for o, p in zip(orders, plans)],
+        )
+        _bulk_update(
+            cr,
+            "sale_order_line",
+            LINE_COLUMNS,
+            [
+                (
+                    line.id,
+                    p["state"],
+                    p["invoice_status"],
+                    line.product_uom_qty * p["delivered"],
+                    line.product_uom_qty if p["invoiced"] else 0,
+                    (
+                        0
+                        if p["invoiced"] or p["state"] != "sale"
+                        else line.product_uom_qty
+                    ),
+                    p["create_date"],
+                )
+                for o, p in zip(orders, plans)
+                for line in o.order_line
+            ],
+        )
+
+    def generate_sale_stock_demo(self, n_orders=9000, years=3, seed=42):
+        """Sales orders spread over `years` and over the salespeople.
+
+        Reuses erp_demo_generator's products and customers (plus extra
+        customers). `seed` makes the dataset reproducible.
+        """
+        self.ensure_one()
+        rng = random.Random(seed)
+        now = fields.Datetime.now()
+        date_start = now - timedelta(days=365 * years)
+
+        salespeople = list(self._demo_salespeople())
+        if not salespeople:
+            _logger.warning("no demo salesperson found : orders are not assigned")
+        # uneven activity between salespeople
+        weights = [rng.uniform(0.6, 1.6) for _ in salespeople]
+        customers = list(self._demo_customers())
+        products = [self._create_product(*product) for product in PRODUCTS]
+
+        # silent context : no mail tracking, much faster creations
+        sale_order = self.env["sale.order"].with_context(
+            tracking_disable=True,
+            mail_create_nolog=True,
+            mail_notrack=True,
+            mail_create_nosubscribe=True,
+        )
+        created = 0
+        while created < n_orders:
+            size = min(BATCH_SIZE, n_orders - created)
+            plans = [_plan_sale(rng, now, date_start) for _ in range(size)]
+            orders = sale_order.create(
+                [
+                    self._sale_order_vals(
+                        rng,
+                        plan,
+                        (
+                            rng.choices(salespeople, weights)[0]
+                            if salespeople
+                            else self.env["res.users"]
+                        ),
+                        rng.choice(customers),
+                        products,
+                    )
+                    for plan in plans
+                ]
+            )
+            # stored computed fields (delivery_status...) are recomputed on
+            # flush : force it BEFORE the SQL, or it would overwrite it.
+            self.env.flush_all()
+            self._force_sale_lifecycle(orders, plans)
+            self.env.invalidate_all()
+            created += size
+            _logger.info("demo sales : %s/%s", created, n_orders)
+        return created
