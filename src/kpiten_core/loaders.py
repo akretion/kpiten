@@ -5,9 +5,12 @@ snapshot from Odoo and returns per-user column-filtered dataframes.
 
 Extraction always streams straight from Postgres with connectorx
 (`EXTRACT_MODE = sql | view`), bypassing the Odoo ORM/RPC entirely for the
-bulk data. `sync_store` refreshes the parquets incrementally : only records
-created or written since the last sync are re-extracted (upsert), and
-deletions are applied from the `auditlog` module (unlink logs).
+bulk data. The rows are read by pages of increasing id and stored block by
+block (`DFStorage`, PARTITION_SIZE ids per block) : a sync never holds more
+than one block, whatever the size of the table. `sync_store` refreshes the
+parquets incrementally : only records created or written since the last sync
+are re-extracted (upsert into the blocks they belong to), and deletions are
+applied from the `auditlog` module (unlink logs).
 """
 
 import logging
@@ -19,7 +22,7 @@ import polars as pl
 
 from kpiten_core import env, resolve
 from kpiten_core.dfnorm import Df
-from kpiten_core.store import DFStorage
+from kpiten_core.store import ColumnOrder, DFStorage
 
 if TYPE_CHECKING:
     from kpiten_core.backend import Backend
@@ -70,36 +73,47 @@ def _iter_sql_pages(uri: str, base_query: str, page_size: int):
             return
 
 
-def _pull_sql(
+def _normalize_block(backend: "Backend", chunks: list, metadata: dict) -> pl.DataFrame:
+    """Raw rows of one block -> resolved m2o names -> normalized dataframe.
+
+    Resolving and normalizing per block (not per page, not per table) keeps
+    one batched RPC per m2o field and block, and a memory bounded by the block.
+    """
+    raw = pl.concat(chunks, how="vertical_relaxed")
+    raw = resolve.inject_display_names(backend, raw, metadata)
+    return Df(raw, fields=metadata).get_df()
+
+
+def _stream_blocks(
     backend: "Backend",
     base_query: str,
     metadata: dict,
     model: str,
     mode: str,
     progress: ProgressFn | None,
-) -> "pl.DataFrame | None":
-    """Pull `base_query` by bounded connectorx pages, then resolve+normalize once.
+):
+    """Yield `(block, normalized dataframe)` for `base_query`, block by block.
 
-    Pages are kept as raw (bare-int m2o columns) and only concatenated once
-    the whole result is in : resolving display names and normalizing on the
-    full frame means one batched RPC call per m2o field (however many pages
-    it took) instead of one per page, which matters for a field with high
-    cardinality (e.g. order_id on sale.order.line) where nearly every page
-    would otherwise hit new, unresolved ids.
+    The pages come by increasing id, so the rows of a block are contiguous :
+    a block is emitted as soon as the pages move on to the next one. At most
+    one block (PARTITION_SIZE ids) is held at a time.
     """
     uri = _pg_uri(backend.env.db)
-    pages = []
+    chunks: list[pl.DataFrame] = []
+    current = None
     total = 0
     for page in _iter_sql_pages(uri, base_query, env.sync_page_size):
-        pages.append(page)
         total += page.height
         if progress:
             progress(model, mode, total, page.height, env.sync_page_size)
-    if not pages:
-        return None
-    raw = pl.concat(pages, how="vertical_relaxed")
-    raw = resolve.inject_display_names(backend, raw, metadata)
-    return Df(raw, fields=metadata).get_df()
+        for block, part in DFStorage.split_blocks(page):
+            if current is not None and block != current:
+                yield current, _normalize_block(backend, chunks, metadata)
+                chunks = []
+            current = block
+            chunks.append(part)
+    if chunks:
+        yield current, _normalize_block(backend, chunks, metadata)
 
 
 def _extract_full_model(
@@ -107,12 +121,12 @@ def _extract_full_model(
     model: str,
     extraction_uid: int,
     progress: ProgressFn | None = None,
-):
-    """Full extract of one model straight from Postgres, paged by id.
+) -> int:
+    """Full extract of one model straight from Postgres, block by block.
 
-    Each page is one bounded connectorx query (`env.sync_page_size` rows), so
-    a single call never has to hold an arbitrarily large result in memory the
-    way one unbounded query over the whole table would.
+    Each block is written as soon as it is complete, so the memory used is one
+    block, not the table. The table only becomes readable as blocks once all of
+    them are written (`DFStorage.commit_full`). Returns the number of rows.
     """
     logger.info("extracting %s via direct SQL", model)
     metadata = backend.get_fields_metadata(model)
@@ -120,12 +134,22 @@ def _extract_full_model(
         base_query = f"SELECT * FROM {backend.get_view_name(model)}"
     else:
         base_query = backend.get_sql_query(model, [], "")
-    norm = _pull_sql(backend, base_query, metadata, model, "full", progress)
-    if norm is None:
+    started = DFStorage.now()
+    columns = ColumnOrder()
+    written: set[int] = set()
+    rows = 0
+    for block, df in _stream_blocks(
+        backend, base_query, metadata, model, "full", progress
+    ):
+        DFStorage.write_block(model, block, df)
+        columns.update(df)
+        written.add(block)
+        rows += df.height
+    if not written:
         logger.warning("no records for %s", model)
-        return {}
-    DFStorage.store_raw(model, [], metadata, norm)
-    return {model: norm}
+        return 0
+    DFStorage.commit_full(model, metadata, written, columns.order(), started)
+    return rows
 
 
 def _extract_delta_model(
@@ -133,21 +157,24 @@ def _extract_delta_model(
     model: str,
     since: str,
     progress: ProgressFn | None = None,
-) -> pl.DataFrame | None:
+) -> int:
     """Delta extract of one model straight from Postgres (write/create > since).
 
-    Same bounded per-page connectorx pagination as the full extract ; the
-    result is upserted into the existing parquet in a single write
-    (`DFStorage.merge_df`). Returns None when nothing changed.
+    Same block by block streaming as the full extract ; each block of changed
+    records is upserted into the stored block it belongs to
+    (`DFStorage.merge_df`), the other blocks are not touched. Returns the
+    number of rows upserted.
     """
     logger.info("delta-syncing %s via direct SQL (since=%s)", model, since)
     metadata = backend.get_fields_metadata(model)
     domain = ["|", ("write_date", ">", since), ("create_date", ">", since)]
     base_query = backend.get_sql_query(model, domain, "")
-    new_df = _pull_sql(backend, base_query, metadata, model, "delta", progress)
-    if new_df is None:
-        return None
-    return DFStorage.merge_df(model, new_df)
+    rows = 0
+    for _, df in _stream_blocks(
+        backend, base_query, metadata, model, "delta", progress
+    ):
+        rows += DFStorage.merge_df(model, df)
+    return rows
 
 
 def _get_deletions(uri: str, model: str, since: str) -> list[int]:
@@ -169,13 +196,13 @@ def _get_deletions(uri: str, model: str, since: str) -> list[int]:
     return df["id"].drop_nulls().to_list() if df.height else []
 
 
-def _apply_deletions(uri: str, model: str, since: str, store: dict):
+def _apply_deletions(uri: str, model: str, since: str) -> int:
     deleted_ids = _get_deletions(uri, model, since)
-    if deleted_ids:
-        logger.info("sync %s : %s records deleted", model, len(deleted_ids))
-        df = DFStorage.delete_records(model, deleted_ids)
-        if df is not None:
-            store[model] = df
+    if not deleted_ids:
+        return 0
+    removed = DFStorage.delete_records(model, deleted_ids)
+    logger.info("sync %s : %s records deleted", model, removed)
+    return removed
 
 
 def last_sync(backend: "Backend", user_id: int) -> str | None:
@@ -202,37 +229,53 @@ def last_sync(backend: "Backend", user_id: int) -> str | None:
 
 def build_store(
     backend: "Backend", extraction_uid: int, progress: ProgressFn | None = None
-) -> dict[str, pl.DataFrame]:
-    """Full extract of every declared dataset (kt.dataset), via connectorx."""
-    store: dict[str, pl.DataFrame] = {}
-    for model in backend.get_dataset_models():
-        store.update(_extract_full_model(backend, model, extraction_uid, progress))
-    return store
+) -> dict[str, int]:
+    """Full extract of every declared dataset (kt.dataset), via connectorx.
+
+    Returns the number of rows stored per model."""
+    return {
+        model: _extract_full_model(backend, model, extraction_uid, progress)
+        for model in backend.get_dataset_models()
+    }
 
 
 def sync_store(
-    backend: "Backend", extraction_uid: int, progress: ProgressFn | None = None
-) -> dict[str, pl.DataFrame]:
+    backend: "Backend",
+    extraction_uid: int,
+    progress: ProgressFn | None = None,
+    full: bool = False,
+) -> dict[str, int]:
     """Incremental refresh : full extract on first run, delta afterwards.
 
     Per table :
-    - new / updated records (`create_date`/`write_date` > last_sync) are
-      normalized and upserted in the parquet
-    - deletions recorded by the `auditlog` module are applied
+    - no stored blocks yet (fresh database, a table still in the legacy
+      single-file layout, or `full`) : full extract
+    - otherwise new / updated records (`create_date`/`write_date` >
+      last_sync) are normalized and upserted in their blocks, and deletions
+      recorded by the `auditlog` module are applied
+
+    Returns the rows written per model (deletions not counted).
     """
-    store: dict[str, pl.DataFrame] = {}
+    counts: dict[str, int] = {}
     uri = _pg_uri(backend.env.db)
     for model in backend.get_dataset_models():
-        since = DFStorage.last_sync(model)
+        since = (
+            None
+            if full or not DFStorage.is_partitioned(model)
+            else DFStorage.last_sync(model)
+        )
         if not since:
-            store.update(_extract_full_model(backend, model, extraction_uid, progress))
+            counts[model] = _extract_full_model(
+                backend, model, extraction_uid, progress
+            )
             continue
-        df = _extract_delta_model(backend, model, since, progress)
-        if df is not None:
-            store[model] = df
-        _apply_deletions(uri, model, since, store)
-        DFStorage.touch_sync(model)
-    return store
+        started = (
+            DFStorage.now()
+        )  # before reading : a write during the sync is re-read next time
+        counts[model] = _extract_delta_model(backend, model, since, progress)
+        _apply_deletions(uri, model, since)
+        DFStorage.touch_sync(model, started)
+    return counts
 
 
 def load_store() -> dict[str, pl.LazyFrame]:

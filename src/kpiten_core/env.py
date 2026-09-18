@@ -39,6 +39,11 @@ tile_max_pivot_columns = int(get("TILE_MAX_PIVOT_COLUMNS", "100"))
 # Values offered by a panel dimension filter (most frequent first)
 dimension_max_values = int(get("DIMENSION_MAX_VALUES", "1000"))
 
+# Records per stored block : the parquet of a table is split by id ranges of
+# this size (id // PARTITION_SIZE), so a full extraction never holds more than
+# one block and a delta only rewrites the blocks it touches.
+partition_size = int(get("PARTITION_SIZE", "100000"))
+
 # Direct-Postgres extraction mode (see loaders / the Odoo `kt` module) :
 #   - "sql"  : Polars streams the Odoo-generated SELECT through connectorx (default)
 #   - "view" : same but reads a persistent SQL view created by Odoo
