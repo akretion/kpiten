@@ -150,6 +150,7 @@ CSS = """
   text-overflow: ellipsis;
 }
 .card-grid .tile .text-3xl { font-size: 1.9rem !important; line-height: 1.1 }
+.tile a[href] { color: var(--link-color, inherit); text-decoration: underline; }
 .tile {
   max-height: 460px;
   background: var(--surface);
@@ -261,7 +262,10 @@ def tile_view(
             ui.plotly(result.figure).classes("w-full")
         else:
             assert result.df is not None
-            ui.html(gt_table(result.df.head(20), palette).as_raw_html())
+            # setHTML drops the `style` of the links : their color comes from here
+            ui.html(gt_table(result.df.head(20), palette).as_raw_html()).style(
+                f"--link-color: {palette['accent']}"
+            )
         note = result.note
         if result.df is not None:
             # 20 rows shown, out of what the tile holds (`total_rows` when the
@@ -305,6 +309,7 @@ def error_view(line: dict, error: str, info: str = ""):
 @ui.page("/")
 def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = None):
     ui.add_head_html(f"<style>{CSS}</style>")
+    ui.add_head_html(f"<script>{links.NEW_TAB_JS}</script>")
     from kpiten_core import env
 
     # who is connected : the SSO session of this browser (cookie), nothing is
