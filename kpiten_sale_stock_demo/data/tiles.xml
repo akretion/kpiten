@@ -76,7 +76,9 @@ aggregation = "sum"
 
     <!-- "Top Sales Orders" of the same dashboard : the ten confirmed orders
         with the biggest untaxed amount (then invoice status, then the default
-        order of sale.order), with the panel period -->
+        order of sale.order), with the panel period. The customer is a link to
+        the order in Odoo : a cell "[label](url)" is drawn as a link, `odoo_url`
+        is the base url of Odoo given to the snippet -->
     <record id="sale_top_orders_table" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
         <field name="kind">data</field>
@@ -88,7 +90,7 @@ aggregation = "sum"
         <field name="definition">d_next = d
 d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]))
 d_next = d_next.sort(["amount_untaxed", "invoice_status", "date_order", "id"], descending=[True, False, True, True]).head(10)
-d_next = d_next.select(["partner_id", "user_id", "amount_untaxed"]).rename({"partner_id": "Customer", "user_id": "Salesperson", "amount_untaxed": "Revenue"})</field>
+d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/sale.order/"), pl.col("id").cast(pl.String), pl.lit(")")]).alias("Customer"), pl.col("user_id").alias("Salesperson"), pl.col("amount_untaxed").alias("Revenue")])</field>
     </record>
 
     <!-- "Top Quotations" of the same dashboard : the ten quotations (draft or
@@ -105,6 +107,6 @@ d_next = d_next.select(["partner_id", "user_id", "amount_untaxed"]).rename({"par
         <field name="definition">d_next = d
 d_next = d_next.filter(pl.col("state").is_in(["draft", "sent"]))
 d_next = d_next.sort(["amount_untaxed", "date_order", "id"], descending=[True, True, True]).head(10)
-d_next = d_next.select(["partner_id", "user_id", "amount_untaxed"]).rename({"partner_id": "Customer", "user_id": "Salesperson", "amount_untaxed": "Revenue"})</field>
+d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/sale.order/"), pl.col("id").cast(pl.String), pl.lit(")")]).alias("Customer"), pl.col("user_id").alias("Salesperson"), pl.col("amount_untaxed").alias("Revenue")])</field>
     </record>
 </odoo>
