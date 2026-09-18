@@ -101,8 +101,11 @@ def check(code: str) -> ast.Module:
     return tree
 
 
-def run(code: str, df: pl.DataFrame, in_var: str, out_var: str) -> pl.DataFrame:
-    """Run the validated snippet on `df`, return the `out_var` dataframe."""
+def run(
+    code: str, df: pl.DataFrame | pl.LazyFrame, in_var: str, out_var: str
+) -> pl.DataFrame | pl.LazyFrame:
+    """Run the validated snippet on `df`, return the `out_var` frame (a
+    LazyFrame when the snippet was given one and did not collect it)."""
     tree = check(code)
     scope = {
         "pl": pl,

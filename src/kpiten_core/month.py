@@ -3,12 +3,15 @@
 import polars as pl
 
 
-def is_date(df: pl.DataFrame, column: str | None) -> bool:
-    if not column or column not in df.columns:
+def is_date(df: pl.DataFrame | pl.LazyFrame, column: str | None) -> bool:
+    if not column:
         return False
-    return df[column].dtype in (pl.Date, pl.Datetime)
+    schema = df.collect_schema()
+    return column in schema and schema[column] in (pl.Date, pl.Datetime)
 
 
-def apply_monthly(df: pl.DataFrame, column: str) -> pl.DataFrame:
+def apply_monthly(
+    df: pl.DataFrame | pl.LazyFrame, column: str
+) -> pl.DataFrame | pl.LazyFrame:
     """Truncate a date/datetime column to the month."""
     return df.with_columns(pl.col(column).dt.truncate("1mo"))

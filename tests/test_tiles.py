@@ -256,3 +256,47 @@ def test_unknown_table_raises():
             STORE,
             NO_PREDICATES,
         )
+
+
+def test_lazy_store_gives_the_same_tiles():
+    """A store of LazyFrames (what user_store serves) computes the same tiles
+    as one of DataFrames, without loading the table."""
+    lazy = {name: df.lazy() for name, df in STORE.items()}
+    cases = [
+        ("card", {"aggregation": "sum", "measure": "amount_untaxed"}),
+        (
+            "graph",
+            {
+                "graph_type": "bar",
+                "x": {"name": "name", "aggregation": "none"},
+                "y": {"name": "amount_untaxed", "aggregation": "sum"},
+            },
+        ),
+        (
+            "pivot",
+            {
+                "index": "name",
+                "column": "date_order",
+                "measure": "amount_untaxed",
+                "aggregation": "mean",
+            },
+        ),
+        ("data", "d_next = d \nd_next = d_next.sort('name')\n"),
+        # eager-only method : the snippet falls back on the loaded rows
+        (
+            "data",
+            "d_next = d \nd_next = d_next.select(['name', 'amount_untaxed']).transpose()\n",
+        ),
+    ]
+    for kind, definition in cases:
+        content = (
+            definition if isinstance(definition, str) else serial.dumps(definition)
+        )
+        line = {"kind": kind, "name": kind, "content": content}
+        eager = tiles.exec_tile(line, "sale.order", STORE, NO_PREDICATES)
+        got = tiles.exec_tile(line, "sale.order", lazy, NO_PREDICATES)
+        assert got.value == eager.value
+        if kind in ("pivot", "data"):
+            assert got.df.equals(eager.df), kind
+        if kind == "graph":
+            assert got.figure.to_json() == eager.figure.to_json()

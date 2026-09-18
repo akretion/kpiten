@@ -59,9 +59,9 @@ class FakeStorage:
         return ["sale.order", "purchase.order", "broken"]
 
     @staticmethod
-    def retrieve_df(table, allowed_fields=None, lang=None):
+    def scan_df(table, allowed_fields=None, lang=None):
         df = {"sale.order": ORDERS, "purchase.order": PURCHASES}.get(table, ORDERS)
-        return {"df": df}
+        return df.lazy()
 
 
 class FakeBackend:
@@ -89,9 +89,11 @@ def test_user_store_applies_the_record_rules(monkeypatch):
         lambda uri, query: pl.DataFrame({"id": [1, 3]}, schema={"id": pl.Int64}),
     )
     store = loaders.user_store(FakeBackend(), user_id=8)
-    assert store["sale.order"]["id"].to_list() == [1, 3]
+    # lazy : nothing is read until a tile collects
+    assert isinstance(store["sale.order"], pl.LazyFrame)
+    assert store["sale.order"].collect()["id"].to_list() == [1, 3]
     # no read access to the model : the table is there, without any row
-    assert store["purchase.order"].is_empty()
+    assert store["purchase.order"].collect().is_empty()
     # access unresolved : the table is left out, never shown unrestricted
     assert "broken" not in store
 

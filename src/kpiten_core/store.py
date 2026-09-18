@@ -7,6 +7,7 @@ retrieves a dataframe.
 
 import json
 import logging
+import os
 import pathlib
 from datetime import datetime, timezone
 from typing import TypedDict
@@ -82,6 +83,19 @@ def _merge_schema(
     return new_df.select(selects), gained
 
 
+def _lang_key(dtype: pl.Struct, lang: str) -> str:
+    """Struct field holding a translatable column in `lang`.
+
+    The struct only has the languages present in the data : when the user's
+    language is absent, fall back on en_US, else on the first one, instead of
+    failing the whole table.
+    """
+    names = [f.name for f in dtype.fields]
+    if lang in names:
+        return lang
+    return "en_US" if "en_US" in names else names[0]
+
+
 class DF_META(TypedDict):
     table: str
     df: pl.DataFrame
@@ -128,6 +142,19 @@ class DFStorage:
         return f"{cls._parquet_path(table)}.meta.json"
 
     @classmethod
+    def _write_parquet(cls, table: str, df: pl.DataFrame):
+        """Write the parquet atomically (tmp file + rename).
+
+        The dashboards read it lazily (`scan_df`), possibly while a sync is
+        rewriting it : a reader must see the old or the new file, never a
+        half written one. Callers hold the table lock.
+        """
+        path = cls._parquet_path(table)
+        tmp = f"{path}.tmp"
+        df.write_parquet(tmp)
+        os.replace(tmp, path)
+
+    @classmethod
     def store_raw(
         cls, table: str, raw_vals: list[dict], metadata: dict, df: pl.DataFrame
     ):
@@ -135,7 +162,7 @@ class DFStorage:
         pathlib.Path(cls._df_dir() + "/").mkdir(exist_ok=True, parents=True)
         df = cls._cols_last(df)
         with _table_lock(table, cls._df_dir()):
-            df.write_parquet(cls._parquet_path(table))
+            cls._write_parquet(table, df)
             cls.write_meta(table, {**metadata, "last_sync": _now_utc()})
 
     @classmethod
@@ -203,7 +230,7 @@ class DFStorage:
                     )
                 df = pl.concat([keep, new_df], how="vertical_relaxed")
             df = cls._cols_last(df)
-            df.write_parquet(cls._parquet_path(table))
+            cls._write_parquet(table, df)
             return df
 
     @classmethod
@@ -218,8 +245,45 @@ class DFStorage:
                 return None
             df = current.filter(~pl.col("id").is_in(res_ids))
             if df.height != current.height:
-                df.write_parquet(cls._parquet_path(table))
+                cls._write_parquet(table, df)
             return df
+
+    @classmethod
+    def scan_df(
+        cls,
+        table: str,
+        allowed_fields: list[str] | None = None,
+        lang: str | None = None,
+    ) -> pl.LazyFrame:
+        """Lazily read a stored dataframe : nothing is loaded in memory here.
+
+        The parquet is only read when a tile collects a result, and then only
+        the columns and row groups that tile needs (projection / predicate
+        pushdown) : a dashboard session holds a query plan, not the table.
+
+        - filter the columns by `allowed_fields` (ACL per user, from the
+          backend) when provided
+        - de-structure translatable struct columns by user `lang`
+        """
+        if not cls.table_exists(table):
+            raise Exception(f"No such table was stored : {table}")
+        lf = pl.scan_parquet(cls._parquet_path(table), glob=False)
+        if allowed_fields is not None:
+            found = [
+                c
+                for c in lf.collect_schema().names()
+                if cls._column_ok(c, allowed_fields)
+            ]
+            lf = lf.select(found)
+        if lang:
+            lf = lf.with_columns(
+                [
+                    pl.col(col).struct.field(_lang_key(dtype, lang)).alias(col)
+                    for col, dtype in lf.collect_schema().items()
+                    if dtype == pl.Struct
+                ]
+            )
+        return lf
 
     @classmethod
     def retrieve_df(
@@ -228,25 +292,15 @@ class DFStorage:
         allowed_fields: list[str] | None = None,
         lang: str | None = None,
     ) -> DF_META | None:
-        """Read a stored dataframe.
+        """Read a whole stored dataframe in memory (see `scan_df`).
 
-        - filter the columns by `allowed_fields` (ACL per user, from the
-          backend) when provided
-        - de-structure translatable struct columns by user `lang`
+        Prefer `scan_df` for anything that serves users : this loads the full
+        table.
         """
-        try:
-            df = pl.read_parquet(cls._parquet_path(table))
-        except FileNotFoundError:
-            raise Exception(f"No such table was stored : {table}")
-        if allowed_fields is not None:
-            found = [c for c in df.columns if cls._column_ok(c, allowed_fields)]
-            df = df.select(found)
-        struct_cols = [col for col, dt in zip(df.columns, df.dtypes) if dt == pl.Struct]
-        if lang:
-            df = df.with_columns(
-                [pl.col(col).struct.field(lang).alias(col) for col in struct_cols]
-            )
-        return {"table": table, "df": df}
+        return {
+            "table": table,
+            "df": cls.scan_df(table, allowed_fields, lang).collect(),
+        }
 
     @staticmethod
     def _column_ok(col: str, allowed: list[str]) -> bool:

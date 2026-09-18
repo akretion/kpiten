@@ -235,12 +235,13 @@ def sync_store(
     return store
 
 
-def load_store() -> dict[str, pl.DataFrame]:
-    """Load dataframes from the existing parquet files."""
-    return {
-        table: DFStorage.retrieve_df(table)["df"]
-        for table in DFStorage.list_table_names()
-    }
+def load_store() -> dict[str, pl.LazyFrame]:
+    """Lazy scans of every stored table, WITHOUT any user restriction.
+
+    Not for serving users (no column ACL, no record rules, no language) :
+    use `user_store`. Meant for admin scripts and tests.
+    """
+    return {table: DFStorage.scan_df(table) for table in DFStorage.list_table_names()}
 
 
 def accessible_ids(backend: "Backend", table: str, user_id: int) -> pl.Series:
@@ -255,28 +256,44 @@ def accessible_ids(backend: "Backend", table: str, user_id: int) -> pl.Series:
     return _read_sql_df(_pg_uri(backend.env.db), query)["id"]
 
 
-def restrict_rows(df: pl.DataFrame, ids: pl.Series) -> pl.DataFrame:
-    """The rows of `df` whose `id` is in `ids`."""
-    return df.filter(pl.col("id").is_in(ids.implode()))
+def restrict_rows(frame: "pl.DataFrame | pl.LazyFrame", ids: pl.Series):
+    """The rows of `frame` whose `id` is in `ids` (same kind of frame back).
+
+    A semi join rather than `is_in` : it stays lazy, and polars can push the
+    tile filters below it. `maintain_order` keeps the rows in the parquet
+    order, which a join does not do by default (a pivot shows that order).
+    """
+    keys = ids.rename("id").to_frame()
+    if isinstance(frame, pl.LazyFrame):
+        keys = keys.lazy()
+    return frame.join(keys, on="id", how="semi", maintain_order="left")
 
 
-def user_store(backend: "Backend", user_id: int) -> dict[str, pl.DataFrame]:
+def user_store(backend: "Backend", user_id: int) -> dict[str, pl.LazyFrame]:
     """Per-user view of the store : the columns the user may read (ACL), the
     rows the user may read (record rules), translatable lang.
+
+    The tables are lazy scans of the parquets : the session holds a query
+    plan (plus the ids the user may read), not the data. A tile reads what
+    it needs when it runs.
+
+    The record rules are always applied, even for a user who may read every
+    row : rows synced after this call are not in `ids`, so they stay hidden
+    until the store is rebuilt, instead of leaking to a user who may not read
+    them.
 
     A table whose access could not be resolved is left out : the user sees
     nothing of it rather than everything.
     """
     lang = backend.get_user_lang(user_id)
-    store: dict[str, pl.DataFrame] = {}
+    store: dict[str, pl.LazyFrame] = {}
     with env.db_scope(backend.env.db):
         for table in DFStorage.list_table_names():
             try:
                 allowed = backend.get_allowed_fields(table, user_id)
-                row = DFStorage.retrieve_df(table, allowed_fields=allowed, lang=lang)
-                if row:
-                    ids = accessible_ids(backend, table, user_id)
-                    store[table] = restrict_rows(row["df"], ids)
+                lazy = DFStorage.scan_df(table, allowed_fields=allowed, lang=lang)
+                ids = accessible_ids(backend, table, user_id)
+                store[table] = restrict_rows(lazy, ids)
             except Exception:
                 logger.exception("user store fetch failed for %s", table)
     return store
