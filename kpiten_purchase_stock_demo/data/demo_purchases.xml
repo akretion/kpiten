@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <data noupdate="1">
+        <record id="demo_generator_purchase_stock" model="erp.demo.generator" />
+        <function model="erp.demo.generator" name="generate_purchase_stock_demo">
+            <function
+                eval="[[('id', '=', ref('demo_generator_purchase_stock'))]]"
+                model="erp.demo.generator"
+                name="search"
+            />
+        </function>
+    </data>
+</odoo>
