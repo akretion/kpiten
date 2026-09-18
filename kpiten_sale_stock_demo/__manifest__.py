@@ -12,8 +12,9 @@ partial deliveries and invoicing statuses.
 The lifecycle is forced in SQL (no real deliveries nor customer invoices) :
 it is meant to feed sales dashboards, not accounting.
 
-It also declares the four KPI cards of the Odoo "Sales" dashboard (Quotations,
-Orders, Revenue, Average Order) in the KPI Ten "Sales" panel.
+It also declares the KPI cards of the Odoo "Sales" dashboard (Quotations,
+Orders, Revenue, Average Order) and its "Monthly sales" chart in the KPI Ten
+"Sales" panel.
 """,
     "author": "Akretion",
     "license": "LGPL-3",

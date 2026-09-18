@@ -51,4 +51,26 @@ decimals = 0
 unit = "$"
 </field>
     </record>
+
+    <!-- the "Monthly sales" chart of the same dashboard : revenue of the
+        confirmed orders per month, as a filled line, full width -->
+    <record id="sale_monthly_sales_graph" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="kind">graph</field>
+        <field name="name">Monthly sales</field>
+        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="sequence">1</field>
+        <field name="col_span">3</field>
+        <field name="tile_height">340</field>
+        <field name="definition">graph_type = "area"
+where = "state not in ('draft', 'cancel', 'sent')"
+monthly = true
+[x]
+name = "date_order"
+aggregation = "none"
+[y]
+name = "amount_untaxed"
+aggregation = "sum"
+</field>
+    </record>
 </odoo>
