@@ -25,7 +25,6 @@ from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
 from kpiten_core.loaders import (
     last_sync,
-    load_store,
     user_store,
 )
 from kpiten_core.service import service as kpiten_service
@@ -474,7 +473,11 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
                 )
 
         await run.io_bound(kpiten_service.request_refresh, backend.db, _progress)
-        store_cache.update(load_store())
+        # the user's own view again (column ACL, record rules, lang) : never the
+        # raw store, which holds every row of every user
+        fresh = await run.io_bound(user_store, backend, user_id)
+        store_cache.clear()
+        store_cache.update(fresh)
         ui.notify("Data synced with Odoo")
         if sync_holder["bar"] is not None:
             sync_holder["bar"].set_visibility(False)
