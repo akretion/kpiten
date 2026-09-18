@@ -129,4 +129,21 @@ d_next = d_next.group_by(["product_id", "product_id_"]).agg([pl.col("order_id_")
 d_next = d_next.sort(["Revenue", "product_id"], descending=[True, False]).head(10)
 d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("product_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/product.product/"), pl.col("product_id_").cast(pl.String), pl.lit(")")]).alias("Product"), pl.col("Orders"), pl.col("Revenue")])</field>
     </record>
+
+    <!-- "Top Salespeople" of the same dashboard : per salesperson, the number of
+        confirmed orders and their revenue, the ten best, with the panel period -->
+    <record id="sale_top_salespeople_table" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="kind">data</field>
+        <field name="name">Top Salespeople</field>
+        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+        <field name="definition">d_next = d
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("user_id").is_not_null())
+d_next = d_next.group_by("user_id").agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
+d_next = d_next.sort(["Revenue", "user_id"], descending=[True, False]).head(10)
+d_next = d_next.rename({"user_id": "Salesperson"})</field>
+    </record>
 </odoo>

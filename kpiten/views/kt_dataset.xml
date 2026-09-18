@@ -39,49 +39,55 @@
                                     </t>
                                 </templates>
                             </kanban>
-                            <form>
-                                <group>
-                                    <group colspan="2">
-                                        <field
-                                            name="definition"
-                                            widget="ace"
-                                            options="{'mode': 'python'}"
-                                        />
-                                        <field
-                                            name="validation_msg"
-                                            string="Validation"
-                                            readonly="1"
-                                            colspan="2"
-                                            decoration-danger="validation_msg"
-                                            invisible="not validation_msg"
-                                            placeholder="Definition validated"
-                                        />
-                                    </group>
-                                    <group>
-                                        <group>
-                                            <field name="kind" widget="radio" />
-                                            <field
-                                                name="group_ids"
-                                                widget="many2many_tags"
-                                            />
-                                            <field name="user_id" />
-                                        </group>
-                                        <group>
-                                            <field name="name" />
-                                            <field name="panel_id" />
-                                            <field name="col_span" />
-                                            <field name="tile_height" />
-                                            <field
-                                                name="active"
-                                                widget="boolean_toggle"
-                                            />
-                                        </group>
-                                    </group>
-                                </group>
-                            </form>
                         </field>
                     </group>
                 </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="kt_dataset_line_form" model="ir.ui.view">
+        <field name="model">kt.dataset.line</field>
+        <field name="arch" type="xml">
+            <form>
+                <group>
+                    <group colspan="2">
+                        <field
+                            name="definition"
+                            widget="ace"
+                            options="{'mode': 'python'}"
+                        />
+                        <field
+                            name="validation_msg"
+                            string="Validation"
+                            readonly="1"
+                            colspan="2"
+                            decoration-danger="validation_msg"
+                            invisible="not validation_msg"
+                            placeholder="Definition validated"
+                        />
+                    </group>
+                    <group>
+                        <group>
+                            <field name="kind" widget="radio" />
+                            <field
+                                name="group_ids"
+                                widget="many2many_tags"
+                            />
+                            <field name="user_id" />
+                        </group>
+                        <group>
+                            <field name="name" />
+                            <field name="panel_id" />
+                            <field name="col_span" />
+                            <field name="tile_height" />
+                            <field
+                                name="active"
+                                widget="boolean_toggle"
+                            />
+                        </group>
+                    </group>
+                </group>
             </form>
         </field>
     </record>
