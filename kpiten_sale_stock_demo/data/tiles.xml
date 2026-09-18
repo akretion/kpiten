@@ -113,7 +113,8 @@ d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit
     <!-- "Top Products" of the same dashboard : per product, the number of
         confirmed orders it is in and its revenue, the ten best. On the order
         lines : the period filter reaches them through `order_id.date_order`
-        (see models/kt.py and the panel filter_config) -->
+        (see models/kt.py and the panel filter_config). The product is a link to
+        its form in Odoo (see the Top Sales Orders table) -->
     <record id="sale_top_products_table" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_demo.kpiten_sales_lines" />
         <field name="kind">data</field>
@@ -124,8 +125,8 @@ d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit
         <field name="tile_height">380</field>
         <field name="definition">d_next = d
 d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("product_id").is_not_null())
-d_next = d_next.group_by("product_id").agg([pl.col("order_id_").n_unique().alias("Orders"), pl.col("price_subtotal").sum().alias("Revenue")])
+d_next = d_next.group_by(["product_id", "product_id_"]).agg([pl.col("order_id_").n_unique().alias("Orders"), pl.col("price_subtotal").sum().alias("Revenue")])
 d_next = d_next.sort(["Revenue", "product_id"], descending=[True, False]).head(10)
-d_next = d_next.rename({"product_id": "Product"})</field>
+d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("product_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/product.product/"), pl.col("product_id_").cast(pl.String), pl.lit(")")]).alias("Product"), pl.col("Orders"), pl.col("Revenue")])</field>
     </record>
 </odoo>
