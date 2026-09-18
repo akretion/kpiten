@@ -1,6 +1,6 @@
 """Data reads & store maintenance requests (per session data snapshot).
 
-The dashboard asks kpiten-core to load / refresh a database through the sync
+The dashboard asks kpiten-core to refresh a database through the sync
 service ; reading back the per-user dataframes and the sync status is done
 here, on top of the shared kpiten-core store.
 """
@@ -17,24 +17,9 @@ from kpiten_core.store import DFStorage
 logger = logging.getLogger(__name__)
 
 
-def request_load(db: str, panel_id=None, wait=True, progress=None):
-    """Ask kpiten-core to load a database (panel first, recent->oldest)."""
-    kpiten_service.request_load(db, panel_id, wait, progress)
-
-
-def request_refresh(db: str, wait=True, progress=None):
-    """Ask kpiten-core to delta-refresh a database (Refresh data button)."""
-    kpiten_service.request_refresh(db, wait, progress)
-
-
-def pending_tables() -> set[str]:
-    """Models still being progressively loaded (partial parquet)."""
-    return loaders.pending_tables()
-
-
-def progress(db: str) -> dict:
-    """Progress of the progressive load of a db (current %, queued tables)."""
-    return kpiten_service.get_progress(db)
+def request_refresh(db: str, progress=None):
+    """Ask kpiten-core to sync a database (Refresh data button)."""
+    kpiten_service.request_refresh(db, progress)
 
 
 def last_sync(backend: Backend, user_id: int) -> str | None:

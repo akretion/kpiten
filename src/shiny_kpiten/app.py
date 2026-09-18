@@ -112,12 +112,6 @@ def app_ui(req):  # noqa: ANN001
     return ui.page_fluid(
         {"class": "kpiten-dashboard"},
         ui.output_ui("theme_style"),
-        ui.tags.script(
-            "(function(){ if (window.__kpitenPoll) return; window.__kpitenPoll=true; "
-            "setInterval(function(){ if (window.Shiny) { "
-            "Shiny.setInputValue('__progress_poll', Math.random(), {priority:'event'});"
-            " } }, 2000); })();"
-        ),
         ui.row(
             ui.column(
                 2,
@@ -142,7 +136,6 @@ def app_ui(req):  # noqa: ANN001
             ),
         ),
         ui.tags.div(ui.output_ui("data_freshness"), class_="freshness-bar"),
-        ui.tags.div(ui.output_ui("loading_state"), class_="loading-bar"),
         ui.div(ui.output_ui("tiles")),
     )
 
@@ -185,7 +178,7 @@ def tile_html(
         return (
             f'<div class="tile kpi-card" data-tile-id="{line["id"]}"{tooltip}>'
             f'<div class="kpi-label">{line["name"] or ""}</div>'
-            f'<div class="value">{result.value}</div></div>'
+            f'<div class="value">{result.text}</div></div>'
         )
     parts = [f"<h3>{line['name'] or result.kind}</h3>"]
     tile_height = (line.get("tile_height") or 260) - 40
@@ -220,17 +213,6 @@ def tile_error_html(line: dict, error: str, info: str = "") -> str:
     )
 
 
-def tile_loading_html(line: dict) -> str:
-    """Neutral placeholder while the tile's data is still being imported."""
-    col_span = line.get("col_span") or 1
-    height = max((line.get("tile_height") or 260) - 40, 120)
-    return (
-        f'<div class="tile" style="grid-column: span {col_span}; '
-        f'min-height: {height}px"><h3>{line["name"]}</h3>'
-        f'<p style="color: #9aa4b0; font-style: italic">⏳ data loading…</p></div>'
-    )
-
-
 def server(input, output, session):
     from kpiten_core import env
 
@@ -243,31 +225,18 @@ def server(input, output, session):
     core_tiles.set_chart_config(initial_backend.get_chart_config())
     data_version = reactive.Value(0)
     layout_version = reactive.Value(0)
-    # bumped by a light poll so the loading % refreshes while the kpiten-core
-    # background service keeps pulling data (without reloading the whole store)
-    progress_tick = reactive.Value(0)
-
-    @reactive.effect
-    def _poll_progress():
-        input.__progress_poll()  # fired by a JS interval in the UI
-        if data_layer.pending_tables():
-            progress_tick.set(progress_tick() + 1)
 
     def _progress_cb(p):
         """Return a sync progress callback feeding a ui.Progress bar.
 
         Rows are unknown up-front, so the bar reflects activity (one step per
-        extracted chunk) and the detail shows the current model + rows so far.
+        extracted page) and the detail shows the current model + rows so far.
         """
         totals: dict[str, int] = {}
 
         def cb(model, mode, offset, count, page_size):
             totals[model] = totals.get(model, 0) + count
-            kind = {
-                "full": "initial extract",
-                "initial": "progressive load",
-                "delta": "update",
-            }.get(mode, "update")
+            kind = {"full": "initial extract", "delta": "update"}.get(mode, "update")
             p.inc(
                 1,
                 detail=f"{kind} : {model} — {totals[model]} records",
@@ -352,16 +321,9 @@ def server(input, output, session):
         user_id = SessionHandler.user_id or backend.env.user.id
         content = data_layer.user_store(backend, user_id)
         if not content:
-            # fresh database : ask kpiten-core to load it (panel first)
+            # fresh database : ask kpiten-core for a full connectorx extract
             with ui.Progress(min=1, max=100) as p:
-                with reactive.isolate():
-                    try:
-                        panel_id = int(input.panel())
-                    except (KeyError, TypeError, ValueError):
-                        panel_id = None
-                data_layer.request_load(
-                    backend.db, panel_id, wait=True, progress=_progress_cb(p)
-                )
+                data_layer.request_refresh(backend.db, progress=_progress_cb(p))
             content = data_layer.user_store(backend, user_id)
         return content
 
@@ -380,31 +342,6 @@ def server(input, output, session):
             title="Data as of "
             + stamp
             + " — parquet snapshot time ; 'Refresh data' syncs with Odoo",
-        )
-
-    @render.ui
-    def loading_state():
-        """Live progress of the progressive load (current % + queue)."""
-        progress_tick()  # re-render while the background service pulls data
-        backend = backend_rv()
-        info = data_layer.progress(backend.db)
-        current = info["current"]
-        queued = info["queued"]
-        if not current and not queued:
-            return ui.tags.span("", class_="loading-state")
-        parts = []
-        if current:
-            parts.append(
-                f"Import de {current['model']} : {current['percent']}% "
-                f"({current['offset']}/{current['total']})"
-            )
-        if queued:
-            parts.append(f"{len(queued)} table(s) en attente")
-        return ui.tags.span(
-            "⏳ " + " · ".join(parts),
-            class_="loading-state",
-            title="Recent data is ready ; older records are still being pulled "
-            "in the background. Data completes gradually without overloading Odoo.",
         )
 
     @reactive.calc
@@ -533,9 +470,7 @@ def server(input, output, session):
         with reactive.isolate():
             backend = backend_rv()
             with ui.Progress(min=1, max=100) as p:
-                data_layer.request_refresh(
-                    backend.db, wait=True, progress=_progress_cb(p)
-                )
+                data_layer.request_refresh(backend.db, progress=_progress_cb(p))
             data_version.set(data_version() + 1)
             ui.notification_show("Data synced with Odoo.", duration=3)
 
@@ -601,9 +536,6 @@ def server(input, output, session):
         edit_mode_on = bool(input.edit_mode())
         logger.info("predicates : %s", [str(p) for p in predicate_list])
         cards, blocks = [], []
-        # while the progressive load is running, missing tables are expected :
-        # show a neutral placeholder instead of a red error
-        importing = bool(data_layer.pending_tables())
         for line in tile_lines:
             try:
                 result = core_tiles.exec_tile(
@@ -616,14 +548,11 @@ def server(input, output, session):
                 )
             except Exception as err:
                 logger.exception("tile %s failed", line["name"])
-                if importing:
-                    rendered = tile_loading_html(line)
-                else:
-                    rendered = (
-                        tile_error_item_html(line, err)
-                        if edit_mode_on
-                        else tile_error_html(line, str(err), tile_info(line))
-                    )
+                rendered = (
+                    tile_error_item_html(line, err)
+                    if edit_mode_on
+                    else tile_error_html(line, str(err), tile_info(line))
+                )
             # cards have a fixed height : their own grid section, right
             # below the filters and above the other kpis
             (cards if line["kind"] == "card" else blocks).append(rendered)
