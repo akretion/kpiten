@@ -139,22 +139,6 @@ class DFStorage:
             cls.write_meta(table, {**metadata, "last_sync": _now_utc()})
 
     @classmethod
-    def init_table(
-        cls, table: str, raw_vals: list[dict], metadata: dict, df: pl.DataFrame
-    ):
-        """Create a table's parquet + fields metadata WITHOUT setting last_sync.
-
-        Used by the progressive recent->oldest load : the table is considered
-        partial until it leaves the completion queue, so `last_sync` is only
-        set once the whole table has been pulled (see `touch_sync`).
-        """
-        pathlib.Path(cls._df_dir() + "/").mkdir(exist_ok=True, parents=True)
-        df = cls._cols_last(df)
-        with _table_lock(table, cls._df_dir()):
-            df.write_parquet(cls._parquet_path(table))
-            cls.write_meta(table, metadata)
-
-    @classmethod
     def write_meta(cls, table: str, metadata: dict):
         pathlib.Path(cls._df_dir() + "/").mkdir(exist_ok=True, parents=True)
         pathlib.Path(cls._meta_path(table)).write_text(json.dumps(metadata))
@@ -183,80 +167,24 @@ class DFStorage:
         """Whether the table's parquet file has been written."""
         return pathlib.Path(cls._parquet_path(table)).exists()
 
-    # ---- resumable sync state ------------------------------------------
-    # A full table extract can be interrupted (RPC timeout). We persist a
-    # per-table progress marker in the meta.json so the next sync resumes at
-    # the same `offset` instead of restarting from scratch.
-
-    @classmethod
-    def get_sync_state(cls, table: str) -> dict | None:
-        """Return the in-progress extraction marker for a table, or None."""
-        return cls.read_meta(table).get("sync_state")
-
-    @classmethod
-    def set_sync_state(cls, table: str, state: dict):
-        """Persist the extraction progress (model, offset, started_at)."""
-        meta = cls.read_meta(table)
-        meta["sync_state"] = {**state, "started_at": _now_utc()}
-        cls.write_meta(table, meta)
-
-    @classmethod
-    def clear_sync_state(cls, table: str):
-        """Drop the extraction progress marker (table fully synced)."""
-        meta = cls.read_meta(table)
-        if "sync_state" in meta:
-            del meta["sync_state"]
-            cls.write_meta(table, meta)
-
-    # ---- progressive load state (recent->oldest) -----------------------
-    # On a fresh db, tables are pulled by priority (panel first) and by
-    # decreasing create_date. A global `prog` marker in `prog.json` keeps the
-    # completion queue so background passes resume across app restarts.
-
-    @classmethod
-    def _prog_path(cls) -> str:
-        return f"{cls._df_dir()}/prog.json"
-
-    @classmethod
-    def get_prog(cls) -> dict:
-        """Completion queue state, or an empty dict when nothing is pending."""
-        try:
-            return json.loads(pathlib.Path(cls._prog_path()).read_text())
-        except FileNotFoundError:
-            return {}
-
-    @classmethod
-    def set_prog(cls, state: dict):
-        """Persist the completion queue state."""
-        pathlib.Path(cls._df_dir() + "/").mkdir(exist_ok=True, parents=True)
-        pathlib.Path(cls._prog_path()).write_text(json.dumps(state))
-
-    @classmethod
-    def clear_prog(cls):
-        """Drop the completion queue (all tables fully loaded)."""
-        pathlib.Path(cls._df_dir() + "/").mkdir(exist_ok=True, parents=True)
-        pathlib.Path(cls._prog_path()).write_text("{}")
-
-    @classmethod
-    def partial_tables(cls) -> set[str]:
-        """Models still being pulled by the progressive load (partial parquet)."""
-        prog = cls.get_prog()
-        tables = set(prog.get("order", []))
-        current = prog.get("current")
-        if current and current.get("model"):
-            tables.add(current["model"])
-        return tables
-
     @classmethod
     def append_records(cls, table: str, raw_vals: list[dict]) -> pl.DataFrame:
-        """Upsert rows in the stored parquet (delta-sync).
+        """Upsert raw records in the stored parquet (delta-sync).
 
-        The normalization (Df) is applied only to the new/updated rows, then
-        they replace the matching `id` in the existing dataframe. New columns
-        brought by the delta (new Odoo fields) are added to the parquet schema,
-        with NULL on the already-stored rows.
+        Normalizes `raw_vals` (Df) then delegates the actual upsert to
+        `merge_df`.
         """
         new_df = Df.from_raw(table, raw_vals, cls.read_meta(table)).get_df()
+        return cls.merge_df(table, new_df)
+
+    @classmethod
+    def merge_df(cls, table: str, new_df: pl.DataFrame) -> pl.DataFrame:
+        """Upsert an already-normalized dataframe in the stored parquet (delta-sync).
+
+        The rows in `new_df` replace the matching `id` in the existing
+        dataframe. New columns brought by the delta (new Odoo fields) are
+        added to the parquet schema, with NULL on the already-stored rows.
+        """
         with _table_lock(table, cls._df_dir()):
             try:
                 current = pl.read_parquet(cls._parquet_path(table))

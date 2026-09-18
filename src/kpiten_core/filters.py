@@ -59,9 +59,7 @@ def describe_filters(
     date_field = (filter_config.get("date") or {}).get("field")
     if date_field and date_value:
         start, end = date_value
-        lines.append(
-            f"Period {start:%Y-%m-%d} → {end:%Y-%m-%d} ({date_field})"
-        )
+        lines.append(f"Period {start:%Y-%m-%d} → {end:%Y-%m-%d} ({date_field})")
     for dim in filter_config.get("dimensions", []):
         selected = dim_values.get(dim["name"])
         label = dim.get("label") or dim["name"]

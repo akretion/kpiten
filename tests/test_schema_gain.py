@@ -17,7 +17,7 @@ def _setup():
     env.data_path = tmp
     env.current_db = "testdb"
     # one existing row, no extra column yet
-    DFStorage.init_table(
+    DFStorage.store_raw(
         "sale.order",
         [{"id": 1, "state": "done"}],
         {},

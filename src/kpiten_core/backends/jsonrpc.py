@@ -192,63 +192,6 @@ class JsonrpcBackend:
         datasets = dataset.search_read([], fields=["model_id"])
         return [self.env["ir.model"].browse(ds["model_id"][0]).model for ds in datasets]
 
-    def get_record_vals(
-        self,
-        model: str,
-        domain: list,
-        user_id: int,
-        limit: int | None = None,
-        offset: int = 0,
-        order: str = "",
-    ) -> list[dict]:
-        return self.env["kt"].get_record_vals(
-            model, domain, user_id, limit, offset, order
-        )
-
-    def get_max_create_date(self, model: str, user_id: int) -> str | None:
-        """Most recent create_date of a model, None if the table is empty."""
-        value = self.env["kt"].get_max_create_date(model, user_id)
-        return value if value else None
-
-    def get_count(self, model: str, domain: list, user_id: int) -> int:
-        """Number of records matching `domain` (search_count)."""
-        return self.env["kt"].get_count(model, domain, user_id)
-
-    def get_staging_dir(self) -> str:
-        """Shared-volume dir where Odoo dumps JSONL staging chunks."""
-        return self.env["kt"].get_staging_dir()
-
-    def write_staging_chunk(
-        self,
-        model: str,
-        offset: int,
-        limit: int,
-        domain: list = None,
-        order: str = "",
-        user_id: int = None,
-    ) -> int:
-        """Ask Odoo to fetch a chunk and append it as JSONL in its staging dir."""
-        return self.env["kt"].write_staging_chunk(
-            model, offset, limit, domain, order, user_id=user_id
-        )
-
-    def get_deletions(self, model: str, since: str) -> list[int]:
-        """Ids of records deleted after `since` (module auditlog)."""
-        ir_model = self.env["ir.model"].search([("model", "=", model)])
-        if not ir_model or not self.env["ir.model"].search(
-            [("model", "=", "auditlog.log")]
-        ):
-            return []
-        logs = self.env["auditlog.log"].search_read(
-            [
-                ("model_id", "=", ir_model.id),
-                ("method", "=", "unlink"),
-                ("create_date", ">", since),
-            ],
-            fields=["res_id"],
-        )
-        return [log["res_id"] for log in logs if log["res_id"]]
-
     def get_fields_metadata(self, model: str) -> dict:
         return self.env["kt"].get_fields_metadata(model)
 

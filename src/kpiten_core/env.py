@@ -18,20 +18,13 @@ decimal_truncate = int(get("DECIMAL_TRUNCATE", "5"))
 # chunked extract doesn't hard-fail mid-sync)
 odoo_timeout = int(get("ODOO_TIMEOUT", "300"))
 
-# Number of records fetched per RPC call during the paginated parquet sync
+# Number of rows fetched per connectorx page during the parquet sync
 sync_page_size = int(get("SYNC_PAGE_SIZE", "5000"))
 
-# Records pulled per background completion pass (recent->oldest initial load)
-sync_batch_size = int(get("SYNC_BATCH_SIZE", "50000"))
-
-# Seconds between two background completion passes in the dashboard apps
-sync_interval = int(get("SYNC_INTERVAL", "60"))
-
 # Direct-Postgres extraction mode (see loaders / the Odoo `kt` module) :
-#   - "jsonrpc" : legacy ORM path (odoorpc), default
-#   - "sql"     : Polars streams the Odoo-generated SELECT through connectorx
-#   - "view"    : same but reads a persistent SQL view created by Odoo
-extract_mode = get("EXTRACT_MODE", "jsonrpc")
+#   - "sql"  : Polars streams the Odoo-generated SELECT through connectorx (default)
+#   - "view" : same but reads a persistent SQL view created by Odoo
+extract_mode = get("EXTRACT_MODE", "sql")
 
 # Postgres connection used by the direct extraction modes ("sql" / "view").
 # Defaults mirror a typical local Odoo instance (db user / password from the
