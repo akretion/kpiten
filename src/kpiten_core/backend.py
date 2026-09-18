@@ -56,6 +56,11 @@ class Backend:
         """Chart defaults stored in odoo (ir.config_parameter kt_config)."""
         raise NotImplementedError
 
+    def get_base_url(self) -> str:
+        """Public base url of Odoo (ir.config_parameter web.base.url), the
+        target of the links from a tile to an Odoo record."""
+        raise NotImplementedError
+
     def get_allowed_fields(self, model: str, user_id: int) -> list[str]:
         raise NotImplementedError
 

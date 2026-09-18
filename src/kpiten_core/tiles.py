@@ -15,7 +15,7 @@ import plotly.express as px
 import plotly.graph_objs as go
 import polars as pl
 
-from kpiten_core import env, serial, sandbox
+from kpiten_core import env, links, serial, sandbox
 from kpiten_core.month import apply_monthly, is_date
 from kpiten_core.validate import CARD_AGGREGATIONS, DERIVE_RE
 
@@ -449,12 +449,13 @@ def dataframe_case(content, table, store, full_predicates):
     out_var = first_line.split(" ")[0]
     df_var = first_line.split(" ")[2]
     lazy = filter_df(_resolve_table(store, table), full_predicates)
+    variables = {"odoo_url": links.get_odoo_url()}
     try:
-        return sandbox.run(content, lazy, df_var, out_var)
+        return sandbox.run(content, lazy, df_var, out_var, variables)
     except AttributeError:
         # the snippet uses an eager-only method (pivot, transpose, describe...) :
         # give it the filtered rows in memory
-        return sandbox.run(content, _collect(lazy), df_var, out_var)
+        return sandbox.run(content, _collect(lazy), df_var, out_var, variables)
 
 
 def _agg(source: pl.DataFrame, group_col, agg_col, agg_fn):

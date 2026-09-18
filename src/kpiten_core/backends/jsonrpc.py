@@ -216,6 +216,12 @@ class JsonrpcBackend:
         records = self.env[model].read(list(ids), ["display_name"])
         return {rec["id"]: rec["display_name"] for rec in records}
 
+    def get_base_url(self) -> str:
+        url = self.env["ir.config_parameter"].get_param("web.base.url")
+        return (url or f"http://{env.get('ODOO_HOST')}:{env.get('ODOO_PORT')}").rstrip(
+            "/"
+        )
+
     def get_allowed_fields(self, model: str, user_id: int) -> list[str]:
         return self.env["kt"].get_allowed_fields(model, user_id)
 

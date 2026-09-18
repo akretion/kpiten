@@ -102,12 +102,20 @@ def check(code: str) -> ast.Module:
 
 
 def run(
-    code: str, df: pl.DataFrame | pl.LazyFrame, in_var: str, out_var: str
+    code: str,
+    df: pl.DataFrame | pl.LazyFrame,
+    in_var: str,
+    out_var: str,
+    variables: dict | None = None,
 ) -> pl.DataFrame | pl.LazyFrame:
     """Run the validated snippet on `df`, return the `out_var` frame (a
-    LazyFrame when the snippet was given one and did not collect it)."""
+    LazyFrame when the snippet was given one and did not collect it).
+
+    `variables` are extra read-only values the snippet can use by name (e.g.
+    `odoo_url`)."""
     tree = check(code)
     scope = {
+        **(variables or {}),
         "pl": pl,
         in_var: df,
         "__builtins__": {n: getattr(builtins, n) for n in BUILTINS},
