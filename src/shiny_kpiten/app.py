@@ -203,6 +203,12 @@ def tile_html(
     else:
         assert result.df is not None
         parts.append(themes.gt_df(theme, result.df).as_raw_html())
+    if result.note:
+        # the tile was reduced to stay renderable (see kpiten_core.tiles)
+        parts.append(
+            f'<div style="font-size: 11px; opacity: .65; margin-top: 4px">'
+            f"{result.note}</div>"
+        )
     html = "".join(str(part) for part in parts)
     col_span = line.get("col_span") or 1
     return (
