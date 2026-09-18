@@ -16,6 +16,7 @@ import logging
 import pathlib
 
 from kpiten_core.gtable import gt_table
+from fastapi import Request
 from fastapi.responses import RedirectResponse
 from nicegui import app, ui, run
 
@@ -29,7 +30,7 @@ from kpiten_core.loaders import (
 )
 from kpiten_core.service import service as kpiten_service
 
-from .sessions import SessionHandler
+from .sessions import SESSION_COOKIE, SessionHandler
 
 STATIC_DIR = str(pathlib.Path(__file__).parent / "static")
 app.add_static_files("/static", STATIC_DIR)
@@ -293,16 +294,20 @@ def error_view(line: dict, error: str, info: str = ""):
 
 
 @ui.page("/")
-def dashboard(theme: str = DEFAULT_THEME, db: str | None = None):
+def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = None):
     ui.add_head_html(f"<style>{CSS}</style>")
-    if db and db != SessionHandler.db:
-        # manual db switch : fall back to the rpc login user of that db
-        SessionHandler.user_id = None
-        SessionHandler.db = db
     from kpiten_core import env
 
-    env.current_db = SessionHandler.db
-    backend = Backend.create(db=SessionHandler.db)
+    # who is connected : the SSO session of this browser (cookie), nothing is
+    # shared with the other users. Only the dev mode (ALLOW_RPC_USER) runs
+    # without one, as the rpc login user (and may pick the db in the url).
+    sso = SessionHandler.get(request.cookies.get(SESSION_COOKIE))
+    if sso is None and not env.allow_rpc_user:
+        ui.label("Not connected").classes("text-xl")
+        ui.label("Open the dashboard from Odoo : menu KpiTen → Dashboard.")
+        return
+    backend = Backend.create(db=sso.db if sso else db)
+    env.current_db = backend.db
     # Apply the odoo-side chart defaults (colors) once per page load.
     core_tiles.set_chart_config(backend.get_chart_config())
     panels = backend.get_panels()
@@ -310,15 +315,15 @@ def dashboard(theme: str = DEFAULT_THEME, db: str | None = None):
         ui.label("No kpiten.panel found in Odoo").classes("text-xl")
         return
     panels_map = {str(p["id"]): p["name"] for p in panels}
-    # sso session user, fallback to the rpc login user (dev/testing)
-    user_id = SessionHandler.user_id or backend.env.user.id
+    user_id = sso.user_id if sso else backend.env.user.id
     # default panel : first one in sequence order (get_panels is sorted)
     state_panel = panels[0]["id"] if panels else None
     if state_panel is None:
         ui.label("No panel found in Odoo").classes("text-lg")
         return
     try:
-        databases = backend.list_databases() or [backend.db]
+        # an SSO user is bound to the database of the session
+        databases = [sso.db] if sso else backend.list_databases() or [backend.db]
     except Exception:
         databases = [backend.db]
     filt = {"date": "last 5 years", "dims": {}}
@@ -491,7 +496,7 @@ def dashboard(theme: str = DEFAULT_THEME, db: str | None = None):
             )
             ui.select(
                 options=databases,
-                value=SessionHandler.db or backend.db,
+                value=backend.db,
                 on_change=lambda e: ui.navigate.to(f"/?theme={theme_key}&db={e.value}"),
                 label="Database",
             ).props("dark dense outlined").props(
@@ -549,8 +554,14 @@ def create_server():
     sso_app = FastAPI()
 
     @sso_app.post("/kpiten/tile-order")
-    def tile_order(payload: dict):
+    def tile_order(request: Request, payload: dict):
         """Save the dragged tile sequence (EDIT_JS fetch from the browser)."""
+        from kpiten_core import env
+
+        if not env.allow_rpc_user and not SessionHandler.get(
+            request.cookies.get(SESSION_COOKIE)
+        ):
+            return JSONResponse(status_code=403, content={"error": "Not connected"})
         try:
             backend = Backend.create()
             backend.update_tile_order([int(i) for i in payload.get("ids", [])])
@@ -595,12 +606,24 @@ def create_server():
 
     @sso_app.get("/dashboard/auth")
     def check_session(session: str):
-        if not SessionHandler.check_session(session):
+        sso = SessionHandler.get(session)
+        if sso is None:
             return JSONResponse(
                 status_code=403,
                 content={"error": "No session registered for this token"},
             )
-        return RedirectResponse(url="/dashboard", status_code=303)
+        # the token goes in a cookie : the dashboard reads it to know who is
+        # connected (one session per user, nothing shared between users)
+        response = RedirectResponse(url="/dashboard", status_code=303)
+        response.set_cookie(
+            SESSION_COOKIE,
+            session,
+            httponly=True,
+            samesite="lax",
+            path="/",  # the drag & drop also posts to /kpiten/tile-order
+            max_age=int(sso.VALIDITY_TIME.total_seconds()),
+        )
+        return response
 
     ui.run_with(
         sso_app,
