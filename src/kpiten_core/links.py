@@ -22,6 +22,21 @@ LINK_PATTERN = r"(?s)^\[.*\]\(https?://[^\s)]+\)$"
 LINK_RE = re.compile(LINK_PATTERN)
 _PARTS_RE = re.compile(r"(?s)^\[(?P<label>.*)\]\((?P<url>https?://[^\s)]+)\)$")
 
+# Every link inside a tile opens in a new tab. The browser does it at click time
+# because a front that sanitizes its html drops the attributes : NiceGUI's
+# `setHTML` removes `target`, `rel` and `style` from an <a>, so `target="_blank"`
+# in `link_html` alone is not enough there. Run once per page.
+NEW_TAB_JS = """
+(function () {
+  if (window.__kpitenNewTab) { return; }
+  window.__kpitenNewTab = true;
+  document.addEventListener("click", function (ev) {
+    var link = ev.target.closest ? ev.target.closest(".tile a[href]") : null;
+    if (link) { link.target = "_blank"; link.rel = "noopener noreferrer"; }
+  }, true);
+})();
+"""
+
 _odoo_url = ""
 
 
