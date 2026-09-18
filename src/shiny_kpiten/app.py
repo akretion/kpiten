@@ -19,6 +19,7 @@ import polars as pl
 from shiny import App, reactive, render, req, ui
 from shiny.types import SilentException
 
+from kpiten_core import links
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
 
@@ -252,6 +253,7 @@ def server(input, output, session):
 
     # Apply the odoo-side chart defaults (colors) once per session.
     core_tiles.set_chart_config(initial_backend.get_chart_config())
+    links.set_odoo_url(initial_backend.get_base_url())
     data_version = reactive.Value(0)
     layout_version = reactive.Value(0)
 
@@ -283,6 +285,7 @@ def server(input, output, session):
             env.current_db = db
             backend_rv.set(new_backend)
             core_tiles.set_chart_config(new_backend.get_chart_config())
+            links.set_odoo_url(new_backend.get_base_url())
             data_version.set(data_version() + 1)
             layout_version.set(layout_version() + 1)
             ui.notification_show(f"Database switched to {db}")
