@@ -96,6 +96,22 @@ class Kt(models.AbstractModel):
             *additionnal_fields,
         ]
 
+    @api.model
+    def get_access_query(self, model: str, user_id: int) -> str:
+        """SQL `SELECT id` of the `model` records `user_id` may read.
+
+        The record rules (ir.rule : own sales only, company...) are applied by
+        the ORM itself, so the result is what the user would get in Odoo. It
+        is returned as text for kpiten-core, which reads the parquet snapshot
+        (extracted straight from Postgres, without any rule) and keeps only
+        these rows. An empty string means the user cannot read the model.
+        """
+        records = self.env[model].with_user(user_id).with_context(active_test=False)
+        if not records.has_access("read"):
+            return ""
+        sql = records._search([]).select()
+        return self.env.cr.mogrify(sql.code, sql.params).decode()
+
     def _get_useless_fields(self):
         """return Dict of list
          - keys are models
