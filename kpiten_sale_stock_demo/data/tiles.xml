@@ -2,7 +2,8 @@
 <odoo noupdate="1">
     <!-- Sales KPI cards, the four scorecards of the Odoo "Sales" dashboard
         (spreadsheet_dashboard_sale) : same states and measures, the period of
-        the panel plays the role of Odoo's Period filter. On the demo data
+        the panel plays the role of Odoo's Period filter, and `compare = true`
+        gives the change against the period before ("since last period"). On the demo data
         they give the same figures as Odoo's dashboard for any period. -->
 
     <record id="sale_quotations_card" model="kt.dataset.line">
@@ -12,6 +13,7 @@
         <field name="panel_id" ref="kpiten_demo.panel_sale" />
         <field name="sequence">20</field>
         <field name="definition">where = "state in ('draft', 'sent')"
+compare = true
 </field>
     </record>
 
@@ -22,6 +24,7 @@
         <field name="panel_id" ref="kpiten_demo.panel_sale" />
         <field name="sequence">21</field>
         <field name="definition">where = "state = 'sale'"
+compare = true
 </field>
     </record>
 
@@ -35,6 +38,7 @@
 aggregation = "sum"
 measure = "amount_untaxed"
 unit = "$"
+compare = true
 </field>
     </record>
 
@@ -49,6 +53,7 @@ aggregation = "mean"
 measure = "amount_untaxed"
 decimals = 0
 unit = "$"
+compare = true
 </field>
     </record>
 
