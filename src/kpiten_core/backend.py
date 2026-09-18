@@ -59,6 +59,11 @@ class Backend:
     def get_allowed_fields(self, model: str, user_id: int) -> list[str]:
         raise NotImplementedError
 
+    def get_access_query(self, model: str, user_id: int) -> str:
+        """SQL `SELECT id` of the records of `model` the user may read, with
+        Odoo's record rules (ir.rule) applied. Empty string : no access."""
+        raise NotImplementedError
+
     def get_user_lang(self, user_id: int) -> str:
         raise NotImplementedError
 

@@ -243,16 +243,40 @@ def load_store() -> dict[str, pl.DataFrame]:
     }
 
 
+def accessible_ids(backend: "Backend", table: str, user_id: int) -> pl.Series:
+    """Ids of the `table` records the user may read.
+
+    Odoo builds the `SELECT id` with its own record rules (ir.rule) applied for
+    that user ; it is run here straight against Postgres, like the extraction.
+    """
+    query = backend.get_access_query(table, user_id)
+    if not query:  # no read access to the model at all
+        return pl.Series("id", [], dtype=pl.Int64)
+    return _read_sql_df(_pg_uri(backend.env.db), query)["id"]
+
+
+def restrict_rows(df: pl.DataFrame, ids: pl.Series) -> pl.DataFrame:
+    """The rows of `df` whose `id` is in `ids`."""
+    return df.filter(pl.col("id").is_in(ids.implode()))
+
+
 def user_store(backend: "Backend", user_id: int) -> dict[str, pl.DataFrame]:
-    """Per-user view of the store (ACL columns + translatable lang)."""
+    """Per-user view of the store : the columns the user may read (ACL), the
+    rows the user may read (record rules), translatable lang.
+
+    A table whose access could not be resolved is left out : the user sees
+    nothing of it rather than everything.
+    """
     lang = backend.get_user_lang(user_id)
     store: dict[str, pl.DataFrame] = {}
-    for table in DFStorage.list_table_names():
-        try:
-            allowed = backend.get_allowed_fields(table, user_id)
-            row = DFStorage.retrieve_df(table, allowed_fields=allowed, lang=lang)
-            if row:
-                store[table] = row["df"]
-        except Exception:
-            logger.exception("user store fetch failed for %s", table)
+    with env.db_scope(backend.env.db):
+        for table in DFStorage.list_table_names():
+            try:
+                allowed = backend.get_allowed_fields(table, user_id)
+                row = DFStorage.retrieve_df(table, allowed_fields=allowed, lang=lang)
+                if row:
+                    ids = accessible_ids(backend, table, user_id)
+                    store[table] = restrict_rows(row["df"], ids)
+            except Exception:
+                logger.exception("user store fetch failed for %s", table)
     return store

@@ -219,6 +219,9 @@ class JsonrpcBackend:
     def get_allowed_fields(self, model: str, user_id: int) -> list[str]:
         return self.env["kt"].get_allowed_fields(model, user_id)
 
+    def get_access_query(self, model: str, user_id: int) -> str:
+        return self.env["kt"].get_access_query(model, user_id)
+
     def get_user_lang(self, user_id: int) -> str:
         return self.env["res.users"].browse(user_id).lang
 

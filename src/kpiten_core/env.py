@@ -18,6 +18,11 @@ decimal_truncate = int(get("DECIMAL_TRUNCATE", "5"))
 # chunked extract doesn't hard-fail mid-sync)
 odoo_timeout = int(get("ODOO_TIMEOUT", "300"))
 
+# Dev / tests only : a dashboard opened without an SSO session runs as the RPC
+# login user (ODOO_LOGIN, usually admin), i.e. with no per-user restriction.
+# Off by default : without a session the dashboard asks to log in from Odoo.
+allow_rpc_user = get("ALLOW_RPC_USER", "0") == "1"
+
 # Number of rows fetched per connectorx page during the parquet sync
 sync_page_size = int(get("SYNC_PAGE_SIZE", "5000"))
 
