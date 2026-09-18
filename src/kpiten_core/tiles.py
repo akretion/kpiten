@@ -269,7 +269,11 @@ def _bound_categories(
 
 def graph_case(content, table, store, full_predicates):
     """Build the plotly figure of a graph tile. Returns `(figure, meta)` ;
-    `meta["note"]` says how the data was reduced to stay drawable."""
+    `meta["note"]` says how the data was reduced to stay drawable.
+
+    Optional keys : `where` (SQL over the rows, like a card's) and `monthly`
+    (a date x axis is grouped by month).
+    """
     graph_json = serial.loads(content)
     cx = graph_json["x"]
     cy = graph_json["y"]
@@ -277,7 +281,13 @@ def graph_case(content, table, store, full_predicates):
     notes = []
 
     source = filter_df(df, full_predicates)
+    if graph_json.get("where"):
+        source = source.sql(
+            f"SELECT * FROM self WHERE {expand_today(graph_json['where'])}"
+        )
     temporal = is_date(source, cx["name"])
+    if temporal and graph_json.get("monthly"):
+        source = apply_monthly(source, cx["name"])
     if temporal:
         source, note = _bound_dates(source, cx["name"])
         notes.append(note)

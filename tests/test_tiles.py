@@ -300,3 +300,43 @@ def test_lazy_store_gives_the_same_tiles():
             assert got.df.equals(eager.df), kind
         if kind == "graph":
             assert got.figure.to_json() == eager.figure.to_json()
+
+
+def test_graph_where_and_monthly():
+    """`where` keeps the confirmed orders, `monthly` gives one point per month,
+    in chronological order."""
+    df = pl.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5],
+            "state": ["sale", "sale", "draft", "sale", "cancel"],
+            "amount_untaxed": [10.0, 20.0, 999.0, 40.0, 999.0],
+            "date_order": [
+                datetime.date(2025, 3, 5),
+                datetime.date(2025, 3, 20),
+                datetime.date(2025, 3, 21),
+                datetime.date(2025, 1, 2),
+                datetime.date(2025, 2, 2),
+            ],
+        }
+    )
+    content = serial.dumps(
+        {
+            "graph_type": "area",
+            "where": "state not in ('draft', 'cancel', 'sent')",
+            "monthly": True,
+            "x": {"name": "date_order", "aggregation": "none"},
+            "y": {"name": "amount_untaxed", "aggregation": "sum"},
+        }
+    )
+    res = tiles.exec_tile(
+        {"kind": "graph", "name": "Monthly sales", "content": content},
+        "sale.order",
+        {"sale.order": df},
+        NO_PREDICATES,
+    )
+    trace = res.figure.data[0]
+    assert list(trace.x) == [datetime.date(2025, 1, 1), datetime.date(2025, 3, 1)]
+    assert list(trace.y) == [40.0, 30.0]
+    from kpiten_core import validate_toml
+
+    assert validate_toml(content, "graph", set(df.columns)) == []

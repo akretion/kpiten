@@ -136,9 +136,13 @@ def _card(check: _Check, data: dict) -> None:
 
 def _graph(check: _Check, data: dict) -> None:
     section = "graph"
-    check.expect_keys(data, section, {"graph_type", "from", "x", "y"})
+    check.expect_keys(
+        data, section, {"graph_type", "from", "x", "y", "where", "monthly"}
+    )
     check.expect_enum(data, "graph_type", section, GRAPH_TYPES)
     check.expect_str(data, "from", section)
+    check.expect_str(data, "where", section)
+    check.expect_bool(data, "monthly", section)
     if "x" not in data:
         check.msg("Missing key 'x' in graph")
     if "y" not in data:
