@@ -21,6 +21,7 @@ from fastapi.responses import RedirectResponse
 from nicegui import app, ui, run
 
 from kpiten_core import filters
+from kpiten_core import links
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
 from kpiten_core.loaders import (
@@ -318,6 +319,7 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
     env.current_db = backend.db
     # Apply the odoo-side chart defaults (colors) once per page load.
     core_tiles.set_chart_config(backend.get_chart_config())
+    links.set_odoo_url(backend.get_base_url())
     panels = backend.get_panels()
     if not panels:
         ui.label("No kpiten.panel found in Odoo").classes("text-xl")
