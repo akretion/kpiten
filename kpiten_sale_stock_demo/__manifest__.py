@@ -13,8 +13,8 @@ The lifecycle is forced in SQL (no real deliveries nor customer invoices) :
 it is meant to feed sales dashboards, not accounting.
 
 It also declares the KPI cards of the Odoo "Sales" dashboard (Quotations,
-Orders, Revenue, Average Order) and its "Monthly sales" chart in the KPI Ten
-"Sales" panel.
+Orders, Revenue, Average Order) its "Monthly sales" chart and its "Top Sales
+Orders" table in the KPI Ten "Sales" panel.
 """,
     "author": "Akretion",
     "license": "LGPL-3",

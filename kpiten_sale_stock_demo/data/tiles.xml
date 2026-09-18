@@ -73,4 +73,21 @@ name = "amount_untaxed"
 aggregation = "sum"
 </field>
     </record>
+
+    <!-- "Top Sales Orders" of the same dashboard : the ten confirmed orders
+        with the biggest untaxed amount (then invoice status, then the default
+        order of sale.order), with the panel period -->
+    <record id="sale_top_orders_table" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="kind">data</field>
+        <field name="name">Top Sales Orders</field>
+        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+        <field name="definition">d_next = d
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]))
+d_next = d_next.sort(["amount_untaxed", "invoice_status", "date_order", "id"], descending=[True, False, True, True]).head(10)
+d_next = d_next.select(["partner_id", "user_id", "amount_untaxed"]).rename({"partner_id": "Customer", "user_id": "Salesperson", "amount_untaxed": "Revenue"})</field>
+    </record>
 </odoo>
