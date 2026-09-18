@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo noupdate="1">
+    <!-- the record is also how sales are added afterwards (see the manifest) -->
+    <record id="demo_generator_sale_big" model="erp.demo.generator" />
+    <function model="erp.demo.generator" name="generate_big_sale_demo_install">
+        <function
+            eval="[[('id', '=', ref('demo_generator_sale_big'))]]"
+            model="erp.demo.generator"
+            name="search"
+        />
+    </function>
+</odoo>
