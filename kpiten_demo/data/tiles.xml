@@ -217,6 +217,7 @@ ignore_period = true
 aggregation = "mean"
 measure = "amount_untaxed"
 decimals = 0
+compare = true
 </field>
     </record>
 
@@ -230,6 +231,8 @@ decimals = 0
 aggregation = "mean"
 measure = "days_to_order"
 unit = "days"
+compare = true
+good = "down"  # fewer days is better
 [derive]
 days_to_order = "date_approve - create_date"
 </field>
@@ -245,6 +248,8 @@ days_to_order = "date_approve - create_date"
 aggregation = "mean"
 measure = "days_to_receive"
 unit = "days"
+compare = true
+good = "down"  # fewer days is better
 [derive]
 days_to_receive = "effective_date - date_approve"
 </field>
