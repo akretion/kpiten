@@ -9,10 +9,14 @@
                             <field name="graph_title_font_color" widget="color" />
                             <field name="graph_color_1" widget="color" />
                             <field name="graph_color_2" widget="color" />
-                        </group>
-                        <group>
                             <field name="graph_color_3" widget="color" />
                             <field name="graph_color_4" widget="color" />
+                        </group>
+                        <group>
+                            <field name="graph_color_5" widget="color" />
+                            <field name="graph_color_6" widget="color" />
+                            <field name="graph_color_7" widget="color" />
+                            <field name="graph_color_8" widget="color" />
                             <field name="graph_fill_color" widget="color" />
                         </group>
                         <group colspan="2">
@@ -24,7 +28,55 @@
                         </group>
                     </group>
                     <group string="Card defaults">
-                        <field name="show_card_comparison" />
+                        <group>
+                            <field name="show_card_comparison" />
+                            <field
+                                name="card_good_color"
+                                widget="color"
+                                invisible="not show_card_comparison"
+                            />
+                            <field
+                                name="card_bad_color"
+                                widget="color"
+                                invisible="not show_card_comparison"
+                            />
+                        </group>
+                        <group
+                            colspan="2"
+                            invisible="not show_card_comparison"
+                        >
+                            <field name="card_color_preview" readonly="1" />
+                        </group>
+                    </group>
+                    <group string="Numbers">
+                        <group>
+                            <field name="number_format" />
+                            <field name="number_small_below" />
+                            <field name="number_small_decimals" />
+                            <field name="number_large_decimals" />
+                        </group>
+                        <group>
+                            <field name="number_preview" readonly="1" />
+                        </group>
+                    </group>
+                    <group string="Periods">
+                        <field name="default_period" />
+                        <field name="fiscal_year_start_month" />
+                    </group>
+                    <group string="Interface">
+                        <field name="default_theme" />
+                        <field name="table_rows" />
+                    </group>
+                    <group string="Explore (export of the rows)">
+                        <field name="explore_access" />
+                        <field
+                            name="explore_max_rows"
+                            invisible="explore_access == 'nobody'"
+                        />
+                    </group>
+                    <group string="AI (marimo explorer)">
+                        <field name="ai_enabled" />
+                        <field name="ai_send_values" invisible="not ai_enabled" />
                     </group>
                 </sheet>
             </form>
