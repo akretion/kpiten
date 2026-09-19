@@ -5,6 +5,8 @@ import html
 import marimo as mo
 import polars as pl
 
+from kpiten_core import config
+
 from .analyses import ANALYSES
 
 ARROW = '<span style="opacity:.7;margin-left:.2em;font-size:.8em">↗</span>'
@@ -51,3 +53,9 @@ def ai_answer(answer) -> mo.Html:
             )
         )
     return mo.vstack(parts)
+
+
+def load_settings(backend) -> None:
+    """The settings of `kt.config` (Odoo) for this notebook : number format, the switches
+    of the AI... A notebook calls it once, with the backend of its session."""
+    config.set_config(backend.get_chart_config())

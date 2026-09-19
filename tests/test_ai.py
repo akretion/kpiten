@@ -156,3 +156,20 @@ def test_a_skill_file_without_header_applies_to_every_table(tmp_path):
     path.write_text("Always answer briefly.")
     skill = ai.parse_skill(path)
     assert (skill.name, skill.tables) == ("plain", [])
+
+
+def test_the_ai_switches_of_kt_config(monkeypatch):
+    from kpiten_core import config
+
+    monkeypatch.delenv("AI_SEND_VALUES", raising=False)
+    try:
+        config.set_config({})
+        assert ai.enabled() and ai.sends_values()  # nothing said : on
+        config.set_config({"ai": {"enabled": False, "send_values": False}})
+        assert not ai.enabled() and not ai.sends_values()
+        config.set_config({"ai": {"enabled": True, "send_values": True}})
+        assert ai.sends_values()
+        monkeypatch.setenv("AI_SEND_VALUES", "0")  # the environment can still say no
+        assert not ai.sends_values()
+    finally:
+        config.set_config({})

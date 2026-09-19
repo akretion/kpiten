@@ -19,7 +19,7 @@ from pathlib import Path
 import polars as pl
 import requests
 
-from kpiten_core import env, sandbox
+from kpiten_core import config, env, sandbox
 
 SKILLS_DIR = Path(__file__).parent / "skills"
 ALLOWED = sorted(sandbox.PL_FUNCS | sandbox.DF_METHODS | sandbox.EXPR_METHODS)
@@ -97,9 +97,15 @@ def known_values(frame: pl.LazyFrame) -> dict[str, list[str]]:
     return {c: [str(v)[:VALUE_CHARS] for v in values[c][0]] for c in few}
 
 
+def enabled() -> bool:
+    """The AI is on unless `kt.config` (Odoo) turns it off for everyone."""
+    return config.ai_enabled()
+
+
 def sends_values() -> bool:
-    """Whether the few values of a column go to the model (`AI_SEND_VALUES=0` : no)."""
-    return env.get("AI_SEND_VALUES", "1") != "0"
+    """Whether the few values of a column go to the model : not when `kt.config` says
+    no, nor with `AI_SEND_VALUES=0` in the environment (either one is enough)."""
+    return config.ai_send_values() and env.get("AI_SEND_VALUES", "1") != "0"
 
 
 def describe(frame: pl.LazyFrame, send_values: bool | None = None) -> str:

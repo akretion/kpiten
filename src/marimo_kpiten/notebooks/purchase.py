@@ -30,9 +30,10 @@ def _(mo, ui):
 
 
 @app.cell
-def _(Backend, db, mo, pl, user_id, user_store):
+def _(Backend, db, mo, pl, ui, user_id, user_store):
     # lazy scans restricted to this user (ACL + record rules), then the orders in memory
     backend = Backend.create(db=db)
+    ui.load_settings(backend)  # number format... of kt.config
     odoo_url = backend.get_base_url().rstrip("/")
     store = user_store(backend, user_id)
     # a table the user may not read is not in the store

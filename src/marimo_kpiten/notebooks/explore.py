@@ -27,9 +27,11 @@ def _(mo, ui):
 
 
 @app.cell
-def _(Backend, db, mo, user_id, user_store):
+def _(Backend, db, mo, ui, user_id, user_store):
     # the tables of the parquet store, restricted to this user (ACL + record rules)
-    store = user_store(Backend.create(db=db), user_id)
+    backend = Backend.create(db=db)
+    ui.load_settings(backend)  # the switches of the AI, the number format...
+    store = user_store(backend, user_id)
     mo.stop(not store, mo.callout("No data source in your scope.", kind="warn"))
     return (store,)
 
@@ -71,6 +73,12 @@ def _(mo, pl, source, store, ui):
 
 @app.cell
 def _(ai, mo):
+    mo.stop(
+        not ai.enabled(),
+        mo.callout(
+            "The AI is turned off in the KpiTen configuration (Odoo).", kind="warn"
+        ),
+    )
     available = ai.providers()
     mo.stop(
         not available,
