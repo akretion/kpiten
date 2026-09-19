@@ -90,10 +90,19 @@ aggregation = "sum"
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">d_next = d
+# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
+# confirmed orders
 d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("product_id").is_not_null())
+# product_id_ (the id) is kept to build the link
 d_next = d_next.group_by(["product_id", "product_id_"]).agg([pl.col("product_uom_qty").sum().alias("Units"), pl.col("price_subtotal").sum().alias("Revenue")])
+# the last sort keys only break ties : stable order
 d_next = d_next.sort(["Revenue", "product_id"], descending=[True, False]).head(10)
-d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("product_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/product.product/"), pl.col("product_id_").cast(pl.String), pl.lit(")")]).alias("Product"), pl.col("Units"), pl.col("Revenue")])</field>
+# a "[label](url)" cell is drawn as a link to Odoo : odoo_url is the base url, `product_id_` the id
+d_next = d_next.select([
+    pl.concat_str([pl.lit("["), pl.col("product_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/product.product/"), pl.col("product_id_").cast(pl.String), pl.lit(")")]).alias("Product"),
+    pl.col("Units"),
+    pl.col("Revenue"),
+])</field>
     </record>
 
     <record id="product_best_selling_categories_table" model="kt.dataset.line">
@@ -105,8 +114,12 @@ d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("product_id"), pl.lit
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">d_next = d
+# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
+# confirmed orders
 d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("product_id.categ_id.complete_name").is_not_null())
+# dotted name : a relational path declared for the dataset (line &gt; product &gt; category)
 d_next = d_next.group_by("product_id.categ_id.complete_name").agg([pl.col("product_uom_qty").sum().alias("Units"), pl.col("price_subtotal").sum().alias("Revenue")])
+# the last sort keys only break ties : stable order
 d_next = d_next.sort(["Revenue", "product_id.categ_id.complete_name"], descending=[True, False]).head(10)
 d_next = d_next.rename({"product_id.categ_id.complete_name": "Category"})</field>
     </record>

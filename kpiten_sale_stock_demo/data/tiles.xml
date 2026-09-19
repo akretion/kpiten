@@ -93,9 +93,17 @@ aggregation = "sum"
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">d_next = d
+# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
+# confirmed orders only
 d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]))
+# the last sort keys only break ties : stable order
 d_next = d_next.sort(["amount_untaxed", "invoice_status", "date_order", "id"], descending=[True, False, True, True]).head(10)
-d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/sale.order/"), pl.col("id").cast(pl.String), pl.lit(")")]).alias("Customer"), pl.col("user_id").alias("Salesperson"), pl.col("amount_untaxed").alias("Revenue")])</field>
+# a "[label](url)" cell is drawn as a link to Odoo : odoo_url is the base url, `id` the id
+d_next = d_next.select([
+    pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/sale.order/"), pl.col("id").cast(pl.String), pl.lit(")")]).alias("Customer"),
+    pl.col("user_id").alias("Salesperson"),
+    pl.col("amount_untaxed").alias("Revenue"),
+])</field>
     </record>
 
     <!-- "Top Quotations" of the same dashboard : the ten quotations (draft or
@@ -110,9 +118,16 @@ d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">d_next = d
+# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
+# open quotations
 d_next = d_next.filter(pl.col("state").is_in(["draft", "sent"]))
 d_next = d_next.sort(["amount_untaxed", "date_order", "id"], descending=[True, True, True]).head(10)
-d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/sale.order/"), pl.col("id").cast(pl.String), pl.lit(")")]).alias("Customer"), pl.col("user_id").alias("Salesperson"), pl.col("amount_untaxed").alias("Revenue")])</field>
+# a "[label](url)" cell is drawn as a link to Odoo : odoo_url is the base url, `id` the id
+d_next = d_next.select([
+    pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/sale.order/"), pl.col("id").cast(pl.String), pl.lit(")")]).alias("Customer"),
+    pl.col("user_id").alias("Salesperson"),
+    pl.col("amount_untaxed").alias("Revenue"),
+])</field>
     </record>
 
     <!-- "Top Products" of the same dashboard : per product, the number of
@@ -129,10 +144,19 @@ d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">d_next = d
+# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
+# confirmed orders
 d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("product_id").is_not_null())
+# n_unique : an order has several lines ; product_id_ (the id) is kept to build the link
 d_next = d_next.group_by(["product_id", "product_id_"]).agg([pl.col("order_id_").n_unique().alias("Orders"), pl.col("price_subtotal").sum().alias("Revenue")])
+# the last sort keys only break ties : stable order
 d_next = d_next.sort(["Revenue", "product_id"], descending=[True, False]).head(10)
-d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("product_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/product.product/"), pl.col("product_id_").cast(pl.String), pl.lit(")")]).alias("Product"), pl.col("Orders"), pl.col("Revenue")])</field>
+# a "[label](url)" cell is drawn as a link to Odoo : odoo_url is the base url, `product_id_` the id
+d_next = d_next.select([
+    pl.concat_str([pl.lit("["), pl.col("product_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/product.product/"), pl.col("product_id_").cast(pl.String), pl.lit(")")]).alias("Product"),
+    pl.col("Orders"),
+    pl.col("Revenue"),
+])</field>
     </record>
 
     <!-- "Top Salespeople" of the same dashboard : per salesperson, the number of
@@ -146,8 +170,11 @@ d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("product_id"), pl.lit
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">d_next = d
+# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
+# confirmed orders that have a salesperson
 d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("user_id").is_not_null())
 d_next = d_next.group_by("user_id").agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
+# the last sort keys only break ties : stable order
 d_next = d_next.sort(["Revenue", "user_id"], descending=[True, False]).head(10)
 d_next = d_next.rename({"user_id": "Salesperson"})</field>
     </record>
@@ -162,10 +189,19 @@ d_next = d_next.rename({"user_id": "Salesperson"})</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">d_next = d
+# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
+# confirmed orders
 d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("partner_id").is_not_null())
+# partner_id_ (the id) is kept to build the link
 d_next = d_next.group_by(["partner_id", "partner_id_"]).agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
+# the last sort keys only break ties : stable order
 d_next = d_next.sort(["Revenue", "partner_id"], descending=[True, False]).head(10)
-d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/res.partner/"), pl.col("partner_id_").cast(pl.String), pl.lit(")")]).alias("Customer"), pl.col("Orders"), pl.col("Revenue")])</field>
+# a "[label](url)" cell is drawn as a link to Odoo : odoo_url is the base url, `partner_id_` the id
+d_next = d_next.select([
+    pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/res.partner/"), pl.col("partner_id_").cast(pl.String), pl.lit(")")]).alias("Customer"),
+    pl.col("Orders"),
+    pl.col("Revenue"),
+])</field>
     </record>
 
     <!-- "Top Categories" : per product category, the orders it is in and its revenue, on the order lines. The category is shown with its path, as Odoo does -->
@@ -178,8 +214,12 @@ d_next = d_next.select([pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">d_next = d
+# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
+# confirmed orders
 d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("product_id.categ_id.complete_name").is_not_null())
+# dotted name : a relational path declared for the dataset (line &gt; product &gt; category) ; n_unique : an order has several lines
 d_next = d_next.group_by("product_id.categ_id.complete_name").agg([pl.col("order_id_").n_unique().alias("Orders"), pl.col("price_subtotal").sum().alias("Revenue")])
+# the last sort keys only break ties : stable order
 d_next = d_next.sort(["Revenue", "product_id.categ_id.complete_name"], descending=[True, False]).head(10)
 d_next = d_next.rename({"product_id.categ_id.complete_name": "Category"})</field>
     </record>
@@ -194,8 +234,11 @@ d_next = d_next.rename({"product_id.categ_id.complete_name": "Category"})</field
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">d_next = d
+# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
+# confirmed orders that have a team
 d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("team_id").is_not_null())
 d_next = d_next.group_by("team_id").agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
+# the last sort keys only break ties : stable order
 d_next = d_next.sort(["Revenue", "team_id"], descending=[True, False]).head(10)
 d_next = d_next.rename({"team_id": "Sales Team"})</field>
     </record>
@@ -210,8 +253,11 @@ d_next = d_next.rename({"team_id": "Sales Team"})</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">d_next = d
+# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
+# confirmed orders that have a source
 d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("source_id").is_not_null())
 d_next = d_next.group_by("source_id").agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
+# the last sort keys only break ties : stable order
 d_next = d_next.sort(["Revenue", "source_id"], descending=[True, False]).head(10)
 d_next = d_next.rename({"source_id": "Source"})</field>
     </record>
@@ -226,8 +272,11 @@ d_next = d_next.rename({"source_id": "Source"})</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">d_next = d
+# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
+# confirmed orders that have a medium
 d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("medium_id").is_not_null())
 d_next = d_next.group_by("medium_id").agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
+# the last sort keys only break ties : stable order
 d_next = d_next.sort(["Revenue", "medium_id"], descending=[True, False]).head(10)
 d_next = d_next.rename({"medium_id": "Medium"})</field>
     </record>
@@ -242,8 +291,12 @@ d_next = d_next.rename({"medium_id": "Medium"})</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">d_next = d
+# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
+# confirmed orders
 d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("partner_id.country_id.name").is_not_null())
+# dotted name : a relational path declared for the dataset (order &gt; customer &gt; country)
 d_next = d_next.group_by("partner_id.country_id.name").agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
+# the last sort keys only break ties : stable order
 d_next = d_next.sort(["Revenue", "partner_id.country_id.name"], descending=[True, False]).head(10)
 d_next = d_next.rename({"partner_id.country_id.name": "Country"})</field>
     </record>
