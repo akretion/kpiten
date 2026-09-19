@@ -96,7 +96,7 @@ CSS = """
   min-height: 100vh;
 }
 .framework-logo { width: 76px; height: auto; border-radius: 6px }
-.kpiten-logo { width: 40px; height: 40px }
+.kpiten-logo { width: 80px; height: 80px }
 .bb-ktd .q-field--dark .q-field__control,
 .bb-ktd .q-field--dark .q-field__native,
 .bb-ktd .q-field--dark .q-field__label,
@@ -654,74 +654,79 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
         .style(theme_style(palette))
         .classes("bb-ktd w-full p-6" + (" bb-ktd-light" if light else ""))
     ):
-        with ui.row().classes("w-full items-center gap-4 flex-wrap mb-2"):
-            # the logo of KpiTen, and its slogan on hover
-            ui.image("/static/kpiten.png").classes("kpiten-logo").tooltip(
-                brand.tooltip()
-            )
-            # framework logo, linking to the app origin
+        with ui.row().classes("w-full items-start no-wrap mb-2"):
+            # the controls wrap on several lines when the page is narrow ; the logo of the
+            # framework stays on the right (the one of KpiTen is on the left)
+            with ui.row().classes("items-center gap-4 flex-wrap grow"):
+                # the logo of KpiTen, and its slogan on hover
+                ui.image("/static/kpiten.png").classes("kpiten-logo").tooltip(
+                    brand.tooltip()
+                )
+                ui.select(
+                    options=panels_map,
+                    value=str(state_panel),
+                    on_change=on_panel_change,
+                    label="Panel",
+                ).props("dark dense outlined").props(
+                    'popup-content-class="bb-menu-dark"'
+                ).classes(
+                    "w-48"
+                )
+                ui.select(
+                    options=databases,
+                    value=backend.db,
+                    on_change=lambda e: ui.navigate.to(
+                        f"/?theme={theme_key}&db={e.value}"
+                    ),
+                    label="Database",
+                ).props("dark dense outlined").props(
+                    'popup-content-class="bb-menu-dark"'
+                ).classes(
+                    "w-44"
+                ).tooltip(
+                    "Odoo database (each db has its own parquet snapshot)"
+                )
+                ui.select(
+                    options={key: theme["name"] for key, theme in THEMES.items()},
+                    value=theme_key,
+                    on_change=lambda e: ui.navigate.to(f"/?theme={e.value}"),
+                    label="Theme",
+                ).props("dark dense outlined").props(
+                    'popup-content-class="bb-menu-dark"'
+                ).classes(
+                    "w-32"
+                )
+                sync_holder["bar"] = (
+                    ui.linear_progress(value=0, show_value=True)
+                    .props("striped")
+                    .classes("w-64")
+                    .set_visibility(False)
+                )
+                ui.button("Refresh data", on_click=on_refresh_data)
+                if core_config.explore_allowed(can_edit):
+                    ui.button(icon="download", on_click=on_explore).props(
+                        "flat dense"
+                    ).tooltip(
+                        "Explore : download the rows of this panel (your rights, the "
+                        "filters you set) with a marimo notebook"
+                    )
+                ui.button("Refresh tiles", on_click=draw_tiles).props("flat")
+                if can_edit:
+                    ui.switch("Edit", value=False, on_change=on_edit_mode).props(
+                        "dark"
+                    ).tooltip(
+                        "Edit this panel : move, resize or delete its tiles (drag and drop, "
+                        "or the buttons on each tile). The changes are saved in Odoo."
+                    )
+                stamp = last_sync(backend, user_id)
+                if stamp:
+                    ui.label("⏱ " + stamp).classes("text-xs opacity-55").tooltip(
+                        "Data as of " + stamp + " — 'Refresh data' syncs with Odoo"
+                    )
+            # linking to the app origin
             with ui.link(target="https://nicegui.io", new_tab=True):
                 ui.image("/static/logo.png").classes("framework-logo").tooltip(
                     "Made with NiceGUI"
-                )
-            ui.select(
-                options=panels_map,
-                value=str(state_panel),
-                on_change=on_panel_change,
-                label="Panel",
-            ).props("dark dense outlined").props(
-                'popup-content-class="bb-menu-dark"'
-            ).classes(
-                "w-48"
-            )
-            ui.select(
-                options=databases,
-                value=backend.db,
-                on_change=lambda e: ui.navigate.to(f"/?theme={theme_key}&db={e.value}"),
-                label="Database",
-            ).props("dark dense outlined").props(
-                'popup-content-class="bb-menu-dark"'
-            ).classes(
-                "w-44"
-            ).tooltip(
-                "Odoo database (each db has its own parquet snapshot)"
-            )
-            ui.select(
-                options={key: theme["name"] for key, theme in THEMES.items()},
-                value=theme_key,
-                on_change=lambda e: ui.navigate.to(f"/?theme={e.value}"),
-                label="Theme",
-            ).props("dark dense outlined").props(
-                'popup-content-class="bb-menu-dark"'
-            ).classes(
-                "w-32"
-            )
-            sync_holder["bar"] = (
-                ui.linear_progress(value=0, show_value=True)
-                .props("striped")
-                .classes("w-64")
-                .set_visibility(False)
-            )
-            ui.button("Refresh data", on_click=on_refresh_data)
-            if core_config.explore_allowed(can_edit):
-                ui.button(icon="download", on_click=on_explore).props(
-                    "flat dense"
-                ).tooltip(
-                    "Explore : download the rows of this panel (your rights, the "
-                    "filters you set) with a marimo notebook"
-                )
-            ui.button("Refresh tiles", on_click=draw_tiles).props("flat")
-            if can_edit:
-                ui.switch("Edit", value=False, on_change=on_edit_mode).props(
-                    "dark"
-                ).tooltip(
-                    "Edit this panel : move, resize or delete its tiles (drag and drop, "
-                    "or the buttons on each tile). The changes are saved in Odoo."
-                )
-            stamp = last_sync(backend, user_id)
-            if stamp:
-                ui.label("⏱ " + stamp).classes("text-xs opacity-55").tooltip(
-                    "Data as of " + stamp + " — 'Refresh data' syncs with Odoo"
                 )
         with ui.column().classes("w-full"):
             filters_row = ui.row().classes("w-full items-end gap-4")
