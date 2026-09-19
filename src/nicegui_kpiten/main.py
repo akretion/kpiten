@@ -346,6 +346,9 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
         return
     panels_map = {str(p["id"]): p["name"] for p in panels}
     user_id = sso.user_id if sso else backend.env.user.id
+    # only a KpiTen manager of Odoo edits the tiles (the apps read Odoo with one
+    # rpc account : nothing else stops a user from sending an edit)
+    can_edit = backend.can_edit_tiles(user_id)
     # default panel : first one in sequence order (get_panels is sorted)
     state_panel = panels[0]["id"] if panels else None
     if state_panel is None:
@@ -453,6 +456,9 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
 
     def act(tile_id: int, action: str):
         """One edit action on a tile, saved in odoo right away."""
+        if not can_edit:
+            ui.notify("Only a KpiTen manager can edit tiles.", type="warning")
+            return
         cur_lines = backend.get_panel_tiles(panel_label["id"], user_id)
         line = next((l for l in cur_lines if l["id"] == tile_id), None)
         if line is None:
@@ -567,7 +573,10 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
             )
             ui.button("Refresh data", on_click=on_refresh_data)
             ui.button("Refresh tiles", on_click=draw_tiles).props("flat")
-            ui.switch("Edit mode", value=False, on_change=on_edit_mode).props("dark")
+            if can_edit:
+                ui.switch("Edit mode", value=False, on_change=on_edit_mode).props(
+                    "dark"
+                )
             stamp = last_sync(backend, user_id)
             if stamp:
                 ui.label("⏱ " + stamp).classes("text-xs opacity-55").tooltip(
@@ -601,12 +610,16 @@ def create_server():
         """Save the dragged tile sequence (EDIT_JS fetch from the browser)."""
         from kpiten_core import env
 
-        if not env.allow_rpc_user and not SessionHandler.get(
-            request.cookies.get(SESSION_COOKIE)
-        ):
+        sso = SessionHandler.get(request.cookies.get(SESSION_COOKIE))
+        if sso is None and not env.allow_rpc_user:
             return JSONResponse(status_code=403, content={"error": "Not connected"})
         try:
-            backend = Backend.create()
+            backend = Backend.create(db=sso.db if sso else None)
+            user_id = sso.user_id if sso else backend.env.user.id
+            if not backend.can_edit_tiles(user_id):
+                return JSONResponse(
+                    status_code=403, content={"error": "Only a KpiTen manager can edit"}
+                )
             backend.update_tile_order([int(i) for i in payload.get("ids", [])])
         except Exception:
             logger.exception("tile order save failed")
