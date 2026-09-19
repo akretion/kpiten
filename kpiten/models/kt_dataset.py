@@ -42,12 +42,34 @@ class KtDataset(models.Model):
     sequence = fields.Integer()
     company_id = fields.Many2one(comodel_name="res.company")
     group_ids = fields.Many2many(comodel_name="res.groups")
+    line_count = fields.Integer(
+        compute="_compute_line_count",
+        help="Number of tiles of this dataset, the archived ones included.",
+    )
 
     @api.depends("model_id")
     def _compute_name(self):
         for rec in self:
             if rec.model_id:
                 rec.name = rec.model_id.name
+
+    @api.depends("line_ids")
+    def _compute_line_count(self):
+        for rec in self:
+            rec.line_count = len(rec.line_ids)
+
+    def action_view_lines(self):
+        """The tiles (`kt.dataset.line`) of this dataset, in a list."""
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Tiles of %s", self.display_name),
+            "res_model": "kt.dataset.line",
+            "view_mode": "list,form",
+            "domain": [("dataset_id", "=", self.id)],
+            # the archived tiles are listed too, `active` tells them apart
+            "context": {"default_dataset_id": self.id, "active_test": False},
+        }
 
     def _sync_auditlog_rule(self):
         """Subscribe an auditlog rule logging deletions on each dataset model."""
