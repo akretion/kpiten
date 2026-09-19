@@ -114,19 +114,29 @@ THEME_PERSIST_JS = """
     const qp = new URLSearchParams(window.location.search).get("theme");
     return qp || localStorage.getItem("kpiten.theme") || null;
   }
-  function applyPersisted() {
+  function applyPersisted(tries) {
     const saved = persisted();
     if (!saved) { return; }
-    const el = document.querySelector("#theme");
-    if (el && el.selectize) { el.selectize.setValue(saved, true); }
     if (window.Shiny) { Shiny.setInputValue("theme", saved, {priority: "event"}); }
+    // the dropdown is drawn by the server, a moment after the page : wait for it
+    const el = document.querySelector("#theme");
+    if (!el) {
+      if (tries < 100) { setTimeout(function () { applyPersisted(tries + 1); }, 100); }
+      return;
+    }
+    if (el.selectize) { el.selectize.setValue(saved, true); return; }
+    const known = Array.prototype.some.call(el.options, function (o) { return o.value === saved; });
+    if (known && el.value !== saved) {
+      el.value = saved;  // a native <select> : show it
+      el.dispatchEvent(new Event("change", {bubbles: true}));
+    }
   }
   if (window.jQuery) {
     $(document).on("change", "#theme", function () {
       if (this.value) { localStorage.setItem("kpiten.theme", this.value); }
     });
   }
-  setTimeout(applyPersisted, 100);
+  setTimeout(function () { applyPersisted(0); }, 100);
 })();
 """
 

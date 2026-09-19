@@ -9,7 +9,9 @@ import os
 
 import pytest
 import requests
-from playwright.sync_api import Page
+from playwright.sync_api import Page, expect
+
+from shiny_kpiten import themes
 
 ODOO = os.environ.get("E2E_ODOO_URL", "http://localhost:8069")
 SHINY = os.environ.get("E2E_SHINY_URL", "http://localhost:5000")
@@ -183,3 +185,55 @@ def test_explore_downloads_the_rows_of_the_user_with_a_notebook(
     assert orders.height > 0
     assert set(orders["user_id"].drop_nulls().to_list()) <= {"Marie STOURNE"}
     assert "pl.scan_parquet" in archive.read("explore.py").decode()
+
+
+def rgb(hex_color: str) -> str:
+    """`#00dc82` as the browser writes a computed color."""
+    red, green, blue = (int(hex_color[i : i + 2], 16) for i in (1, 3, 5))
+    return f"rgb({red}, {green}, {blue})"
+
+
+def wait_for_theme(page: Page, key: str) -> None:
+    """The css of the theme is in the page : its accent is the one of the palette."""
+    page.wait_for_function(
+        "accent => getComputedStyle(document.documentElement)"
+        ".getPropertyValue('--accent').trim().toLowerCase() === accent",
+        arg=themes.THEMES[key].palette["accent"].lower(),
+        timeout=30_000,
+    )
+
+
+def check_theme_is_shown(page: Page, key: str) -> None:
+    """The theme is applied to the page and to the tiles, and the dropdown shows it."""
+    theme = themes.THEMES[key]
+    wait_for_theme(page, key)
+    expect(page.locator("#theme")).to_have_value(key)
+    expect(page.locator("#theme option:checked")).to_have_text(theme.name)
+    # the tiles are drawn with the palette : their title is in the accent color
+    expect(page.locator(f"{TILES} h3").first).to_have_css(
+        "color", rgb(theme.palette["accent"])
+    )
+
+
+@pytest.mark.parametrize("key", list(themes.THEMES))
+def test_selecting_a_theme_applies_it_and_the_dropdown_shows_it(
+    page: Page, key: str
+) -> None:
+    open_dashboard(page)
+    page.locator("#theme").wait_for(state="visible", timeout=30_000)
+    page.select_option("#theme", key)
+    check_theme_is_shown(page, key)
+
+
+def test_the_theme_is_kept_when_the_page_is_reloaded(page: Page) -> None:
+    """The choice is remembered by the browser : after a reload the tiles are still
+    drawn in it, and the dropdown still shows it (not the default theme)."""
+    open_dashboard(page)
+    other = next(key for key in themes.THEMES if key != themes.DEFAULT_THEME)
+    page.locator("#theme").wait_for(state="visible", timeout=30_000)
+    page.select_option("#theme", other)
+    check_theme_is_shown(page, other)
+
+    page.reload()
+    page.locator(TILES).first.wait_for(timeout=90_000)
+    check_theme_is_shown(page, other)
