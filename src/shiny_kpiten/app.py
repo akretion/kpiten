@@ -24,7 +24,7 @@ import polars as pl
 from shiny import App, reactive, render, req, ui
 from shiny.types import SilentException
 
-from kpiten_core import comparison, links
+from kpiten_core import brand, comparison, links
 from kpiten_core import config as core_config
 from kpiten_core import explore as explore_core
 from kpiten_core.gtable import DRILL_CSS
@@ -173,6 +173,13 @@ def app_ui(req):  # noqa: ANN001
         ui.output_ui("theme_style"),
         ui.output_ui("tab_title"),
         ui.div(
+            # the logo of KpiTen, and its slogan on hover
+            ui.tags.img(
+                src="static/kpiten.png",
+                class_="kpiten-logo",
+                alt=brand.NAME,
+                title=brand.tooltip(),
+            ),
             ui.tags.a(
                 ui.tags.img(src=logo, class_="framework-logo"),
                 href="https://shiny.posit.co",
