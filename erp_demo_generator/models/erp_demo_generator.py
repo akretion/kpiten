@@ -1,5 +1,6 @@
 import logging
 import random
+import unicodedata
 from datetime import date, datetime, timedelta
 
 from odoo import Command as cmd
@@ -46,6 +47,14 @@ PRODUCTS = [
 ]
 
 
+def demo_password(login):
+    """First name of a `first.last` login, lowercase ASCII (`cécile.honxa` -> `cecile`)."""
+    first = login.split(".")[0]
+    return (
+        unicodedata.normalize("NFKD", first).encode("ascii", "ignore").decode().lower()
+    )
+
+
 class ErpDemoGenerator(models.Model):
     _name = "erp.demo.generator"
     _description = "ERP Demo Data Generator"
@@ -87,7 +96,7 @@ class ErpDemoGenerator(models.Model):
                 "name": name,
                 "login": login,
                 "email": f"{login}@example.com",
-                "password": login.split(".")[0].capitalize(),
+                "password": demo_password(login),
                 "groups_id": [
                     (6, 0, [self.env.ref("base.group_user").id]),
                 ],
@@ -113,7 +122,7 @@ class ErpDemoGenerator(models.Model):
         records.invalidate_recordset(["create_date"])
 
     def _setup_demo_access_rights(self, salespeople):
-        """Login/password of demo users = first name ; salespeople see only
+        """Login of demo users = first.last, password = first name (lowercase ASCII) ; salespeople see only
         their own sales orders, Camille HONNETE all of them, Andy VOJHANBON
         is the only buyer (purchase user)."""
 
@@ -125,7 +134,6 @@ class ErpDemoGenerator(models.Model):
         group_purchase = ref("purchase.group_purchase_user")
 
         for user in salespeople:
-            first = user.login.split(".")[0].capitalize()
             groups = [
                 g.id
                 for g in user.groups_id
@@ -139,7 +147,7 @@ class ErpDemoGenerator(models.Model):
                 groups.append(group_sale_own)
             user.write(
                 {
-                    "password": first,
+                    "password": demo_password(user.login),
                     "groups_id": [(6, 0, groups)],
                 }
             )
