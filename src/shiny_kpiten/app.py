@@ -438,16 +438,19 @@ def server(input, output, session):
         panel = panel_settings()
         config = panel.get("filter_config") or {}
         controls = []
+        store_data = store()
         if config.get("date"):
+            # the choices fit the data of the panel : windows, months or years it covers
+            span = filterstate.date_range(store_data, config)
+            options = filterstate.date_options(span)
             controls.append(
                 ui.input_select(
                     "date_period",
                     "Period",
-                    choices=filterstate.DATE_OPTIONS,
-                    selected=filterstate.DEFAULT_DATE_OPTION,
+                    choices=options,
+                    selected=filterstate.default_date_option(options, span),
                 )
             )
-        store_data = store()
         for dim in config.get("dimensions", []):
             choices = filterstate.dimension_choices(store_data, dim["name"])
             controls.append(
