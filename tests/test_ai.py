@@ -131,3 +131,28 @@ def test_a_refused_call_comes_back_with_the_allowed_names_that_look_like_it():
     assert answer.error is None and answer.table.height == 50
     assert "Did you mean : with_columns" in model.calls[1][-1]["content"]
     assert ai.hint("ValueError : forbidden call: read_parquet") == ""
+
+
+def test_the_skills_of_a_table_are_the_general_ones_and_its_own():
+    purchase = [s.name for s in ai.skills_for("purchase.order")]
+    assert "polars" in purchase and "purchase" in purchase
+    other = [s.name for s in ai.skills_for("res.partner")]
+    assert "polars" in other and "purchase" not in other  # made for other tables
+
+
+def test_the_team_adds_skills_in_its_own_folder(tmp_path, monkeypatch):
+    (tmp_path / "mine.md").write_text(
+        "---\nname: my-words\ntables: purchase.order\n---\nA `big order` is above 5000."
+    )
+    monkeypatch.setenv("AI_SKILLS_DIR", str(tmp_path))
+    skills = ai.skills_for("purchase.order")
+    assert [s.name for s in skills][-1] == "my-words"
+    assert "my-words" not in [s.name for s in ai.skills_for("sale.order")]
+    assert "A `big order` is above 5000." in ai.system_prompt("- x : Int64", skills)
+
+
+def test_a_skill_file_without_header_applies_to_every_table(tmp_path):
+    path = tmp_path / "plain.md"
+    path.write_text("Always answer briefly.")
+    skill = ai.parse_skill(path)
+    assert (skill.name, skill.tables) == ("plain", [])

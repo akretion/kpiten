@@ -40,3 +40,18 @@ Démarrage : `make start SVC=marimo` (voir `docs/start.md`).
 - Ce que le modèle reçoit : le nom et le type des colonnes, les valeurs des colonnes qui en ont
   peu (`AI_SEND_VALUES=0` les retire), les questions et les messages d'erreur du code. Jamais une
   ligne de données. Avec le modèle local, rien ne quitte la machine ; la page indique ce qui part.
+
+### Skills (le vocabulaire donné au modèle)
+
+Des fichiers `.md` de `src/marimo_kpiten/skills/` sont ajoutés au prompt du modèle : `polars.md`
+(comment écrire le code accepté par le sandbox, avec des exemples) et `purchase.md` (le
+vocabulaire des tables d'achat : acheteur = `user_id.name`, fournisseur =
+`partner_id.commercial_partner_id.name`, « commandes » = état `purchase` ou `done`...). Un
+petit modèle local se trompe surtout sur ce vocabulaire (regrouper par fournisseur quand on
+demande l'acheteur) : c'est ce que les skills corrigent.
+
+- L'en-tête `tables: purchase.order, purchase.order.line` limite un skill à ces tables ; sans
+  en-tête il vaut pour toutes. La page dit quels skills sont donnés au modèle.
+- L'équipe ajoute les siens dans un dossier à part, sans toucher au code :
+  `AI_SKILLS_DIR=/chemin/skills` dans `bi/.env` (relu à chaque question... au démarrage de
+  marimo). Un skill court, avec des exemples de code, aide plus qu'un long texte.

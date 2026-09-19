@@ -93,10 +93,11 @@ def _(ai, mo):
 
 
 @app.cell
-def _(ai, available, frame, mo, provider):
+def _(ai, available, frame, mo, provider, source):
     _chosen = available[provider.value]
     with mo.status.spinner("Reading the columns..."):
         description = ai.describe(frame)
+    skills = ai.skills_for(source.value)  # how to write the code, what the words mean
     if not _chosen.leaves_machine:
         _sent = "Nothing leaves this machine : the model is local."
     else:
@@ -110,17 +111,27 @@ def _(ai, available, frame, mo, provider):
             + " and your questions. No row. The code it writes runs here, on the "
             "rows you may read."
         )
+    _sent += "\n\nSkills given to the model : " + (
+        ", ".join(f"`{s.name}`" for s in skills) or "none"
+    )
     mo.callout(mo.md(_sent), kind="info")
-    return (description,)
+    return description, skills
 
 
 @app.cell
-def _(ai, available, description, frame, mo, provider, ui):
+def _(ai, available, description, frame, mo, provider, skills, ui):
     _provider = available[provider.value]
     _history = []  # what was said, for the next question (a new source starts over)
 
     def _model(messages, config):
-        answer = ai.ask(_provider, frame, description, _history, messages[-1].content)
+        answer = ai.ask(
+            _provider,
+            frame,
+            description,
+            _history,
+            messages[-1].content,
+            skills=skills,
+        )
         _history.extend(answer.exchange)
         del _history[:-12]
         return ui.ai_answer(answer)

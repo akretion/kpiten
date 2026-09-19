@@ -14,12 +14,14 @@ Claude (`ANTHROPIC_API_KEY`) and a local model behind an OpenAI-compatible api
 import difflib
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import polars as pl
 import requests
 
 from kpiten_core import env, sandbox
 
+SKILLS_DIR = Path(__file__).parent / "skills"
 ALLOWED = sorted(sandbox.PL_FUNCS | sandbox.DF_METHODS | sandbox.EXPR_METHODS)
 MAX_ROWS = 1000  # rows of an answer
 MAX_VALUES = 12  # values listed for a column
@@ -114,7 +116,50 @@ def describe(frame: pl.LazyFrame, send_values: bool | None = None) -> str:
     return "\n".join(lines)
 
 
-def system_prompt(description: str) -> str:
+@dataclass
+class Skill:
+    """A markdown file given to the model : how to write the code, what the words of
+    a table mean. Its optional header lists the tables it is for (else all of them) :
+
+        ---
+        name: purchase
+        tables: purchase.order, purchase.order.line
+        ---
+    """
+
+    name: str
+    tables: list[str]
+    body: str
+
+
+def parse_skill(path: Path) -> Skill:
+    text = path.read_text()
+    meta = {}
+    if text.startswith("---\n"):
+        header, _, text = text[4:].partition("\n---\n")
+        for line in header.splitlines():
+            key, _, value = line.partition(":")
+            meta[key.strip()] = value.strip()
+    tables = [t.strip() for t in meta.get("tables", "").split(",") if t.strip()]
+    return Skill(meta.get("name") or path.stem, tables, text.strip())
+
+
+def skills_for(table: str) -> list[Skill]:
+    """The skills for a table : those of `skills/`, then those of the folder
+    `AI_SKILLS_DIR` (the team adds its own there, without touching the code)."""
+    folders = [SKILLS_DIR]
+    if env.get("AI_SKILLS_DIR"):
+        folders.append(Path(env.get("AI_SKILLS_DIR")))
+    found = []
+    for folder in folders:
+        for path in sorted(folder.glob("*.md")):
+            skill = parse_skill(path)
+            if not skill.tables or table in skill.tables:
+                found.append(skill)
+    return found
+
+
+def system_prompt(description: str, skills: list[Skill] | None = None) -> str:
     return f"""You are a data analyst in KpiTen, an analytics tool on top of Odoo. The user
 explores one table, already restricted to the rows and columns they may read.
 
@@ -129,12 +174,10 @@ A column such as `partner_id.name` is written pl.col("partner_id.name"). A many2
 holds the name and `x_` (with an underscore) its id. Amounts may be decimals : cast to
 pl.Float64 before a ratio. If the question needs no code, answer without a block.
 
-Examples of the style :
-d_next = d.group_by("state").agg(pl.len().alias("orders")).sort("orders", descending=True)
-d_next = d.group_by(pl.col("date_order").dt.truncate("1mo").alias("month")).agg(pl.col("amount_untaxed").sum().alias("total")).sort("month")
-
 The columns of the table :
-{description}"""
+{description}""" + "".join(
+        f"\n\n# Skill : {s.name}\n{s.body}" for s in skills or []
+    )
 
 
 def extract_code(text: str) -> tuple[str, str | None]:
@@ -171,10 +214,12 @@ class Answer:
     exchange: list[dict] = field(default_factory=list)  # to keep in the conversation
 
 
-def ask(provider, frame, description, history, question, complete=complete) -> Answer:
+def ask(
+    provider, frame, description, history, question, complete=complete, skills=None
+) -> Answer:
     """The answer to a question : the model writes code, the sandbox runs it, and the
     model gets one more try when the code was refused or failed."""
-    system = system_prompt(description)
+    system = system_prompt(description, skills)
     messages = [*history, {"role": "user", "content": question}]
     text = explanation = code = error = None
     for _attempt in range(ATTEMPTS):
