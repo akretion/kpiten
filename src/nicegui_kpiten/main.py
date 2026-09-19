@@ -676,8 +676,11 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
             )
             ui.button("Refresh tiles", on_click=draw_tiles).props("flat")
             if can_edit:
-                ui.switch("Edit mode", value=False, on_change=on_edit_mode).props(
+                ui.switch("Edit", value=False, on_change=on_edit_mode).props(
                     "dark"
+                ).tooltip(
+                    "Edit this panel : move, resize or delete its tiles (drag and drop, "
+                    "or the buttons on each tile). The changes are saved in Odoo."
                 )
             stamp = last_sync(backend, user_id)
             if stamp:
