@@ -7,9 +7,10 @@
 # Usage : scripts/kpiten-stack {start|stop|restart|status} [odoo|shiny|nicegui|all]
 #
 # A service is found by the port it listens on (never by a name pattern), and
-# logs go to data/logs/{odoo,shiny,nicegui}.log (appended, never rotated), and shiny
+# logs go to data/logs/{odoo,shiny,nicegui}.log (appended ; rotated at start past KPITEN_LOG_MAX bytes), and shiny
 # dumps the html of its tiles there (kpiten_tiles.html). Environment :
 #   KPITEN_DB_FILTER  Odoo db filter, default '^(big|dash)$'
+#   KPITEN_LOG_MAX    size in bytes above which a log is rotated at start (log.1 .. log.3), default 5242880
 #   PGPASSWORD        Postgres password of the odoo user (odoo.conf has none) : set it in .env
 #   ALLOW_RPC_USER=1  passed through : dashboards usable without SSO (dev only)
 set -u
@@ -43,6 +44,7 @@ probe_of() {
 }
 
 LOG_DIR="$ROOT/data/logs"
+LOG_MAX="${KPITEN_LOG_MAX:-5242880}"
 # read by shiny-kpiten : where it dumps the html of its tiles
 export KPITEN_LOG_DIR="$LOG_DIR"
 log_of() { echo "$LOG_DIR/$1.log"; }
@@ -50,6 +52,17 @@ log_of() { echo "$LOG_DIR/$1.log"; }
 # pid of the process listening on a port (empty when nothing does)
 listener_pid() {
     ss -ltnp "sport = :$1" 2>/dev/null | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2
+}
+
+# a log past LOG_MAX bytes becomes log.1 (log.1 -> log.2 -> log.3, the last one is dropped)
+rotate_log() {
+    local file=$1 i
+    [ -f "$file" ] || return 0
+    [ "$(stat -c %s "$file")" -gt "$LOG_MAX" ] || return 0
+    for i in 2 1; do
+        [ -f "$file.$i" ] && mv "$file.$i" "$file.$((i + 1))"
+    done
+    mv "$file" "$file.1"
 }
 
 # the service command itself, run in the foreground (`_run` below detaches it)
@@ -80,6 +93,7 @@ start_one() {
         return 0
     fi
     mkdir -p "$LOG_DIR"
+    rotate_log "$(log_of "$name")"
     # detached from this shell (own session) : it survives the script and the
     # terminal that started it
     nohup setsid "$0" _run "$name" >>"$(log_of "$name")" 2>&1 </dev/null &

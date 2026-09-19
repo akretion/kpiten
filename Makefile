@@ -16,7 +16,7 @@ N       ?= 100000
 # filtre des bases visibles en mode multi-bases (regex) ; vide = celui de odoo.conf
 DBFILTER ?=
 
-.PHONY: check-repos repos venv apps db run run-db shell update add-sales sync
+.PHONY: check-repos repos venv apps db run run-db shell update add-sales sync up down restart status logs
 
 ## Refuse d'agréger si des commits n'existent que localement dans src/ :
 ## git-aggregator remet la branche cible à l'état du remote (reset --hard) et les
@@ -68,6 +68,27 @@ add-sales:
 ## choisit à la connexion.   make run  |  make run DBFILTER='^(big|dash)$$'
 run:
 	$(ODOO) $(if $(DBFILTER),--db-filter '$(DBFILTER)')
+
+## Les trois services (Odoo :8069, Shiny :5000, NiceGUI :5001), détachés du
+## terminal, via scripts/kpiten-stack ; logs dans data/logs/.
+##   make up | down | restart | status        tous
+##   make restart SVC=shiny                    un seul : odoo | shiny | nicegui
+##   make logs [SVC=shiny]                     suit les logs (Ctrl-C pour quitter)
+SVC ?= all
+up:
+	scripts/kpiten-stack start $(SVC)
+
+down:
+	scripts/kpiten-stack stop $(SVC)
+
+restart:
+	scripts/kpiten-stack restart $(SVC)
+
+status:
+	scripts/kpiten-stack status $(SVC)
+
+logs:
+	tail -n 30 -F data/logs/$(if $(filter all,$(SVC)),*,$(SVC)).log
 
 ## Odoo sur une seule base :  make run-db DB=big
 run-db:
