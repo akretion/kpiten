@@ -1,0 +1,34 @@
+[project]
+authors = [
+  {name = "Maël Salem"},
+  {name = "David Beal", email = "david.beal@akretion.com"},
+]
+dependencies = [
+  "dotenv>=0.9.9",
+  "fastapi>=0.135.3",
+  "uvicorn>=0.44.0",
+  "marimo>=0.24",
+  "great-tables>=0.21.0",
+  "kpiten-core",
+  "altair>=6.3.0",
+  "anthropic>=1.7.0",
+]
+description = "Kpi dashboard (marimo) on top of kpiten-core : marimo explores the rows the user may read"
+name = "marimo-kpiten"
+readme = "README.md"
+requires-python = ">=3.12"
+version = "0.1.0"
+
+[build-system]
+build-backend = "uv_build"
+requires = ["uv_build>=0.11.3,<0.12.0"]
+
+[dependency-groups]
+dev = [
+  "black>=26.5.1",
+  "pytest>=8",
+  "pytest-playwright>=0.9.0",
+]
+
+[tool.uv.sources]
+kpiten-core = { path = "../kpiten-core", editable = true }
