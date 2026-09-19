@@ -73,6 +73,12 @@
                             options="{'mode': 'python'}"
                         />
                         <field
+                            name="drill_definition"
+                            widget="ace"
+                            options="{'mode': 'python'}"
+                            invisible="kind != 'data'"
+                        />
+                        <field
                             name="validation_msg"
                             string="Validation"
                             readonly="1"

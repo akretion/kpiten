@@ -156,6 +156,19 @@ d_next = d_next.select([
     pl.concat_str([pl.lit("["), pl.col("product_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/product.product/"), pl.col("product_id_").cast(pl.String), pl.lit(")")]).alias("Product"),
     pl.col("Orders"),
     pl.col("Revenue"),
+    # hidden column (`__` prefix) : a click on the row hands it to the drill-down as key["product_id_"]
+    pl.col("product_id_").alias("__product_id_"),
+])</field>
+        <field name="drill_definition">d_next = d
+# key : the hidden columns of the clicked row. Same rows as the tile : confirmed lines of that product
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; (pl.col("product_id_") == key["product_id_"]))
+d_next = d_next.sort(["order_id.date_order", "id"], descending=[True, True])
+d_next = d_next.select([
+    pl.col("order_id.date_order").alias("Date"),
+    pl.concat_str([pl.lit("["), pl.col("order_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/sale.order/"), pl.col("order_id_").cast(pl.String), pl.lit(")")]).alias("Order"),
+    pl.col("order_partner_id").alias("Customer"),
+    pl.col("product_uom_qty").alias("Quantity"),
+    pl.col("price_subtotal").alias("Revenue"),
 ])</field>
     </record>
 
