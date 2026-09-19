@@ -5,13 +5,15 @@ the number, the table in relief, and the polars behind it. Colors are the ones o
 (the palette for bars, the fill color for areas).
 """
 
+import re
+
 import altair as alt
 import marimo as mo
 import polars as pl
 
 from kpiten_core import config, filters, numfmt
 
-from . import recipes
+from . import ods, recipes
 
 ACCENT = "#0a6ebd"
 
@@ -74,7 +76,26 @@ def _table(frame: pl.DataFrame, recipe: recipes.Recipe):
         mo.Html(f'<div style="max-height:460px;overflow:auto">{html}</div>'),
         mo.md(f"<small>{frame.height} rows. {note}</small>"),
     ]
+    if config.feature("export_ods"):
+        parts.append(_ods_button(frame, recipe))
     return mo.vstack(parts)
+
+
+def _ods_button(frame: pl.DataFrame, recipe: recipes.Recipe):
+    """The table as a spreadsheet (.ods), with the cells put in relief as on the page."""
+    name = re.sub(
+        r"[^A-Za-z0-9_-]+", "-", f"{recipe.output}-{recipe.measure or 'rows'}"
+    )
+    return mo.download(
+        data=lambda: ods.to_ods(
+            recipes.plain(frame),
+            recipes.cell_fills(frame, recipe.highlight, recipe.highlight_value),
+            bold_fills=recipe.highlight != "heatmap",
+        ),
+        filename=f"kpi-{name}.ods",
+        mimetype="application/vnd.oasis.opendocument.spreadsheet",
+        label="Download .ods",
+    )
 
 
 def _card(recipe: recipes.Recipe, frame: pl.LazyFrame):
