@@ -5,7 +5,7 @@ import html
 import marimo as mo
 import polars as pl
 
-from kpiten_core import config
+from kpiten_core import config, links
 
 from .analyses import ANALYSES
 
@@ -59,3 +59,22 @@ def load_settings(backend) -> None:
     """The settings of `kt.config` (Odoo) for this notebook : number format, the switches
     of the AI... A notebook calls it once, with the backend of its session."""
     config.set_config(backend.get_chart_config())
+
+
+def records_link(backend, odoo_url: str, model: str, ids: list[int]):
+    """A link that opens, in Odoo, the records a table lists : the same list, with the
+    rights of the user there. None unless the feature is on in `kt.config`, or when Odoo
+    has no list action for the model."""
+    if not config.feature("open_in_odoo") or not ids:
+        return None
+    try:
+        action = backend.get_records_action_id(model)
+    except Exception:
+        return None
+    url, count = links.records_url(odoo_url, action, ids)
+    label = (
+        f"Open these {count} records in Odoo"
+        if count == len(ids)
+        else f"Open the first {count} of {len(ids)} records in Odoo"
+    )
+    return odoo_link(label, url)

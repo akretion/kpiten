@@ -240,3 +240,24 @@ def test_concentration_is_told_only_when_the_feature_is_on():
         assert recipes.concentration(card, FRAME) is None  # a card has no groups
     finally:
         config.set_config({})
+
+
+def test_a_list_of_records_links_to_odoo_only_when_the_feature_is_on():
+    from marimo_kpiten import ui
+
+    class Backend:
+        def get_records_action_id(self, model):
+            return 488
+
+    try:
+        config.set_config({})
+        assert (
+            ui.records_link(Backend(), "http://odoo", "purchase.order", [1, 2]) is None
+        )
+        config.set_config({"features": {"open_in_odoo": True}})
+        link = ui.records_link(Backend(), "http://odoo", "purchase.order", [1, 2])
+        assert "http://odoo/odoo/action-488?active_ids=1,2" in link.text
+        assert "Open these 2 records in Odoo" in link.text
+        assert ui.records_link(Backend(), "http://odoo", "purchase.order", []) is None
+    finally:
+        config.set_config({})

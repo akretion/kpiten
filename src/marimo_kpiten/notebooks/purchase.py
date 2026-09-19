@@ -48,7 +48,7 @@ def _(Backend, db, mo, pl, ui, user_id, user_store):
         orders.is_empty(),
         mo.callout("No purchase order in your scope.", kind="warn"),
     )
-    return odoo_url, orders
+    return backend, odoo_url, orders
 
 
 @app.cell
@@ -190,7 +190,7 @@ def _(alt, current, group_by, mo, pl):
 
 
 @app.cell
-def _(current, group_by, mo, odoo_url, pl, top_chart, ui):
+def _(backend, current, group_by, mo, odoo_url, pl, top_chart, ui):
     # the orders behind the clicked bars (all of them without a click)
     _label = top_chart.value.columns[0] if top_chart.value.height else None
     _detail = (
@@ -219,9 +219,12 @@ def _(current, group_by, mo, odoo_url, pl, top_chart, ui):
         }
         for row in _shown.to_dicts()
     ]
+    # the same orders, as a list in Odoo (when the feature is on)
+    _open = ui.records_link(backend, odoo_url, "purchase.order", _shown["id"].to_list())
     mo.vstack(
         [
             mo.md(f"**{len(_rows)}** orders" + (" (selection)" if _label else "")),
+            *([_open] if _open else []),
             mo.ui.table(_rows, selection=None, page_size=10),
         ]
     )
