@@ -1,0 +1,52 @@
+<odoo>
+    <record id="kt_dataset_column_list" model="ir.ui.view">
+        <field name="model">kt.dataset.column</field>
+        <field name="arch" type="xml">
+            <list create="0" edit="0" delete="0">
+                <field name="name" />
+                <field name="dtype" />
+                <field name="origin" />
+                <field name="examples" />
+            </list>
+        </field>
+    </record>
+
+    <record id="kt_dataset_column_search" model="ir.ui.view">
+        <field name="model">kt.dataset.column</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name" />
+                <field name="dtype" />
+                <group expand="0" string="Group by">
+                    <filter
+                        name="group_origin"
+                        string="Origin"
+                        context="{'group_by': 'origin'}"
+                    />
+                    <filter
+                        name="group_dtype"
+                        string="Type"
+                        context="{'group_by': 'dtype'}"
+                    />
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="kt_dataset_form_columns" model="ir.ui.view">
+        <field name="model">kt.dataset</field>
+        <field name="inherit_id" ref="kpiten.kt_dataset_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button
+                    name="action_view_columns"
+                    type="object"
+                    class="oe_stat_button"
+                    icon="fa-columns"
+                    string="Columns"
+                    invisible="not id"
+                />
+            </xpath>
+        </field>
+    </record>
+</odoo>
