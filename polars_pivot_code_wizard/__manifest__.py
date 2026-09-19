@@ -8,8 +8,8 @@ Polars Pivot Code Generator
 ============================
 A wizard that:
 
-1. Extracts a heterogeneous 20-record sample (spread across create_date /
-   create_uid) of any Odoo model into a Parquet file.
+1. Extracts a heterogeneous 20-record sample of any Odoo model into a Parquet file
+   (done by the parquet_sample module).
 2. Lets you pick the Index / Column / Value fields directly from the
    Parquet file's columns (no more typing field names by hand).
 3. Generates the corresponding Polars ``.pivot()`` Python snippet.
@@ -20,7 +20,7 @@ Requires the 'polars' Python package on the Odoo server.
 """,
     "author": "Custom",
     "license": "LGPL-3",
-    "depends": ["base"],
+    "depends": ["base", "parquet_sample"],
     "external_dependencies": {
         "python": ["polars"],
     },

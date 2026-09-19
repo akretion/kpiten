@@ -6,11 +6,6 @@ import io
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
-# Field types we can safely flatten into a Parquet column.
-# one2many / many2many would need nested/list columns, binary and html
-# fields are excluded to keep the sample lightweight and predictable.
-EXCLUDED_FIELD_TYPES = ("one2many", "many2many", "binary", "html")
-
 SAMPLE_SIZE = 20
 
 
@@ -185,57 +180,10 @@ class PolarsPivotCodeWizard(models.TransientModel):
                 )
             )
 
-        Model = self.env[self.model_name]
-        fields_info = Model.fields_get()
-        export_fields = [
-            name
-            for name, info in fields_info.items()
-            if info.get("type") not in EXCLUDED_FIELD_TYPES
-        ]
-
-        order_field = "create_date" if "create_date" in fields_info else "id"
-        all_records = Model.search([], order="%s asc" % order_field)
-        total = len(all_records)
-        if not total:
-            raise UserError(_("The selected model has no records to sample from."))
-
-        sample_size = min(SAMPLE_SIZE, total)
-        if total <= sample_size:
-            sample_records = all_records
-        else:
-            # Evenly spaced indices over records sorted by create_date:
-            # naturally spreads the sample across different create_uid
-            # and different periods, without a heavier stratified query.
-            step = total / float(sample_size)
-            sample_records = Model.browse()
-            for i in range(sample_size):
-                idx = int(i * step)
-                sample_records |= all_records[idx]
-
-        columns_meta = {}
-        rows = []
-        for rec in sample_records:
-            row = {}
-            for name in export_fields:
-                ftype = fields_info[name].get("type")
-                value = rec[name]
-                if ftype == "many2one":
-                    row[name] = value.id if value else None
-                    row["%s.name" % name] = value.display_name if value else None
-                    columns_meta[name] = {"type": "many2one_id"}
-                    columns_meta["%s.name" % name] = {"type": "char"}
-                elif ftype == "boolean":
-                    row[name] = bool(value)
-                    columns_meta[name] = {"type": ftype}
-                else:
-                    row[name] = value if value is not False else None
-                    columns_meta[name] = {"type": ftype}
-            rows.append(row)
-
-        try:
-            df = pl.DataFrame(rows)
-        except Exception as exc:
-            raise UserError(_("Could not build the sample DataFrame: %s") % exc)
+        # the sampling itself lives in the parquet_sample module
+        df, columns_meta = self.env["parquet.sample"].sample_with_meta(
+            self.model_name, SAMPLE_SIZE
+        )
 
         buffer = io.BytesIO()
         df.write_parquet(buffer)
