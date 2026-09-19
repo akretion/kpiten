@@ -22,6 +22,9 @@
                             />
                         </group>
                     </group>
+                    <group string="Card defaults">
+                        <field name="show_card_comparison" />
+                    </group>
                 </sheet>
             </form>
         </field>

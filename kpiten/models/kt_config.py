@@ -38,6 +38,13 @@ class KtConfig(models.Model):
         help="Fourth color of the chart palette. Used for the fourth bar / "
         "series of each graph.",
     )
+    show_card_comparison = fields.Boolean(
+        string="Compare cards with the previous period",
+        default=True,
+        help="Show, under the value of a card, its change since the previous "
+        "period. Only the cards defined with `compare = true` are concerned : "
+        "unchecked, none of them shows the comparison.",
+    )
     graph_color_preview = fields.Html(
         compute="_compute_graph_color_preview",
         sanitize=False,
@@ -80,9 +87,10 @@ class KtConfig(models.Model):
 
     @api.model
     def get_config_json(self):
-        """Chart default styling as expected by the dashboard apps.
+        """Chart default styling and card options as expected by the dashboard apps.
 
-        i.e. {"graph": {"layout": {"colorway": ["#00dc82", "#34cdfe"]}}}
+        i.e. {"graph": {"layout": {"colorway": ["#00dc82", "#34cdfe"]}},
+              "card": {"comparison": True}}
         """
         rec = self.search([], limit=1)
         if not rec:
@@ -102,4 +110,7 @@ class KtConfig(models.Model):
             layout["colorway"] = colorway
         if rec.graph_title_font_color:
             layout["title"] = {"font": {"color": rec.graph_title_font_color}}
-        return {"graph": {"layout": layout}} if layout else {}
+        config = {"card": {"comparison": rec.show_card_comparison}}
+        if layout:
+            config["graph"] = {"layout": layout}
+        return config
