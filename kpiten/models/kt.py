@@ -440,6 +440,16 @@ class Kt(models.AbstractModel):
         return data_by_id
 
     @api.model
+    def can_edit_tiles(self, user_id=None):
+        """Whether the user (default : the current one) is a KpiTen manager.
+
+        The dashboard apps read Odoo with one RPC account : they ask here before
+        they let a user edit the tiles (the edit mode).
+        """
+        user = self.env["res.users"].sudo().browse(user_id or self.env.uid)
+        return user.has_group("kpiten.group_kpiten_manager")
+
+    @api.model
     def action_redirect_to_kpiten(self, *args, application=None):
         """Redirect to one of the dashboard apps ('shiny' or 'nicegui').
 

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="group_kpiten_manager" model="res.groups">
+        <field name="name">KpiTen manager</field>
+        <field
+            name="comment"
+        >Creates, edits and deletes the panels, the datasets and the tiles (the edit mode of the dashboards), and the configuration. The other users only read them.</field>
+    </record>
+
+    <record id="base.group_system" model="res.groups">
+        <field name="implied_ids" eval="[(4, ref('group_kpiten_manager'))]" />
+    </record>
+</odoo>
