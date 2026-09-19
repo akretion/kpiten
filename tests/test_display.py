@@ -304,5 +304,15 @@ def test_a_new_feature_is_off_unless_odoo_turns_it_on():
 def test_the_logo_tooltip_says_the_slogan_only():
     from kpiten_core import brand
 
-    assert brand.tooltip() == "KpiTen \u2014 Le capitaine de vos KPI"
+    assert brand.tooltip() == "Le capitaine de vos KPI"  # without the name
     assert "prononce" not in brand.tooltip()  # no explanation of the name
+
+
+def test_the_logo_with_its_name_is_an_inline_svg_that_follows_the_color_of_the_page():
+    from kpiten_core import brand
+
+    svg = brand.lockup_svg(44)
+    assert svg.startswith("<svg") and 'height="44"' in svg and 'width="152"' in svg
+    assert "currentColor" in svg  # the name and the slogan take the color of the theme
+    assert 'aria-label="KpiTen, le capitaine de vos KPI"' in svg
+    assert "<text" not in svg  # the text is drawn as paths : the same on every machine
