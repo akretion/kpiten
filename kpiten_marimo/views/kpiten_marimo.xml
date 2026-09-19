@@ -1,0 +1,18 @@
+<odoo>
+    <record id="action_redirect_to_marimo" model="ir.actions.server">
+        <field name="name">Marimo 🡥</field>
+        <field name="model_id" ref="kpiten.model_kt" />
+        <field name="state">code</field>
+        <field
+            name="code"
+        >action = model.action_redirect_to_kpiten(application="marimo")</field>
+    </record>
+
+    <menuitem
+        id="menu_marimo_redirect"
+        parent="kpiten.kpiten_app"
+        name="Marimo"
+        sequence="97"
+        action="action_redirect_to_marimo"
+    />
+</odoo>
