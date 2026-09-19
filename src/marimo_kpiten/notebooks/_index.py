@@ -55,5 +55,11 @@ def _(ANALYSES, html, mo, ui):
     return
 
 
+@app.cell(hide_code=True)
+def _(ui):
+    ui.footer()
+    return
+
+
 if __name__ == "__main__":
     app.run()

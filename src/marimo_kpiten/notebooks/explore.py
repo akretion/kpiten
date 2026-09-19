@@ -482,5 +482,11 @@ def _(ai, available, description, frame, mo, provider, skills, ui):
     return (chat,)
 
 
+@app.cell(hide_code=True)
+def _(ui):
+    ui.footer()
+    return
+
+
 if __name__ == "__main__":
     app.run()

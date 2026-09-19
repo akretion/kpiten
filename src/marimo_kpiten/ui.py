@@ -31,6 +31,15 @@ def brand_mark(height: int = 30) -> mo.Html:
     )
 
 
+def footer() -> mo.Html:
+    """The logo of KpiTen with its name, at the end of a page, on the right."""
+    tip = html.escape(brand.tooltip(), quote=True)
+    return mo.Html(
+        f'<div style="display:flex;justify-content:flex-end;margin-top:32px" title="{tip}">'
+        f"{brand.lockup_svg(64)}</div>"
+    )
+
+
 def framework_mark(height: int = 28) -> mo.Html:
     """The logo of marimo (the framework), which marimo serves itself."""
     return mo.Html(
