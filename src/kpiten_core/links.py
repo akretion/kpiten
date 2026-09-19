@@ -40,8 +40,8 @@ NEW_TAB_JS = """
 # The links of a table are not underlined : an arrow after the label says the
 # record opens in another tab (the same css for both fronts).
 LINK_CSS = """
-.tile .gt_table a[href] { text-decoration: none; }
-.tile .gt_table a[href]::after {
+.tile .gt_table a[href], .modal .gt_table a[href], .q-dialog .gt_table a[href] { text-decoration: none; }
+.tile .gt_table a[href]::after, .modal .gt_table a[href]::after, .q-dialog .gt_table a[href]::after {
   content: "\\2197";
   font-size: .8em;
   margin-left: .2em;

@@ -7,6 +7,12 @@ from great_tables import GT
 
 from kpiten_core import links, numfmt
 
+# a table that can be drilled into : its rows are clickable (see `tiles.exec_drill`)
+DRILL_CSS = """
+.tile.drillable .gt_table tbody tr { cursor: pointer; }
+.tile.drillable .gt_table tbody tr:hover { filter: brightness(1.25); }
+"""
+
 # numbers that are not quantities : ids and calendar parts stay as they are
 NOT_A_QUANTITY_RE = re.compile(r"(?i)(^|[\s._-])(id|year|quarter|month|week|day)s?$")
 

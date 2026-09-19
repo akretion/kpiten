@@ -51,6 +51,12 @@ class TileResult:
         return self.meta.get("subtitle")
 
     @property
+    def keys(self) -> list[dict[str, Any]] | None:
+        """One dict per row of a `data` tile : its hidden `__x` columns (see
+        `split_keys`), what a click on the row hands to the tile's drill-down."""
+        return self.meta.get("keys")
+
+    @property
     def comparison(self) -> dict[str, Any] | None:
         """How a card compares with the previous period (see `card_comparison`)."""
         return self.meta.get("comparison")
@@ -172,6 +178,9 @@ def exec_tile(
         if kind == "data":
             df = dataframe_case(line["content"], table, store, full_predicates)
             df, meta = cap_rows(df)
+            df, keys = split_keys(df)
+            if keys:
+                meta["keys"] = keys
             return TileResult("data", label, df=df, meta=meta)
     except TileError:
         raise
@@ -584,16 +593,65 @@ def union_case(transform: dict[str, Any], store, full_predicates):
     return pl.concat(dfs, how="vertical_relaxed")
 
 
-def dataframe_case(content, table, store, full_predicates):
+HIDDEN_PREFIX = "__"
+
+
+def split_keys(df: pl.DataFrame) -> tuple[pl.DataFrame, list[dict] | None]:
+    """Take the hidden columns (`__product_id_`...) out of a `data` result : the table
+    does not show them, the click on a row hands them to the drill-down as `key`
+    (`key["product_id_"]`). Returns the visible table and one dict per row (None
+    when there is no hidden column)."""
+    hidden = [c for c in df.columns if c.startswith(HIDDEN_PREFIX)]
+    if not hidden:
+        return df, None
+    renamed = {c: c[len(HIDDEN_PREFIX) :] for c in hidden}
+    return df.drop(hidden), df.select(hidden).rename(renamed).to_dicts()
+
+
+def exec_drill(
+    line: dict,
+    table: str,
+    store: dict[str, pl.DataFrame | pl.LazyFrame],
+    full_predicates: list[pl.Expr],
+    key: dict,
+) -> TileResult:
+    """The rows behind a row of a `data` tile : the `drill` snippet of the line.
+
+    It runs on the same rows as the tile (the user's rights and the panel period and
+    filters are kept) with `key`, the hidden columns of the clicked row, as a variable.
+    The result is capped like any table (`TILE_MAX_ROWS`).
+    """
+    drill = line.get("drill")
+    if not drill:
+        raise TileError(f"tile '{line.get('name')}' has no drill-down")
+    if not all(
+        isinstance(v, (str, int, float, bool, type(None))) for v in key.values()
+    ):
+        raise TileError("the key of a drill-down holds plain values only")
+    label = f"{line.get('name') or 'tile'} : detail"
+    try:
+        df = dataframe_case(drill, table, store, full_predicates, {"key": key})
+        df, meta = cap_rows(df)
+        df, _ = split_keys(df)
+        return TileResult("data", label, df=df, meta=meta)
+    except TileError:
+        raise
+    except Exception as err:
+        logger.error("Could not run the drill-down of %s", label, exc_info=True)
+        raise TileError(f"Error drill-down '{label}' : {err}") from err
+
+
+def dataframe_case(content, table, store, full_predicates, extra_variables=None):
     """Run the `data` kind definition through the sandbox.
 
     The definition's first line `d_next = d ` holds the input/output vars.
+    `extra_variables` are more read-only names for the snippet (the drill-down's `key`).
     """
     first_line = content.partition("\n")[0]
     out_var = first_line.split(" ")[0]
     df_var = first_line.split(" ")[2]
     lazy = filter_df(_resolve_table(store, table), full_predicates)
-    variables = {"odoo_url": links.get_odoo_url()}
+    variables = {"odoo_url": links.get_odoo_url(), **(extra_variables or {})}
     try:
         return sandbox.run(content, lazy, df_var, out_var, variables)
     except AttributeError:

@@ -103,6 +103,7 @@ class JsonrpcBackend:
                 "kind",
                 "col_span",
                 "tile_height",
+                "drill_definition",
             ],
         )
         return [
@@ -114,6 +115,7 @@ class JsonrpcBackend:
                 "kind": rec["kind"],
                 "col_span": rec["col_span"],
                 "tile_height": rec["tile_height"],
+                "drill": rec["drill_definition"] or None,
             }
             for rec in records
         ]
@@ -134,6 +136,7 @@ class JsonrpcBackend:
                 "kind",
                 "col_span",
                 "tile_height",
+                "drill_definition",
             ],
         )
         if not lines:
@@ -154,6 +157,7 @@ class JsonrpcBackend:
                 "kind": rec["kind"],
                 "col_span": rec["col_span"],
                 "tile_height": rec["tile_height"],
+                "drill": rec["drill_definition"] or None,
             }
             for rec in lines
         ]
