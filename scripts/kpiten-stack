@@ -3,11 +3,12 @@
 #   odoo    :8069   (src/odoo + odoo.conf, serves the databases matching KPITEN_DB_FILTER)
 #   shiny   :5000   (src/shiny-kpiten)
 #   nicegui :5001   (src/nicegui-kpiten)
+#   marimo  :5002   (src/marimo-kpiten)
 #
-# Usage : scripts/kpiten-stack {start|stop|restart|status} [odoo|shiny|nicegui|all]
+# Usage : scripts/kpiten-stack {start|stop|restart|status} [odoo|shiny|nicegui|marimo|all]
 #
 # A service is found by the port it listens on (never by a name pattern), and
-# logs go to data/logs/{odoo,shiny,nicegui}.log (appended ; rotated at start past KPITEN_LOG_MAX bytes), and shiny
+# logs go to data/logs/{odoo,shiny,nicegui,marimo}.log (appended ; rotated at start past KPITEN_LOG_MAX bytes), and shiny
 # dumps the html of its tiles there (kpiten_tiles.html). Environment :
 #   KPITEN_DB_FILTER  Odoo db filter, default '^(big|dash)$'
 #   KPITEN_LOG_MAX    size in bytes above which a log is rotated at start (log.1 .. log.3), default 5242880
@@ -25,13 +26,14 @@ if [ -f "$ROOT/.env" ]; then
 fi
 
 DB_FILTER="${KPITEN_DB_FILTER:-^(big|dash)$}"
-SERVICES=(odoo shiny nicegui)
+SERVICES=(odoo shiny nicegui marimo)
 
 port_of() {
     case $1 in
         odoo) echo 8069 ;;
         shiny) echo 5000 ;;
         nicegui) echo 5001 ;;
+        marimo) echo 5002 ;;
     esac
 }
 
@@ -81,6 +83,11 @@ run_service() {
         nicegui)
             cd "$ROOT/src/nicegui-kpiten" || exit 1
             exec .venv/bin/python -m nicegui_kpiten.main
+            ;;
+        marimo)
+            cd "$ROOT/src/marimo-kpiten" || exit 1
+            exec .venv/bin/python -m uvicorn \
+                marimo_kpiten.main:this_app --host 0.0.0.0 --port 5002
             ;;
     esac
 }
@@ -141,7 +148,7 @@ status_one() {
 }
 
 usage() {
-    echo "usage: $(basename "$0") {start|stop|restart|status} [odoo|shiny|nicegui|all]" >&2
+    echo "usage: $(basename "$0") {start|stop|restart|status} [odoo|shiny|nicegui|marimo|all]" >&2
     exit 2
 }
 
@@ -156,7 +163,7 @@ fi
 
 case $target in
     all) selected=("${SERVICES[@]}") ;;
-    odoo | shiny | nicegui) selected=("$target") ;;
+    odoo | shiny | nicegui | marimo) selected=("$target") ;;
     *) usage ;;
 esac
 

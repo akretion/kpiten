@@ -47,7 +47,7 @@ venv:
 
 ## Environnements des applications (un uv.lock par projet)
 apps:
-	@for a in kpiten-core nicegui-kpiten shiny-kpiten; do (cd src/$$a && uv sync); done
+	@for a in kpiten-core nicegui-kpiten shiny-kpiten marimo-kpiten; do (cd src/$$a && uv sync); done
 
 ## Crée la base DB et installe MODULES :  make db DB=kpiten
 db:
@@ -72,7 +72,7 @@ run:
 ## Les trois services (Odoo :8069, Shiny :5000, NiceGUI :5001), détachés du
 ## terminal, via scripts/kpiten-stack ; logs dans data/logs/.
 ##   make up | down | restart | status        tous
-##   make restart SVC=shiny                    un seul : odoo | shiny | nicegui
+##   make restart SVC=shiny                    un seul : odoo | shiny | nicegui | marimo
 ##   make logs [SVC=shiny]                     suit les logs (Ctrl-C pour quitter)
 SVC ?= all
 up:
