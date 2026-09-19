@@ -15,6 +15,7 @@
     "data": [
         "data/ir_config_parameter.xml",
         "data/misc.xml",
+        "data/ir_cron.xml",
         "security/kpiten_security.xml",
         "security/ir.model.access.csv",
         "views/kpiten.xml",

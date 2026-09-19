@@ -8,9 +8,7 @@ logger = logging.getLogger(__name__)
 class kpiten(Controller):
     @route("/kpiten/cmp/<string:uuid>", type="http", auth="user")
     def _compare_UUID(self, uuid, **kwargs):
-        env = request.env
-        res = env["res.users.log"].search([("uuid", "=", uuid)])
-        user = res.create_uid
+        user = request.env["res.users.log"]._valid_uuid_user(uuid)
 
         if user:
             return Response(status=200)
