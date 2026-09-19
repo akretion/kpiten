@@ -376,6 +376,7 @@ def server(input, output, session):
         return ui.tags.div(
             ui.tags.style("{}".format(current_theme().css())),
             ui.tags.script(THEME_PERSIST_JS),
+            ui.tags.style(links.LINK_CSS),
             ui.tags.script(links.NEW_TAB_JS),
         )
 
