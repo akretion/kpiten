@@ -11,6 +11,21 @@
                     />
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button
+                            name="action_view_lines"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-th-large"
+                            invisible="not id"
+                        >
+                            <field
+                                name="line_count"
+                                widget="statinfo"
+                                string="Tiles"
+                            />
+                        </button>
+                    </div>
                     <group name="main">
                         <group name="left">
                             <field name="model_id" />
@@ -67,6 +82,43 @@
                             placeholder="Definition validated"
                         />
                     </group>
+                </group>
+                <div class="mb-3" invisible="kind != 'data'">
+                    <details>
+                        <summary class="fw-bold">Polars syntax of a "Data" tile</summary>
+                        <div class="p-2">
+                            <p>A restricted Python snippet on
+                                <a
+                                    href="https://docs.pola.rs/api/python/stable/reference/"
+                                    target="_blank"
+                                >polars</a>. Line 1 is <code>output = input</code> (usually
+                                <code>d_next = d</code>) and must stay first ; the output must end up a table.</p>
+                            <ul>
+                                <li><code>d</code> : the rows the user may read, already filtered by the panel period
+                                    and dimensions. <code>pl</code> : polars. <code>odoo_url</code> : the base url of Odoo.</li>
+                                <li><b>Columns</b> : a many2one gives its name in <code>partner_id</code> and its id in
+                                    <code>partner_id_</code> ; relational paths declared for the dataset
+                                    (<code>partner_id.country_id.name</code>) ; date parts
+                                    <code>date_order.year</code> (<code>.quarter .month .week .day</code>).</li>
+                                <li><b>Links</b> : a cell <code>[label](url)</code> is drawn as a link when the url is an Odoo one,
+                                    see the "Top" tiles (<code>pl.concat_str</code> with <code>odoo_url</code>).</li>
+                                <li>Only the first 500 rows are shown : <code>sort</code> and <code>head</code>.</li>
+                            </ul>
+                            <p><b>Allowed</b> (the lists of <code>kpiten_core/sandbox.py</code>) :
+                                <code>pl.col lit when sum mean count min max first last len all any int_range date_range
+                                    struct list array concat concat_str sum_horizontal mean_horizontal select</code> and the
+                                types ; table methods <code>filter with_columns select group_by agg sort rename cast join
+                                    unique pivot limit head tail slice drop drop_nulls fill_null explode unnest sample
+                                    with_row_index sql</code>... ; expression methods (aggregations, conditions, text, dates,
+                                maths, windows) ; a few builtins.</p>
+                            <p><b>Forbidden</b> : <code>import</code>, <code>lambda</code>, <code>def</code>,
+                                <code>class</code>, loops, <code>try</code>, <code>with</code>, names starting with
+                                <code>_</code>, calls outside the lists (<code>open</code>, <code>eval</code>...) and
+                                Python run per row (<code>map_elements</code>, <code>apply</code>...).</p>
+                        </div>
+                    </details>
+                </div>
+                <group>
                     <group>
                         <group>
                             <field name="kind" widget="radio" />
@@ -89,6 +141,54 @@
                     </group>
                 </group>
             </form>
+        </field>
+    </record>
+
+    <record id="kt_dataset_line_list" model="ir.ui.view">
+        <field name="model">kt.dataset.line</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="not active" decoration-danger="validation_msg">
+                <field name="sequence" widget="handle" />
+                <field name="name" />
+                <field name="kind" />
+                <field name="dataset_id" optional="hide" />
+                <field name="panel_id" />
+                <field name="col_span" optional="show" />
+                <field name="tile_height" optional="show" />
+                <field name="group_ids" widget="many2many_tags" optional="hide" />
+                <field name="user_id" optional="hide" />
+                <field name="validation_msg" optional="hide" />
+                <field name="active" widget="boolean_toggle" />
+            </list>
+        </field>
+    </record>
+
+    <record id="kt_dataset_line_search" model="ir.ui.view">
+        <field name="model">kt.dataset.line</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name" />
+                <field name="panel_id" />
+                <field name="dataset_id" />
+                <filter
+                    name="archived"
+                    string="Archived"
+                    domain="[('active', '=', False)]"
+                />
+                <filter
+                    name="invalid"
+                    string="Invalid definition"
+                    domain="[('validation_msg', '!=', False)]"
+                />
+                <group expand="0" string="Group by">
+                    <filter name="by_kind" string="Kind" context="{'group_by': 'kind'}" />
+                    <filter
+                        name="by_panel"
+                        string="Panel"
+                        context="{'group_by': 'panel_id'}"
+                    />
+                </group>
+            </search>
         </field>
     </record>
 
