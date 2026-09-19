@@ -398,7 +398,6 @@ def test_the_link_is_not_there_when_the_feature_is_off(page: Page) -> None:
 def test_the_kpiten_logo_is_in_the_header_with_its_slogan_on_hover(page: Page) -> None:
     open_dashboard(page)
     logo = page.locator("img.kpiten-logo")
-    expect(logo).to_have_attribute("title", re.compile(r"Le capitaine de vos KPI"))
-    assert "capitaine" in logo.get_attribute("title").split("\n")[1]  # the pun
+    expect(logo).to_have_attribute("title", "KpiTen \u2014 Le capitaine de vos KPI")
     reply = page.request.get(urljoin(page.url, logo.get_attribute("src")))
     assert reply.ok and reply.headers["content-type"].startswith("image/")

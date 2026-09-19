@@ -180,12 +180,6 @@ def app_ui(req):  # noqa: ANN001
                 alt=brand.NAME,
                 title=brand.tooltip(),
             ),
-            ui.tags.a(
-                ui.tags.img(src=logo, class_="framework-logo"),
-                href="https://shiny.posit.co",
-                title="Made with Shiny",
-                target="_blank",
-            ),
             ui.input_select("panel", "Panel", choices=[], width="200px"),
             ui.output_ui("db_select"),
             ui.output_ui("theme_select"),
@@ -196,6 +190,14 @@ def app_ui(req):  # noqa: ANN001
             ),
             ui.output_ui("edit_lock"),
             ui.output_ui("data_freshness"),
+            # the logo of the framework, on the right (the one of KpiTen is on the left)
+            ui.tags.a(
+                ui.tags.img(src=logo, class_="framework-logo"),
+                href="https://shiny.posit.co",
+                title="Made with Shiny",
+                target="_blank",
+                class_="framework-side",
+            ),
             class_="top-bar",
         ),
         ui.output_ui("filters"),

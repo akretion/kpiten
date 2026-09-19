@@ -112,7 +112,8 @@ class Theme:
   color: {p["text"]};
   align-self: center;
 }}
-.kpiten-logo {{ height: 40px; width: 40px; align-self: center }}
+.kpiten-logo {{ height: 80px; width: 80px; align-self: center }}
+.framework-side {{ margin-left: auto; align-self: center }}
 .framework-logo {{
   width: 76px;
   height: auto;
