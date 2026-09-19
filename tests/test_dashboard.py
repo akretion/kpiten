@@ -79,8 +79,9 @@ def test_without_session_asks_to_log_in(page: Page) -> None:
         page.goto(f"{SHINY}/dashboard")
     except Exception:
         pytest.skip("Shiny is not running (make up)")
-    page.get_by_text("Not connected").first.wait_for(timeout=30_000)
+    page.get_by_role("heading", name="Not connected").wait_for(timeout=30_000)
     assert page.locator(TILES).count() == 0
+    expect(page).to_have_title("Not connected · KpiTen (shiny)")
 
 
 def test_edit_mode_is_for_kpiten_managers_only(page: Page) -> None:
@@ -237,3 +238,18 @@ def test_the_theme_is_kept_when_the_page_is_reloaded(page: Page) -> None:
     page.reload()
     page.locator(TILES).first.wait_for(timeout=90_000)
     check_theme_is_shown(page, other)
+
+
+def test_the_tab_title_names_the_open_panel(page: Page) -> None:
+    """`Sales · KpiTen (shiny)` : the tab says which panel is open, and follows it."""
+    open_dashboard(page)
+    panel = page.locator("#panel")
+    name = panel.locator("option:checked").inner_text()
+    expect(page).to_have_title(f"{name} · KpiTen (shiny)")
+
+    others = panel.locator("option:not(:checked)")
+    if not others.count():
+        pytest.skip("the user reads a single panel")
+    other = others.first.inner_text()
+    page.select_option("#panel", label=other)
+    expect(page).to_have_title(f"{other} · KpiTen (shiny)")

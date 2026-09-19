@@ -11,6 +11,7 @@ Themes and their palette live in `themes.py` (default = Akretion blue
 gradient) ; the theme can be picked in the UI bar.
 """
 
+import json
 import logging
 import os
 import pathlib
@@ -46,6 +47,11 @@ TILES_DUMP = (
 )
 
 PLOTLY_JS = "https://cdn.plot.ly/plotly-2.35.2.min.js"
+EDIT_TOOLTIP = (
+    "Edit this panel : move, resize or delete its tiles (drag and drop, or the "
+    "buttons on each tile). The changes are saved in Odoo."
+)
+TAB_TITLE = "KpiTen (shiny)"  # the name of the browser tab, after the panel
 TABLE_ROWS = 20  # rows a table tile shows (the tile scrolls, the page does not grow)
 
 # the grid has 6 columns : a tile of width 1 takes a third of the row, 2 a half, 3 the
@@ -151,6 +157,7 @@ def app_ui(req):  # noqa: ANN001
             {"class": "kpiten-dashboard"},
             ui.h3("Not connected"),
             ui.p("Open the dashboard from Odoo : menu KpiTen → Dashboard."),
+            title=f"Not connected · {TAB_TITLE}",
         )
     logo = "static/logo.png"  # relative : works at app root and under /dashboard
     return ui.page_fluid(
@@ -159,6 +166,7 @@ def app_ui(req):  # noqa: ANN001
         # before the script was there ("Plotly is not defined")
         ui.head_content(ui.tags.script(src=PLOTLY_JS)),
         ui.output_ui("theme_style"),
+        ui.output_ui("tab_title"),
         ui.div(
             ui.tags.a(
                 ui.tags.img(src=logo, class_="framework-logo"),
@@ -177,13 +185,16 @@ def app_ui(req):  # noqa: ANN001
                 title="Explore : download the rows of this panel (your rights, the "
                 "filters you set) with a marimo notebook",
             ),
-            ui.input_switch("edit_mode", "Edit mode", False),
+            ui.tags.span(
+                ui.input_switch("edit_mode", "Edit", False), title=EDIT_TOOLTIP
+            ),
             ui.output_ui("edit_lock"),
             ui.output_ui("data_freshness"),
             class_="top-bar",
         ),
         ui.output_ui("filters"),
         ui.div(ui.output_ui("tiles")),
+        title=TAB_TITLE,
     )
 
 
@@ -436,6 +447,13 @@ def server(input, output, session):
             selected=themes.DEFAULT_THEME,
             width="150px",
         )
+
+    @render.ui
+    def tab_title():
+        """The tab names the open panel : `Sales · KpiTen (shiny)`."""
+        name = panels().get(str(req(input.panel())))
+        title = f"{name} · {TAB_TITLE}" if name else TAB_TITLE
+        return ui.tags.script(f"document.title = {json.dumps(title)};")
 
     @render.ui
     def theme_style():
