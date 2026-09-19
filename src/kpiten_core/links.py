@@ -37,6 +37,18 @@ NEW_TAB_JS = """
 })();
 """
 
+# The links of a table are not underlined : an arrow after the label says the
+# record opens in another tab (the same css for both fronts).
+LINK_CSS = """
+.tile .gt_table a[href] { text-decoration: none; }
+.tile .gt_table a[href]::after {
+  content: "\\2197";
+  font-size: .8em;
+  margin-left: .2em;
+  opacity: .7;
+}
+"""
+
 _odoo_url = ""
 
 
