@@ -165,6 +165,7 @@ class TestKtConfig(TransactionCase):
             "outliers",
             "export_ods",
             "ai_refine",
+            "open_in_odoo",
         ):
             self.assertFalse(fresh[f"feature_{name}"], name)
 
@@ -182,5 +183,23 @@ class TestKtConfig(TransactionCase):
                 "outliers",
                 "export_ods",
                 "ai_refine",
+                "open_in_odoo",
             },
         )
+
+    def test_the_data_file_gives_the_eight_colors_of_the_palette(self):
+        """A new database opens with a palette of 8 : the record of `data/misc.xml`."""
+        import re
+
+        from odoo.tools import file_open
+
+        with file_open("kpiten/data/misc.xml") as handle:
+            xml = handle.read()
+        colors = {
+            int(number): color
+            for number, color in re.findall(
+                r'name="graph_color_(\d)">(#[0-9a-fA-F]{6})<', xml
+            )
+        }
+        self.assertEqual(sorted(colors), list(range(1, 9)))
+        self.assertEqual(len(set(colors.values())), 8)  # eight different colors
