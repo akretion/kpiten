@@ -27,19 +27,21 @@ class ParquetSample(models.AbstractModel):
     _description = "Parquet sample of a model"
 
     @api.model
-    def sample_records(self, model, size=DEFAULT_SIZE):
-        """`size` records of `model` that the user may read, spread over its history."""
+    def sample_records(self, model, size=DEFAULT_SIZE, domain=None):
+        """`size` records of `model` that the user may read, spread over its history.
+        `domain` restricts them (the lines of the sampled orders, for instance)."""
         Model = self.env[model]
-        total = Model.search_count([])
+        domain = domain or []
+        total = Model.search_count(domain)
         if not total:
             raise UserError(_("The model %s has no records to sample from.", model))
         order = (
             "create_date asc, id asc" if "create_date" in Model._fields else "id asc"
         )
         if total <= size:
-            return Model.search([], order=order)
+            return Model.search(domain, order=order)
         if total <= BIG_TABLE:
-            ids = Model.search([], order=order).ids
+            ids = Model.search(domain, order=order).ids
         else:
             # about 20 times more ids than needed, drawn by Postgres ; the ORM then
             # applies the record rules of the user to them
@@ -49,7 +51,8 @@ class ParquetSample(models.AbstractModel):
                 (percent, size * 20),
             )
             ids = Model.search(
-                [("id", "in", [row[0] for row in self.env.cr.fetchall()])], order=order
+                domain + [("id", "in", [row[0] for row in self.env.cr.fetchall()])],
+                order=order,
             ).ids
         if len(ids) <= size:
             return Model.browse(ids)
@@ -58,12 +61,12 @@ class ParquetSample(models.AbstractModel):
 
     @api.model
     def sample_with_meta(
-        self, model, size=DEFAULT_SIZE, style=STYLE_WIZARD, extra_paths=()
+        self, model, size=DEFAULT_SIZE, style=STYLE_WIZARD, extra_paths=(), domain=None
     ):
         """The sample as `(polars DataFrame, {column: {"type": odoo type}})`.
 
         `extra_paths` are dotted paths followed from each record
-        (`partner_id.country_id.name`), added as columns.
+        (`partner_id.country_id.name`), added as columns. `domain` restricts the records.
         """
         try:
             import polars as pl
@@ -90,7 +93,7 @@ class ParquetSample(models.AbstractModel):
             return value
 
         meta, rows = {}, []
-        for rec in self.sample_records(model, size):
+        for rec in self.sample_records(model, size, domain):
             row = {}
             for name in export_fields:
                 ftype = fields_info[name].get("type")

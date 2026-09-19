@@ -56,3 +56,10 @@ class TestParquetSample(TransactionCase):
         readable = self.env["res.partner"].with_user(user).search_count([])
         frame = self.sampler.with_user(user).sample_dataframe("res.partner", 1000)
         self.assertEqual(frame.height, readable)
+
+    def test_a_domain_restricts_the_sample(self):
+        frame = self.sampler.sample_dataframe(
+            "res.partner", 1000, domain=[("name", "like", "Sample %")]
+        )
+        self.assertEqual(frame.height, 30)
+        self.assertTrue(all(n.startswith("Sample ") for n in frame["name"].to_list()))

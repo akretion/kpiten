@@ -103,6 +103,17 @@ d_next = d_next.select([
     pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/sale.order/"), pl.col("id").cast(pl.String), pl.lit(")")]).alias("Customer"),
     pl.col("user_id").alias("Salesperson"),
     pl.col("amount_untaxed").alias("Revenue"),
+    # hidden column (`__` prefix) : a click on the row hands it to the drill-down as key['id']
+    pl.col("id").alias("__id"),
+])</field>
+        <field name="drill_definition">d_next = d
+# the lines of the clicked order : `tables` holds the other tables of the store, filtered like the tile
+d_next = tables["sale.order.line"].filter(pl.col("order_id_") == key["id"]).sort("id")
+d_next = d_next.select([
+    pl.concat_str([pl.lit("["), pl.col("product_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/product.product/"), pl.col("product_id_").cast(pl.String), pl.lit(")")]).alias("Product"),
+    pl.col("product_uom_qty").alias("Quantity"),
+    pl.col("price_unit").alias("Unit price"),
+    pl.col("price_subtotal").alias("Subtotal"),
 ])</field>
     </record>
 
@@ -127,6 +138,17 @@ d_next = d_next.select([
     pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/sale.order/"), pl.col("id").cast(pl.String), pl.lit(")")]).alias("Customer"),
     pl.col("user_id").alias("Salesperson"),
     pl.col("amount_untaxed").alias("Revenue"),
+    # hidden column (`__` prefix) : a click on the row hands it to the drill-down as key['id']
+    pl.col("id").alias("__id"),
+])</field>
+        <field name="drill_definition">d_next = d
+# the lines of the clicked quotation (another table of the store : `tables`)
+d_next = tables["sale.order.line"].filter(pl.col("order_id_") == key["id"]).sort("id")
+d_next = d_next.select([
+    pl.concat_str([pl.lit("["), pl.col("product_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/product.product/"), pl.col("product_id_").cast(pl.String), pl.lit(")")]).alias("Product"),
+    pl.col("product_uom_qty").alias("Quantity"),
+    pl.col("price_unit").alias("Unit price"),
+    pl.col("price_subtotal").alias("Subtotal"),
 ])</field>
     </record>
 
@@ -186,10 +208,22 @@ d_next = d_next.select([
 # d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
 # confirmed orders that have a salesperson
 d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("user_id").is_not_null())
-d_next = d_next.group_by("user_id").agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
+d_next = d_next.group_by(["user_id", "user_id_"]).agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
 # the last sort keys only break ties : stable order
 d_next = d_next.sort(["Revenue", "user_id"], descending=[True, False]).head(10)
-d_next = d_next.rename({"user_id": "Salesperson"})</field>
+# hidden column : the id of the salesperson
+d_next = d_next.rename({"user_id": "Salesperson", "user_id_": "__user_id_"})</field>
+        <field name="drill_definition">d_next = d
+# the orders of the clicked salesperson, same rows as the tile
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; (pl.col("user_id_") == key["user_id_"]))
+d_next = d_next.sort(["date_order", "id"], descending=[True, True])
+d_next = d_next.select([
+    pl.col("date_order").alias("Date"),
+    pl.concat_str([pl.lit("["), pl.col("name"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/sale.order/"), pl.col("id").cast(pl.String), pl.lit(")")]).alias("Order"),
+    pl.col("partner_id").alias("Customer"),
+    pl.col("user_id").alias("Salesperson"),
+    pl.col("amount_untaxed").alias("Revenue"),
+])</field>
     </record>
 
     <!-- "Top Customers" of the same dashboard : per customer, the confirmed orders and their revenue, the ten best. The customer is a link to its form in Odoo -->
@@ -214,6 +248,19 @@ d_next = d_next.select([
     pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/res.partner/"), pl.col("partner_id_").cast(pl.String), pl.lit(")")]).alias("Customer"),
     pl.col("Orders"),
     pl.col("Revenue"),
+    # hidden column (`__` prefix) : a click on the row hands it to the drill-down as key['partner_id_']
+    pl.col("partner_id_").alias("__partner_id_"),
+])</field>
+        <field name="drill_definition">d_next = d
+# the orders of the clicked customer, same rows as the tile
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; (pl.col("partner_id_") == key["partner_id_"]))
+d_next = d_next.sort(["date_order", "id"], descending=[True, True])
+d_next = d_next.select([
+    pl.col("date_order").alias("Date"),
+    pl.concat_str([pl.lit("["), pl.col("name"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/sale.order/"), pl.col("id").cast(pl.String), pl.lit(")")]).alias("Order"),
+    pl.col("partner_id").alias("Customer"),
+    pl.col("user_id").alias("Salesperson"),
+    pl.col("amount_untaxed").alias("Revenue"),
 ])</field>
     </record>
 
@@ -234,7 +281,21 @@ d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp;
 d_next = d_next.group_by("product_id.categ_id.complete_name").agg([pl.col("order_id_").n_unique().alias("Orders"), pl.col("price_subtotal").sum().alias("Revenue")])
 # the last sort keys only break ties : stable order
 d_next = d_next.sort(["Revenue", "product_id.categ_id.complete_name"], descending=[True, False]).head(10)
-d_next = d_next.rename({"product_id.categ_id.complete_name": "Category"})</field>
+d_next = d_next.rename({"product_id.categ_id.complete_name": "Category"})
+# hidden column : the category name is the key
+d_next = d_next.with_columns(pl.col("Category").alias("__category"))</field>
+        <field name="drill_definition">d_next = d
+# the order lines of the clicked category, same rows as the tile
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; (pl.col("product_id.categ_id.complete_name") == key["category"]))
+d_next = d_next.sort(["order_id.date_order", "id"], descending=[True, True])
+d_next = d_next.select([
+    pl.col("order_id.date_order").alias("Date"),
+    pl.concat_str([pl.lit("["), pl.col("order_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/sale.order/"), pl.col("order_id_").cast(pl.String), pl.lit(")")]).alias("Order"),
+    pl.col("order_partner_id").alias("Customer"),
+    pl.col("product_id").alias("Product"),
+    pl.col("product_uom_qty").alias("Quantity"),
+    pl.col("price_subtotal").alias("Revenue"),
+])</field>
     </record>
 
     <!-- "Top Sales Teams" : per sales team, the confirmed orders and their revenue -->
@@ -311,6 +372,19 @@ d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp;
 d_next = d_next.group_by("partner_id.country_id.name").agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
 # the last sort keys only break ties : stable order
 d_next = d_next.sort(["Revenue", "partner_id.country_id.name"], descending=[True, False]).head(10)
-d_next = d_next.rename({"partner_id.country_id.name": "Country"})</field>
+d_next = d_next.rename({"partner_id.country_id.name": "Country"})
+# hidden column : the country name is the key
+d_next = d_next.with_columns(pl.col("Country").alias("__country"))</field>
+        <field name="drill_definition">d_next = d
+# the orders of the clicked country, same rows as the tile
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; (pl.col("partner_id.country_id.name") == key["country"]))
+d_next = d_next.sort(["date_order", "id"], descending=[True, True])
+d_next = d_next.select([
+    pl.col("date_order").alias("Date"),
+    pl.concat_str([pl.lit("["), pl.col("name"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/sale.order/"), pl.col("id").cast(pl.String), pl.lit(")")]).alias("Order"),
+    pl.col("partner_id").alias("Customer"),
+    pl.col("user_id").alias("Salesperson"),
+    pl.col("amount_untaxed").alias("Revenue"),
+])</field>
     </record>
 </odoo>
