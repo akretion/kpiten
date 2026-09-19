@@ -345,14 +345,16 @@ def card_comparison(
     """The card against the period before, like the baseline of an Odoo scorecard.
 
     Only for a card with `compare = true`, a period to go back from and no
-    `ignore_period`. Returns `{direction, text, description, previous, period}` :
+    `ignore_period`, and unless `kt.config` turns the comparison off
+    (`comparison_enabled`). Returns `{direction, text, description, previous, period}` :
     `direction` up / down / neutral, `text` the change as a percentage of the
     previous value (`|value - previous| / previous`, `n/a` when that is 0),
     `previous` the previous value as the card shows it.
     """
     card_json = serial.loads(content)
     if (
-        not card_json.get("compare")
+        not comparison_enabled()
+        or not card_json.get("compare")
         or card_json.get("ignore_period")
         or previous_predicates is None
         or not isinstance(value, (int, float))
@@ -464,8 +466,9 @@ def _apply_colorway(fig, colorway: list | None) -> None:
         trace.marker.color = [colorway[i % len(colorway)] for i in range(n)]
 
 
-# Chart styling defaults, set by the UI apps from their odoo config
-# (single `kt.config` record : {"graph": {"layout": {...}}})
+# Chart styling defaults and card options, set by the UI apps from their odoo
+# config (single `kt.config` record :
+# {"graph": {"layout": {...}}, "card": {"comparison": bool}})
 CHART_CONFIG: dict = {}
 
 
@@ -473,6 +476,15 @@ def set_chart_config(config: dict):
     """Apply the odoo-side chart defaults (see kt.get_chart_config)."""
     CHART_CONFIG.clear()
     CHART_CONFIG.update(config or {})
+
+
+def comparison_enabled() -> bool:
+    """Whether the cards may show their comparison with the previous period.
+
+    The switch of `kt.config` ; on when Odoo says nothing (no config record, an
+    older kpiten module), so the cards defined with `compare = true` keep it.
+    """
+    return bool((CHART_CONFIG.get("card") or {}).get("comparison", True))
 
 
 DERIVED_DT_SUFFIX = {"year", "quarter", "month", "week", "day"}

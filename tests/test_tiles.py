@@ -455,6 +455,15 @@ def test_card_compares_with_the_previous_period():
     new = compare(3, 0)
     assert (new["direction"], new["text"]) == ("up", "n/a")
 
+    # the `kt.config` switch : off, no card compares ; nothing said, they do
+    try:
+        tiles.set_chart_config({"card": {"comparison": False}})
+        assert compare(5, 10) is None
+        tiles.set_chart_config({})
+        assert compare(5, 10) is not None
+    finally:
+        tiles.set_chart_config({})
+
 
 def test_best_card_shows_the_name_of_the_best_group():
     """`best` : the name with the biggest revenue, the units sold under it (the
