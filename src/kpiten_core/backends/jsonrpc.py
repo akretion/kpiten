@@ -47,12 +47,13 @@ class JsonrpcBackend:
 
     # ---- auth ---------------------------------------------------------
     def check_uuid(self, uuid: str) -> int | None:
-        """Validate a user uuid (res.users.log), return user_id or None."""
-        log_ids = self.env["res.users.log"].search([("uuid", "=", uuid)])
-        if not log_ids:
+        """The user id of a valid uuid, else None. Odoo decides : an uuid older than a
+        week (`kpiten_uuid_days`) is refused (`kt.check_uuid`)."""
+        try:
+            return self.env["kt"].check_uuid(uuid) or None
+        except Exception:
+            logger.exception("check_uuid failed")
             return None
-        log = self.env["res.users.log"].browse(log_ids[0])
-        return log.create_uid.id
 
     # ---- kpiten config ------------------------------------------------
     def get_panels(self) -> list[dict]:
