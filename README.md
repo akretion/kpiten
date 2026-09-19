@@ -55,3 +55,19 @@ demande l'acheteur) : c'est ce que les skills corrigent.
 - L'équipe ajoute les siens dans un dossier à part, sans toucher au code :
   `AI_SKILLS_DIR=/chemin/skills` dans `bi/.env` (relu à chaque question... au démarrage de
   marimo). Un skill court, avec des exemples de code, aide plus qu'un long texte.
+
+### Build a KPI (les besoins récurrents, sans IA)
+
+Au-dessus du chat, des listes déroulantes fabriquent un KPI sur la table choisie : mesure et
+calcul (somme, moyenne, nombre de lignes...), regroupement, colonnes d'un croisé, date et
+période, filtre. `recipes.py` écrit le polars, le sandbox l'exécute (le même chemin que le code
+de l'IA), `kpi_view.py` dessine le résultat et `gallery.py` montre en dessous des visuels de ce
+qu'on peut construire (la sortie choisie est encadrée).
+
+- Sorties : une carte (avec sa variation sur la période précédente), un classement (top N), une
+  courbe par mois / trimestre / année, un tableau par groupe (avec la part du total et le cumul),
+  un tableau croisé.
+- Mise en relief (Great Tables) : les valeurs qui font au moins X % du total, les X plus grandes,
+  celles au-dessus de la moyenne, ou une carte de chaleur.
+- Les couleurs (palette des barres, couleur des graphes pleins) et le format des nombres sont ceux
+  de `kt.config`. Le polars derrière chaque KPI est affiché.
