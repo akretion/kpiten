@@ -61,3 +61,10 @@
   merges:
     - akretion shiny-kpiten
   target: akretion shiny-kpiten
+
+./src/marimo-kpiten:
+  remotes:
+    akretion: git@github.com:akretion/kpiten.git
+  merges:
+    - akretion marimo-kpiten
+  target: akretion marimo-kpiten
