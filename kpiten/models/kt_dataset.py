@@ -146,7 +146,11 @@ class KpitenConfigLine(models.Model):
     _order = "sequence"
 
     dataset_id = fields.Many2one(comodel_name="kt.dataset", required=True)
-    definition = fields.Text(required=True, help="Store settings for kpi")
+    definition = fields.Text(
+        required=True,
+        help="TOML settings of a card, graph, pivot or union tile ; for a Data "
+        "tile, a polars snippet (see the syntax help under the fields).",
+    )
     name = fields.Char()
     group_ids = fields.Many2many(comodel_name="res.groups")
     sequence = fields.Integer()

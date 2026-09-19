@@ -67,6 +67,103 @@
                             placeholder="Definition validated"
                         />
                     </group>
+                </group>
+                <div class="mb-3" invisible="kind != 'data'">
+                    <details>
+                        <summary class="fw-bold">Polars syntax of a "Data" tile</summary>
+                        <div class="p-2">
+                            <p>The definition is a Python snippet that transforms the rows of the dataset with
+                                <a
+                                    href="https://docs.pola.rs/api/python/stable/reference/"
+                                    target="_blank"
+                                >polars</a>. It runs in a restricted sandbox : only what is listed here.</p>
+                            <h6>Skeleton</h6>
+                            <p>The first line names the variables, <code>output = input</code>, then each line
+                                transforms the output. The output must be a table.</p>
+                            <pre>d_next = d
+d_next = d_next.filter(pl.col("state") == "sale")
+d_next = d_next.group_by("user_id").agg(pl.col("amount_untaxed").sum().alias("Revenue"))
+d_next = d_next.sort("Revenue", descending=True).head(10)</pre>
+                            <h6>What the snippet has</h6>
+                            <ul>
+                                <li><code>d</code> : the rows of the dataset the user may read, already filtered by the
+                                    panel period and dimensions (a polars LazyFrame).</li>
+                                <li><code>pl</code> : polars.</li>
+                                <li><code>odoo_url</code> : the base url of Odoo, to build links.</li>
+                            </ul>
+                            <h6>Columns</h6>
+                            <ul>
+                                <li>The stored fields of the model. A many2one gives its <b>name</b> in
+                                    <code>partner_id</code> and its <b>id</b> in <code>partner_id_</code>.</li>
+                                <li>Relational paths declared for the dataset :
+                                    <code>pl.col("partner_id.country_id.name")</code>.</li>
+                                <li>Date parts : <code>pl.col("date_order.year")</code>, and <code>.quarter</code>,
+                                    <code>.month</code>, <code>.week</code>, <code>.day</code>.</li>
+                                <li>The names given with <code>.alias()</code> are the column titles of the table.</li>
+                            </ul>
+                            <h6>Allowed</h6>
+                            <ul>
+                                <li><b>Functions</b> : <code>pl.col</code>, <code>lit</code>, <code>when</code>,
+                                    <code>sum</code>, <code>mean</code>, <code>count</code>, <code>min</code>,
+                                    <code>max</code>, <code>first</code>, <code>last</code>, <code>len</code>,
+                                    <code>all</code>, <code>any</code>, <code>int_range</code>,
+                                    <code>date_range</code>, <code>struct</code>, <code>list</code>,
+                                    <code>concat</code>, <code>concat_str</code>, <code>sum_horizontal</code>,
+                                    <code>mean_horizontal</code>, <code>select</code>, and the types
+                                    <code>String</code>, <code>Int64</code>, <code>Int32</code>,
+                                    <code>Float64</code>, <code>Float32</code>, <code>Boolean</code>,
+                                    <code>Date</code>, <code>Datetime</code>, <code>Decimal</code>...</li>
+                                <li><b>On the table</b> : <code>filter</code>, <code>with_columns</code>,
+                                    <code>select</code>, <code>group_by</code>, <code>agg</code>,
+                                    <code>sort</code>, <code>rename</code>, <code>cast</code>, <code>join</code>,
+                                    <code>unique</code>, <code>pivot</code>, <code>limit</code>, <code>head</code>,
+                                    <code>tail</code>, <code>slice</code>, <code>drop</code>,
+                                    <code>drop_nulls</code>, <code>fill_null</code>, <code>explode</code>,
+                                    <code>unnest</code>, <code>sample</code>, <code>with_row_index</code>,
+                                    <code>sql</code>...</li>
+                                <li><b>On an expression</b> : aggregations (<code>sum</code>, <code>mean</code>,
+                                    <code>median</code>, <code>count</code>, <code>n_unique</code>, <code>std</code>...),
+                                    conditions (<code>when</code>/<code>then</code>/<code>otherwise</code>,
+                                    <code>is_in</code>, <code>is_null</code>, <code>is_between</code>), text
+                                    (<code>contains</code>, <code>starts_with</code>, <code>replace</code>,
+                                    <code>strip_chars</code>, <code>to_lowercase</code>...), dates
+                                    (<code>year</code>, <code>month</code>, <code>truncate</code>,
+                                    <code>offset_by</code>, <code>to_date</code>...), maths (<code>round</code>,
+                                    <code>abs</code>, <code>ceil</code>, <code>floor</code>, <code>sqrt</code>...),
+                                    windows (<code>over</code>, <code>rank</code>, <code>cum_sum</code>,
+                                    <code>shift</code>, <code>diff</code>...), <code>alias</code>,
+                                    <code>cast</code>, <code>fill_null</code>.</li>
+                                <li><b>Python</b> : <code>abs all any bool dict enumerate float int isinstance len
+                                    list max min pow range round set sorted str sum tuple zip</code>.</li>
+                            </ul>
+                            <h6>Forbidden</h6>
+                            <p><code>import</code>, <code>lambda</code>, <code>def</code>, <code>class</code>,
+                                loops (<code>for</code>, <code>while</code>), <code>try</code>, <code>with</code>,
+                                <code>del</code>, any name starting with <code>_</code>, calls that are not in
+                                the lists above (<code>open</code>, <code>eval</code>, <code>getattr</code>...) and
+                                the methods that run Python code on each row (<code>map_elements</code>,
+                                <code>apply</code>, <code>map_batches</code>...). An error is shown in the tile.</p>
+                            <h6>Good to know</h6>
+                            <ul>
+                                <li>Only the first 500 rows are shown (<code>TILE_MAX_ROWS</code>) : sort and
+                                    <code>head</code> in the snippet.</li>
+                                <li>Numbers are formatted by the tile (thousands, decimals) : do not cast them to text.</li>
+                                <li>A cell written <code>[label](url)</code> is drawn as a link, if the url is an Odoo
+                                    one :
+                                    <pre>pl.concat_str([pl.lit("["), pl.col("partner_id"), pl.lit("]("), pl.lit(odoo_url),
+    pl.lit("/odoo/sale.order/"), pl.col("id").cast(pl.String), pl.lit(")")]).alias("Customer")</pre>
+                                </li>
+                                <li>A method that needs the rows in memory (<code>pivot</code>, <code>transpose</code>,
+                                    <code>describe</code>...) is supported : the snippet is run again on the filtered
+                                    rows.</li>
+                                <li>A conditional column :
+                                    <pre>pl.when(pl.col("amount_untaxed") &gt; 1000).then(pl.lit("big")).otherwise(pl.lit("small")).alias("Size")</pre>
+                                </li>
+                            </ul>
+                        </div>
+                    </details>
+                </div>
+                <group>
                     <group>
                         <group>
                             <field name="kind" widget="radio" />
