@@ -468,6 +468,11 @@ def graph_case(content, table, store, full_predicates):
     _apply_colorway(
         fig, (CHART_CONFIG.get("graph") or {}).get("layout", {}).get("colorway")
     )
+    _apply_fill_color(
+        fig,
+        (CHART_CONFIG.get("graph") or {}).get("fill_color"),
+        graph_json["graph_type"],
+    )
     notes = [n for n in notes if n]
     return fig, ({"note": ". ".join(notes)} if notes else {})
 
@@ -488,6 +493,28 @@ def _apply_colorway(fig, colorway: list | None) -> None:
         x = trace.x if trace.x is not None else (trace.y if trace.y is not None else [])
         n = len(x)
         trace.marker.color = [colorway[i % len(colorway)] for i in range(n)]
+
+
+def _with_alpha(color: str, alpha: float) -> str:
+    """`#33d17a` -> `rgba(51, 209, 122, 0.5)` ; any other notation is kept as it is."""
+    match = re.fullmatch(r"#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})", color.strip())
+    if not match:
+        return color
+    digits = match[1]
+    if len(digits) == 3:
+        digits = "".join(digit * 2 for digit in digits)
+    red, green, blue = (int(digits[i : i + 2], 16) for i in (0, 2, 4))
+    return f"rgba({red}, {green}, {blue}, {alpha})"
+
+
+def _apply_fill_color(fig, color: str | None, graph_type: str) -> None:
+    """The configured color of a filled graph (`area`) : its line, and its fill at
+    half opacity. The palette is for bars ; without a color plotly's default stays."""
+    if not color or graph_type != "area":
+        return
+    for trace in fig.data:
+        trace.line.color = color
+        trace.fillcolor = _with_alpha(color, 0.5)
 
 
 # Chart styling defaults and card options, set by the UI apps from their odoo

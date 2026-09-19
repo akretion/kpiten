@@ -312,6 +312,45 @@ def test_lazy_store_gives_the_same_tiles():
             assert got.figure.to_json() == eager.figure.to_json()
 
 
+def _graph_figure(graph_type):
+    content = serial.dumps(
+        {
+            "graph_type": graph_type,
+            "from": "sale.order",
+            "x": {"name": "name", "aggregation": "none"},
+            "y": {"name": "amount_untaxed", "aggregation": "sum"},
+        }
+    )
+    return tiles.exec_tile(
+        {"kind": "graph", "name": "G", "content": content},
+        "sale.order",
+        STORE,
+        NO_PREDICATES,
+    ).figure
+
+
+def test_filled_graph_takes_the_configured_fill_color():
+    """`graph.fill_color` of kt.config : the line of an area and its fill, at half
+    opacity. Bars keep the palette, without a color plotly's default stays."""
+    try:
+        tiles.set_chart_config({"graph": {"fill_color": "#33d17a"}})
+        area = _graph_figure("area").data[0]
+        assert area.line.color == "#33d17a"
+        assert area.fillcolor == "rgba(51, 209, 122, 0.5)"
+        assert _graph_figure("bar").data[0].marker.color != "#33d17a"  # not a bar's
+
+        tiles.set_chart_config({"graph": {"fill_color": "#abc"}})  # short hex
+        assert _graph_figure("area").data[0].fillcolor == "rgba(170, 187, 204, 0.5)"
+
+        tiles.set_chart_config({"graph": {"fill_color": "teal"}})  # a name : as it is
+        assert _graph_figure("area").data[0].fillcolor == "teal"
+
+        tiles.set_chart_config({})
+        assert _graph_figure("area").data[0].line.color == "#636efa"  # plotly's
+    finally:
+        tiles.set_chart_config({})
+
+
 def test_graph_where_and_monthly():
     """`where` keeps the confirmed orders, `monthly` gives one point per month,
     in chronological order."""
