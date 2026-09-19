@@ -16,8 +16,12 @@ SHINY = os.environ.get("E2E_SHINY_URL", "http://localhost:5000")
 DB = os.environ.get("E2E_DB", "big")
 LOGIN = os.environ.get("E2E_LOGIN", "marie.stourne")
 PASSWORD = os.environ.get("E2E_PASSWORD", "marie")
+# a KpiTen manager (the admin of Odoo is one)
+MANAGER = os.environ.get("E2E_MANAGER_LOGIN", "admin")
+MANAGER_PASSWORD = os.environ.get("E2E_MANAGER_PASSWORD", "admin")
 
 TILES = ".tile-grid .tile"
+CARDS = ".card-grid .tile"
 DELTAS = ".tile-grid .kpi-delta"
 
 
@@ -30,19 +34,19 @@ def _rpc(session: requests.Session, path: str, **params) -> dict:
     return reply.json()
 
 
-def sso_url() -> str:
-    """The URL Odoo gives to open the dashboard for LOGIN (skips without a stack)."""
+def sso_url(login: str = LOGIN, password: str = PASSWORD) -> str:
+    """The URL Odoo gives to open the dashboard for `login` (skips without a stack)."""
     session = requests.Session()
     try:
         auth = _rpc(
             session,
             "/web/session/authenticate",
             db=DB,
-            login=LOGIN,
-            password=PASSWORD,
+            login=login,
+            password=password,
         )
         if not auth.get("result", {}).get("uid"):
-            pytest.skip(f"{LOGIN} cannot log in to {DB} on {ODOO}")
+            pytest.skip(f"{login} cannot log in to {DB} on {ODOO}")
         reply = _rpc(
             session,
             "/web/dataset/call_kw/kt/action_redirect_to_kpiten",
@@ -57,8 +61,8 @@ def sso_url() -> str:
     return reply["result"]["url"]
 
 
-def open_dashboard(page: Page) -> None:
-    page.goto(sso_url())
+def open_dashboard(page: Page, login: str = LOGIN, password: str = PASSWORD) -> None:
+    page.goto(sso_url(login, password))
     page.locator(TILES).first.wait_for(timeout=90_000)
 
 
@@ -77,6 +81,15 @@ def test_without_session_asks_to_log_in(page: Page) -> None:
     assert page.locator(TILES).count() == 0
 
 
+def test_edit_mode_is_for_kpiten_managers_only(page: Page) -> None:
+    open_dashboard(page)  # Marie : reads, does not edit
+    assert not page.locator("#edit_mode").is_visible()
+
+    page.context.clear_cookies()
+    open_dashboard(page, MANAGER, MANAGER_PASSWORD)
+    page.locator("#edit_mode").wait_for(state="visible", timeout=30_000)
+
+
 def test_comparison_switch_of_kt_config(page: Page) -> None:
     """The cards show their change since the previous period unless kt.config says no."""
     from kpiten_core.backend import Backend
@@ -86,10 +99,12 @@ def test_comparison_switch_of_kt_config(page: Page) -> None:
     try:
         config.write(ids, {"show_card_comparison": True})
         open_dashboard(page)
-        assert page.locator(DELTAS).count() > 0
+        page.locator(DELTAS).first.wait_for(timeout=30_000)
 
         config.write(ids, {"show_card_comparison": False})
         open_dashboard(page)
-        assert page.locator(DELTAS).count() == 0
+        page.wait_for_load_state("networkidle")
+        assert page.locator(CARDS).count() > 0  # the cards are drawn...
+        assert page.locator(DELTAS).count() == 0  # ...without the comparison
     finally:
         config.write(ids, {"show_card_comparison": True})

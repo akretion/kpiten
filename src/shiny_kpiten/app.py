@@ -155,6 +155,7 @@ def app_ui(req):  # noqa: ANN001
             ui.column(
                 2,
                 ui.input_switch("edit_mode", "Edit mode", False),
+                ui.output_ui("edit_lock"),
             ),
         ),
         ui.tags.div(ui.output_ui("data_freshness"), class_="freshness-bar"),
@@ -270,6 +271,20 @@ def server(input, output, session):
     def current_user_id() -> int:
         """Odoo user of this session (dev mode : the rpc login user)."""
         return sso.user_id if sso else backend_rv().env.user.id
+
+    @reactive.calc
+    def can_edit() -> bool:
+        """Only a KpiTen manager of Odoo edits the tiles (the apps read Odoo with
+        one rpc account : nothing else stops a user from sending an edit)."""
+        return backend_rv().can_edit_tiles(current_user_id())
+
+    @render.ui
+    def edit_lock():
+        """The switch stays in the page (a dynamic one would render the tiles twice,
+        their render reads it) and is only hidden for a user who is not a manager."""
+        if can_edit():
+            return None
+        return ui.tags.style(".shiny-input-container:has(#edit_mode) { display: none }")
 
     # Apply the odoo-side chart defaults (colors) once per session.
     core_tiles.set_chart_config(initial_backend.get_chart_config())
@@ -544,6 +559,10 @@ def server(input, output, session):
         act = req(input.tile_action())  # dict {id, action} from EDIT_MODE_JS
         tile_id, action = int(act["id"]), act["action"]
         backend = backend_rv()
+        with reactive.isolate():
+            if not can_edit():
+                ui.notification_show("Only a KpiTen manager can edit tiles.")
+                return
 
         with reactive.isolate():
             cur_lines = lines()
@@ -585,6 +604,9 @@ def server(input, output, session):
     def _tile_order():
         ids = req(input.tile_order())  # list[str] pushed on html5 drag drop
         with reactive.isolate():
+            if not can_edit():
+                ui.notification_show("Only a KpiTen manager can edit tiles.")
+                return
             backend_rv().update_tile_order([int(i) for i in ids])
             layout_version.set(layout_version() + 1)
             ui.notification_show("Tiles order saved.")
@@ -598,7 +620,10 @@ def server(input, output, session):
         store_data = store()
         predicate_list = predicates()
         previous_predicates, previous_label = previous()
-        edit_mode_on = bool(input.edit_mode())
+        try:  # the switch is only there for a manager, and after its first render
+            edit_mode_on = can_edit() and bool(input.edit_mode())
+        except SilentException:
+            edit_mode_on = False
         logger.info("predicates : %s", [str(p) for p in predicate_list])
         cards, blocks = [], []
         for line in tile_lines:
