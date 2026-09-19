@@ -376,7 +376,7 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
 
     def on_panel_change(e):
         panel_label["id"] = int(e.value)
-        filt.update(date=filters.DEFAULT_DATE_OPTION, dims={})
+        filt.update(date=None, dims={})  # draw_filters picks the period of the panel
         draw_filters()
         # Data (store_cache) is independent of the panel : just redraw the
         # tiles of the selected panel, no need to sync again with Odoo.
@@ -387,8 +387,13 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
         config = get_config()
         with filters_row:
             if config.get("date"):
+                # the choices fit the data of the panel : windows, months or years it covers
+                span = filters.date_range(store_cache, config)
+                options = filters.date_options(span)
+                if filt["date"] not in options:
+                    filt["date"] = filters.default_date_option(options, span)
                 ui.select(
-                    options=filters.DATE_OPTIONS,
+                    options=options,
                     value=filt["date"],
                     on_change=lambda e: filt.update(date=e.value) or draw_tiles(),
                     label="Period",
