@@ -1,56 +1,56 @@
+import json
+
 from odoo import _, exceptions, models
-from odoo.tools.safe_eval import safe_eval
 
-MODULE = __name__[12 : __name__.index(".", 13)]
-
-SP = "'kpiten_setting_services' system parameter "
-
-# applications known by the menu: named links to each dashboard app
-KPITEN_APPS = ("shiny", "nicegui")
+# one system parameter per front, holding one dict, set by the module of that front
+# (kpiten_shiny, kpiten_nice_gui, kpiten_marimo) : `kpiten_shiny_service`,
+# `kpiten_nicegui_service`, `kpiten_marimo_service`
+SERVICE_KEY = "kpiten_%s_service"
 
 
 class ResCompany(models.Model):
     _inherit = "res.company"
 
     def _get_kpiten_services(self, app_name: str = "shiny"):
-        """Inherit to set alternative way to get settings
+        """The urls of a front : `{"application", "internal_url", "external_url"}`.
 
-        Settings is either a per-application dict::
-
-            {"shiny": {"application": "Shiny", "external_url": ...},
-             "nicegui": {...}}
-
-        or the legacy single-application dict (then `app_name` is ignored).
+        `internal_url` is where Odoo asks for a session (SSO), `external_url` what the
+        browser of the user opens. Inherit to set an alternative way to get them.
         """
-        settings = self.env.ref(
-            f"{MODULE}.kpiten_setting_services", raise_if_not_found=False
-        )
-        if not settings:
-            raise exceptions.UserError(_("Missing kpiten services parameters"))
+        key = SERVICE_KEY % app_name
         # system parameters are readable by the Settings group only, while any
         # dashboard user needs the app urls (they hold no secret)
-        settings = settings.sudo()
-        try:
-            root = safe_eval(settings.value)
-            if not isinstance(root, dict):
-                raise exceptions.ValidationError(_(SP + "should be a python dict"))
-            if app_name in root and all(isinstance(v, dict) for v in root.values()):
-                res = root[app_name]
-            else:
-                res = root  # legacy single app format (marimo / first release)
-            if not res.get("internal_url"):
-                raise exceptions.ValidationError(
-                    _(SP + f"[{app_name}] should contains 'internal_url' key")
-                )
-            if not res.get("external_url"):
-                raise exceptions.ValidationError(
-                    _(SP + f"[{app_name}] should contains 'external_url' key")
-                )
-            return res
-        except Exception as err:
+        value = self.env["ir.config_parameter"].sudo().get_param(key)
+        if not value:
             raise exceptions.UserError(
                 _(
-                    f"Kpiten parameters '{settings}' can't be evaluated correctly."
-                    + f"\nFull exception :\n{err}"
+                    "No service for the '%(app)s' front : install its module or set "
+                    "the '%(key)s' system parameter",
+                    app=app_name,
+                    key=key,
+                )
+            )
+        try:
+            service = json.loads(value)
+        except ValueError as err:
+            raise exceptions.UserError(
+                _(
+                    "The '%(key)s' system parameter is not json : %(err)s",
+                    key=key,
+                    err=err,
                 )
             ) from err
+        if not isinstance(service, dict):
+            raise exceptions.UserError(
+                _("The '%(key)s' system parameter should be a dict", key=key)
+            )
+        for url in ("internal_url", "external_url"):
+            if not service.get(url):
+                raise exceptions.UserError(
+                    _(
+                        "The '%(key)s' system parameter has no '%(url)s'",
+                        key=key,
+                        url=url,
+                    )
+                )
+        return service
