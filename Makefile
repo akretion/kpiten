@@ -16,7 +16,7 @@ N       ?= 100000
 # filtre des bases visibles en mode multi-bases (regex) ; vide = celui de odoo.conf
 DBFILTER ?=
 
-.PHONY: check-repos repos venv apps db run run-db shell update add-sales sync up down restart status logs
+.PHONY: check-repos repos venv apps db run run-db shell update add-sales sync up down restart status logs sample-fixtures
 
 ## Refuse d'agréger si des commits n'existent que localement dans src/ :
 ## git-aggregator remet la branche cible à l'état du remote (reset --hard) et les
@@ -89,6 +89,11 @@ status:
 
 logs:
 	tail -n 30 -F data/logs/$(if $(filter all,$(SVC)),*,$(SVC)).log
+
+## Régénère les jeux d'essai réels des tests de kpiten-core (échantillons parquet des
+## modèles des dashboards + leurs tuiles), depuis la base DB (parquet_sample installé).
+sample-fixtures:
+	$(ODOO_SHELL) -d $(DB) < src/kpiten-core/tests/data/make_fixtures.py
 
 ## Odoo sur une seule base :  make run-db DB=big
 run-db:
