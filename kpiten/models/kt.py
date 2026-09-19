@@ -439,8 +439,18 @@ class Kt(models.AbstractModel):
 
         return data_by_id
 
-    def action_redirect_to_kpiten(self, application: str = "shiny"):
-        """Redirect to one of the dashboard apps ('shiny' or 'nicegui')."""
+    @api.model
+    def action_redirect_to_kpiten(self, *args, application=None):
+        """Redirect to one of the dashboard apps ('shiny' or 'nicegui').
+
+        The application is the keyword, or the last string among the positional
+        arguments : an RPC call gives `args: ["nicegui"]`, or `[[], "nicegui"]`
+        with the ids first, as it did when the method was not an `api.model` (a
+        bare string was then read as a list of ids and Shiny opened instead).
+        """
+        application = application or next(
+            (arg for arg in reversed(args) if isinstance(arg, str)), "shiny"
+        )
         logger.info("action_redirect_to_kpiten : application=%s", application)
         uuid = (
             self.env["res.users.log"]
