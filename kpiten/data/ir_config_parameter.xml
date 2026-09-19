@@ -4,7 +4,7 @@
         <!-- One settings entry per application : named links in the Odoo menu -->
         <field
             name="value"
-        >{"marimo": {"application": "Marimo", "external_url": "http://localhost:5000", "internal_url": "http://localhost:5000"}, "shiny": {"application": "Shiny", "external_url": "http://localhost:5000", "internal_url": "http://localhost:5000"}, "nicegui": {"application": "NiceGUI", "external_url": "http://localhost:5001", "internal_url": "http://localhost:5001"}}</field>
+        >{"marimo": {"application": "Marimo", "external_url": "http://localhost:5002", "internal_url": "http://localhost:5002"}, "shiny": {"application": "Shiny", "external_url": "http://localhost:5000", "internal_url": "http://localhost:5000"}, "nicegui": {"application": "NiceGUI", "external_url": "http://localhost:5001", "internal_url": "http://localhost:5001"}}</field>
     </record>
 
     <record model="ir.config_parameter" id="kpiten_staging_dir">
