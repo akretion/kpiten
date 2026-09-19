@@ -5,7 +5,7 @@ import html
 import marimo as mo
 import polars as pl
 
-from kpiten_core import config, links, numfmt
+from kpiten_core import brand, config, links, numfmt
 from kpiten_core.gtable import number_columns
 
 from .analyses import ANALYSES
@@ -22,15 +22,35 @@ def odoo_link(label, url: str) -> mo.Html:
     )
 
 
+def brand_mark(height: int = 30) -> mo.Html:
+    """The logo of KpiTen, with its slogan on hover."""
+    tip = html.escape(brand.tooltip(), quote=True).replace("\n", "&#10;")
+    return mo.Html(
+        f'<img src="/dashboard/kpiten.png" alt="{brand.NAME}" title="{tip}" '
+        f'height="{height}" style="height:{height}px;width:{height}px">'
+    )
+
+
 def header(key: str, user_id, db) -> mo.Html:
     """Title of an analysis, with the way back to the list and who is connected."""
     analysis = ANALYSES[key]
-    return mo.md(f"""
-        <small>[← Marimo notebook](/dashboard/)</small>
-
-        # {analysis["icon"]} {analysis["title"]}
-        <small>user `{user_id}` on `{db}` : only the rows and columns you may read in Odoo</small>
-        """)
+    return mo.vstack(
+        [
+            mo.hstack(
+                [
+                    brand_mark(28),
+                    mo.md("<small>[← Marimo notebook](/dashboard/)</small>"),
+                ],
+                justify="start",
+                align="center",
+                gap=0.6,
+            ),
+            mo.md(f"""
+                # {analysis["icon"]} {analysis["title"]}
+                <small>user `{user_id}` on `{db}` : only the rows and columns you may read in Odoo</small>
+                """),
+        ]
+    )
 
 
 def plain(frame: pl.DataFrame) -> pl.DataFrame:

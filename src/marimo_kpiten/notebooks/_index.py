@@ -10,13 +10,14 @@ def _():
 
     import marimo as mo
 
+    from marimo_kpiten import ui
     from marimo_kpiten.analyses import ANALYSES
 
-    return ANALYSES, html, mo
+    return ANALYSES, html, mo, ui
 
 
 @app.cell
-def _(ANALYSES, html, mo):
+def _(ANALYSES, html, mo, ui):
     _cards = "".join(
         f'<a href="/dashboard/{key}/" title="{html.escape(a["about"], quote=True)}" '
         'style="display:block;width:16rem;padding:1rem 1.2rem;border:1px solid #ddd;'
@@ -32,7 +33,12 @@ def _(ANALYSES, html, mo):
             # the title, and the logo of marimo (served by marimo itself) on the right
             mo.hstack(
                 [
-                    mo.md("# Marimo notebook"),
+                    mo.hstack(
+                        [ui.brand_mark(44), mo.md("# Marimo notebook")],
+                        justify="start",
+                        align="center",
+                        gap=0.8,
+                    ),
                     mo.Html(
                         '<img src="/dashboard/logo.png" alt="marimo" '
                         'title="Made with marimo" style="height:28px;width:auto">'

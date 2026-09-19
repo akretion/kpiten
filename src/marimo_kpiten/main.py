@@ -17,7 +17,7 @@ from pathlib import Path
 
 import marimo
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from starlette.requests import HTTPConnection
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -28,8 +28,23 @@ from .sessions import SESSION_COOKIE, SessionHandler
 logger = logging.getLogger(__name__)
 
 NOTEBOOKS = Path(__file__).parent / "notebooks"
+STATIC = Path(__file__).parent / "static"  # the logo of KpiTen and its favicon
 
 this_app = FastAPI()
+
+
+@this_app.get("/dashboard/kpiten.png")
+def kpiten_logo():
+    """The mark of KpiTen, drawn in the header of the pages."""
+    return FileResponse(STATIC / "kpiten.png", media_type="image/png")
+
+
+@this_app.get("/dashboard/favicon.ico")
+@this_app.get("/dashboard/{notebook}/favicon.ico")
+def favicon(notebook: str | None = None):
+    """The icon of the tab : the wheel of KpiTen instead of the one of marimo (the pages
+    ask `./favicon.ico`, at the list and at each notebook)."""
+    return FileResponse(STATIC / "favicon.png", media_type="image/png")
 
 
 @this_app.get("/")
