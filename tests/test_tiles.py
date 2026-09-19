@@ -94,7 +94,7 @@ def test_card_mean_derived_days():
         }
     )
     assert res.value == pytest.approx(7 / 3)  # null (draft) is ignored
-    assert res.text == "2.3 days"
+    assert res.text == "2,3 days"
 
 
 def test_card_where_on_derived_column():
@@ -137,7 +137,7 @@ def test_card_thousands_and_decimals():
         {"aggregation": "sum", "measure": "amount_untaxed", "decimals": 2},
         store={"purchase.order": big},
     )
-    assert res.text == "1 234 567.89"
+    assert res.text == "1\u202f234\u202f567,89"
 
 
 def test_card_ignore_period_keeps_dimension_filters():

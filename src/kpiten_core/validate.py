@@ -114,6 +114,7 @@ def _card(check: _Check, data: dict) -> None:
             "derive",
             "ignore_period",
             "compare",
+            "good",
             "best",
             "detail",
             "detail_label",
@@ -123,6 +124,7 @@ def _card(check: _Check, data: dict) -> None:
         check.expect_str(data, key, section)
     check.expect_bool(data, "ignore_period", section)
     check.expect_bool(data, "compare", section)
+    check.expect_enum(data, "good", section, {"up", "down"})
     for key in ("best", "detail", "detail_label"):
         check.expect_str(data, key, section)
     if data.get("best"):

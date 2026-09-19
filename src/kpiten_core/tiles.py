@@ -15,7 +15,7 @@ import plotly.express as px
 import plotly.graph_objs as go
 import polars as pl
 
-from kpiten_core import env, links, serial, sandbox
+from kpiten_core import env, links, numfmt, serial, sandbox
 from kpiten_core.month import apply_monthly, is_date
 from kpiten_core.validate import CARD_AGGREGATIONS, DERIVE_RE
 
@@ -62,7 +62,7 @@ class TileResult:
 
 
 def _fmt_int(n: int) -> str:
-    return f"{n:,}".replace(",", " ")
+    return numfmt.format_number(n)
 
 
 def _collect(lf: pl.LazyFrame, ordered: bool = False) -> pl.DataFrame:
@@ -214,12 +214,21 @@ def derive_columns(df, derive: dict[str, str]):
 
 def format_card_value(value, aggregation: str, card: dict) -> str:
     """Card text : thousands separated by a narrow space, `decimals`
-    (default 0 for count/sum, 1 otherwise) and an optional `unit`."""
+    (default 0 for count/sum, 1 otherwise) and an optional `unit` (`unit = "currency"`
+    is the symbol of the company currency, before or after the number as Odoo does)."""
     if value is None:
         return "–"
     decimals = card.get("decimals", 0 if aggregation in ("count", "sum") else 1)
-    text = f"{value:,.{decimals}f}".replace(",", " ")
+    text = numfmt.format_number(value, decimals)
     unit = card.get("unit")
+    if unit == "currency":  # the currency of the company (kt.config), see CHART_CONFIG
+        currency = CHART_CONFIG.get("currency") or {}
+        symbol = currency.get("symbol")
+        if not symbol:
+            return text
+        if currency.get("position") == "before":
+            return f"{symbol}{text}"
+        return f"{text} {symbol}"
     return f"{text} {unit}" if unit else text
 
 
@@ -269,7 +278,7 @@ def _best_case(card_json, df):
     name = top[best][0]
     subtitle = None
     if detail:
-        units = f"{float(top['__detail'][0]):,.0f}".replace(",", " ")
+        units = numfmt.format_number(float(top["__detail"][0]))
         subtitle = f"{units} {card_json.get('detail_label', '')}".strip()
     return name, str(name), subtitle
 
@@ -346,8 +355,9 @@ def card_comparison(
 
     Only for a card with `compare = true`, a period to go back from and no
     `ignore_period`, and unless `kt.config` turns the comparison off
-    (`comparison_enabled`). Returns `{direction, text, description, previous, period}` :
-    `direction` up / down / neutral, `text` the change as a percentage of the
+    (`comparison_enabled`). Returns `{direction, tone, text, description, previous, period}` :
+    `direction` up / down / neutral, `tone` good / bad / neutral (the color : up is
+    good unless the card says `good = "down"`), `text` the change as a percentage of the
     previous value (`|value - previous| / previous`, `n/a` when that is 0),
     `previous` the previous value as the card shows it.
     """
@@ -371,8 +381,13 @@ def card_comparison(
         text = "n/a"
     else:
         text = f"{abs(change) / abs(previous) * 100:.1f}%"
+    good = card_json.get("good", "up")
+    tone = (
+        "neutral" if direction == "neutral" else "good" if direction == good else "bad"
+    )
     return {
         "direction": direction,
+        "tone": tone,
         "text": text,
         "description": "since last period",
         "previous": previous_display,

@@ -16,12 +16,17 @@ from kpiten_core import date_filter, dimension
 DATE_OPTIONS = {
     "": "full range",
     "today only": "today only",
-    "last week": "last week",
+    "last 7 days": "last 7 days",
     "last 30 days": "last 30 days",
     "last 90 days": "last 90 days",
-    "last 6 months": "last 6 months",
+    "last 180 days": "last 180 days",
+    "last 365 days": "last 365 days",
+    "year to date": "year to date",
+    "last year": "last year",
     "last 5 years": "last 5 years",
 }
+# the dashboards open on it, like the Odoo dashboards (`last_three_months`)
+DEFAULT_DATE_OPTION = "last 90 days"
 
 
 def bounds_of_option(option: str | None):
@@ -57,11 +62,23 @@ def make_predicates(
 
 
 def previous_bounds(date_value) -> tuple[datetime.date, datetime.date] | None:
-    """The period right before `date_value`, as long as it (same number of days) :
-    the one a card compares itself with. None without a period."""
+    """The period right before `date_value`, the one a card compares itself with.
+    None without a period.
+
+    The same number of days, just before (Odoo shifts a relative period by its
+    own length) ; a period that starts on January 1st (year to date, last year)
+    goes back one calendar year instead, like the year-to-date of Odoo."""
     if not date_value:
         return None
     start, end = date_value
+    if start.month == 1 and start.day == 1:
+        try:
+            return start.replace(year=start.year - 1), end.replace(year=end.year - 1)
+        except ValueError:  # February 29th
+            return (
+                start.replace(year=start.year - 1),
+                end.replace(year=end.year - 1, day=28),
+            )
     previous_end = start - datetime.timedelta(days=1)
     return previous_end - (end - start), previous_end
 

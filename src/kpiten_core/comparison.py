@@ -6,8 +6,20 @@ The colors and the arrows are the ones of an Odoo scorecard (`baselineColorUp`,
 
 import html
 
-COLORS = {"up": "#00A04A", "down": "#DC6965", "neutral": None}
+# the color follows the tone (good / bad), the arrow follows the direction : a fall
+# of the late deliveries is drawn ▼ in green (`good = "down"` on the card)
+COLORS = {"good": "#00A04A", "bad": "#DC6965", "neutral": None}
 ARROWS = {"up": "▲", "down": "▼", "neutral": ""}
+_TONE_OF_DIRECTION = {"up": "good", "down": "bad", "neutral": "neutral"}
+
+
+def tone(comparison: dict) -> str:
+    """good / bad / neutral (a result without a tone : up is good)."""
+    return comparison.get("tone") or _TONE_OF_DIRECTION[comparison["direction"]]
+
+
+def color(comparison: dict) -> str | None:
+    return COLORS[tone(comparison)]
 
 
 def label(comparison: dict) -> str:
@@ -24,8 +36,8 @@ def tooltip(comparison: dict) -> str:
 
 def html_block(comparison: dict) -> str:
     """The line under a card's value, as html (escaped)."""
-    color = COLORS[comparison["direction"]]
-    style = f' style="color: {color}"' if color else ""
+    text_color = color(comparison)
+    style = f' style="color: {text_color}"' if text_color else ""
     return (
         f'<div class="kpi-delta"{style} title="{html.escape(tooltip(comparison), quote=True)}">'
         f"{html.escape(label(comparison))} "
