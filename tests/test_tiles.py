@@ -241,6 +241,16 @@ def test_data_kind():
     assert res.df["total"][0] == 100.0
 
 
+def test_sandbox_does_not_read_files_through_sql(tmp_path):
+    """Polars SQL reads files (`FROM read_parquet(...)`) : a snippet could read the
+    parquets of every user, whatever the rights of the one who runs it."""
+    secret = tmp_path / "secret.parquet"
+    pl.DataFrame({"x": [1]}).write_parquet(secret)
+    code = f"d_next = d.sql(\"SELECT * FROM read_parquet('{secret}')\")"
+    with pytest.raises(ValueError, match="forbidden call: sql"):
+        sandbox.run(code, DF, "d", "d_next")
+
+
 def test_sandbox_forbidden():
     with pytest.raises(ValueError):
         sandbox.run("d_next = __import__('os').listdir()", DF, "d", "d_next")

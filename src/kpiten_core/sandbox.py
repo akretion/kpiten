@@ -25,7 +25,7 @@ DF_METHODS = {
     "filter", "with_columns", "select", "group_by", "agg", "sort", "rename",
     "cast", "join", "unique", "pivot", "limit", "head", "tail", "slice",
     "drop", "drop_nulls", "drop_duplicates", "fill_null", "fill_nan",
-    "sql", "melt", "explode", "unnest", "sample", "lazy", "collect",
+    "melt", "explode", "unnest", "sample", "lazy", "collect",
     "group_by_dynamic", "hstack", "vstack", "transpose", "gather_every",
     "with_row_index", "partition_by", "describe", "schema", "count_rows",
 }
