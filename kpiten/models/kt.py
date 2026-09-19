@@ -488,7 +488,7 @@ class Kt(models.AbstractModel):
             self.env.cr.commit()
         uuid = log.uuid
         urls = self.env["res.company"]._get_kpiten_services(application)
-        route = "build" if application == "marimo" else "dashboard"
+        route = "dashboard"
         try:
             resp = requests.post(
                 f"{urls["internal_url"]}/",
