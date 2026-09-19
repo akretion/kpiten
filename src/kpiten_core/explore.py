@@ -21,7 +21,7 @@ import zipfile
 
 import polars as pl
 
-from kpiten_core import env, serial
+from kpiten_core import config, env, serial
 from kpiten_core.tiles import filter_df
 
 logger = logging.getLogger(__name__)
@@ -163,7 +163,7 @@ def notebook(manifest: dict, main: str) -> str:
     )
     cut = [n for n, m in manifest["tables"].items() if m["truncated"]]
     warning = (
-        f"\n    **Cut at {env.explore_max_rows} rows :** {', '.join(cut)}.\n"
+        f"\n    **Cut at {config.explore_max_rows(env.explore_max_rows)} rows :** {', '.join(cut)}.\n"
         if cut
         else ""
     )
@@ -190,7 +190,7 @@ def build_archive(
     max_rows: int | None = None,
 ) -> tuple[str, bytes]:
     """The zip to download : `(filename, bytes)`. `store` is the store of THE USER."""
-    max_rows = max_rows or env.explore_max_rows
+    max_rows = max_rows or config.explore_max_rows(env.explore_max_rows)
     names = panel_tables(lines, store) or list(store)
     created = datetime.datetime.now().replace(microsecond=0).isoformat(sep=" ")
     purge()

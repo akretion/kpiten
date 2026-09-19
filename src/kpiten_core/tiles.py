@@ -15,6 +15,7 @@ import plotly.express as px
 import plotly.graph_objs as go
 import polars as pl
 
+from kpiten_core import config as settings
 from kpiten_core import env, links, numfmt, serial, sandbox
 from kpiten_core.month import apply_monthly, is_date
 from kpiten_core.validate import CARD_AGGREGATIONS, DERIVE_RE
@@ -520,13 +521,12 @@ def _apply_fill_color(fig, color: str | None, graph_type: str) -> None:
 # Chart styling defaults and card options, set by the UI apps from their odoo
 # config (single `kt.config` record :
 # {"graph": {"layout": {...}}, "card": {"comparison": bool}})
-CHART_CONFIG: dict = {}
+CHART_CONFIG = settings.CONFIG  # the same dict : see `kpiten_core.config`
 
 
 def set_chart_config(config: dict):
     """Apply the odoo-side chart defaults (see kt.get_chart_config)."""
-    CHART_CONFIG.clear()
-    CHART_CONFIG.update(config or {})
+    settings.set_config(config)
 
 
 def comparison_enabled() -> bool:
@@ -535,7 +535,7 @@ def comparison_enabled() -> bool:
     The switch of `kt.config` ; on when Odoo says nothing (no config record, an
     older kpiten module), so the cards defined with `compare = true` keep it.
     """
-    return bool((CHART_CONFIG.get("card") or {}).get("comparison", True))
+    return settings.comparison_enabled()
 
 
 DERIVED_DT_SUFFIX = {"year", "quarter", "month", "week", "day"}

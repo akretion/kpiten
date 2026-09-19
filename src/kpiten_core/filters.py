@@ -11,7 +11,7 @@ import datetime
 
 import polars as pl
 
-from kpiten_core import date_filter, dimension
+from kpiten_core import config, date_filter, dimension
 
 DATE_OPTIONS = {
     "": "full range",
@@ -72,7 +72,7 @@ def date_options(
         # shorter than the data, and reaching it (old data : nothing in the last 7 days)
         if days < span and high >= today - datetime.timedelta(days=days - 1):
             options[f"last {days} days"] = f"last {days} days"
-    if low < datetime.date(today.year, 1, 1) <= high:
+    if low < config.fiscal_year_start(today) <= high:
         options["year to date"] = "year to date"
     if span <= 730:
         months = []
@@ -90,13 +90,15 @@ def date_options(
 def default_date_option(
     options: dict[str, str], date_range_of_data, today: datetime.date | None = None
 ) -> str:
-    """The period a panel opens on : the default one when the data reaches it,
-    else the full range (an empty dashboard is of no use)."""
+    """The period a panel opens on : the one of `kt.config` (last 90 days) when the
+    data reaches it, else the full range (an empty dashboard is of no use)."""
+    default = config.default_period()
     if date_range_of_data is None:
-        return DEFAULT_DATE_OPTION
+        return default
     today = today or datetime.date.today()
-    recent = date_range_of_data[1] >= today - datetime.timedelta(days=90)
-    return DEFAULT_DATE_OPTION if DEFAULT_DATE_OPTION in options and recent else ""
+    bounds = date_filter.bounds_for_option(default, today)  # None : the full range
+    reached = bounds is None or date_range_of_data[1] >= bounds[0]
+    return default if default in options and reached else ""
 
 
 def bounds_of_option(option: str | None):
@@ -136,8 +138,9 @@ def previous_bounds(date_value) -> tuple[datetime.date, datetime.date] | None:
     None without a period.
 
     The same number of days, just before (Odoo shifts a relative period by its
-    own length) ; a period that starts on January 1st (year to date, last year)
-    goes back one calendar year instead, like the year-to-date of Odoo."""
+    own length) ; a period that starts on the first day of the fiscal year (year to
+    date ; January 1st unless `kt.config` says otherwise) goes back one year instead,
+    like the year-to-date of Odoo."""
     if not date_value:
         return None
     start, end = date_value
@@ -148,7 +151,7 @@ def previous_bounds(date_value) -> tuple[datetime.date, datetime.date] | None:
         return date_filter.month_bounds(year, month + 1)[0], start - datetime.timedelta(
             days=1
         )
-    if start.month == 1 and start.day == 1:
+    if start.month == config.fiscal_start_month() and start.day == 1:
         try:
             return start.replace(year=start.year - 1), end.replace(year=end.year - 1)
         except ValueError:  # February 29th

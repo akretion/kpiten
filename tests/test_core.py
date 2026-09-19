@@ -120,3 +120,33 @@ def test_a_relational_path_datetime_is_a_day_like_the_other_dates():
     out = Df(raw, fields={"date_order": {"type": "datetime"}}).get_df()
     assert out.schema["date_order"] == pl.Date
     assert out.schema["order_id.date_order"] == pl.Date
+
+
+def test_the_default_period_and_the_fiscal_year_of_kt_config():
+    from kpiten_core import config, filters
+
+    today = datetime.date(2026, 5, 20)
+    span = (datetime.date(2024, 1, 1), datetime.date(2026, 5, 19))
+    try:
+        assert config.default_period() == "last 90 days"
+        options = filters.date_options(span, today)
+        assert filters.default_date_option(options, span, today) == "last 90 days"
+
+        config.set_config({"period": {"default": "year to date"}})
+        options = filters.date_options(span, today)
+        assert filters.default_date_option(options, span, today) == "year to date"
+
+        # a fiscal year that starts on April 1st : 2026-04-01 -> today, and the
+        # previous one to compare with is one year before
+        config.set_config({"period": {"fiscal_start_month": 4}})
+        assert date_filter.bounds_for_option("year to date")[0].month == 4
+        bounds = (datetime.date(2026, 4, 1), today)
+        assert filters.previous_bounds(bounds) == (
+            datetime.date(2025, 4, 1),
+            datetime.date(2025, 5, 20),
+        )
+        assert config.fiscal_year_start(datetime.date(2026, 2, 1)) == datetime.date(
+            2025, 4, 1
+        )
+    finally:
+        config.set_config({})

@@ -6,6 +6,8 @@ The colors and the arrows are the ones of an Odoo scorecard (`baselineColorUp`,
 
 import html
 
+from kpiten_core import config
+
 # the color follows the tone (good / bad), the arrow follows the direction : a fall
 # of the late deliveries is drawn ▼ in green (`good = "down"` on the card)
 COLORS = {"good": "#00A04A", "bad": "#DC6965", "neutral": None}
@@ -19,7 +21,9 @@ def tone(comparison: dict) -> str:
 
 
 def color(comparison: dict) -> str | None:
-    return COLORS[tone(comparison)]
+    """The color of a tone : those of `kt.config` (the card colors), else Odoo's."""
+    name = tone(comparison)
+    return config.card_color(name, COLORS[name]) if name in ("good", "bad") else None
 
 
 def label(comparison: dict) -> str:

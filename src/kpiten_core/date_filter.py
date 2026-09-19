@@ -5,6 +5,8 @@ import re
 
 import polars as pl
 
+from kpiten_core import config
+
 
 def last_year_bounds(today: datetime.date) -> dict[str, datetime.date]:
     ly = today.year - 1
@@ -42,11 +44,13 @@ DAYS_OF_OPTION = {
 }
 
 
-def bounds_for_option(option: str | None) -> tuple[datetime.date, datetime.date] | None:
+def bounds_for_option(
+    option: str | None, today: datetime.date | None = None
+) -> tuple[datetime.date, datetime.date] | None:
     """Start and end dates implied by a predefined period option."""
     if not option:
         return None
-    today = datetime.date.today()
+    today = today or datetime.date.today()
     if option == "today only":
         return today, today
     if option in DAYS_OF_OPTION:
@@ -57,11 +61,12 @@ def bounds_for_option(option: str | None) -> tuple[datetime.date, datetime.date]
         if not month:
             return datetime.date(year, 1, 1), datetime.date(year, 12, 31)
         return month_bounds(year, month)
+    # the fiscal year of `kt.config` (starts on January 1st unless Odoo says otherwise)
     if option == "year to date":
-        return datetime.date(today.year, 1, 1), today
+        return config.fiscal_year_start(today), today
     if option == "last year":
-        bounds = last_year_bounds(today)
-        return bounds["LY_first_day"], bounds["LY_last_day"]
+        start = config.fiscal_year_start(today)
+        return start.replace(year=start.year - 1), start - datetime.timedelta(days=1)
     return None
 
 

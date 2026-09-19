@@ -226,3 +226,50 @@ def test_drill_down_runs_on_the_rows_of_the_tile_with_the_key():
         tiles.exec_drill(line, "l", {"l": lines}, [], {"product_id_": [7]})
     with pytest.raises(tiles.TileError):
         tiles.exec_drill({"name": "x"}, "l", {"l": lines}, [], {})
+
+
+def test_the_number_format_of_kt_config():
+    from kpiten_core import config
+
+    try:
+        config.set_config({"number": {"format": "comma_dot"}})  # 1,234.56
+        assert numfmt.format_number(4542884798.35, 2) == "4,542,884,798.35"
+        config.set_config({"number": {"format": "dot_comma"}})  # 1.234,56
+        assert numfmt.format_number(1234.5, 1) == "1.234,5"
+        config.set_config({"number": {"format": "space_dot"}})
+        assert numfmt.format_number(1234.5, 1) == spaced("1 234.5")
+        config.set_config({})  # not chosen : as before
+        assert numfmt.format_number(1234.5, 1) == spaced("1 234,5")
+    finally:
+        config.set_config({})
+
+
+def test_the_rounding_of_a_table_follows_kt_config():
+    from kpiten_core import config
+
+    try:
+        config.set_config(
+            {"number": {"small_below": 100, "small_decimals": 1, "large_decimals": 2}}
+        )
+        assert numfmt.format_quantity(42.36) == "42,4"  # below 100 : 1 decimal
+        assert numfmt.format_quantity(1234.567) == spaced("1 234,57")  # else : 2
+        config.set_config({"number": {"small_below": 0, "large_decimals": 0}})
+        assert numfmt.format_quantity(0.42) == "0"  # nothing is small : all whole
+    finally:
+        config.set_config({})
+
+
+def test_the_card_colors_of_kt_config():
+    from kpiten_core import comparison, config
+
+    up, down = {"direction": "up"}, {"direction": "down"}
+    assert comparison.color(up) == "#00A04A" and comparison.color(down) == "#DC6965"
+    try:
+        config.set_config({"card": {"good_color": "#123456", "bad_color": "#654321"}})
+        assert comparison.color(up) == "#123456"
+        assert comparison.color(down) == "#654321"
+        # the tone follows the card, not the direction : a fall that is good
+        assert comparison.color({"direction": "down", "tone": "good"}) == "#123456"
+        assert comparison.color({"direction": "up", "tone": "neutral"}) is None
+    finally:
+        config.set_config({})
