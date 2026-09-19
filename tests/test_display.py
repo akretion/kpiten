@@ -26,19 +26,37 @@ def test_format_number(monkeypatch):
     assert numfmt.format_number(1234.5, 1) == "1 234.5"
 
 
+def spaced(text: str) -> str:
+    """`1 234` as the tables write it (a narrow no-break space)."""
+    return text.replace(" ", numfmt.THOUSANDS)
+
+
+def test_a_decimal_of_a_table_is_whole_unless_it_is_below_10():
+    assert numfmt.format_quantity(4542884798.35) == spaced("4 542 884 798")
+    assert numfmt.format_quantity(3116.4) == spaced("3 116")
+    assert numfmt.format_quantity(-1234.6) == spaced("-1 235")
+    assert numfmt.format_quantity(6.756) == "6,76"  # below 10 : the decimals stay
+    assert numfmt.format_quantity(0.42) == "0,42"
+    assert numfmt.format_quantity(-3.5) == "-3,50"
+    assert numfmt.format_quantity(12.0) == "12"
+
+
 def test_tables_format_the_quantities_only():
     df = pl.DataFrame(
         {
             "Customer": ["A", "B"],
             "Revenue": [4542884798.35, None],
+            "Average": [6.756, 0.42],
             "Orders": [12345, 7],
             "id": [1001, 1002],
             "date_order.year": [2025, 2026],
         }
     )
     html = gt_table(df, PALETTE).as_raw_html()
-    assert "4 542 884 798,35" in html  # decimals, thousands
-    assert "12 345" in html  # integers
+    assert spaced("4 542 884 798<") in html  # rounded to the unit, thousands
+    assert "798,35" not in html.replace(numfmt.THOUSANDS, " ")
+    assert "6,76" in html and "0,42" in html  # below 10 : the decimals stay
+    assert spaced("12 345") in html  # integers
     assert "1001" in html and "2025" in html  # ids and years are not quantities
 
 

@@ -17,3 +17,9 @@ def format_number(value, decimals: int = 0) -> str:
     """`4542884798.35` -> `4 542 884 798,35` (2 decimals)."""
     text = f"{value:,.{decimals}f}"
     return text.replace(",", THOUSANDS).replace(".", decimal_mark())
+
+
+def format_quantity(value) -> str:
+    """A decimal of a table : whole, except below 10 where the decimals still tell
+    something (`3116.4` -> `3 116`, `6.75` -> `6,75`, `0.42` -> `0,42`)."""
+    return format_number(value, 2 if abs(value) < 10 else 0)

@@ -33,8 +33,8 @@ def gt_table(df: pl.DataFrame, palette: dict) -> GT:
     """great_tables table adapted to the app theme palette.
 
     A column of `[label](url)` values is drawn as links to Odoo (`links`) ; the
-    quantities are right aligned, thousands separated, with 2 decimals for the
-    decimal ones (`numfmt`)."""
+    quantities are right aligned, thousands separated, the decimal ones rounded
+    to the unit unless they are below 10 (`numfmt.format_quantity`)."""
     table = (
         GT(df)
         .tab_options(
@@ -51,12 +51,13 @@ def gt_table(df: pl.DataFrame, palette: dict) -> GT:
         .cols_align("left")
     )
     integers, decimals = number_columns(df)
-    for columns, digits in ((integers, 0), (decimals, 2)):
+    for columns, show in (
+        (integers, numfmt.format_number),
+        (decimals, numfmt.format_quantity),
+    ):
         if columns:
             table = table.fmt(
-                lambda value, digits=digits: (
-                    "" if value is None else numfmt.format_number(value, digits)
-                ),
+                lambda value, show=show: "" if value is None else show(value),
                 columns=columns,
             ).cols_align("right", columns=columns)
     linked = links.link_columns(df)
