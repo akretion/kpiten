@@ -156,3 +156,30 @@ def test_drill_down_of_an_order_reads_another_table(page: Page) -> None:
     modal.locator(".gt_table").wait_for(timeout=30_000)
     columns = [c.strip() for c in modal.locator(".gt_table thead th").all_inner_texts()]
     assert columns == ["Product", "Quantity", "Unit price", "Subtotal"]
+
+
+def test_explore_downloads_the_rows_of_the_user_with_a_notebook(
+    page: Page, tmp_path
+) -> None:
+    """Explore : a zip of the parquets of the panel, with the rights of the user (Marie sees
+    her own orders only) and the filters set, and a marimo notebook on them."""
+    import io
+    import json
+    import zipfile
+
+    import polars as pl
+
+    open_dashboard(page)
+    page.locator("#explore").wait_for(timeout=60_000)
+    with page.expect_download(timeout=120_000) as download:
+        page.locator("#explore").click()
+    archive = zipfile.ZipFile(download.value.path())
+    assert {"manifest.json", "explore.py", "README.txt", "sale.order.parquet"} <= set(
+        archive.namelist()
+    )
+    manifest = json.loads(archive.read("manifest.json"))
+    assert manifest["panel"] == "Sales" and manifest["filters"]
+    orders = pl.read_parquet(io.BytesIO(archive.read("sale.order.parquet")))
+    assert orders.height > 0
+    assert set(orders["user_id"].drop_nulls().to_list()) <= {"Marie STOURNE"}
+    assert "pl.scan_parquet" in archive.read("explore.py").decode()

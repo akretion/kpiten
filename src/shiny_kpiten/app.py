@@ -24,6 +24,7 @@ from shiny import App, reactive, render, req, ui
 from shiny.types import SilentException
 
 from kpiten_core import comparison, links
+from kpiten_core import explore as explore_core
 from kpiten_core.gtable import DRILL_CSS
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
@@ -150,7 +151,17 @@ def app_ui(req):  # noqa: ANN001
                 ),
             ),
             ui.column(2, ui.input_select("panel", "Panel", choices=[])),
-            ui.column(2, ui.input_action_button("refresh_data", "Refresh data")),
+            ui.column(
+                2,
+                ui.input_action_button("refresh_data", "Refresh data"),
+                ui.download_button(
+                    "explore",
+                    "⤓ Explore",
+                    class_="btn-sm",
+                    title="Download the rows of this panel (your rights, the filters you "
+                    "set) with a marimo notebook to explore them",
+                ),
+            ),
             ui.column(2, ui.output_ui("theme_select")),
             ui.column(2, ui.output_ui("filters")),
             ui.column(
@@ -524,8 +535,8 @@ def server(input, output, session):
             filterstate.describe_previous(date_value),
         )
 
-    def tile_info(line: dict) -> str:
-        """Tooltip text : active panel filters + tile own WHERE (card)."""
+    def filters_text() -> str:
+        """The panel filters that are set, as text."""
         config = panel_settings().get("filter_config") or {}
         date_value = (
             filterstate.bounds_of_option(input.date_period())
@@ -540,7 +551,26 @@ def server(input, output, session):
                     dim_values[dim["name"]] = input[key]()
                 except (KeyError, TypeError):
                     pass
-        info = filterstate.describe_filters(config, date_value, dim_values)
+        return filterstate.describe_filters(config, date_value, dim_values)
+
+    # ---- explore : the rows of the panel, with the user's rights, out of the dashboard
+    @render.download(filename=lambda: f"kpiten-explore-{input.panel()}.zip")
+    def explore():
+        with reactive.isolate():
+            _name, data = explore_core.build_archive(
+                store(),
+                lines(),
+                predicates(),
+                user_id=current_user_id(),
+                db=backend_rv().db,
+                panel=panel_settings().get("name") or str(input.panel()),
+                filters_text=filters_text(),
+            )
+        yield data
+
+    def tile_info(line: dict) -> str:
+        """Tooltip text : active panel filters + tile own WHERE (card)."""
+        info = filters_text()
         if line["kind"] == "card":
             try:
                 where = core_tiles.serial.loads(line["content"]).get("where")
