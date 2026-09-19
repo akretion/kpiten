@@ -5,7 +5,9 @@ Odoo (:8069) and Shiny (:5000) must be up (`make up`) with a demo database
 through the SSO of Odoo, like a user does from the KpiTen menu.
 """
 
+import contextlib
 import os
+import re
 from urllib.parse import urljoin
 
 import pytest
@@ -263,3 +265,83 @@ def test_the_tab_has_a_favicon(page: Page) -> None:
     reply = page.request.get(urljoin(page.url, href))
     assert reply.ok
     assert reply.headers["content-type"].startswith("image/")
+
+
+@contextlib.contextmanager
+def kt_config(**values):
+    """Set fields of kt.config for a test, and put them back as they were found."""
+    from kpiten_core.backend import Backend
+
+    config = Backend.create(db=DB).env["kt.config"]
+    ids = config.search([], limit=1)
+    initial = config.read(ids, list(values))[0]
+    initial.pop("id", None)
+    try:
+        config.write(ids, values)
+        yield
+    finally:
+        config.write(ids, initial)
+
+
+def test_the_default_theme_of_kt_config(page: Page) -> None:
+    """A user who chose nothing gets the theme of the configuration, in the page and
+    in the dropdown."""
+    with kt_config(default_theme="midnight"):
+        open_dashboard(page)
+        page.locator("#theme").wait_for(state="visible", timeout=30_000)
+        check_theme_is_shown(page, "midnight")
+
+
+def test_the_rows_of_a_table_follow_kt_config(page: Page) -> None:
+    with kt_config(table_rows=5):
+        open_dashboard(page)
+        rows = page.locator(".tile-grid .tile .gt_table").evaluate_all(
+            "tables => tables.map(t => t.querySelectorAll('tbody tr').length)"
+        )
+        assert rows and max(rows) <= 5
+        page.get_by_text(re.compile(r"First 5 of")).first.wait_for(timeout=30_000)
+
+
+def test_the_number_format_of_kt_config(page: Page) -> None:
+    """`1,234.56` : a comma between thousands, not the narrow space of the default."""
+    with kt_config(number_format="comma_dot"):
+        open_dashboard(page)
+        values = " ".join(page.locator(f"{CARDS} .value").all_inner_texts())
+        assert re.search(r"\d,\d{3}", values) and "\u202f" not in values
+    with kt_config(number_format=False):
+        open_dashboard(page)
+        values = " ".join(page.locator(f"{CARDS} .value").all_inner_texts())
+        assert "\u202f" in values  # the default : a narrow no-break space
+
+
+def test_the_card_colors_of_kt_config(page: Page) -> None:
+    """The change of a card is drawn in the good / bad color of the configuration."""
+    with kt_config(
+        show_card_comparison=True, card_good_color="#123456", card_bad_color="#654321"
+    ):
+        open_dashboard(page)
+        page.locator(DELTAS).first.wait_for(timeout=30_000)
+        colors = set(
+            page.locator(DELTAS).evaluate_all(
+                "els => els.map(e => getComputedStyle(e).color)"
+            )
+        )
+        assert colors <= {"rgb(18, 52, 86)", "rgb(101, 67, 33)"} and colors
+
+
+def test_who_may_export_follows_kt_config(page: Page) -> None:
+    def has_button(login, password):
+        page.context.clear_cookies()
+        open_dashboard(page, login, password)
+        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(2000)
+        return page.locator("#explore").count() > 0
+
+    with kt_config(explore_access="nobody"):
+        assert not has_button(LOGIN, PASSWORD)
+        assert not has_button(MANAGER, MANAGER_PASSWORD)
+    with kt_config(explore_access="managers"):
+        assert not has_button(LOGIN, PASSWORD)  # Marie is not a manager
+        assert has_button(MANAGER, MANAGER_PASSWORD)
+    with kt_config(explore_access="everyone"):
+        assert has_button(LOGIN, PASSWORD)

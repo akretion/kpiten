@@ -25,6 +25,7 @@ from shiny import App, reactive, render, req, ui
 from shiny.types import SilentException
 
 from kpiten_core import comparison, links
+from kpiten_core import config as core_config
 from kpiten_core import explore as explore_core
 from kpiten_core.gtable import DRILL_CSS
 from kpiten_core import tiles as core_tiles
@@ -56,7 +57,6 @@ EDIT_TOOLTIP = (
     "buttons on each tile). The changes are saved in Odoo."
 )
 TAB_TITLE = "KpiTen (shiny)"  # the name of the browser tab, after the panel
-TABLE_ROWS = 20  # rows a table tile shows (the tile scrolls, the page does not grow)
 
 # the grid has 6 columns : a tile of width 1 takes a third of the row, 2 a half, 3 the
 # whole row (two tiles of width 2 sit side by side, none leaves a hole)
@@ -183,13 +183,7 @@ def app_ui(req):  # noqa: ANN001
             ui.output_ui("db_select"),
             ui.output_ui("theme_select"),
             ui.input_action_button("refresh_data", "Refresh data", class_="btn-kpiten"),
-            ui.download_button(
-                "explore",
-                "\u2913",
-                class_="btn-kpiten",
-                title="Explore : download the rows of this panel (your rights, the "
-                "filters you set) with a marimo notebook",
-            ),
+            ui.output_ui("explore_button"),
             ui.tags.span(
                 ui.input_switch("edit_mode", "Edit", False), title=EDIT_TOOLTIP
             ),
@@ -286,13 +280,13 @@ def tile_html(
         parts.append(result.figure.to_html(include_plotlyjs=False, full_html=False))
     else:
         assert result.df is not None
-        parts.append(themes.gt_df(theme, result.df.head(TABLE_ROWS)).as_raw_html())
+        # the rows of `kt.config` shown : the tile scrolls, the page does not grow
+        rows = core_config.table_rows()
+        parts.append(themes.gt_df(theme, result.df.head(rows)).as_raw_html())
         # out of what the tile holds (`total_rows` when the core already cut it off)
         total = result.meta.get("total_rows", result.df.height)
-        if total > TABLE_ROWS:
-            result.meta["note"] = f"First {TABLE_ROWS} of {total:,} rows".replace(
-                ",", " "
-            )
+        if total > rows:
+            result.meta["note"] = f"First {rows} of {total:,} rows".replace(",", " ")
     if result.note:
         # the tile was reduced to stay renderable (see kpiten_core.tiles)
         parts.append(
@@ -439,7 +433,7 @@ def server(input, output, session):
                 return themes.get_theme(input.theme())
             except (KeyError, TypeError):
                 pass
-        return themes.get_theme(themes.DEFAULT_THEME)
+        return themes.get_theme(core_config.default_theme())
 
     @render.ui
     def theme_select():
@@ -449,7 +443,7 @@ def server(input, output, session):
             "theme",
             "Theme",
             choices=choices,
-            selected=themes.DEFAULT_THEME,
+            selected=core_config.default_theme(),
             width="150px",
         )
 
@@ -610,9 +604,24 @@ def server(input, output, session):
         return filterstate.describe_filters(config, date_value, dim_values)
 
     # ---- explore : the rows of the panel, with the user's rights, out of the dashboard
+    @render.ui
+    def explore_button():
+        """The export is for who `kt.config` says (everyone, the managers, nobody)."""
+        if not core_config.explore_allowed(can_edit()):
+            return None
+        return ui.download_button(
+            "explore",
+            "\u2913",
+            class_="btn-kpiten",
+            title="Explore : download the rows of this panel (your rights, the "
+            "filters you set) with a marimo notebook",
+        )
+
     @render.download(filename=lambda: f"kpiten-explore-{input.panel()}.zip")
     def explore():
         with reactive.isolate():
+            if not core_config.explore_allowed(can_edit()):
+                raise PermissionError("You may not export the rows.")
             _name, data = explore_core.build_archive(
                 store(),
                 lines(),

@@ -1,5 +1,6 @@
 [project]
 authors = [
+  {name = "Maël Salem"},
   {name = "David Beal", email = "david.beal@akretion.com"},
 ]
 dependencies = [
