@@ -154,3 +154,33 @@ class TestKtConfig(TransactionCase):
             ),
             (10, 2, 0),
         )
+
+    # ---- new features
+    def test_the_new_features_are_off_by_default(self):
+        fresh = self.env["kt.config"].new({})
+        for name in (
+            "save_tile",
+            "alerts",
+            "concentration",
+            "outliers",
+            "export_ods",
+            "ai_refine",
+        ):
+            self.assertFalse(fresh[f"feature_{name}"], name)
+
+    def test_the_features_are_sent_to_the_apps(self):
+        self.config.write({"feature_alerts": True, "feature_outliers": False})
+        features = self._json()["features"]
+        self.assertTrue(features["alerts"])
+        self.assertFalse(features["outliers"])
+        self.assertEqual(
+            set(features),
+            {
+                "save_tile",
+                "alerts",
+                "concentration",
+                "outliers",
+                "export_ods",
+                "ai_refine",
+            },
+        )

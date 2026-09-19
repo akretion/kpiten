@@ -4,6 +4,8 @@
         <field name="arch" type="xml">
             <form create="0">
                 <sheet>
+                    <notebook>
+                    <page string="Settings" name="settings">
                     <group string="Graph defaults">
                         <group>
                             <field name="graph_title_font_color" widget="color" />
@@ -52,25 +54,49 @@
                             <field name="number_preview" readonly="1" />
                         </group>
                     </group>
-                    <group string="Periods">
-                        <field name="default_period" />
-                        <field name="fiscal_year_start_month" />
+                    <group>
+                        <group string="Periods">
+                            <field name="default_period" />
+                            <field name="fiscal_year_start_month" />
+                        </group>
+                        <group string="Interface">
+                            <field name="default_theme" />
+                            <field name="table_rows" />
+                        </group>
                     </group>
-                    <group string="Interface">
-                        <field name="default_theme" />
-                        <field name="table_rows" />
+                    <group>
+                        <group string="Explore (export of the rows)">
+                            <field name="explore_access" />
+                            <field
+                                name="explore_max_rows"
+                                invisible="explore_access == 'nobody'"
+                            />
+                        </group>
+                        <group string="AI (marimo explorer)">
+                            <field name="ai_enabled" />
+                            <field name="ai_send_values" invisible="not ai_enabled" />
+                        </group>
                     </group>
-                    <group string="Explore (export of the rows)">
-                        <field name="explore_access" />
-                        <field
-                            name="explore_max_rows"
-                            invisible="explore_access == 'nobody'"
-                        />
-                    </group>
-                    <group string="AI (marimo explorer)">
-                        <field name="ai_enabled" />
-                        <field name="ai_send_values" invisible="not ai_enabled" />
-                    </group>
+                    </page>
+                    <page string="New features" name="new_features">
+                        <div class="alert alert-info" role="alert">
+                            These functions of the marimo explorer are new : each one is
+                            off until you check it here.
+                        </div>
+                        <group>
+                            <group string="Build a KPI">
+                                <field name="feature_save_tile" />
+                                <field name="feature_alerts" />
+                                <field name="feature_concentration" />
+                                <field name="feature_outliers" />
+                                <field name="feature_export_ods" />
+                            </group>
+                            <group string="AI (marimo explorer)">
+                                <field name="feature_ai_refine" />
+                            </group>
+                        </group>
+                    </page>
+                    </notebook>
                 </sheet>
             </form>
         </field>
