@@ -20,6 +20,7 @@ from fastapi import Request
 from fastapi.responses import RedirectResponse
 from nicegui import app, ui, run
 
+from kpiten_core import brand
 from kpiten_core import config as core_config
 from kpiten_core import filters
 from kpiten_core import comparison, links
@@ -95,6 +96,7 @@ CSS = """
   min-height: 100vh;
 }
 .framework-logo { width: 76px; height: auto; border-radius: 6px }
+.kpiten-logo { width: 40px; height: 40px }
 .bb-ktd .q-field--dark .q-field__control,
 .bb-ktd .q-field--dark .q-field__native,
 .bb-ktd .q-field--dark .q-field__label,
@@ -653,6 +655,10 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
         .classes("bb-ktd w-full p-6" + (" bb-ktd-light" if light else ""))
     ):
         with ui.row().classes("w-full items-center gap-4 flex-wrap mb-2"):
+            # the logo of KpiTen, and its slogan on hover
+            ui.image("/static/kpiten.png").classes("kpiten-logo").tooltip(
+                brand.tooltip()
+            )
             # framework logo, linking to the app origin
             with ui.link(target="https://nicegui.io", new_tab=True):
                 ui.image("/static/logo.png").classes("framework-logo").tooltip(
@@ -819,6 +825,7 @@ def create_server():
     ui.run_with(
         sso_app,
         title="KpiTen (nicegui)",
+        favicon=f"{STATIC_DIR}/favicon.png",  # the wheel of KpiTen, not the NiceGUI one
         mount_path="/dashboard",
         storage_secret="kpiten",
     )
