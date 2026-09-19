@@ -131,11 +131,7 @@ def render(recipe: recipes.Recipe, frame: pl.LazyFrame):
     problem = recipes.missing(recipe)
     if problem:
         return mo.callout(problem, kind="info")
-    window = (
-        filters.bounds_of_option(recipe.period)
-        if recipe.output in ("trend", "card") and recipe.period
-        else None
-    )
+    window = recipes.window_of(recipe)
     code = mo.accordion(
         {
             "The polars behind it": mo.md(

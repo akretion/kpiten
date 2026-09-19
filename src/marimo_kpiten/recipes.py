@@ -170,7 +170,7 @@ def polars_code(recipe: Recipe, window: tuple | None = None) -> str:
         rows, cols = _q(recipe.group_by), _q(recipe.columns_by)
         chain = (
             f".group_by([{rows}, {cols}]).agg({agg}).collect()"
-            f".pivot(on={cols}, index={rows}, values={value}).sort({rows}).head({recipe.top})"
+            f".pivot(on={cols}, index={rows}, values={value}, sort_columns=True).sort({rows}).head({recipe.top})"
         )
     else:  # ranking, table
         chain = f".group_by({_q(recipe.group_by)}).agg({agg}).sort({value}, descending=True)"
@@ -183,6 +183,34 @@ def polars_code(recipe: Recipe, window: tuple | None = None) -> str:
         if recipe.output == "ranking":
             chain += f".head({recipe.top})"
     return f"d_next = {source}{chain}"
+
+
+def window_of(recipe: Recipe) -> tuple | None:
+    """The dates a trend or a card is restricted to (its period), None otherwise."""
+    if recipe.output in ("trend", "card") and recipe.period:
+        return filters.bounds_of_option(recipe.period)
+    return None
+
+
+def tile_definition(recipe: Recipe) -> str:
+    """The recipe as the polars of a `data` tile of a dashboard. The first line is
+    `d_next = d` (the tile reads its input and output names there) ; the period and the
+    filters of the panel already apply to `d`, so the recipe's own period is not repeated.
+    """
+    body = polars_code(recipe).removeprefix("d_next = d")
+    return f"d_next = d\n# {title(recipe)}\nd_next = d_next{body}\n"
+
+
+def seed_messages(recipe: Recipe) -> list[dict]:
+    """What the AI is told of the KPI to refine : the polars that computes it."""
+    code = polars_code(recipe, window_of(recipe))
+    return [
+        {
+            "role": "user",
+            "content": f"I built this KPI : {title(recipe)}. Its code :\n```python\n{code}\n```",
+        },
+        {"role": "assistant", "content": "Understood. What should I change ?"},
+    ]
 
 
 def compute(recipe: Recipe, frame: pl.LazyFrame, window: tuple | None = None):

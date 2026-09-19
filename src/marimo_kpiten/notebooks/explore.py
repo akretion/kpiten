@@ -46,7 +46,7 @@ def _(Backend, db, mo, ui, user_id, user_store):
     ui.load_settings(backend)  # the switches of the AI, the number format...
     store = user_store(backend, user_id)
     mo.stop(not store, mo.callout("No data source in your scope.", kind="warn"))
-    return (store,)
+    return backend, store
 
 
 @app.cell
@@ -262,45 +262,85 @@ def _(
     date,
     filter_column,
     filter_values,
-    frame,
     grain,
     group_by,
     highlight,
     highlight_value,
-    kpi_view,
     measure,
     output,
     period,
     recipes,
     top,
 ):
-    kpi_view.render(
-        recipes.Recipe(
-            output=output.value,
-            measure=measure.value,
-            aggregation=aggregation.value,
-            group_by=group_by.value,
-            columns_by=columns_by.value,
-            date=date.value,
-            grain=grain.value,
-            period=period.value,
-            filter_column=filter_column.value or None,
-            filter_values=list(filter_values.value),
-            top=int(top.value),
-            add_share=add_share.value,
-            # only the outputs that offer it (a hidden choice must not apply)
-            highlight=(
-                alert.value
-                if output.value == "card"
-                else (
-                    highlight.value
-                    if output.value in ("ranking", "table", "pivot")
-                    else "none"
-                )
-            ),
-            highlight_value=highlight_value.value,
+    recipe = recipes.Recipe(
+        output=output.value,
+        measure=measure.value,
+        aggregation=aggregation.value,
+        group_by=group_by.value,
+        columns_by=columns_by.value,
+        date=date.value,
+        grain=grain.value,
+        period=period.value,
+        filter_column=filter_column.value or None,
+        filter_values=list(filter_values.value),
+        top=int(top.value),
+        add_share=add_share.value,
+        # only the outputs that offer it (a hidden choice must not apply)
+        highlight=(
+            alert.value
+            if output.value == "card"
+            else (
+                highlight.value
+                if output.value in ("ranking", "table", "pivot")
+                else "none"
+            )
         ),
-        frame,
+        highlight_value=highlight_value.value,
+    )
+    return (recipe,)
+
+
+@app.cell
+def _(frame, kpi_view, recipe):
+    kpi_view.render(recipe, frame)
+    return
+
+
+@app.cell
+def _(backend, config, mo, recipe, recipes, user_id):
+    # Save the KPI as a tile of a panel : a KpiTen manager, when kt.config turns it on
+    mo.stop(not config.feature("save_tile") or recipes.missing(recipe) is not None)
+    mo.stop(
+        not backend.can_edit_tiles(user_id),
+        mo.callout("Only a KpiTen manager can save a KPI as a tile.", kind="neutral"),
+    )
+    _panels = {p["name"]: p["id"] for p in backend.get_panels()}
+    mo.stop(not _panels, mo.callout("There is no panel to save it in.", kind="warn"))
+    save_panel = mo.ui.dropdown(_panels, value=next(iter(_panels)), label="Panel")
+    save_name = mo.ui.text(
+        value=recipes.title(recipe)[:80], label="Name of the tile", full_width=True
+    )
+    save_run = mo.ui.run_button(label="Save as a tile")
+    mo.hstack([save_panel, save_name, save_run], justify="start", gap=1, align="end")
+    return save_name, save_panel, save_run
+
+
+@app.cell
+def _(backend, mo, recipe, recipes, save_name, save_panel, save_run, source, user_id):
+    mo.stop(not save_run.value)
+    backend.create_tile(
+        model=source.value,
+        definition=recipes.tile_definition(recipe),
+        kind="data",
+        name=save_name.value.strip() or recipes.title(recipe),
+        user_id=user_id,
+        panel_id=save_panel.value,
+    )
+    mo.callout(
+        mo.md(
+            f"**Saved** in the panel _{save_panel.selected_key}_ : reload the dashboard."
+        ),
+        kind="success",
     )
     return
 
@@ -366,6 +406,50 @@ def _(ai, available, frame, mo, provider, source):
     )
     mo.callout(mo.md(_sent), kind="info")
     return description, skills
+
+
+@app.cell
+def _(available, config, mo, recipe, recipes):
+    # Refine the KPI built above with the AI, when kt.config turns it on
+    mo.stop(not config.feature("ai_refine") or recipes.missing(recipe) is not None)
+    refine_text = mo.ui.text_area(
+        placeholder="e.g. only the confirmed orders, and add the vendor country",
+        label="Change the KPI above",
+        rows=2,
+        full_width=True,
+    )
+    refine_run = mo.ui.run_button(label="Refine with the AI")
+    mo.vstack([refine_text, refine_run])
+    return refine_run, refine_text
+
+
+@app.cell
+def _(
+    ai,
+    available,
+    description,
+    frame,
+    mo,
+    provider,
+    recipe,
+    recipes,
+    refine_run,
+    refine_text,
+    skills,
+    ui,
+):
+    mo.stop(not refine_run.value or not refine_text.value.strip())
+    with mo.status.spinner("Asking the model..."):
+        _answer = ai.ask(
+            available[provider.value],
+            frame,
+            description,
+            recipes.seed_messages(recipe),
+            refine_text.value.strip(),
+            skills=skills,
+        )
+    mo.vstack([mo.md("**The AI's answer**"), ui.ai_answer(_answer)])
+    return
 
 
 @app.cell

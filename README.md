@@ -71,3 +71,22 @@ qu'on peut construire (la sortie choisie est encadrée).
   celles au-dessus de la moyenne, ou une carte de chaleur.
 - Les couleurs (palette des barres, couleur des graphes pleins) et le format des nombres sont ceux
   de `kt.config`. Le polars derrière chaque KPI est affiché.
+
+### Nouvelles fonctions (onglet « New features » de `kt.config`)
+
+Chacune est **décochée par défaut** ; l'admin la coche dans Odoo (KpiTen → Configuration →
+« New features »). Sur `big` elles sont cochées.
+
+| case | ce que ça ajoute |
+|---|---|
+| Alert thresholds | mise en relief rouge des valeurs au-dessus / en dessous d'un seuil, et alerte sous une carte |
+| Concentration | « les 3 plus gros font 32 % du total ; 8 groupes font 80 % », et la mise en relief Pareto |
+| Outliers | mise en relief des valeurs à plus de X écarts-types de la moyenne |
+| Export a KPI as .ods | téléchargement du tableau en OpenDocument (nombres et couleurs conservés) |
+| Save a KPI as a tile | un gestionnaire KpiTen enregistre le KPI en tuile `data` d'un panel (dashboards Shiny / NiceGUI) |
+| Refine a KPI with the AI | l'IA reçoit le polars du KPI et la demande de changement |
+| Open a list of records in Odoo | un KPI qui liste des enregistrements (clé `__id`) ouvre la même liste dans Odoo |
+
+L'ouverture dans Odoo : une action de liste générique par modèle (`kt.get_records_action`, domaine
+`[('id','in',active_ids)]`), et le lien `/odoo/action-<id>?active_ids=1,2,3` (500 ids au plus). Odoo
+applique les droits de celui qui ouvre le lien.

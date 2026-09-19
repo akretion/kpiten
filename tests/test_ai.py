@@ -173,3 +173,13 @@ def test_the_ai_switches_of_kt_config(monkeypatch):
         assert not ai.sends_values()
     finally:
         config.set_config({})
+
+
+def test_the_table_of_an_answer_is_drawn_without_error_with_the_number_format():
+    from marimo_kpiten import ui
+
+    frame = pl.DataFrame(
+        {"vendor": ["A", "B"], "total": [1017698.48, 6.756], "n": [3, 12000]}
+    )
+    answer = ai.Answer("Here it is.", "d_next = d", frame)
+    assert ui.ai_answer(answer) is not None  # the table takes the kt.config formats

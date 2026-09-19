@@ -5,7 +5,8 @@ import html
 import marimo as mo
 import polars as pl
 
-from kpiten_core import config, links
+from kpiten_core import config, links, numfmt
+from kpiten_core.gtable import number_columns
 
 from .analyses import ANALYSES
 
@@ -45,7 +46,14 @@ def ai_answer(answer) -> mo.Html:
         parts.append(mo.accordion({"Code": mo.md(f"```python\n{answer.code}\n```")}))
     if answer.table is not None:
         parts.append(mo.md(f"**{answer.table.height}** rows"))
-        parts.append(mo.ui.table(plain(answer.table), selection=None, page_size=10))
+        table = plain(answer.table)
+        # numbers as the dashboards write them (`kt.config` : format, rounding)
+        integers, decimals = number_columns(table)
+        shown = {c: numfmt.format_number for c in integers}
+        shown.update({c: numfmt.format_quantity for c in decimals})
+        parts.append(
+            mo.ui.table(table, selection=None, page_size=10, format_mapping=shown)
+        )
     if answer.error and answer.table is None and answer.code:
         parts.append(
             mo.callout(

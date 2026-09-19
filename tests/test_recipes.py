@@ -261,3 +261,56 @@ def test_a_list_of_records_links_to_odoo_only_when_the_feature_is_on():
         assert ui.records_link(Backend(), "http://odoo", "purchase.order", []) is None
     finally:
         config.set_config({})
+
+
+# ---- a KPI as a tile of a dashboard, and to refine with the AI
+from kpiten_core import tiles  # noqa: E402
+
+
+def as_tile(recipe):
+    """What a dashboard does with the tile : run its definition on the rows of the user."""
+    definition = recipes.tile_definition(recipe)
+    return tiles.dataframe_case(definition, "t", {"t": FRAME}, [])
+
+
+def test_a_saved_tile_computes_the_same_table_as_the_kpi():
+    for output in ("ranking", "table", "pivot"):
+        recipe = Recipe(
+            output=output,
+            measure="amount",
+            group_by="buyer",
+            columns_by="country",
+            filter_column="state",
+            filter_values=["purchase", "done"],
+            add_share=True,
+        )
+        expected = recipes.compute(recipe, FRAME)
+        got = as_tile(recipe)
+        got = got.collect() if hasattr(got, "collect") else got
+        assert got.rows() == expected.rows(), output
+
+
+def test_the_definition_of_a_tile_starts_the_way_a_data_tile_must():
+    definition = recipes.tile_definition(
+        Recipe(output="ranking", measure="amount", group_by="buyer")
+    )
+    first_line = definition.partition("\n")[0]
+    # a data tile reads its output and input names on its first line
+    assert first_line == "d_next = d"
+    assert first_line.split(" ")[0] == "d_next" and first_line.split(" ")[2] == "d"
+    sandbox.check(definition)
+
+
+def test_the_period_of_the_kpi_is_not_repeated_in_the_tile():
+    recipe = Recipe(
+        output="trend", measure="amount", date="date", period="last 30 days"
+    )
+    assert "is_between" in recipes.polars_code(recipe, recipes.window_of(recipe))
+    assert "is_between" not in recipes.tile_definition(recipe)  # the panel has its own
+
+
+def test_the_ai_is_given_the_code_of_the_kpi_to_refine():
+    recipe = Recipe(output="ranking", measure="amount", group_by="buyer")
+    seed = recipes.seed_messages(recipe)
+    assert [m["role"] for m in seed] == ["user", "assistant"]
+    assert recipes.polars_code(recipe) in seed[0]["content"]
