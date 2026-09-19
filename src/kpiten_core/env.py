@@ -53,6 +53,11 @@ sync_page_size = int(get("SYNC_PAGE_SIZE", "100000"))
 tile_max_rows = int(get("TILE_MAX_ROWS", "500"))
 # Bars kept by a graph on a categorical axis (the rest is dropped, or folded in
 # an "Others" bar with `others = true`)
+# Explore : the rows of a panel taken out of the dashboard (see `explore`)
+explore_max_rows = int(get("EXPLORE_MAX_ROWS", "500000"))  # per table
+explore_dir = get("EXPLORE_DIR")  # default : `explore` next to DATA_PATH
+explore_ttl_hours = int(get("EXPLORE_TTL_HOURS", "1"))  # a leftover export is purged
+
 tile_max_categories = int(get("TILE_MAX_CATEGORIES", "50"))
 # Points kept by a graph on a date axis (above : grouped by month, then cut)
 tile_max_points = int(get("TILE_MAX_POINTS", "1000"))
