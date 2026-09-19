@@ -6,9 +6,12 @@ to put a table in relief, with the choices it uses. The one the user picked is f
 
 import html
 
+from kpiten_core import config
+
 ACCENT = "#0a6ebd"
 GOOD = "#00A04A"
 HIGHLIGHT = "#ffe08a"
+RED, ORANGE, GREEN = "#ffc9c9", "#ffd8a8", "#b2f2bb"
 GRID = "#d8dee4"
 WIDTH, HEIGHT = 190, 96
 
@@ -163,15 +166,35 @@ def _tile(title: str, note: str, uses: str, picture: str, selected: bool) -> str
     )
 
 
+# the highlights that come with a feature of kt.config : key -> (feature, title, cells)
+FEATURE_RELIEF = {
+    "alert_above": ("alerts", "Alert : above X", {(1, 1): RED, (2, 1): RED}),
+    "outliers": ("outliers", "Outliers", {(1, 1): ORANGE}),
+    "pareto": (
+        "concentration",
+        "Pareto : the vital few",
+        {(1, 1): GREEN, (2, 1): GREEN},
+    ),
+}
+
+
 def gallery(selected_output: str = "", selected_relief: str = "") -> str:
     """The pictures of what the choices above can build, the chosen ones framed."""
     outputs = "".join(
         _tile(title, note, uses, draw(), key == selected_output)
         for key, (title, note, uses, draw) in OUTPUTS.items()
     )
+    reliefs = dict(RELIEF)
+    reliefs.update(
+        {
+            key: (title, fills)
+            for key, (feature, title, fills) in FEATURE_RELIEF.items()
+            if config.feature(feature)
+        }
+    )
     relief = "".join(
         _tile(title, "", "highlight", _relief(fills), key == selected_relief)
-        for key, (title, fills) in RELIEF.items()
+        for key, (title, fills) in reliefs.items()
     )
     wrap = "display:flex;flex-wrap:wrap;gap:12px;margin:6px 0 14px 0"
     head = "font-weight:600;margin-top:10px"

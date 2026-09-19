@@ -161,3 +161,82 @@ def test_a_share_keeps_one_decimal_whatever_its_size():
     )
     html = recipes.styled(frame).as_raw_html()
     assert "11,0<" in html and "9,9<" in html  # not 11 and 9,90
+
+
+# ---- the new functions : each one is off until kt.config turns it on
+from kpiten_core import config  # noqa: E402
+
+SPEND = pl.DataFrame({"vendor": list("ABCD"), "spend": [500.0, 300.0, 150.0, 50.0]})
+
+
+def cells(frame, mode, value):
+    return recipes.cell_fills(frame, mode, value)
+
+
+def test_the_new_highlights_are_offered_only_when_their_feature_is_on():
+    try:
+        config.set_config({})
+        assert set(recipes.highlights()) == set(recipes.HIGHLIGHTS)
+        config.set_config({"features": {"alerts": True}})
+        offered = recipes.highlights()
+        assert "alert_above" in offered and "alert_below" in offered
+        assert "outliers" not in offered and "pareto" not in offered
+        config.set_config({"features": {"outliers": True, "concentration": True}})
+        assert {"outliers", "pareto"} <= set(recipes.highlights())
+    finally:
+        config.set_config({})
+
+
+def test_an_alert_puts_the_values_beyond_the_threshold_in_red():
+    above = cells(SPEND, "alert_above", 200)
+    assert set(above) == {("spend", 0), ("spend", 1)}  # 500 and 300
+    assert set(above.values()) == {recipes.RED}
+    assert set(cells(SPEND, "alert_below", 100)) == {("spend", 3)}  # 50
+
+
+def test_an_outlier_is_far_from_the_average():
+    frame = pl.DataFrame({"v": list("abcdefghij"), "n": [10.0] * 9 + [1000.0]})
+    fills = cells(frame, "outliers", 2)
+    assert set(fills) == {("n", 9)}
+    assert fills[("n", 9)] == recipes.ORANGE
+    assert cells(SPEND, "outliers", 5) == {}  # nothing is 5 deviations away
+
+
+def test_pareto_puts_in_green_the_groups_that_make_most_of_the_total():
+    frame = pl.DataFrame(
+        {
+            "vendor": list("ABCD"),
+            "spend": [500.0, 300.0, 150.0, 50.0],
+            "Share %": [50.0, 30.0, 15.0, 5.0],
+            "Cumulative %": [50.0, 80.0, 95.0, 100.0],
+        }
+    )
+    fills = cells(frame, "pareto", 80)
+    assert set(fills) == {("spend", 0), ("spend", 1)}  # A and B : 80 % between them
+    assert set(fills.values()) == {recipes.GREEN}
+    # a Pareto needs the shares : the code adds them by itself
+    code = recipes.polars_code(
+        Recipe(output="table", measure="amount", group_by="buyer", highlight="pareto")
+    )
+    assert "Cumulative %" in code
+
+
+def test_the_relief_of_the_table_and_of_the_export_is_the_same_cells():
+    html = recipes.styled(SPEND, "alert_above", 200).as_raw_html()
+    assert html.count(recipes.RED) == len(cells(SPEND, "alert_above", 200)) == 2
+
+
+def test_concentration_is_told_only_when_the_feature_is_on():
+    recipe = Recipe(output="ranking", measure="amount", group_by="buyer", top=2)
+    try:
+        config.set_config({})
+        assert recipes.concentration(recipe, FRAME) is None
+        config.set_config({"features": {"concentration": True}})
+        text = recipes.concentration(recipe, FRAME)
+        # Bob 1299, Ann 670, Cid 30 : the 3 make all of it, 2 of them make 80 %
+        assert "3 largest of 3 groups make 100 %" in text
+        assert "2 of them make 80 %" in text
+        card = Recipe(output="card", measure="amount")
+        assert recipes.concentration(card, FRAME) is None  # a card has no groups
+    finally:
+        config.set_config({})

@@ -6,13 +6,14 @@ writes the polars for it and the sandbox of kpiten-core runs it on the table of 
 in relief with Great Tables (values above X % of the total, the largest, a heat map...).
 """
 
+import dataclasses
 import json
 from dataclasses import dataclass, field
 
 import polars as pl
 from great_tables import GT, loc, style
 
-from kpiten_core import filters, numfmt
+from kpiten_core import config, filters, numfmt
 from kpiten_core.gtable import gt_table, number_columns
 
 from . import ai
@@ -43,7 +44,26 @@ HIGHLIGHTS = {
 # the columns `share` adds : not values to highlight
 SHARE_COLUMNS = ("Share %", "Cumulative %")
 MAX_PIVOT_COLUMNS = 12
-HIGHLIGHT_COLOR = "#ffe08a"
+YELLOW, RED, ORANGE, GREEN = "#ffe08a", "#ffc9c9", "#ffd8a8", "#b2f2bb"
+HEAT = "#f59f00"  # the dark end of the heat map
+HIGHLIGHT_COLOR = YELLOW
+# highlights that come with a new feature of `kt.config` : key -> (feature, label)
+FEATURE_HIGHLIGHTS = {
+    "alert_above": ("alerts", "Alert : the values above X"),
+    "alert_below": ("alerts", "Alert : the values below X"),
+    "outliers": ("outliers", "Outliers : X standard deviations from the average"),
+    "pareto": ("concentration", "Pareto : the groups that make X % of the total"),
+}
+CONCENTRATION_TOP, CONCENTRATION_SHARE = 3, 80
+# what the value of a highlight is : mode -> (default, what it is)
+HIGHLIGHT_VALUE = {
+    "share": (20, "X = % of the total"),
+    "top": (3, "X = how many"),
+    "alert_above": (1000, "Threshold"),
+    "alert_below": (0, "Threshold"),
+    "outliers": (2, "Standard deviations"),
+    "pareto": (80, "% of the total"),
+}
 # a light palette for `gtable.gt_table` (the notebooks are light)
 LIGHT = {
     "surface_hex": "#ffffff",
@@ -154,7 +174,7 @@ def polars_code(recipe: Recipe, window: tuple | None = None) -> str:
         )
     else:  # ranking, table
         chain = f".group_by({_q(recipe.group_by)}).agg({agg}).sort({value}, descending=True)"
-        if recipe.add_share:
+        if recipe.add_share or recipe.highlight == "pareto":
             chain += (
                 f".with_columns((pl.col({value}) / pl.col({value}).sum() * 100)"
                 f'.round(1).alias("Share %"))'
@@ -207,39 +227,100 @@ def plain(frame: pl.DataFrame) -> pl.DataFrame:
     return frame.with_columns(pl.col(decimals).cast(pl.Float64)) if decimals else frame
 
 
+def highlights() -> dict:
+    """The highlights offered : the base ones, and the new ones whose feature is on in
+    `kt.config` (alerts, outliers, Pareto)."""
+    offered = dict(HIGHLIGHTS)
+    for key, (feature, label) in FEATURE_HIGHLIGHTS.items():
+        if config.feature(feature):
+            offered[key] = label
+    return offered
+
+
+def _heat(fraction: float) -> str:
+    """A color from white (0) to the dark end of the heat map (1)."""
+    dark = [int(HEAT[i : i + 2], 16) for i in (1, 3, 5)]
+    red, green, blue = (round(255 + (d - 255) * fraction) for d in dark)
+    return f"#{red:02x}{green:02x}{blue:02x}"
+
+
+def cell_fills(frame: pl.DataFrame, highlight: str, value: float) -> dict:
+    """The cells to put in relief : `{(column, row): color}`. One calculation for the
+    table drawn by Great Tables and for the .ods export : they show the same cells."""
+    frame = plain(frame)
+    integers, decimals = number_columns(frame)
+    columns = [c for c in integers + decimals if c not in SHARE_COLUMNS]
+    if not columns or highlight in ("none", ""):
+        return {}
+    numbers = pl.concat([frame[c].cast(pl.Float64) for c in columns]).drop_nulls()
+    if numbers.is_empty():
+        return {}
+    fills: dict = {}
+
+    def mark(test, color):
+        for column in columns:
+            for row, number in enumerate(frame[column].to_list()):
+                if number is not None and test(number):
+                    fills[(column, row)] = color
+
+    total, average = numbers.sum(), numbers.mean()
+    if highlight == "heatmap":
+        low, span = numbers.min(), (numbers.max() - numbers.min()) or 1
+        for column in columns:
+            for row, number in enumerate(frame[column].to_list()):
+                if number is not None:
+                    fills[(column, row)] = _heat((number - low) / span)
+    elif highlight == "share":
+        mark(lambda n: n >= total * value / 100, YELLOW)
+    elif highlight == "top":
+        # the `value`-th largest number of the table, ties included
+        largest = numbers.sort(descending=True)
+        limit = largest[min(max(int(value), 1), len(largest)) - 1]
+        mark(lambda n: n >= limit, YELLOW)
+    elif highlight == "above_average":
+        mark(lambda n: n > average, YELLOW)
+    elif highlight == "alert_above":
+        mark(lambda n: n > value, RED)
+    elif highlight == "alert_below":
+        mark(lambda n: n < value, RED)
+    elif highlight == "outliers":
+        spread = numbers.std()
+        if spread:
+            mark(lambda n: abs(n - average) > value * spread, ORANGE)
+    elif highlight == "pareto" and all(c in frame.columns for c in SHARE_COLUMNS):
+        # the groups until the cumulative share crosses `value` % (the first one that does
+        # is in) : those that make most of the total
+        vital = [
+            row
+            for row, (cumulative, share) in enumerate(
+                zip(frame["Cumulative %"].to_list(), frame["Share %"].to_list())
+            )
+            if cumulative is not None and cumulative - share < value
+        ]
+        for column in columns:
+            for row in vital:
+                fills[(column, row)] = GREEN
+    return fills
+
+
 def styled(frame: pl.DataFrame, highlight: str = "none", value: float = 20) -> GT:
-    """The table of a recipe, in relief : `share` puts the values that are at least
-    `value` % of the total on a color, `top` the `value` largest, `above_average` those
-    above the mean, `heatmap` colors all of them by size. Numbers are written as in the
-    tables of the dashboards (`kt.config`)."""
+    """The table of a recipe, in relief (`cell_fills` says which cells) with Great
+    Tables. Numbers are written as in the tables of the dashboards (`kt.config`)."""
     frame = plain(frame)
     table = gt_table(frame, LIGHT)
     shares = [c for c in SHARE_COLUMNS if c in frame.columns]
     if shares:  # percentages keep one decimal, whatever their size
         table = table.fmt(
-            lambda value: "" if value is None else numfmt.format_number(value, 1),
+            lambda number: "" if number is None else numfmt.format_number(number, 1),
             columns=shares,
         )
-    integers, decimals = number_columns(frame)
-    columns = [c for c in integers + decimals if c not in SHARE_COLUMNS]
-    if not columns or highlight == "none":
-        return table
-    if highlight == "heatmap":
-        return table.data_color(columns=columns, palette=["#ffffff", "#f59f00"])
-    numbers = pl.concat([frame[c].cast(pl.Float64) for c in columns]).drop_nulls()
-    total, average = numbers.sum(), numbers.mean()
-    largest = numbers.sort(descending=True)
-    for column in columns:
-        if highlight == "share":
-            rows = pl.col(column) >= total * value / 100
-        elif highlight == "top":
-            # the `value`-th largest number of the table, ties included
-            limit = largest[min(max(int(value), 1), len(largest)) - 1]
-            rows = pl.col(column) >= limit
-        else:  # above_average
-            rows = pl.col(column) > average
+    by_color: dict = {}
+    for (column, row), color in cell_fills(frame, highlight, value).items():
+        by_color.setdefault((column, color), []).append(row)
+    weight = "normal" if highlight == "heatmap" else "bold"
+    for (column, color), rows in by_color.items():
         table = table.tab_style(
-            style=[style.fill(color=HIGHLIGHT_COLOR), style.text(weight="bold")],
+            style=[style.fill(color=color), style.text(weight=weight)],
             locations=loc.body(columns=column, rows=rows),
         )
     return table
@@ -251,4 +332,45 @@ def highlight_note(highlight: str, value: float) -> str:
         "top": f"Highlighted : the {value:g} largest values.",
         "above_average": "Highlighted : above the average.",
         "heatmap": "Colored by size.",
+        "alert_above": f"In red : the values above {value:g}.",
+        "alert_below": f"In red : the values below {value:g}.",
+        "outliers": f"In orange : more than {value:g} standard deviations from the average.",
+        "pareto": f"In green : the groups that make {value:g} % of the total.",
     }.get(highlight, "")
+
+
+def concentration(recipe: Recipe, frame: pl.LazyFrame) -> str | None:
+    """How concentrated a ranking is : what the biggest groups make of the total, and how
+    many groups make most of it. Off unless the feature is on in `kt.config`."""
+    if not config.feature("concentration") or recipe.output not in ("ranking", "table"):
+        return None
+    every_group = dataclasses.replace(
+        recipe, output="table", add_share=False, highlight="none"
+    )
+    if missing(every_group):
+        return None
+    result = compute(every_group, frame)
+    if result.height >= ai.MAX_ROWS:  # cut off : the total would be wrong
+        return None
+    values = sorted(
+        (
+            v
+            for v in result[value_label(every_group)].cast(pl.Float64).to_list()
+            if v and v > 0
+        ),
+        reverse=True,
+    )
+    total = sum(values)
+    if not total:
+        return None
+    top = sum(values[:CONCENTRATION_TOP]) / total * 100
+    running, needed = 0.0, len(values)
+    for count, amount in enumerate(values, 1):
+        running += amount
+        if running / total * 100 >= CONCENTRATION_SHARE:
+            needed = count
+            break
+    return (
+        f"The {min(CONCENTRATION_TOP, len(values))} largest of {len(values)} groups make "
+        f"{top:.0f} % of the total ; {needed} of them make {CONCENTRATION_SHARE} %."
+    )

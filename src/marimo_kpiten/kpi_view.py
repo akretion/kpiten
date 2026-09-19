@@ -80,7 +80,7 @@ def _table(frame: pl.DataFrame, recipe: recipes.Recipe):
 def _card(recipe: recipes.Recipe, frame: pl.LazyFrame):
     card = recipes.card(recipe, frame)
     change = card.change
-    return mo.stat(
+    stat = mo.stat(
         value=_number(card.value),
         label=recipes.title(recipe),
         caption=None if change is None else f"{change:+.1f} % vs the previous period",
@@ -89,6 +89,20 @@ def _card(recipe: recipes.Recipe, frame: pl.LazyFrame):
         ),
         bordered=True,
     )
+    alert = _alert(recipe, card.value)
+    return mo.vstack([stat, alert]) if alert else stat
+
+
+def _alert(recipe: recipes.Recipe, value):
+    """The line under a card that is beyond its alert threshold (the alerts feature)."""
+    limit = recipe.highlight_value
+    if value is None:
+        return None
+    if recipe.highlight == "alert_above" and value > limit:
+        return mo.callout(f"Above the alert threshold ({limit:g}).", kind="danger")
+    if recipe.highlight == "alert_below" and value < limit:
+        return mo.callout(f"Below the alert threshold ({limit:g}).", kind="danger")
+    return None
 
 
 def render(recipe: recipes.Recipe, frame: pl.LazyFrame):
@@ -122,6 +136,9 @@ def render(recipe: recipes.Recipe, frame: pl.LazyFrame):
             ]
         )
     parts = [mo.md(f"### {recipes.title(recipe)}")]
+    concentrated = recipes.concentration(recipe, frame)  # None unless the feature is on
+    if concentrated:
+        parts.append(mo.callout(concentrated, kind="neutral"))
     if recipe.output == "trend":
         parts.append(_area(result, recipe))
     elif recipe.output == "ranking":

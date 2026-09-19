@@ -9,12 +9,24 @@ def _():
     import marimo as mo
     import polars as pl
 
-    from kpiten_core import filters
+    from kpiten_core import config, filters
     from kpiten_core.backend import Backend
     from kpiten_core.loaders import user_store
     from marimo_kpiten import ai, gallery, kpi_view, recipes, ui
 
-    return Backend, ai, filters, gallery, kpi_view, mo, pl, recipes, ui, user_store
+    return (
+        Backend,
+        ai,
+        config,
+        filters,
+        gallery,
+        kpi_view,
+        mo,
+        pl,
+        recipes,
+        ui,
+        user_store,
+    )
 
 
 @app.cell
@@ -93,7 +105,7 @@ def _(filters, frame, mo, pl, recipes):
 
     _outputs, _output_label = _labelled(recipes.OUTPUTS, "ranking")
     _aggregations, _aggregation_label = _labelled(recipes.AGGREGATIONS, "sum")
-    _highlights, _highlight_label = _labelled(recipes.HIGHLIGHTS, "none")
+    _highlights, _highlight_label = _labelled(recipes.highlights(), "none")
     _periods, _period_label = _labelled(filters.date_options(None), "")
 
     output = mo.ui.dropdown(_outputs, value=_output_label, label="Show as")
@@ -132,7 +144,15 @@ def _(filters, frame, mo, pl, recipes):
     top = mo.ui.number(start=1, stop=100, value=10, label="Top")
     add_share = mo.ui.checkbox(label="Add the share of the total")
     highlight = mo.ui.dropdown(_highlights, value=_highlight_label, label="Highlight")
-    highlight_value = mo.ui.number(start=0, stop=1000, value=20, label="X")
+    alert = mo.ui.dropdown(
+        {
+            "No alert": "none",
+            "Alert above": "alert_above",
+            "Alert below": "alert_below",
+        },
+        value="No alert",
+        label="Alert",
+    )
     return (
         add_share,
         aggregation,
@@ -141,13 +161,22 @@ def _(filters, frame, mo, pl, recipes):
         filter_column,
         grain,
         group_by,
+        alert,
         highlight,
-        highlight_value,
         measure,
         output,
         period,
         top,
     )
+
+
+@app.cell
+def _(alert, highlight, mo, output, recipes):
+    # the value a highlight asks for : its name and its default depend on the mode
+    _mode = alert.value if output.value == "card" else highlight.value
+    _default, _what = recipes.HIGHLIGHT_VALUE.get(_mode, (20, "X"))
+    highlight_value = mo.ui.number(start=0, stop=1_000_000, value=_default, label=_what)
+    return (highlight_value,)
 
 
 @app.cell
@@ -169,7 +198,9 @@ def _(filter_column, frame, mo, pl):
 def _(
     add_share,
     aggregation,
+    alert,
     columns_by,
+    config,
     date,
     filter_column,
     filter_values,
@@ -199,8 +230,12 @@ def _(
     )
     if _kind in ("ranking", "table", "pivot"):
         _options += [highlight] + (
-            [highlight_value] if highlight.value in ("share", "top") else []
+            []
+            if highlight.value in ("none", "above_average", "heatmap")
+            else [highlight_value]
         )
+    if _kind == "card" and config.feature("alerts"):
+        _options += [alert] + ([highlight_value] if alert.value != "none" else [])
     if _options:
         _rows.append(mo.hstack(_options, justify="start", gap=1))
     mo.vstack(
@@ -222,6 +257,7 @@ def _(
 def _(
     add_share,
     aggregation,
+    alert,
     columns_by,
     date,
     filter_column,
@@ -254,9 +290,13 @@ def _(
             add_share=add_share.value,
             # only the outputs that offer it (a hidden choice must not apply)
             highlight=(
-                highlight.value
-                if output.value in ("ranking", "table", "pivot")
-                else "none"
+                alert.value
+                if output.value == "card"
+                else (
+                    highlight.value
+                    if output.value in ("ranking", "table", "pivot")
+                    else "none"
+                )
             ),
             highlight_value=highlight_value.value,
         ),
