@@ -261,7 +261,7 @@ def tile_view(
             if result.comparison:
                 # variation against the period before, like an Odoo scorecard
                 delta = result.comparison
-                color = comparison.COLORS[delta["direction"]]
+                color = comparison.color(delta)
                 with ui.row().classes("items-baseline gap-1 text-xs"):
                     ui.label(comparison.label(delta)).classes("font-semibold").style(
                         f"color: {color}" if color else ""
@@ -359,7 +359,7 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
         databases = [sso.db] if sso else backend.list_databases() or [backend.db]
     except Exception:
         databases = [backend.db]
-    filt = {"date": "last 5 years", "dims": {}}
+    filt = {"date": filters.DEFAULT_DATE_OPTION, "dims": {}}
     theme_key = theme if theme in THEMES else DEFAULT_THEME
     app.storage.browser["theme"] = theme_key
 
@@ -376,7 +376,7 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
 
     def on_panel_change(e):
         panel_label["id"] = int(e.value)
-        filt.update(date="last 5 years", dims={})
+        filt.update(date=filters.DEFAULT_DATE_OPTION, dims={})
         draw_filters()
         # Data (store_cache) is independent of the panel : just redraw the
         # tiles of the selected panel, no need to sync again with Odoo.
