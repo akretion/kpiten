@@ -15,7 +15,7 @@ No SSO and no edit mode (that's the "simplified" part of the port).
 import logging
 import pathlib
 
-from kpiten_core.gtable import gt_table
+from kpiten_core.gtable import DRILL_CSS, gt_table
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 from nicegui import app, ui, run
@@ -227,6 +227,25 @@ EDIT_JS = """
 """
 
 
+# a click on a row of a drillable table tells the server which tile and which row
+# (the hidden key columns of the row stay on the server)
+DRILL_JS = """
+(function () {
+  if (window.__kpitenDrill) { return; }
+  window.__kpitenDrill = true;
+  document.addEventListener("click", function (ev) {
+    if (ev.target.closest("a")) { return; }
+    var row = ev.target.closest(".tile.drillable .gt_table tbody tr");
+    if (!row) { return; }
+    var tile = row.closest(".tile");
+    var rows = Array.prototype.slice.call(tile.querySelectorAll(".gt_table tbody tr"));
+    emitEvent("kpiten_drill",
+      {line: parseInt(tile.dataset.tileId, 10), row: rows.indexOf(row)});
+  });
+})();
+"""
+
+
 def tile_view(
     line: dict,
     result: core_tiles.TileResult,
@@ -237,9 +256,12 @@ def tile_view(
 ):
     """Draw one tile inside its card container (with toolbar in edit mode)."""
     container_context = ui.element if edit else ui.column
-    container = container_context().classes("tile")
+    drillable = bool(line.get("drill")) and bool(result.keys)
+    container = container_context().classes("tile drillable" if drillable else "tile")
+    if drillable:  # a click on a row shows the rows behind it
+        container.props(f'data-tile-id="{line["id"]}"')
     if edit:
-        container.classes("tile-edit-item", replace=False)
+        container.classes("tile-edit-item")
         container.props(f'data-tile-id="{line["id"]}" draggable')
     if info:
         # tooltip = active panel filters («how was this data filtered »)
@@ -323,8 +345,9 @@ def error_view(line: dict, error: str, info: str = ""):
 
 @ui.page("/")
 def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = None):
-    ui.add_head_html(f"<style>{CSS}{links.LINK_CSS}</style>")
+    ui.add_head_html(f"<style>{CSS}{links.LINK_CSS}{DRILL_CSS}</style>")
     ui.add_head_html(f"<script>{links.NEW_TAB_JS}</script>")
+    ui.add_head_html(f"<script>{DRILL_JS}</script>")
     from kpiten_core import env
 
     # who is connected : the SSO session of this browser (cookie), nothing is
@@ -418,10 +441,53 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
                     "w-64"
                 )
 
+    drill_state = {"lines": {}, "keys": {}}  # tile id -> line, and the key of each row
+
+    def current_predicates():
+        date_value = filters.bounds_of_option(filt["date"])
+        return filters.make_predicates(get_config(), date_value, filt["dims"])
+
+    def on_drill(e):
+        """A click on a row of a table : show the rows behind it in a dialog."""
+        line_id, row = int(e.args["line"]), int(e.args["row"])
+        line = drill_state["lines"].get(line_id)
+        keys = drill_state["keys"].get(line_id) or []
+        if line is None or not 0 <= row < len(keys):
+            return
+        try:
+            result = core_tiles.exec_drill(
+                line, line["model"], store_cache, current_predicates(), keys[row]
+            )
+        except Exception as err:
+            logger.exception("drill-down of tile %s failed", line.get("name"))
+            ui.notify(f"Drill-down failed : {err}", type="negative")
+            return
+        palette = THEMES[theme_key]
+        with (
+            ui.dialog() as dialog,
+            ui.card()
+            .classes("w-full")
+            .style("max-width: 90vw; max-height: 85vh; overflow: auto"),
+        ):
+            with ui.row().classes("w-full items-center justify-between"):
+                ui.label(result.label).classes("text-base font-semibold")
+                ui.button(icon="close", on_click=dialog.close).props("flat round dense")
+            ui.html(gt_table(result.df, palette).as_raw_html()).style(
+                f"--link-color: {palette['accent']}"
+            )
+            if result.note:
+                ui.label(result.note).classes("text-xs opacity-60")
+        dialog.on("hide", dialog.delete)
+        dialog.open()
+
+    ui.on("kpiten_drill", on_drill)
+
     def draw_tiles():
         config = get_config()
         date_value = filters.bounds_of_option(filt["date"])
         predicates = filters.make_predicates(config, date_value, filt["dims"])
+        drill_state["lines"].clear()
+        drill_state["keys"].clear()
         previous_predicates = filters.make_previous_predicates(
             config, date_value, filt["dims"]
         )
@@ -441,6 +507,9 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
                         previous_predicates,
                         previous_label,
                     )
+                    if line.get("drill") and result.keys:
+                        drill_state["lines"][line["id"]] = line
+                        drill_state["keys"][line["id"]] = result.keys
                     grid = cards_grid if line["kind"] == "card" else tiles_grid
                     with grid:
                         tile_view(
