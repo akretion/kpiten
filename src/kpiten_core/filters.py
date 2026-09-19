@@ -27,6 +27,76 @@ DATE_OPTIONS = {
 }
 # the dashboards open on it, like the Odoo dashboards (`last_three_months`)
 DEFAULT_DATE_OPTION = "last 90 days"
+WINDOWS = (7, 30, 90, 180, 365)  # days, the relative periods of an Odoo dashboard
+MAX_MONTHS, MAX_YEARS = 12, 10
+
+
+def date_range(
+    store, filter_config: dict
+) -> tuple[datetime.date, datetime.date] | None:
+    """The first and last date of the panel's date column(s) in the user's rows
+    (None when the panel has no date, or no row has one)."""
+    fields = date_fields(filter_config)
+    low = high = None
+    for frame in store.values():
+        lazy = frame.lazy()
+        columns = set(lazy.collect_schema().names())
+        for field in (f for f in fields if f in columns):
+            bounds = lazy.select(
+                pl.col(field).cast(pl.Date).min().alias("low"),
+                pl.col(field).cast(pl.Date).max().alias("high"),
+            ).collect(engine="streaming")
+            first, last = bounds["low"][0], bounds["high"][0]
+            if first is not None:
+                low = first if low is None else min(low, first)
+                high = last if high is None else max(high, last)
+    return (low, high) if low is not None else None
+
+
+def date_options(
+    date_range_of_data, today: datetime.date | None = None
+) -> dict[str, str]:
+    """The choices of the Period filter that fit the data : the relative windows
+    shorter than the data, year to date when it goes back before this year, then the
+    calendar months (data of less than two years) or years (more) it covers, newest
+    first. Without a range (no date, nothing loaded) the whole static list."""
+    if date_range_of_data is None:
+        return dict(DATE_OPTIONS)
+    today = today or datetime.date.today()
+    low, high = date_range_of_data
+    span = (high - low).days + 1
+    options = {"": "full range"}
+    if high >= today:
+        options["today only"] = "today only"
+    for days in WINDOWS:
+        # shorter than the data, and reaching it (old data : nothing in the last 7 days)
+        if days < span and high >= today - datetime.timedelta(days=days - 1):
+            options[f"last {days} days"] = f"last {days} days"
+    if low < datetime.date(today.year, 1, 1) <= high:
+        options["year to date"] = "year to date"
+    if span <= 730:
+        months = []
+        year, month = high.year, high.month
+        while (year, month) >= (low.year, low.month) and len(months) < MAX_MONTHS:
+            months.append(f"{year}-{month:02d}")
+            year, month = (year - 1, 12) if month == 1 else (year, month - 1)
+        options.update({key: key for key in months})
+    else:
+        years = range(min(high.year, today.year - 1), low.year - 1, -1)
+        options.update({str(y): str(y) for y in list(years)[:MAX_YEARS]})
+    return options
+
+
+def default_date_option(
+    options: dict[str, str], date_range_of_data, today: datetime.date | None = None
+) -> str:
+    """The period a panel opens on : the default one when the data reaches it,
+    else the full range (an empty dashboard is of no use)."""
+    if date_range_of_data is None:
+        return DEFAULT_DATE_OPTION
+    today = today or datetime.date.today()
+    recent = date_range_of_data[1] >= today - datetime.timedelta(days=90)
+    return DEFAULT_DATE_OPTION if DEFAULT_DATE_OPTION in options and recent else ""
 
 
 def bounds_of_option(option: str | None):
@@ -71,6 +141,13 @@ def previous_bounds(date_value) -> tuple[datetime.date, datetime.date] | None:
     if not date_value:
         return None
     start, end = date_value
+    if start.day == 1 and (end + datetime.timedelta(days=1)).day == 1:
+        # whole calendar months (a month, a year) : the same number of months before
+        months = (end.year - start.year) * 12 + end.month - start.month + 1
+        year, month = divmod(start.year * 12 + start.month - 1 - months, 12)
+        return date_filter.month_bounds(year, month + 1)[0], start - datetime.timedelta(
+            days=1
+        )
     if start.month == 1 and start.day == 1:
         try:
             return start.replace(year=start.year - 1), end.replace(year=end.year - 1)

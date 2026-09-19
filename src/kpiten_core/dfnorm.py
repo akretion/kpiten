@@ -4,7 +4,7 @@ Port of marimo-kpiten `services/dataframe_util.py`, without marimo:
 - string datetimes -> Date columns (the time is dropped, the day is kept :
   day level kpis like « late » or « last 7 days » need it ; group by month
   with the `monthly` option of a tile instead)
-- many2one `[id, name]` pairs split into `col` (name) + `col_id_` (id)
+- many2one `[id, name]` pairs split into `col` (name) + `col_` (id)
 - decimal scale normalization
 """
 
@@ -96,12 +96,18 @@ class Df:
         i.e. company_id [2, "My Company"] ->
             company_id: "My Company"
             company_id_: 2
+
+        Every many2one of the fields metadata gets both columns, whatever its name
+        (`product_uom`, `create_uid`...) : `<field>_` is always the id, so a tile can
+        rely on it for a link or a grouping. A column that only looks like a many2one
+        (a name with `_id` and a list of two values, not in the metadata) is split too.
         """
+        m2o_fields = self._m2o_fields()
         for col in self.df.columns:
-            if not re.search(r"_(u?id)", col):
+            is_m2o = col in m2o_fields
+            if not is_m2o and not re.search(r"_(u?id)", col):
                 continue
-            id_col = re.sub(r"_(u?id)", "_id_", col)
-            is_m2o = col in self._m2o_fields()
+            id_col = f"{col}_" if is_m2o else re.sub(r"_(u?id)", "_id_", col)
             if self.df[col].dtype == pl.List:
                 if is_m2o or not self.df[col].is_null().all():
                     self.df = self.df.with_columns(

@@ -112,3 +112,57 @@ def test_validate_good_key():
 
     assert validate_toml('compare = true\ngood = "down"', "card") == []
     assert validate_toml('good = "sideways"', "card") != []
+
+
+def test_period_options_follow_the_data():
+    D = datetime.date
+    today = D(2026, 9, 19)
+
+    four_years = (D(2022, 9, 19), D(2026, 9, 18))
+    options = filters.date_options(four_years, today)
+    assert list(options) == [
+        "", "last 7 days", "last 30 days", "last 90 days", "last 180 days",
+        "last 365 days", "year to date", "2025", "2024", "2023", "2022",
+    ]  # fmt: skip
+    assert filters.default_date_option(options, four_years, today) == "last 90 days"
+
+    months = filters.date_options((D(2026, 1, 10), D(2026, 9, 18)), today)
+    assert "2026-01" in months and "2025" not in months  # months, not years
+    assert "last 365 days" not in months  # longer than the data
+
+    old = (D(2023, 1, 1), D(2024, 6, 30))
+    stale = filters.date_options(old, today)
+    assert "last 7 days" not in stale and "2024-06" in stale
+    assert filters.default_date_option(stale, old, today) == ""  # full range
+
+    assert (
+        filters.date_options(None) == filters.DATE_OPTIONS
+    )  # no date : the static list
+
+
+def test_calendar_periods_and_their_previous_period():
+    D = datetime.date
+    assert date_filter.bounds_for_option("2024") == (D(2024, 1, 1), D(2024, 12, 31))
+    assert date_filter.bounds_for_option("2024-02") == (D(2024, 2, 1), D(2024, 2, 29))
+    assert filters.previous_bounds(
+        D(2024, 2, 1) and (D(2024, 2, 1), D(2024, 2, 29))
+    ) == (
+        D(2024, 1, 1),
+        D(2024, 1, 31),
+    )
+    assert filters.previous_bounds((D(2026, 1, 1), D(2026, 1, 31))) == (
+        D(2025, 12, 1),
+        D(2025, 12, 31),
+    )
+
+
+def test_date_range_of_the_panel_rows():
+    D = datetime.date
+    store = {
+        "orders": pl.DataFrame({"date_order": [D(2024, 3, 1), D(2025, 5, 2)]}),
+        "lines": pl.DataFrame({"order_id.date_order": [D(2023, 7, 9)], "qty": [1]}),
+        "other": pl.DataFrame({"x": [1]}),
+    }
+    config = {"date": {"field": ["date_order", "order_id.date_order"]}}
+    assert filters.date_range(store, config) == (D(2023, 7, 9), D(2025, 5, 2))
+    assert filters.date_range(store, {}) is None

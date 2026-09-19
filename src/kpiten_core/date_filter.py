@@ -1,6 +1,7 @@
 """Generic date-range helper for dashboard global filters."""
 
 import datetime
+import re
 
 import polars as pl
 
@@ -11,6 +12,13 @@ def last_year_bounds(today: datetime.date) -> dict[str, datetime.date]:
         "LY_first_day": datetime.date(ly, 1, 1),
         "LY_last_day": datetime.date(ly, 12, 31),
     }
+
+
+def month_bounds(year: int, month: int) -> tuple[datetime.date, datetime.date]:
+    """First and last day of a calendar month."""
+    first = datetime.date(year, month, 1)
+    following = datetime.date(year + (month == 12), month % 12 + 1, 1)
+    return first, following - datetime.timedelta(days=1)
 
 
 def last_days(today: datetime.date, days: int) -> tuple[datetime.date, datetime.date]:
@@ -43,6 +51,12 @@ def bounds_for_option(option: str | None) -> tuple[datetime.date, datetime.date]
         return today, today
     if option in DAYS_OF_OPTION:
         return last_days(today, DAYS_OF_OPTION[option])
+    calendar = re.fullmatch(r"(\d{4})(?:-(\d{2}))?", option)
+    if calendar:  # "2025" : the calendar year, "2025-08" : the calendar month
+        year, month = int(calendar[1]), int(calendar[2] or 0)
+        if not month:
+            return datetime.date(year, 1, 1), datetime.date(year, 12, 31)
+        return month_bounds(year, month)
     if option == "year to date":
         return datetime.date(today.year, 1, 1), today
     if option == "last year":

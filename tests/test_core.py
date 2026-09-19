@@ -50,6 +50,37 @@ def test_df_norm_many2one_split():
     assert df["date_order"].dtype == pl.Date
 
 
+def test_every_many2one_gets_a_name_and_an_id_column():
+    """Whatever the field is called : `product_uom` and `create_uid` have no `_id`
+    in their name (or a different one), their id column is still `<field>_`."""
+    fields = {
+        name: {"type": "many2one", "rel": "x"}
+        for name in ("product_uom", "create_uid", "partner_id")
+    }
+    recs = [
+        {
+            "id": 1,
+            "product_uom": [1, "Units"],
+            "create_uid": [2, "Bob"],
+            "partner_id": [7, "Acme"],
+        },
+        {
+            "id": 2,
+            "product_uom": [3, "Dozens"],
+            "create_uid": [2, "Bob"],
+            "partner_id": None,
+        },
+    ]
+    df = Df(pl.DataFrame(recs, strict=False), fields=fields).get_df()
+    for name in fields:
+        assert df[name].dtype == pl.String, name
+        assert df[name + "_"].dtype == pl.Int64, name
+    assert df["product_uom"].to_list() == ["Units", "Dozens"]
+    assert df["product_uom_"].to_list() == [1, 3]
+    assert df["create_uid_"].to_list() == [2, 2]
+    assert "create_id_" not in df.columns
+
+
 def test_df_norm_keeps_the_day():
     """Day level kpis (late, last 7 days, days to order) need exact dates."""
     recs = [{"id": 1, "date_order": "2025-01-17 23:59:00"}]
