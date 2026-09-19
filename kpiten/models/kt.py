@@ -440,6 +440,14 @@ class Kt(models.AbstractModel):
         return data_by_id
 
     @api.model
+    def check_uuid(self, user_uuid):
+        """The user id of a valid (issued less than a week ago) uuid, else False.
+
+        The dashboard apps ask it to open a session : an expired uuid opens nothing.
+        """
+        return self.env["res.users.log"]._valid_uuid_user(user_uuid)
+
+    @api.model
     def can_edit_tiles(self, user_id=None):
         """Whether the user (default : the current one) is a KpiTen manager.
 
@@ -462,12 +470,16 @@ class Kt(models.AbstractModel):
             (arg for arg in reversed(args) if isinstance(arg, str)), "shiny"
         )
         logger.info("action_redirect_to_kpiten : application=%s", application)
-        uuid = (
+        log = (
             self.env["res.users.log"]
             .with_user(SUPERUSER_ID)
-            .search([("create_uid", "=", self.env.user.id)])[0]
-            .uuid
+            .search([("create_uid", "=", self.env.user.id)], order="id desc", limit=1)
         )
+        if not log._uuid_is_valid():  # older than a week : issue a new one
+            log._renew_uuid()
+            # the app checks it in its own transaction, right below : commit first
+            self.env.cr.commit()
+        uuid = log.uuid
         urls = self.env["res.company"]._get_kpiten_services(application)
         route = "build" if application == "marimo" else "dashboard"
         try:
