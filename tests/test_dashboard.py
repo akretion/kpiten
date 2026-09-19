@@ -109,3 +109,25 @@ def test_comparison_switch_of_kt_config(page: Page) -> None:
         assert page.locator(DELTAS).count() == 0  # ...without the comparison
     finally:  # the setting is left as it was found
         config.write(ids, {"show_card_comparison": initial})
+
+
+def test_table_link_opens_the_odoo_record_in_a_new_tab(page: Page) -> None:
+    """A link of a table opens the order in Odoo, in another tab : the user is logged in
+    to Odoo in the same browser (that is where the SSO starts)."""
+    try:
+        page.goto(f"{ODOO}/web/login?db={DB}")
+    except Exception:
+        pytest.skip("Odoo is not running (make up)")
+    page.fill("input[name=login]", LOGIN)
+    page.fill("input[name=password]", PASSWORD)
+    page.click("button[type=submit]")
+    page.wait_for_url("**/odoo**", timeout=60_000)
+    open_dashboard(page)
+    link = page.locator(".tile .gt_table a[href*='/odoo/sale.order/']").first
+    link.wait_for(timeout=60_000)
+    with page.context.expect_page(timeout=20_000) as opened:
+        link.click()
+    record = opened.value
+    record.wait_for_selector(".o_form_view", timeout=30_000)
+    assert "/odoo/sale.order/" in record.url
+    assert record.locator(".o_error_dialog").count() == 0
