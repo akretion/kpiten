@@ -5,6 +5,7 @@ Moved to `kpiten_core.filters` so the nicegui app can reuse them.
 
 from kpiten_core.filters import (  # noqa: F401
     DATE_OPTIONS,
+    DEFAULT_DATE_OPTION,
     bounds_of_option,
     describe_filters,
     describe_previous,

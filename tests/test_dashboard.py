@@ -96,6 +96,7 @@ def test_comparison_switch_of_kt_config(page: Page) -> None:
 
     config = Backend.create(db=DB).env["kt.config"]
     ids = config.search([], limit=1)
+    initial = config.read(ids, ["show_card_comparison"])[0]["show_card_comparison"]
     try:
         config.write(ids, {"show_card_comparison": True})
         open_dashboard(page)
@@ -106,5 +107,5 @@ def test_comparison_switch_of_kt_config(page: Page) -> None:
         page.wait_for_load_state("networkidle")
         assert page.locator(CARDS).count() > 0  # the cards are drawn...
         assert page.locator(DELTAS).count() == 0  # ...without the comparison
-    finally:
-        config.write(ids, {"show_card_comparison": True})
+    finally:  # the setting is left as it was found
+        config.write(ids, {"show_card_comparison": initial})

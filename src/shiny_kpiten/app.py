@@ -444,7 +444,7 @@ def server(input, output, session):
                     "date_period",
                     "Period",
                     choices=filterstate.DATE_OPTIONS,
-                    selected="last 5 years",
+                    selected=filterstate.DEFAULT_DATE_OPTION,
                 )
             )
         store_data = store()
