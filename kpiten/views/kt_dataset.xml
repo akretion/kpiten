@@ -89,6 +89,33 @@
                         />
                     </group>
                 </group>
+                <div class="mb-3" invisible="kind != 'graph'">
+                    <details>
+                        <summary class="fw-bold">Syntax of a "Graph" tile</summary>
+                        <div class="p-2">
+                            <p>TOML. <code>x</code> and <code>y</code> are required, the rest is optional :</p>
+                            <pre>graph_type = "bar"            # bar | point | area
+from = "sale.order"           # another dataset than the tile's
+where = "state = 'sale'"      # SQL on the rows (table `self`) ; {today}, {today-30}
+monthly = true                # a date x axis is grouped by month
+others = true                 # the bars past the limit are folded into "Others"
+
+[x]
+name = "date_order"           # a column (dotted path and date parts allowed)
+aggregation = "none"          # none | sum | count | mean
+
+[y]
+name = "amount_untaxed"
+aggregation = "sum"</pre>
+                            <ul>
+                                <li>A date <code>x</code> is chronological, any other is sorted by <code>y</code>, largest first.</li>
+                                <li>The tile keeps the first 50 bars (<code>TILE_MAX_CATEGORIES</code>) or the last 1000
+                                    points (<code>TILE_MAX_POINTS</code>) and says so under the graph.</li>
+                                <li>The period and the dimension filters of the panel apply, like the user's rights.</li>
+                            </ul>
+                        </div>
+                    </details>
+                </div>
                 <div class="mb-3" invisible="kind != 'data'">
                     <details>
                         <summary class="fw-bold">Polars syntax of a "Data" tile</summary>
