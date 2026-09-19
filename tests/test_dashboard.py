@@ -136,7 +136,7 @@ def test_table_link_opens_the_odoo_record_in_a_new_tab(page: Page) -> None:
 def test_drill_down_shows_the_rows_behind_a_table_row(page: Page) -> None:
     """A click on a row of Top Products opens the order lines of that product."""
     open_dashboard(page)
-    tile = page.locator(".tile.drillable").first
+    tile = page.locator(".tile.drillable", has_text="Top Products").first
     tile.wait_for(timeout=60_000)
     tile.locator(".gt_table tbody tr").first.locator("td").nth(1).click()
     modal = page.locator(".modal-dialog")
@@ -144,3 +144,15 @@ def test_drill_down_shows_the_rows_behind_a_table_row(page: Page) -> None:
     columns = [c.strip() for c in modal.locator(".gt_table thead th").all_inner_texts()]
     assert columns == ["Date", "Order", "Customer", "Quantity", "Revenue"]
     assert modal.locator(".gt_table tbody tr").count() > 0
+
+
+def test_drill_down_of_an_order_reads_another_table(page: Page) -> None:
+    """Top Sales Orders : a click shows the lines of the order (the sale.order.line table)."""
+    open_dashboard(page)
+    tile = page.locator(".tile.drillable", has_text="Top Sales Orders").first
+    tile.wait_for(timeout=60_000)
+    tile.locator(".gt_table tbody tr").first.locator("td").nth(1).click()
+    modal = page.locator(".modal-dialog")
+    modal.locator(".gt_table").wait_for(timeout=30_000)
+    columns = [c.strip() for c in modal.locator(".gt_table thead th").all_inner_texts()]
+    assert columns == ["Product", "Quantity", "Unit price", "Subtotal"]
