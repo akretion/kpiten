@@ -244,10 +244,34 @@ DRILL_JS = """
 
 
 # ---- tiles html rendering ---------------------------------------------
+def records_link_html(records: dict | None) -> str:
+    """The link under a table that lists Odoo records : the same list, in Odoo (the
+    rights of the user apply there). `records` is `core_tiles.records_link`."""
+    if not records:
+        return ""
+    count, total = records["count"], records["total"]
+    label = (
+        f"Open these {count} records in Odoo"
+        if count == total
+        else f"Open the first {count} of {total} records in Odoo"
+    )
+    return (
+        f'<a class="records-link" href="{html_escape(records["url"], quote=True)}" '
+        'target="_blank" rel="noopener noreferrer" '
+        'title="The same list of records, in Odoo (with your rights)">'
+        f"{label}</a>"
+    )
+
+
 def tile_html(
-    line: dict, theme: themes.Theme, result: core_tiles.TileResult, info: str = ""
+    line: dict,
+    theme: themes.Theme,
+    result: core_tiles.TileResult,
+    info: str = "",
+    records: dict | None = None,
 ) -> str:
-    """Tile html ; `info` goes in a tooltip = active filters description."""
+    """Tile html ; `info` goes in a tooltip = active filters description ; `records` is
+    the link that opens the listed records in Odoo (when the KPI lists some)."""
     p = theme.palette
     tooltip = f' title="{info}"' if info else ""
     if result.kind == "card":
@@ -293,6 +317,7 @@ def tile_html(
             f'<div style="font-size: 11px; opacity: .65; margin-top: 4px">'
             f"{result.note}</div>"
         )
+    parts.append(records_link_html(records))
     html = "".join(str(part) for part in parts)
     drillable = bool(line.get("drill")) and bool(result.keys)
     height = line.get("tile_height") or 260
@@ -647,10 +672,15 @@ def server(input, output, session):
         return info.replace('"', "'")
 
     def tile_edit_item(
-        line: dict, theme: themes.Theme, result: core_tiles.TileResult
+        line: dict,
+        theme: themes.Theme,
+        result: core_tiles.TileResult,
+        records: dict | None = None,
     ) -> str:
         """Same CSS-grid tile, draggable with an edit toolbar."""
-        content = _inject_toolbar(tile_html(line, theme, result, tile_info(line)), line)
+        content = _inject_toolbar(
+            tile_html(line, theme, result, tile_info(line), records), line
+        )
         return (
             f'<div class="tile-edit-item" data-tile-id="{line["id"]}"'
             f' draggable="true" style="grid-column: span {span_of(line)}">{content}</div>'
@@ -802,10 +832,12 @@ def server(input, output, session):
                 )
                 if result.keys:
                     drill_keys[line["id"]] = result.keys
+                # None unless the feature is on and the rows are records of the model
+                records = core_tiles.records_link(backend_rv(), line["model"], result)
                 rendered = (
-                    tile_edit_item(line, theme, result)
+                    tile_edit_item(line, theme, result, records)
                     if edit_mode_on
-                    else tile_html(line, theme, result, tile_info(line))
+                    else tile_html(line, theme, result, tile_info(line), records)
                 )
             except Exception as err:
                 logger.exception("tile %s failed", line["name"])

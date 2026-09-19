@@ -345,3 +345,51 @@ def test_who_may_export_follows_kt_config(page: Page) -> None:
         assert has_button(MANAGER, MANAGER_PASSWORD)
     with kt_config(explore_access="everyone"):
         assert has_button(LOGIN, PASSWORD)
+
+
+def login_to_odoo(page: Page, login: str = LOGIN, password: str = PASSWORD) -> None:
+    """Logged in to Odoo in this browser, as when a user starts from the KpiTen menu."""
+    try:
+        page.goto(f"{ODOO}/web/login?db={DB}")
+    except Exception:
+        pytest.skip("Odoo is not running (make up)")
+    page.fill("input[name=login]", login)
+    page.fill("input[name=password]", password)
+    page.click("button[type=submit]")
+    page.wait_for_url("**/odoo**", timeout=60_000)
+
+
+def test_a_kpi_that_lists_records_opens_the_same_list_in_odoo(page: Page) -> None:
+    """The link under « Top Sales Orders » opens, in Odoo, the orders the tile lists :
+    the ids of its rows are in the address, and Odoo shows those records."""
+    with kt_config(feature_open_in_odoo=True):
+        login_to_odoo(page)
+        open_dashboard(page)
+        tile = page.locator(".tile", has=page.locator(".records-link")).first
+        tile.wait_for(timeout=60_000)
+        listed = {
+            int(found)
+            for href in tile.locator("a[href*='/odoo/sale.order/']").evaluate_all(
+                "els => els.map(e => e.href)"
+            )
+            for found in re.findall(r"/sale\.order/(\d+)", href)
+        }
+        assert listed  # the rows of the tile are orders
+        link = tile.locator(".records-link")
+        ids = re.search(r"active_ids=([\d,]+)", link.get_attribute("href"))[1]
+        assert {int(i) for i in ids.split(",")} == listed  # the same records
+        with page.context.expect_page(timeout=20_000) as opened:
+            link.click()
+        odoo = opened.value
+        odoo.wait_for_selector(".o_list_view", timeout=60_000)
+        odoo.wait_for_selector(".o_data_row", timeout=30_000)
+        assert odoo.locator(".o_data_row").count() == len(listed)
+        assert odoo.locator(".o_error_dialog").count() == 0
+
+
+def test_the_link_is_not_there_when_the_feature_is_off(page: Page) -> None:
+    with kt_config(feature_open_in_odoo=False):
+        open_dashboard(page)
+        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(2000)
+        assert page.locator(".records-link").count() == 0

@@ -129,6 +129,13 @@ class Theme:
 /* edit mode : the grid item is the wrapper of the tile */
 .tile-edit-item {{ display: flex; flex-direction: column }}
 .tile-edit-item > .tile {{ flex: 1 }}
+.records-link {{
+  font-size: 12px;
+  margin-top: 6px;
+  color: {p["accent"]};
+  text-decoration: none;
+}}
+.records-link::after {{ content: " \\2197"; opacity: .7 }}
 .kind-badge {{
   font-size: 10px;
   font-weight: 400;
