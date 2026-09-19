@@ -398,6 +398,17 @@ def test_the_link_is_not_there_when_the_feature_is_off(page: Page) -> None:
 def test_the_kpiten_logo_is_in_the_header_with_its_slogan_on_hover(page: Page) -> None:
     open_dashboard(page)
     logo = page.locator("img.kpiten-logo")
-    expect(logo).to_have_attribute("title", "KpiTen \u2014 Le capitaine de vos KPI")
+    expect(logo).to_have_attribute("title", "Le capitaine de vos KPI")
     reply = page.request.get(urljoin(page.url, logo.get_attribute("src")))
     assert reply.ok and reply.headers["content-type"].startswith("image/")
+
+
+def test_the_logo_with_its_name_ends_the_page_on_the_right(page: Page) -> None:
+    open_dashboard(page)
+    page.wait_for_load_state("networkidle")
+    footer = page.locator(".app-footer svg")
+    footer.scroll_into_view_if_needed()
+    box, last_tile = footer.bounding_box(), page.locator(TILES).last.bounding_box()
+    assert box["x"] + box["width"] > page.viewport_size["width"] * 0.85  # on the right
+    assert box["y"] >= last_tile["y"] + last_tile["height"]  # after every tile
+    assert footer.get_attribute("aria-label") == "KpiTen, le capitaine de vos KPI"

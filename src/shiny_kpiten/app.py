@@ -202,6 +202,10 @@ def app_ui(req):  # noqa: ANN001
         ),
         ui.output_ui("filters"),
         ui.div(ui.output_ui("tiles")),
+        # the logo with its name at the end of the page, on the right
+        ui.div(
+            ui.HTML(brand.lockup_svg(64)), class_="app-footer", title=brand.tooltip()
+        ),
         title=TAB_TITLE,
     )
 
