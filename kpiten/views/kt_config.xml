@@ -13,6 +13,7 @@
                         <group>
                             <field name="graph_color_3" widget="color" />
                             <field name="graph_color_4" widget="color" />
+                            <field name="graph_fill_color" widget="color" />
                         </group>
                         <group colspan="2">
                             <field
