@@ -1,6 +1,11 @@
 # Sources agrégées avec git-aggregator :  make repos
 # Chaque entrée est clonée dans src/ (gitignoré) ; pour figer une version,
 # remplacer la branche par un SHA/tag dans "merges".
+#
+# `target` : git-aggregator se place toujours sur cette branche locale (checkout -B)
+# puis la remet À L'ÉTAT du premier merge (reset --hard) : les commits non poussés
+# de cette branche sont perdus. Il porte ici le nom de la vraie branche (et non
+# « aggregated »), pour commiter et pousser dans src/<dossier> sans renommer.
 
 ./src/odoo:
   defaults:
@@ -9,7 +14,7 @@
     odoo: https://github.com/odoo/odoo.git
   merges:
     - odoo 18.0
-  target: odoo aggregated
+  target: odoo 18.0
 
 ./src/oca-server-tools:
   defaults:
@@ -18,7 +23,7 @@
     oca: https://github.com/OCA/server-tools.git
   merges:
     - oca 18.0
-  target: oca aggregated
+  target: oca 18.0
 
 # Modules Odoo kpiten (kpiten, kpiten_demo, erp_demo_*, ...)
 ./src/kpiten-addons:
@@ -26,14 +31,14 @@
     akretion: git@github.com:akretion/kpiten.git
   merges:
     - akretion odoo-multiversion
-  target: akretion aggregated
+  target: akretion odoo-multiversion
 
 ./src/kpiten-override:
   remotes:
     akretion: git@github.com:akretion/kpiten.git
   merges:
     - akretion 18-override
-  target: akretion aggregated
+  target: akretion 18-override
 
 # Applications Python (uv sync dans chaque dossier)
 ./src/kpiten-core:
@@ -41,18 +46,18 @@
     akretion: git@github.com:akretion/kpiten.git
   merges:
     - akretion kpiten-core
-  target: akretion aggregated
+  target: akretion kpiten-core
 
 ./src/nicegui-kpiten:
   remotes:
     akretion: git@github.com:akretion/kpiten.git
   merges:
     - akretion nicegui-kpiten
-  target: akretion aggregated
+  target: akretion nicegui-kpiten
 
 ./src/shiny-kpiten:
   remotes:
     akretion: git@github.com:akretion/kpiten.git
   merges:
     - akretion shiny-kpiten
-  target: akretion aggregated
+  target: akretion shiny-kpiten
