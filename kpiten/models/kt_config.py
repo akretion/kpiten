@@ -38,6 +38,12 @@ class KtConfig(models.Model):
         help="Fourth color of the chart palette. Used for the fourth bar / "
         "series of each graph.",
     )
+    graph_fill_color = fields.Char(
+        string="Filled graph color",
+        help="Color of the filled graphs (area) : their line, and their fill at half "
+        "opacity. The palette above is for the bars ; empty, the default color "
+        "of the chart library is used.",
+    )
     show_card_comparison = fields.Boolean(
         string="Compare cards with the previous period",
         default=True,
@@ -91,6 +97,7 @@ class KtConfig(models.Model):
 
         i.e. {"graph": {"layout": {"colorway": ["#00dc82", "#34cdfe"]}},
               "card": {"comparison": True},
+              "graph": {"layout": {...}, "fill_color": "#33d17a"},
               "currency": {"symbol": "$", "position": "before"}}
 
         `currency` is the one of the company : a card with `unit = "currency"`
@@ -119,6 +126,11 @@ class KtConfig(models.Model):
         if rec.graph_title_font_color:
             layout["title"] = {"font": {"color": rec.graph_title_font_color}}
         config["card"] = {"comparison": rec.show_card_comparison}
+        graph = {}
         if layout:
-            config["graph"] = {"layout": layout}
+            graph["layout"] = layout
+        if rec.graph_fill_color:
+            graph["fill_color"] = rec.graph_fill_color
+        if graph:
+            config["graph"] = graph
         return config
