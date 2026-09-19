@@ -1,6 +1,16 @@
 from odoo import _, api, exceptions, fields, models
 
 NUM_COLORS = 8
+# the new functions of the marimo explorer, each one a `feature_<name>` boolean (off by
+# default) : `{"features": {"alerts": False, ...}}` for the apps
+FEATURES = (
+    "save_tile",
+    "alerts",
+    "concentration",
+    "outliers",
+    "export_ods",
+    "ai_refine",
+)
 # what a scorecard of Odoo uses (`baselineColorUp`, `baselineColorDown`)
 DEFAULT_GOOD, DEFAULT_BAD = "#00A04A", "#DC6965"
 # key -> (thousands separator, decimal mark) : the same as kpiten_core.config
@@ -217,6 +227,43 @@ class KtConfig(models.Model):
         "but with an online model those values leave the company. Never a row.",
     )
 
+    # ---- new features of the marimo explorer : off until they are checked
+    feature_save_tile = fields.Boolean(
+        string="Save a KPI as a tile",
+        default=False,
+        help="A KpiTen manager can save the KPI they built as a tile of a panel : it "
+        "then shows on the dashboards.",
+    )
+    feature_alerts = fields.Boolean(
+        string="Alert thresholds",
+        default=False,
+        help="Put in red the values above (or below) an amount, in a table or on a card.",
+    )
+    feature_concentration = fields.Boolean(
+        string="Concentration",
+        default=False,
+        help="How much the biggest groups make of the total (the few groups that make "
+        "80 %), and the Pareto highlight.",
+    )
+    feature_outliers = fields.Boolean(
+        string="Outliers",
+        default=False,
+        help="Highlight the values far from the average (more than X standard "
+        "deviations).",
+    )
+    feature_export_ods = fields.Boolean(
+        string="Export a KPI as .ods",
+        default=False,
+        help="Download the table of a KPI as an OpenDocument spreadsheet "
+        "(LibreOffice), highlights included.",
+    )
+    feature_ai_refine = fields.Boolean(
+        string="Refine a KPI with the AI",
+        default=False,
+        help="Ask the AI to change the KPI that was built : it gets the polars of the "
+        "KPI and the request.",
+    )
+
     # ---- constraints
     @api.constrains("number_small_decimals", "number_large_decimals")
     def _check_decimals(self):
@@ -379,4 +426,5 @@ class KtConfig(models.Model):
             "enabled": rec.ai_enabled,
             "send_values": rec.ai_send_values,
         }
+        config["features"] = {name: rec[f"feature_{name}"] for name in FEATURES}
         return config
