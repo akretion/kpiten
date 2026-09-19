@@ -1,0 +1,895 @@
+[
+ {
+  "name": "Qty purchased",
+  "kind": "graph",
+  "model": "purchase.order.line",
+  "definition": "graph_type = \"bar\"\n[x]\nname = \"product_id.name\"\naggregation = \"none\"\n[y]\nname = \"product_qty\"\naggregation = \"sum\"\n",
+  "drill": null,
+  "panel": "Purchase",
+  "filter_config": {
+   "date": {
+    "field": "date_order"
+   },
+   "dimensions": [
+    {
+     "name": "partner_id.name",
+     "label": "Vendor"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Best Seller",
+  "kind": "card",
+  "model": "sale.order.line",
+  "definition": "where = \"state not in ('draft', 'sent', 'cancel')\"\nbest = \"product_id\"\nmeasure = \"price_subtotal\"\ndetail = \"product_uom_qty\"\ndetail_label = \"sold\"\n",
+  "drill": null,
+  "panel": "Product",
+  "filter_config": {
+   "date": {
+    "field": "order_id.date_order"
+   },
+   "dimensions": [
+    {
+     "name": "product_id",
+     "label": "Product"
+    },
+    {
+     "name": "product_id.categ_id.complete_name",
+     "label": "Category"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Sales Orders count",
+  "kind": "card",
+  "model": "sale.order",
+  "definition": "where = \"state not in ('draft', 'sent')\"",
+  "drill": null,
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Monthly sales",
+  "kind": "graph",
+  "model": "sale.order",
+  "definition": "graph_type = \"area\"\nwhere = \"state not in ('draft', 'cancel', 'sent')\"\nmonthly = true\n[x]\nname = \"date_order\"\naggregation = \"none\"\n[y]\nname = \"amount_untaxed\"\naggregation = \"sum\"\n",
+  "drill": null,
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Best vendors",
+  "kind": "graph",
+  "model": "sale.order",
+  "definition": "graph_type = \"bar\"\n[x]\nname = \"user_id.name\"\naggregation = \"none\"\n[y]\nname = \"amount_untaxed\"\naggregation = \"sum\"\n",
+  "drill": null,
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Best Category",
+  "kind": "card",
+  "model": "sale.order.line",
+  "definition": "where = \"state not in ('draft', 'sent', 'cancel')\"\nbest = \"product_id.categ_id.complete_name\"\nmeasure = \"price_subtotal\"\ndetail = \"product_uom_qty\"\ndetail_label = \"sold\"\n",
+  "drill": null,
+  "panel": "Product",
+  "filter_config": {
+   "date": {
+    "field": "order_id.date_order"
+   },
+   "dimensions": [
+    {
+     "name": "product_id",
+     "label": "Product"
+    },
+    {
+     "name": "product_id.categ_id.complete_name",
+     "label": "Category"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Spend by vendor",
+  "kind": "graph",
+  "model": "purchase.order",
+  "definition": "graph_type = \"bar\"\n[x]\nname = \"partner_id.commercial_partner_id.name\"\naggregation = \"none\"\n[y]\nname = \"amount_untaxed\"\naggregation = \"sum\"\n",
+  "drill": null,
+  "panel": "Purchase",
+  "filter_config": {
+   "date": {
+    "field": "date_order"
+   },
+   "dimensions": [
+    {
+     "name": "partner_id.name",
+     "label": "Vendor"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Monthly spend",
+  "kind": "pivot",
+  "model": "purchase.order",
+  "definition": "index = \"date_order\"\ncolumn = \"date_order.year\"\nmeasure = \"amount_untaxed\"\naggregation = \"sum\"\nmonthly = true\n",
+  "drill": null,
+  "panel": "Purchase",
+  "filter_config": {
+   "date": {
+    "field": "date_order"
+   },
+   "dimensions": [
+    {
+     "name": "partner_id.name",
+     "label": "Vendor"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Best Sellers by Revenue",
+  "kind": "graph",
+  "model": "sale.order.line",
+  "definition": "graph_type = \"bar\"\nwhere = \"state not in ('draft', 'sent', 'cancel')\"\n[x]\nname = \"product_id\"\naggregation = \"none\"\n[y]\nname = \"price_subtotal\"\naggregation = \"sum\"\n",
+  "drill": null,
+  "panel": "Product",
+  "filter_config": {
+   "date": {
+    "field": "order_id.date_order"
+   },
+   "dimensions": [
+    {
+     "name": "product_id",
+     "label": "Product"
+    },
+    {
+     "name": "product_id.categ_id.complete_name",
+     "label": "Category"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Monthly sales by salesperson",
+  "kind": "pivot",
+  "model": "sale.order",
+  "definition": "index = \"user_id.name\"\ncolumn = \"date_order.year\"\nmeasure = \"amount_untaxed\"\naggregation = \"sum\"\n",
+  "drill": null,
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Best Sellers by Units Sold",
+  "kind": "graph",
+  "model": "sale.order.line",
+  "definition": "graph_type = \"bar\"\nwhere = \"state not in ('draft', 'sent', 'cancel')\"\n[x]\nname = \"product_id\"\naggregation = \"none\"\n[y]\nname = \"product_uom_qty\"\naggregation = \"sum\"\n",
+  "drill": null,
+  "panel": "Product",
+  "filter_config": {
+   "date": {
+    "field": "order_id.date_order"
+   },
+   "dimensions": [
+    {
+     "name": "product_id",
+     "label": "Product"
+    },
+    {
+     "name": "product_id.categ_id.complete_name",
+     "label": "Category"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Top Products",
+  "kind": "data",
+  "model": "sale.order.line",
+  "definition": "d_next = d\n# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`\n# confirmed orders\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & pl.col(\"product_id\").is_not_null())\n# n_unique : an order has several lines ; product_id_ (the id) is kept to build the link\nd_next = d_next.group_by([\"product_id\", \"product_id_\"]).agg([pl.col(\"order_id_\").n_unique().alias(\"Orders\"), pl.col(\"price_subtotal\").sum().alias(\"Revenue\")])\n# the last sort keys only break ties : stable order\nd_next = d_next.sort([\"Revenue\", \"product_id\"], descending=[True, False]).head(10)\n# a \"[label](url)\" cell is drawn as a link to Odoo : odoo_url is the base url, `product_id_` the id\nd_next = d_next.select([\n    pl.concat_str([pl.lit(\"[\"), pl.col(\"product_id\"), pl.lit(\"](\"), pl.lit(odoo_url), pl.lit(\"/odoo/product.product/\"), pl.col(\"product_id_\").cast(pl.String), pl.lit(\")\")]).alias(\"Product\"),\n    pl.col(\"Orders\"),\n    pl.col(\"Revenue\"),\n    # hidden column (`__` prefix) : a click on the row hands it to the drill-down as key[\"product_id_\"]\n    pl.col(\"product_id_\").alias(\"__product_id_\"),\n])",
+  "drill": "d_next = d\n# key : the hidden columns of the clicked row. Same rows as the tile : confirmed lines of that product\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & (pl.col(\"product_id_\") == key[\"product_id_\"]))\nd_next = d_next.sort([\"order_id.date_order\", \"id\"], descending=[True, True])\nd_next = d_next.select([\n    pl.col(\"order_id.date_order\").alias(\"Date\"),\n    pl.concat_str([pl.lit(\"[\"), pl.col(\"order_id\"), pl.lit(\"](\"), pl.lit(odoo_url), pl.lit(\"/odoo/sale.order/\"), pl.col(\"order_id_\").cast(pl.String), pl.lit(\")\")]).alias(\"Order\"),\n    pl.col(\"order_partner_id\").alias(\"Customer\"),\n    pl.col(\"product_uom_qty\").alias(\"Quantity\"),\n    pl.col(\"price_subtotal\").alias(\"Revenue\"),\n])",
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Best Selling Products",
+  "kind": "data",
+  "model": "sale.order.line",
+  "definition": "d_next = d\n# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`\n# confirmed orders\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & pl.col(\"product_id\").is_not_null())\n# product_id_ (the id) is kept to build the link\nd_next = d_next.group_by([\"product_id\", \"product_id_\"]).agg([pl.col(\"product_uom_qty\").sum().alias(\"Units\"), pl.col(\"price_subtotal\").sum().alias(\"Revenue\")])\n# the last sort keys only break ties : stable order\nd_next = d_next.sort([\"Revenue\", \"product_id\"], descending=[True, False]).head(10)\n# a \"[label](url)\" cell is drawn as a link to Odoo : odoo_url is the base url, `product_id_` the id\nd_next = d_next.select([\n    pl.concat_str([pl.lit(\"[\"), pl.col(\"product_id\"), pl.lit(\"](\"), pl.lit(odoo_url), pl.lit(\"/odoo/product.product/\"), pl.col(\"product_id_\").cast(pl.String), pl.lit(\")\")]).alias(\"Product\"),\n    pl.col(\"Units\"),\n    pl.col(\"Revenue\"),\n    # hidden column (`__` prefix) : a click on the row hands it to the drill-down as key['product_id_']\n    pl.col(\"product_id_\").alias(\"__product_id_\"),\n])",
+  "drill": "d_next = d\n# the order lines of the clicked product, same rows as the tile\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & (pl.col(\"product_id_\") == key[\"product_id_\"]))\nd_next = d_next.sort([\"order_id.date_order\", \"id\"], descending=[True, True])\nd_next = d_next.select([\n    pl.col(\"order_id.date_order\").alias(\"Date\"),\n    pl.concat_str([pl.lit(\"[\"), pl.col(\"order_id\"), pl.lit(\"](\"), pl.lit(odoo_url), pl.lit(\"/odoo/sale.order/\"), pl.col(\"order_id_\").cast(pl.String), pl.lit(\")\")]).alias(\"Order\"),\n    pl.col(\"order_partner_id\").alias(\"Customer\"),\n    pl.col(\"product_id\").alias(\"Product\"),\n    pl.col(\"product_uom_qty\").alias(\"Quantity\"),\n    pl.col(\"price_subtotal\").alias(\"Revenue\"),\n])",
+  "panel": "Product",
+  "filter_config": {
+   "date": {
+    "field": "order_id.date_order"
+   },
+   "dimensions": [
+    {
+     "name": "product_id",
+     "label": "Product"
+    },
+    {
+     "name": "product_id.categ_id.complete_name",
+     "label": "Category"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Top Categories",
+  "kind": "data",
+  "model": "sale.order.line",
+  "definition": "d_next = d\n# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`\n# confirmed orders\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & pl.col(\"product_id.categ_id.complete_name\").is_not_null())\n# dotted name : a relational path declared for the dataset (line > product > category) ; n_unique : an order has several lines\nd_next = d_next.group_by(\"product_id.categ_id.complete_name\").agg([pl.col(\"order_id_\").n_unique().alias(\"Orders\"), pl.col(\"price_subtotal\").sum().alias(\"Revenue\")])\n# the last sort keys only break ties : stable order\nd_next = d_next.sort([\"Revenue\", \"product_id.categ_id.complete_name\"], descending=[True, False]).head(10)\nd_next = d_next.rename({\"product_id.categ_id.complete_name\": \"Category\"})\n# hidden column : the category name is the key\nd_next = d_next.with_columns(pl.col(\"Category\").alias(\"__category\"))",
+  "drill": "d_next = d\n# the order lines of the clicked category, same rows as the tile\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & (pl.col(\"product_id.categ_id.complete_name\") == key[\"category\"]))\nd_next = d_next.sort([\"order_id.date_order\", \"id\"], descending=[True, True])\nd_next = d_next.select([\n    pl.col(\"order_id.date_order\").alias(\"Date\"),\n    pl.concat_str([pl.lit(\"[\"), pl.col(\"order_id\"), pl.lit(\"](\"), pl.lit(odoo_url), pl.lit(\"/odoo/sale.order/\"), pl.col(\"order_id_\").cast(pl.String), pl.lit(\")\")]).alias(\"Order\"),\n    pl.col(\"order_partner_id\").alias(\"Customer\"),\n    pl.col(\"product_id\").alias(\"Product\"),\n    pl.col(\"product_uom_qty\").alias(\"Quantity\"),\n    pl.col(\"price_subtotal\").alias(\"Revenue\"),\n])",
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Top Countries",
+  "kind": "data",
+  "model": "sale.order",
+  "definition": "d_next = d\n# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`\n# confirmed orders\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & pl.col(\"partner_id.country_id.name\").is_not_null())\n# dotted name : a relational path declared for the dataset (order > customer > country)\nd_next = d_next.group_by(\"partner_id.country_id.name\").agg([pl.len().alias(\"Orders\"), pl.col(\"amount_untaxed\").sum().alias(\"Revenue\")])\n# the last sort keys only break ties : stable order\nd_next = d_next.sort([\"Revenue\", \"partner_id.country_id.name\"], descending=[True, False]).head(10)\nd_next = d_next.rename({\"partner_id.country_id.name\": \"Country\"})\n# hidden column : the country name is the key\nd_next = d_next.with_columns(pl.col(\"Country\").alias(\"__country\"))",
+  "drill": "d_next = d\n# the orders of the clicked country, same rows as the tile\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & (pl.col(\"partner_id.country_id.name\") == key[\"country\"]))\nd_next = d_next.sort([\"date_order\", \"id\"], descending=[True, True])\nd_next = d_next.select([\n    pl.col(\"date_order\").alias(\"Date\"),\n    pl.concat_str([pl.lit(\"[\"), pl.col(\"name\"), pl.lit(\"](\"), pl.lit(odoo_url), pl.lit(\"/odoo/sale.order/\"), pl.col(\"id\").cast(pl.String), pl.lit(\")\")]).alias(\"Order\"),\n    pl.col(\"partner_id\").alias(\"Customer\"),\n    pl.col(\"user_id\").alias(\"Salesperson\"),\n    pl.col(\"amount_untaxed\").alias(\"Revenue\"),\n])",
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Top Sales Orders",
+  "kind": "data",
+  "model": "sale.order",
+  "definition": "d_next = d\n# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`\n# confirmed orders only\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]))\n# the last sort keys only break ties : stable order\nd_next = d_next.sort([\"amount_untaxed\", \"invoice_status\", \"date_order\", \"id\"], descending=[True, False, True, True]).head(10)\n# a \"[label](url)\" cell is drawn as a link to Odoo : odoo_url is the base url, `id` the id\nd_next = d_next.select([\n    pl.concat_str([pl.lit(\"[\"), pl.col(\"partner_id\"), pl.lit(\"](\"), pl.lit(odoo_url), pl.lit(\"/odoo/sale.order/\"), pl.col(\"id\").cast(pl.String), pl.lit(\")\")]).alias(\"Customer\"),\n    pl.col(\"user_id\").alias(\"Salesperson\"),\n    pl.col(\"amount_untaxed\").alias(\"Revenue\"),\n    # hidden column (`__` prefix) : a click on the row hands it to the drill-down as key['id']\n    pl.col(\"id\").alias(\"__id\"),\n])",
+  "drill": "d_next = d\n# the lines of the clicked order : `tables` holds the other tables of the store, filtered like the tile\nd_next = tables[\"sale.order.line\"].filter(pl.col(\"order_id_\") == key[\"id\"]).sort(\"id\")\nd_next = d_next.select([\n    pl.concat_str([pl.lit(\"[\"), pl.col(\"product_id\"), pl.lit(\"](\"), pl.lit(odoo_url), pl.lit(\"/odoo/product.product/\"), pl.col(\"product_id_\").cast(pl.String), pl.lit(\")\")]).alias(\"Product\"),\n    pl.col(\"product_uom_qty\").alias(\"Quantity\"),\n    pl.col(\"price_unit\").alias(\"Unit price\"),\n    pl.col(\"price_subtotal\").alias(\"Subtotal\"),\n])",
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Top Salespeople",
+  "kind": "data",
+  "model": "sale.order",
+  "definition": "d_next = d\n# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`\n# confirmed orders that have a salesperson\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & pl.col(\"user_id\").is_not_null())\nd_next = d_next.group_by([\"user_id\", \"user_id_\"]).agg([pl.len().alias(\"Orders\"), pl.col(\"amount_untaxed\").sum().alias(\"Revenue\")])\n# the last sort keys only break ties : stable order\nd_next = d_next.sort([\"Revenue\", \"user_id\"], descending=[True, False]).head(10)\n# hidden column : the id of the salesperson\nd_next = d_next.rename({\"user_id\": \"Salesperson\", \"user_id_\": \"__user_id_\"})",
+  "drill": "d_next = d\n# the orders of the clicked salesperson, same rows as the tile\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & (pl.col(\"user_id_\") == key[\"user_id_\"]))\nd_next = d_next.sort([\"date_order\", \"id\"], descending=[True, True])\nd_next = d_next.select([\n    pl.col(\"date_order\").alias(\"Date\"),\n    pl.concat_str([pl.lit(\"[\"), pl.col(\"name\"), pl.lit(\"](\"), pl.lit(odoo_url), pl.lit(\"/odoo/sale.order/\"), pl.col(\"id\").cast(pl.String), pl.lit(\")\")]).alias(\"Order\"),\n    pl.col(\"partner_id\").alias(\"Customer\"),\n    pl.col(\"user_id\").alias(\"Salesperson\"),\n    pl.col(\"amount_untaxed\").alias(\"Revenue\"),\n])",
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Top Sources",
+  "kind": "data",
+  "model": "sale.order",
+  "definition": "d_next = d\n# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`\n# confirmed orders that have a source\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & pl.col(\"source_id\").is_not_null())\nd_next = d_next.group_by(\"source_id\").agg([pl.len().alias(\"Orders\"), pl.col(\"amount_untaxed\").sum().alias(\"Revenue\")])\n# the last sort keys only break ties : stable order\nd_next = d_next.sort([\"Revenue\", \"source_id\"], descending=[True, False]).head(10)\nd_next = d_next.rename({\"source_id\": \"Source\"})",
+  "drill": null,
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Top Quotations",
+  "kind": "data",
+  "model": "sale.order",
+  "definition": "d_next = d\n# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`\n# open quotations\nd_next = d_next.filter(pl.col(\"state\").is_in([\"draft\", \"sent\"]))\nd_next = d_next.sort([\"amount_untaxed\", \"date_order\", \"id\"], descending=[True, True, True]).head(10)\n# a \"[label](url)\" cell is drawn as a link to Odoo : odoo_url is the base url, `id` the id\nd_next = d_next.select([\n    pl.concat_str([pl.lit(\"[\"), pl.col(\"partner_id\"), pl.lit(\"](\"), pl.lit(odoo_url), pl.lit(\"/odoo/sale.order/\"), pl.col(\"id\").cast(pl.String), pl.lit(\")\")]).alias(\"Customer\"),\n    pl.col(\"user_id\").alias(\"Salesperson\"),\n    pl.col(\"amount_untaxed\").alias(\"Revenue\"),\n    # hidden column (`__` prefix) : a click on the row hands it to the drill-down as key['id']\n    pl.col(\"id\").alias(\"__id\"),\n])",
+  "drill": "d_next = d\n# the lines of the clicked quotation (another table of the store : `tables`)\nd_next = tables[\"sale.order.line\"].filter(pl.col(\"order_id_\") == key[\"id\"]).sort(\"id\")\nd_next = d_next.select([\n    pl.concat_str([pl.lit(\"[\"), pl.col(\"product_id\"), pl.lit(\"](\"), pl.lit(odoo_url), pl.lit(\"/odoo/product.product/\"), pl.col(\"product_id_\").cast(pl.String), pl.lit(\")\")]).alias(\"Product\"),\n    pl.col(\"product_uom_qty\").alias(\"Quantity\"),\n    pl.col(\"price_unit\").alias(\"Unit price\"),\n    pl.col(\"price_subtotal\").alias(\"Subtotal\"),\n])",
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Top Sales Teams",
+  "kind": "data",
+  "model": "sale.order",
+  "definition": "d_next = d\n# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`\n# confirmed orders that have a team\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & pl.col(\"team_id\").is_not_null())\nd_next = d_next.group_by(\"team_id\").agg([pl.len().alias(\"Orders\"), pl.col(\"amount_untaxed\").sum().alias(\"Revenue\")])\n# the last sort keys only break ties : stable order\nd_next = d_next.sort([\"Revenue\", \"team_id\"], descending=[True, False]).head(10)\nd_next = d_next.rename({\"team_id\": \"Sales Team\"})",
+  "drill": null,
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Top Customers",
+  "kind": "data",
+  "model": "sale.order",
+  "definition": "d_next = d\n# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`\n# confirmed orders\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & pl.col(\"partner_id\").is_not_null())\n# partner_id_ (the id) is kept to build the link\nd_next = d_next.group_by([\"partner_id\", \"partner_id_\"]).agg([pl.len().alias(\"Orders\"), pl.col(\"amount_untaxed\").sum().alias(\"Revenue\")])\n# the last sort keys only break ties : stable order\nd_next = d_next.sort([\"Revenue\", \"partner_id\"], descending=[True, False]).head(10)\n# a \"[label](url)\" cell is drawn as a link to Odoo : odoo_url is the base url, `partner_id_` the id\nd_next = d_next.select([\n    pl.concat_str([pl.lit(\"[\"), pl.col(\"partner_id\"), pl.lit(\"](\"), pl.lit(odoo_url), pl.lit(\"/odoo/res.partner/\"), pl.col(\"partner_id_\").cast(pl.String), pl.lit(\")\")]).alias(\"Customer\"),\n    pl.col(\"Orders\"),\n    pl.col(\"Revenue\"),\n    # hidden column (`__` prefix) : a click on the row hands it to the drill-down as key['partner_id_']\n    pl.col(\"partner_id_\").alias(\"__partner_id_\"),\n])",
+  "drill": "d_next = d\n# the orders of the clicked customer, same rows as the tile\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & (pl.col(\"partner_id_\") == key[\"partner_id_\"]))\nd_next = d_next.sort([\"date_order\", \"id\"], descending=[True, True])\nd_next = d_next.select([\n    pl.col(\"date_order\").alias(\"Date\"),\n    pl.concat_str([pl.lit(\"[\"), pl.col(\"name\"), pl.lit(\"](\"), pl.lit(odoo_url), pl.lit(\"/odoo/sale.order/\"), pl.col(\"id\").cast(pl.String), pl.lit(\")\")]).alias(\"Order\"),\n    pl.col(\"partner_id\").alias(\"Customer\"),\n    pl.col(\"user_id\").alias(\"Salesperson\"),\n    pl.col(\"amount_untaxed\").alias(\"Revenue\"),\n])",
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Top Mediums",
+  "kind": "data",
+  "model": "sale.order",
+  "definition": "d_next = d\n# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`\n# confirmed orders that have a medium\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & pl.col(\"medium_id\").is_not_null())\nd_next = d_next.group_by(\"medium_id\").agg([pl.len().alias(\"Orders\"), pl.col(\"amount_untaxed\").sum().alias(\"Revenue\")])\n# the last sort keys only break ties : stable order\nd_next = d_next.sort([\"Revenue\", \"medium_id\"], descending=[True, False]).head(10)\nd_next = d_next.rename({\"medium_id\": \"Medium\"})",
+  "drill": null,
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Union sales et purchases",
+  "kind": "union",
+  "model": "sale.order",
+  "definition": "union_model = \"purchase.order\"\n[mapping.\"sale.order\"]\nname = \"name\"\namount_untaxed = \"amount_untaxed\"\n[mapping.\"purchase.order\"]\nname = \"name\"\namount_untaxed = \"amount_untaxed\"\n",
+  "drill": null,
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Best Selling Categories",
+  "kind": "data",
+  "model": "sale.order.line",
+  "definition": "d_next = d\n# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`\n# confirmed orders\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & pl.col(\"product_id.categ_id.complete_name\").is_not_null())\n# dotted name : a relational path declared for the dataset (line > product > category)\nd_next = d_next.group_by(\"product_id.categ_id.complete_name\").agg([pl.col(\"product_uom_qty\").sum().alias(\"Units\"), pl.col(\"price_subtotal\").sum().alias(\"Revenue\")])\n# the last sort keys only break ties : stable order\nd_next = d_next.sort([\"Revenue\", \"product_id.categ_id.complete_name\"], descending=[True, False]).head(10)\nd_next = d_next.rename({\"product_id.categ_id.complete_name\": \"Category\"})\n# hidden column : the category name is the key\nd_next = d_next.with_columns(pl.col(\"Category\").alias(\"__category\"))",
+  "drill": "d_next = d\n# the order lines of the clicked category, same rows as the tile\nd_next = d_next.filter(~pl.col(\"state\").is_in([\"draft\", \"sent\", \"cancel\"]) & (pl.col(\"product_id.categ_id.complete_name\") == key[\"category\"]))\nd_next = d_next.sort([\"order_id.date_order\", \"id\"], descending=[True, True])\nd_next = d_next.select([\n    pl.col(\"order_id.date_order\").alias(\"Date\"),\n    pl.concat_str([pl.lit(\"[\"), pl.col(\"order_id\"), pl.lit(\"](\"), pl.lit(odoo_url), pl.lit(\"/odoo/sale.order/\"), pl.col(\"order_id_\").cast(pl.String), pl.lit(\")\")]).alias(\"Order\"),\n    pl.col(\"order_partner_id\").alias(\"Customer\"),\n    pl.col(\"product_id\").alias(\"Product\"),\n    pl.col(\"product_uom_qty\").alias(\"Quantity\"),\n    pl.col(\"price_subtotal\").alias(\"Revenue\"),\n])",
+  "panel": "Product",
+  "filter_config": {
+   "date": {
+    "field": "order_id.date_order"
+   },
+   "dimensions": [
+    {
+     "name": "product_id",
+     "label": "Product"
+    },
+    {
+     "name": "product_id.categ_id.complete_name",
+     "label": "Category"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Best products (qty)",
+  "kind": "graph",
+  "model": "sale.order.line",
+  "definition": "graph_type = \"bar\"\n[x]\nname = \"product_id.name\"\naggregation = \"none\"\n[y]\nname = \"product_uom_qty\"\naggregation = \"sum\"\n",
+  "drill": null,
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Qty sold per salesperson",
+  "kind": "graph",
+  "model": "sale.order.line",
+  "definition": "graph_type = \"area\"\n[x]\nname = \"salesman_id.name\"\naggregation = \"none\"\n[y]\nname = \"product_uom_qty\"\naggregation = \"sum\"\n",
+  "drill": null,
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "RFQs to send",
+  "kind": "card",
+  "model": "purchase.order",
+  "definition": "where = \"state = 'draft'\"\nignore_period = true\n",
+  "drill": null,
+  "panel": "Purchase",
+  "filter_config": {
+   "date": {
+    "field": "date_order"
+   },
+   "dimensions": [
+    {
+     "name": "partner_id.name",
+     "label": "Vendor"
+    }
+   ]
+  }
+ },
+ {
+  "name": "RFQs waiting",
+  "kind": "card",
+  "model": "purchase.order",
+  "definition": "where = \"state = 'sent' and date_order >= '{today}'\"\nignore_period = true\n",
+  "drill": null,
+  "panel": "Purchase",
+  "filter_config": {
+   "date": {
+    "field": "date_order"
+   },
+   "dimensions": [
+    {
+     "name": "partner_id.name",
+     "label": "Vendor"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Late RFQs",
+  "kind": "card",
+  "model": "purchase.order",
+  "definition": "where = \"state in ('draft', 'sent', 'to approve') and date_order < '{today}'\"\nignore_period = true\n",
+  "drill": null,
+  "panel": "Purchase",
+  "filter_config": {
+   "date": {
+    "field": "date_order"
+   },
+   "dimensions": [
+    {
+     "name": "partner_id.name",
+     "label": "Vendor"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Late receipts",
+  "kind": "card",
+  "model": "purchase.order",
+  "definition": "where = \"state in ('purchase', 'done') and receipt_status in ('pending', 'partial') and date_planned < '{today}'\"\nignore_period = true\n",
+  "drill": null,
+  "panel": "Purchase",
+  "filter_config": {
+   "date": {
+    "field": "date_order"
+   },
+   "dimensions": [
+    {
+     "name": "partner_id.name",
+     "label": "Vendor"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Purchased last 7 days",
+  "kind": "card",
+  "model": "purchase.order",
+  "definition": "where = \"state in ('purchase', 'done') and date_approve >= '{today-7}'\"\naggregation = \"sum\"\nmeasure = \"amount_untaxed\"\nignore_period = true\n",
+  "drill": null,
+  "panel": "Purchase",
+  "filter_config": {
+   "date": {
+    "field": "date_order"
+   },
+   "dimensions": [
+    {
+     "name": "partner_id.name",
+     "label": "Vendor"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Avg order value",
+  "kind": "card",
+  "model": "purchase.order",
+  "definition": "where = \"state in ('purchase', 'done')\"\naggregation = \"mean\"\nmeasure = \"amount_untaxed\"\ndecimals = 0\ncompare = true\n",
+  "drill": null,
+  "panel": "Purchase",
+  "filter_config": {
+   "date": {
+    "field": "date_order"
+   },
+   "dimensions": [
+    {
+     "name": "partner_id.name",
+     "label": "Vendor"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Days to order",
+  "kind": "card",
+  "model": "purchase.order",
+  "definition": "where = \"state in ('purchase', 'done')\"\naggregation = \"mean\"\nmeasure = \"days_to_order\"\nunit = \"days\"\ncompare = true\ngood = \"down\"  # fewer days is better\n[derive]\ndays_to_order = \"date_approve - create_date\"\n",
+  "drill": null,
+  "panel": "Purchase",
+  "filter_config": {
+   "date": {
+    "field": "date_order"
+   },
+   "dimensions": [
+    {
+     "name": "partner_id.name",
+     "label": "Vendor"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Days to receive",
+  "kind": "card",
+  "model": "purchase.order",
+  "definition": "where = \"state in ('purchase', 'done')\"\naggregation = \"mean\"\nmeasure = \"days_to_receive\"\nunit = \"days\"\ncompare = true\ngood = \"down\"  # fewer days is better\n[derive]\ndays_to_receive = \"effective_date - date_approve\"\n",
+  "drill": null,
+  "panel": "Purchase",
+  "filter_config": {
+   "date": {
+    "field": "date_order"
+   },
+   "dimensions": [
+    {
+     "name": "partner_id.name",
+     "label": "Vendor"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Quotations",
+  "kind": "card",
+  "model": "sale.order",
+  "definition": "where = \"state in ('draft', 'sent')\"\ncompare = true\n",
+  "drill": null,
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Orders",
+  "kind": "card",
+  "model": "sale.order",
+  "definition": "where = \"state = 'sale'\"\ncompare = true\n",
+  "drill": null,
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Revenue",
+  "kind": "card",
+  "model": "sale.order",
+  "definition": "where = \"state = 'sale'\"\naggregation = \"sum\"\nmeasure = \"amount_untaxed\"\nunit = \"currency\"\ncompare = true\n",
+  "drill": null,
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Average Order",
+  "kind": "card",
+  "model": "sale.order",
+  "definition": "where = \"state = 'sale'\"\naggregation = \"mean\"\nmeasure = \"amount_untaxed\"\ndecimals = 0\nunit = \"currency\"\ncompare = true\n",
+  "drill": null,
+  "panel": "Sales",
+  "filter_config": {
+   "date": {
+    "field": [
+     "date_order",
+     "order_id.date_order"
+    ]
+   },
+   "dimensions": [
+    {
+     "name": "user_id.name",
+     "label": "Salesperson"
+    },
+    {
+     "name": "partner_id.name",
+     "label": "Customer"
+    }
+   ]
+  }
+ }
+]

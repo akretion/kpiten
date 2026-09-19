@@ -169,7 +169,9 @@ def test_date_range_of_the_panel_rows():
 
 
 def test_hidden_columns_are_the_key_of_the_drill_down():
-    df = pl.DataFrame({"Product": ["A", "B"], "Revenue": [10, 20], "__product_id_": [7, 8]})
+    df = pl.DataFrame(
+        {"Product": ["A", "B"], "Revenue": [10, 20], "__product_id_": [7, 8]}
+    )
     visible, keys = tiles.split_keys(df)
     assert visible.columns == ["Product", "Revenue"]  # the table does not show them
     assert keys == [{"product_id_": 7}, {"product_id_": 8}]
@@ -198,7 +200,9 @@ def test_drill_down_runs_on_the_rows_of_the_tile_with_the_key():
     assert result.df["Revenue"].to_list() == [10.0, 20.0]  # product 7, confirmed only
     assert result.label == "Top : detail"
     # the panel filters are kept, the key is plain values only, a tile needs a drill
-    kept = tiles.exec_drill(line, "l", {"l": lines}, [pl.col("id") > 1], {"product_id_": 7})
+    kept = tiles.exec_drill(
+        line, "l", {"l": lines}, [pl.col("id") > 1], {"product_id_": 7}
+    )
     assert kept.df["Revenue"].to_list() == [20.0]
     with pytest.raises(tiles.TileError):
         tiles.exec_drill(line, "l", {"l": lines}, [], {"product_id_": [7]})

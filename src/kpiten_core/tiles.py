@@ -619,7 +619,7 @@ def exec_drill(
 
     It runs on the same rows as the tile (the user's rights and the panel period and
     filters are kept) with `key`, the hidden columns of the clicked row, as a variable.
-    The result is capped like any table (`TILE_MAX_ROWS`).
+    The result is capped like any table (`TILE_MAX_ROWS`). `tables` gives the other tables.
     """
     drill = line.get("drill")
     if not drill:
@@ -630,7 +630,15 @@ def exec_drill(
         raise TileError("the key of a drill-down holds plain values only")
     label = f"{line.get('name') or 'tile'} : detail"
     try:
-        df = dataframe_case(drill, table, store, full_predicates, {"key": key})
+        # the other tables of the store are there too, filtered like the tile : a drill
+        # can read the lines of an order (`tables["sale.order.line"]`)
+        tables = {
+            name: filter_df(_resolve_table(store, name), full_predicates)
+            for name in store
+        }
+        df = dataframe_case(
+            drill, table, store, full_predicates, {"key": key, "tables": tables}
+        )
         df, meta = cap_rows(df)
         df, _ = split_keys(df)
         return TileResult("data", label, df=df, meta=meta)
