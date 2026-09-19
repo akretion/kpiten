@@ -20,16 +20,37 @@ VENDOR_NAMES = [
     "Prestige gadgets",
     "Fabriks & cie",
 ]
-SALESPERSONS = [
-    "Lara CLEYTE",
-    "Jim NASTIC",
-    "Marie STOURNE",
-    "Karl AHJUMIDE",
-    "Andy VOJHANBON",
-    "Camille HONNETE",
-    "Amar DISSOIR",
-    "Cécile HONXA",
+# The demo users, once and for all : name -> role. The role decides the Odoo
+# group (see ROLE_GROUPS) and which documents the user gets in the generators.
+ROLE_SELLER = "seller"  # sees and gets his own sales orders
+ROLE_SALES_MANAGER = "sales_manager"  # sees all the sales orders
+ROLE_BUYER = "buyer"  # the purchase user : places all the purchase orders
+DEMO_USERS = [
+    ("Lara CLEYTE", ROLE_SELLER),
+    ("Jim NASTIC", ROLE_SELLER),
+    ("Marie STOURNE", ROLE_SELLER),
+    ("Karl AHJUMIDE", ROLE_SELLER),
+    ("Andy VOJHANBON", ROLE_BUYER),
+    ("Camille HONNETE", ROLE_SALES_MANAGER),
+    ("Amar DISSOIR", ROLE_SELLER),
+    ("Cécile HONXA", ROLE_SELLER),
 ]
+ROLE_GROUPS = {
+    ROLE_SELLER: "sales_team.group_sale_salesman",
+    ROLE_SALES_MANAGER: "sales_team.group_sale_salesman_all_leads",
+    ROLE_BUYER: "purchase.group_purchase_user",
+}
+DEMO_ROLES = dict(DEMO_USERS)
+SALESPERSONS = [name for name, _role in DEMO_USERS]  # every demo user, in order
+
+# records per batch of the generators that create orders through the ORM
+DEMO_BATCH_SIZE = 500
+
+
+def demo_names(*roles):
+    """The names of the demo users having one of `roles`."""
+    return [name for name, role in DEMO_USERS if role in roles]
+
 
 PRODUCTS = [
     ("Redwood plank", 120.0, 70.0),
@@ -122,35 +143,63 @@ class ErpDemoGenerator(models.Model):
         records.invalidate_recordset(["create_date"])
 
     def _setup_demo_access_rights(self, salespeople):
-        """Login of demo users = first.last, password = first name (lowercase ASCII) ; salespeople see only
-        their own sales orders, Camille HONNETE all of them, Andy VOJHANBON
-        is the only buyer (purchase user)."""
+        """Login of demo users = first.last, password = first name (lowercase
+        ASCII) ; the group of each one comes from its role (DEMO_USERS) :
+        sellers see only their own sales orders, the sales manager all of them,
+        the buyer is the only purchase user."""
 
         def ref(xmlid):
             return self.env.ref(xmlid).id
 
-        group_sale_own = ref("sales_team.group_sale_salesman")
-        group_sale_all = ref("sales_team.group_sale_salesman_all_leads")
-        group_purchase = ref("purchase.group_purchase_user")
-
+        role_group_ids = {role: ref(xmlid) for role, xmlid in ROLE_GROUPS.items()}
         for user in salespeople:
+            role = DEMO_ROLES.get(user.name, ROLE_SELLER)
             groups = [
-                g.id
-                for g in user.groups_id
-                if g.id not in (group_sale_own, group_sale_all, group_purchase)
+                g.id for g in user.groups_id if g.id not in role_group_ids.values()
             ]
-            if user.name == "Camille HONNETE":
-                groups.append(group_sale_all)
-            elif user.name == "Andy VOJHANBON":
-                groups.append(group_purchase)
-            else:
-                groups.append(group_sale_own)
+            groups.append(role_group_ids[role])
             user.write(
                 {
                     "password": demo_password(user.login),
                     "groups_id": [(6, 0, groups)],
                 }
             )
+
+    def _bulk_update(self, table, columns, rows):
+        """Mass UPDATE : `columns` = {column: SQL type}, `rows` = tuples
+        (id, value_col1, value_col2, ...). Explicit casts allow NULLs.
+        Shared by the generators that force the lifecycle of their orders in SQL."""
+        if not rows:
+            return
+        assignments = ", ".join(f'"{col}" = v."{col}"' for col in columns)
+        names = ", ".join(f'"{col}"' for col in columns)
+        casts = ["%s::int"] + [f"%s::{sql_type}" for sql_type in columns.values()]
+        self.env.cr.execute_values(
+            f'UPDATE "{table}" AS t SET {assignments} '
+            f"FROM (VALUES %s) AS v(id, {names}) WHERE t.id = v.id",
+            rows,
+            template="(" + ", ".join(casts) + ")",
+        )
+
+    def _demo_steps(self):
+        """The generators of the installed demo modules, in order, as
+        `(label, method)`. A demo module adds its own with `super()` :
+
+            def _demo_steps(self):
+                return [*super()._demo_steps(), ("sales", self.generate_sale_demo)]
+        """
+        return [("erp demo data", self.generate_demo_data)]
+
+    def generate_all_demo_data(self):
+        """Run every generator of the installed demo modules (they add their
+        documents to the existing ones, nothing is cleaned). At install each
+        module already runs its own generator ; this is the way to run them all
+        again, for instance on a database that was emptied."""
+        self.ensure_one()
+        for label, step in self._demo_steps():
+            _logger.info("demo step : %s", label)
+            step()
+        return True
 
     # ---- sales : SO confirmed + customer invoice posted ----------------
     def _create_sale_full_cycle(self, order_date, salesperson, partner, product, qty):

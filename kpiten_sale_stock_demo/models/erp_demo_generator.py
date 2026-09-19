@@ -6,8 +6,11 @@ from odoo import fields, models
 
 from odoo.addons.erp_demo_generator.models.erp_demo_generator import (
     CUSTOMER_NAMES,
+    DEMO_BATCH_SIZE,
     PRODUCTS,
-    SALESPERSONS,
+    ROLE_SALES_MANAGER,
+    ROLE_SELLER,
+    demo_names,
 )
 
 _logger = logging.getLogger(__name__)
@@ -43,7 +46,6 @@ EXTRA_PERSON_NAMES = [
     "Inès Fontaine",
     "Julien Roger",
 ]
-BATCH_SIZE = 500
 
 SALE_STATES = ["draft", "sent", "cancel", "sale"]
 SALE_STATE_WEIGHTS = [0.06, 0.08, 0.03, 0.83]
@@ -67,77 +69,65 @@ LINE_COLUMNS = {
 }
 
 
-def _bulk_update(cr, table, columns, rows):
-    """Mass UPDATE : `columns` = {column: SQL type}, `rows` = tuples
-    (id, value_col1, value_col2, ...). Explicit casts allow NULLs."""
-    if not rows:
-        return
-    assignments = ", ".join(f'"{col}" = v."{col}"' for col in columns)
-    names = ", ".join(f'"{col}"' for col in columns)
-    casts = ["%s::int"] + [f"%s::{sql_type}" for sql_type in columns.values()]
-    cr.execute_values(
-        f'UPDATE "{table}" AS t SET {assignments} '
-        f"FROM (VALUES %s) AS v(id, {names}) WHERE t.id = v.id",
-        rows,
-        template="(" + ", ".join(casts) + ")",
-    )
-
-
-def _plan_sale(rng, now, date_start):
-    """Draw the lifecycle of one sales order.
-
-    Returns a dict : state, create_date (= date_order), commitment_date
-    (promised delivery), effective_date (actual delivery), delivery_status,
-    invoice_status, delivered (delivered share), invoiced (bool).
-    """
-    state = rng.choices(SALE_STATES, SALE_STATE_WEIGHTS)[0]
-    plan = {
-        "state": state,
-        "commitment_date": None,  # None (NULL in SQL), not False
-        "effective_date": None,
-        "delivery_status": None,
-        "invoice_status": "no",
-        "delivered": 0,
-        "invoiced": False,
-    }
-    if state in ("draft", "sent"):
-        # open quotations are recent
-        plan["create_date"] = now - timedelta(days=rng.uniform(0, 45))
-        return plan
-
-    # slightly growing activity : more orders in recent years
-    plan["create_date"] = date_start + (now - date_start) * (rng.random() ** 0.8)
-    if state == "cancel":
-        return plan
-
-    create_date = plan["create_date"]
-    commitment_date = create_date + timedelta(days=rng.randint(2, 14))
-    plan["commitment_date"] = commitment_date
-
-    # delivery : ~70% on time (or early), the others 1 to 7 days late ;
-    # otherwise the order is still waiting for its delivery.
-    if rng.random() < 0.7:
-        delivery = commitment_date + timedelta(days=rng.randint(-2, 0))
-    else:
-        delivery = commitment_date + timedelta(days=rng.randint(1, 7))
-    if rng.random() < 0.93 and delivery <= now:
-        plan["effective_date"] = delivery
-        plan["delivery_status"] = "full"
-        plan["delivered"] = 1
-        # only fully delivered orders can be fully invoiced
-        plan["invoiced"] = rng.random() < 0.85 and delivery < now - timedelta(days=3)
-    elif rng.random() < 0.3 and commitment_date <= now:
-        plan["effective_date"] = commitment_date
-        plan["delivery_status"] = "partial"
-        plan["delivered"] = 0.5
-    else:
-        plan["delivery_status"] = "pending"
-    plan["invoice_status"] = "invoiced" if plan["invoiced"] else "to invoice"
-    return plan
-
-
 class ErpDemoSaleStock(models.Model):
     _inherit = "erp.demo.generator"
+
+    def _demo_steps(self):
+        return [*super()._demo_steps(), ("sales orders", self.generate_sale_stock_demo)]
+
+    def _plan_sale(self, rng, now, date_start):
+        """Draw the lifecycle of one sales order.
+
+        Returns a dict : state, create_date (= date_order), commitment_date
+        (promised delivery), effective_date (actual delivery), delivery_status,
+        invoice_status, delivered (delivered share), invoiced (bool).
+        """
+        state = rng.choices(SALE_STATES, SALE_STATE_WEIGHTS)[0]
+        plan = {
+            "state": state,
+            "commitment_date": None,  # None (NULL in SQL), not False
+            "effective_date": None,
+            "delivery_status": None,
+            "invoice_status": "no",
+            "delivered": 0,
+            "invoiced": False,
+        }
+        if state in ("draft", "sent"):
+            # open quotations are recent
+            plan["create_date"] = now - timedelta(days=rng.uniform(0, 45))
+            return plan
+
+        # slightly growing activity : more orders in recent years
+        plan["create_date"] = date_start + (now - date_start) * (rng.random() ** 0.8)
+        if state == "cancel":
+            return plan
+
+        create_date = plan["create_date"]
+        commitment_date = create_date + timedelta(days=rng.randint(2, 14))
+        plan["commitment_date"] = commitment_date
+
+        # delivery : ~70% on time (or early), the others 1 to 7 days late ;
+        # otherwise the order is still waiting for its delivery.
+        if rng.random() < 0.7:
+            delivery = commitment_date + timedelta(days=rng.randint(-2, 0))
+        else:
+            delivery = commitment_date + timedelta(days=rng.randint(1, 7))
+        if rng.random() < 0.93 and delivery <= now:
+            plan["effective_date"] = delivery
+            plan["delivery_status"] = "full"
+            plan["delivered"] = 1
+            # only fully delivered orders can be fully invoiced
+            plan["invoiced"] = rng.random() < 0.85 and delivery < now - timedelta(
+                days=3
+            )
+        elif rng.random() < 0.3 and commitment_date <= now:
+            plan["effective_date"] = commitment_date
+            plan["delivery_status"] = "partial"
+            plan["delivered"] = 0.5
+        else:
+            plan["delivery_status"] = "pending"
+        plan["invoice_status"] = "invoiced" if plan["invoiced"] else "to invoice"
+        return plan
 
     def _demo_customers(self):
         """erp_demo_generator's customers + extra ones (customers only : the
@@ -159,13 +149,10 @@ class ErpDemoSaleStock(models.Model):
         )
 
     def _demo_salespeople(self):
-        """The salespeople : demo users with a sales group (this excludes the
-        buyer, who only has the purchase group)."""
+        """The salespeople : the demo users whose role sells (this excludes the
+        buyer)."""
         return self.env["res.users"].search(
-            [
-                ("name", "in", SALESPERSONS),
-                ("groups_id", "in", self.env.ref("sales_team.group_sale_salesman").id),
-            ]
+            [("name", "in", demo_names(ROLE_SELLER, ROLE_SALES_MANAGER))]
         )
 
     def _sale_order_vals(self, rng, plan, salesperson, customer, products):
@@ -196,15 +183,12 @@ class ErpDemoSaleStock(models.Model):
         """Write state, delivery and invoicing statuses in SQL : no real
         deliveries nor customer invoices are created (fast,
         dashboard-oriented)."""
-        cr = self.env.cr
-        _bulk_update(
-            cr,
+        self._bulk_update(
             "sale_order",
             ORDER_COLUMNS,
             [(o.id, *(p[c] for c in ORDER_COLUMNS)) for o, p in zip(orders, plans)],
         )
-        _bulk_update(
-            cr,
+        self._bulk_update(
             "sale_order_line",
             LINE_COLUMNS,
             [
@@ -254,8 +238,8 @@ class ErpDemoSaleStock(models.Model):
         )
         created = 0
         while created < n_orders:
-            size = min(BATCH_SIZE, n_orders - created)
-            plans = [_plan_sale(rng, now, date_start) for _ in range(size)]
+            size = min(DEMO_BATCH_SIZE, n_orders - created)
+            plans = [self._plan_sale(rng, now, date_start) for _ in range(size)]
             orders = sale_order.create(
                 [
                     self._sale_order_vals(

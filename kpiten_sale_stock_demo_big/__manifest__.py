@@ -24,7 +24,8 @@ Add sales afterwards, from an Odoo shell (see `make add-sales` in bi/) :
 """,
     "author": "Akretion",
     "license": "LGPL-3",
-    "depends": ["kpiten_sale_stock_demo", "sale_stock"],
+    # erp_demo_generator : its PRODUCTS and helpers are used directly
+    "depends": ["erp_demo_generator", "kpiten_sale_stock_demo", "sale_stock"],
     "data": ["data/demo_big_sales.xml"],
     "installable": True,
 }

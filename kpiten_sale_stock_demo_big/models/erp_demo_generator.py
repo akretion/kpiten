@@ -9,7 +9,6 @@ from odoo import fields, models
 from odoo.exceptions import UserError
 
 from odoo.addons.erp_demo_generator.models.erp_demo_generator import PRODUCTS
-from odoo.addons.kpiten_sale_stock_demo.models.erp_demo_generator import _plan_sale
 
 _logger = logging.getLogger(__name__)
 
@@ -123,6 +122,12 @@ def _tax_cents(subtotal_cents, rate):
 
 class ErpDemoSaleStockBig(models.Model):
     _inherit = "erp.demo.generator"
+
+    def _demo_steps(self):
+        return [
+            *super()._demo_steps(),
+            ("big sales orders", self.generate_big_sale_demo_install),
+        ]
 
     # ---- reference data : customers, products, template orders ------------
     def _big_customers(self, n_customers):
@@ -304,7 +309,7 @@ class ErpDemoSaleStockBig(models.Model):
 
         # the orders come in date order : names and ids grow with the date
         plans = sorted(
-            (_plan_sale(rng, now, date_start) for _ in range(size)),
+            (self._plan_sale(rng, now, date_start) for _ in range(size)),
             key=lambda plan: plan["create_date"],
         )
         order_rows, line_rows, order_ids = [], [], []

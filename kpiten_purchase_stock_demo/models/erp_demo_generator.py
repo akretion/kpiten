@@ -5,13 +5,15 @@ from datetime import timedelta
 from odoo import fields, models
 
 from odoo.addons.erp_demo_generator.models.erp_demo_generator import (
+    DEMO_BATCH_SIZE,
     PRODUCTS,
+    ROLE_BUYER,
     VENDOR_NAMES,
+    demo_names,
 )
 
 _logger = logging.getLogger(__name__)
 
-BUYER_NAME = "Andy VOJHANBON"
 # more vendors than erp_demo_generator's 4, for richer "spend by vendor" charts
 EXTRA_VENDOR_NAMES = [
     "Ateliers du Nord",
@@ -21,7 +23,6 @@ EXTRA_VENDOR_NAMES = [
     "Maison Lefèvre & fils",
     "Quincaillerie Centrale",
 ]
-BATCH_SIZE = 500
 
 PURCHASE_STATES = ["draft", "sent", "to approve", "cancel", "purchase", "done"]
 PURCHASE_STATE_WEIGHTS = [0.04, 0.06, 0.02, 0.03, 0.55, 0.30]
@@ -44,88 +45,78 @@ LINE_COLUMNS = {
 }
 
 
-def _plan_purchase(rng, now, date_start):
-    """Draw the lifecycle of one purchase order.
-
-    Returns a dict : state, create_date, deadline (date_order),
-    date_approve, date_planned (expected arrival), effective_date (actual
-    arrival), receipt_status, invoice_status, received (received share).
-    """
-    state = rng.choices(PURCHASE_STATES, PURCHASE_STATE_WEIGHTS)[0]
-    plan = {
-        "state": state,
-        "date_approve": None,  # None (NULL in SQL), not False
-        "effective_date": None,
-        "receipt_status": None,
-        "invoice_status": "no",
-        "received": 0,
-    }
-    if state in ("draft", "sent", "to approve"):
-        # open RFQs are recent. Some sent RFQs have a future deadline
-        # ("waiting"), the others are "late".
-        create_date = now - timedelta(days=rng.uniform(0, 45))
-        plan["create_date"] = create_date
-        plan["date_planned"] = create_date + timedelta(days=rng.randint(7, 21))
-        if state == "sent" and rng.random() < 0.4:
-            plan["deadline"] = now + timedelta(days=rng.randint(1, 14))
-        else:
-            plan["deadline"] = create_date + timedelta(days=rng.randint(3, 10))
-        return plan
-
-    create_date = date_start + timedelta(
-        seconds=rng.uniform(0, (now - date_start).total_seconds())
-    )
-    plan["create_date"] = create_date
-    plan["deadline"] = create_date + timedelta(days=rng.randint(3, 10))
-    if state == "cancel":
-        plan["date_planned"] = create_date + timedelta(days=rng.randint(7, 21))
-        return plan
-
-    # confirmed : 0 to 6 days to confirm (usually short)
-    date_approve = create_date + timedelta(days=min(6, rng.expovariate(1 / 1.5)))
-    date_approve = min(date_approve, now)
-    date_planned = date_approve + timedelta(days=rng.randint(3, 21))
-    plan["date_approve"] = date_approve
-    plan["date_planned"] = date_planned
-
-    # receipt : ~70% on time (or early), the others 1 to 10 days late ;
-    # otherwise the order is still waiting for its receipt.
-    if rng.random() < 0.7:
-        arrival = date_planned + timedelta(days=rng.randint(-3, 0))
-    else:
-        arrival = date_planned + timedelta(days=rng.randint(1, 10))
-    if rng.random() < 0.88 and arrival <= now:
-        plan["effective_date"] = arrival
-        plan["receipt_status"] = "full"
-        plan["received"] = 1
-        plan["invoice_status"] = "invoiced" if rng.random() < 0.7 else "to invoice"
-    elif rng.random() < 0.15 and date_planned <= now:
-        plan["effective_date"] = date_planned
-        plan["receipt_status"] = "partial"
-        plan["received"] = 0.5
-        plan["invoice_status"] = "to invoice"
-    else:
-        plan["receipt_status"] = "pending"
-    return plan
-
-
 class ErpDemoPurchaseStock(models.Model):
     _inherit = "erp.demo.generator"
 
-    def _bulk_update(self, table, columns, rows):
-        """Mass UPDATE : `columns` = {column: SQL type}, `rows` = tuples
-        (id, value_col1, value_col2, ...). Explicit casts allow NULLs."""
-        if not rows:
-            return
-        assignments = ", ".join(f'"{col}" = v."{col}"' for col in columns)
-        names = ", ".join(f'"{col}"' for col in columns)
-        casts = ["%s::int"] + [f"%s::{sql_type}" for sql_type in columns.values()]
-        self.env.cr.execute_values(
-            f'UPDATE "{table}" AS t SET {assignments} '
-            f"FROM (VALUES %s) AS v(id, {names}) WHERE t.id = v.id",
-            rows,
-            template="(" + ", ".join(casts) + ")",
+    def _demo_steps(self):
+        return [
+            *super()._demo_steps(),
+            ("purchase orders", self.generate_purchase_stock_demo),
+        ]
+
+    def _plan_purchase(self, rng, now, date_start):
+        """Draw the lifecycle of one purchase order.
+
+        Returns a dict : state, create_date, deadline (date_order),
+        date_approve, date_planned (expected arrival), effective_date (actual
+        arrival), receipt_status, invoice_status, received (received share).
+        """
+        state = rng.choices(PURCHASE_STATES, PURCHASE_STATE_WEIGHTS)[0]
+        plan = {
+            "state": state,
+            "date_approve": None,  # None (NULL in SQL), not False
+            "effective_date": None,
+            "receipt_status": None,
+            "invoice_status": "no",
+            "received": 0,
+        }
+        if state in ("draft", "sent", "to approve"):
+            # open RFQs are recent. Some sent RFQs have a future deadline
+            # ("waiting"), the others are "late".
+            create_date = now - timedelta(days=rng.uniform(0, 45))
+            plan["create_date"] = create_date
+            plan["date_planned"] = create_date + timedelta(days=rng.randint(7, 21))
+            if state == "sent" and rng.random() < 0.4:
+                plan["deadline"] = now + timedelta(days=rng.randint(1, 14))
+            else:
+                plan["deadline"] = create_date + timedelta(days=rng.randint(3, 10))
+            return plan
+
+        create_date = date_start + timedelta(
+            seconds=rng.uniform(0, (now - date_start).total_seconds())
         )
+        plan["create_date"] = create_date
+        plan["deadline"] = create_date + timedelta(days=rng.randint(3, 10))
+        if state == "cancel":
+            plan["date_planned"] = create_date + timedelta(days=rng.randint(7, 21))
+            return plan
+
+        # confirmed : 0 to 6 days to confirm (usually short)
+        date_approve = create_date + timedelta(days=min(6, rng.expovariate(1 / 1.5)))
+        date_approve = min(date_approve, now)
+        date_planned = date_approve + timedelta(days=rng.randint(3, 21))
+        plan["date_approve"] = date_approve
+        plan["date_planned"] = date_planned
+
+        # receipt : ~70% on time (or early), the others 1 to 10 days late ;
+        # otherwise the order is still waiting for its receipt.
+        if rng.random() < 0.7:
+            arrival = date_planned + timedelta(days=rng.randint(-3, 0))
+        else:
+            arrival = date_planned + timedelta(days=rng.randint(1, 10))
+        if rng.random() < 0.88 and arrival <= now:
+            plan["effective_date"] = arrival
+            plan["receipt_status"] = "full"
+            plan["received"] = 1
+            plan["invoice_status"] = "invoiced" if rng.random() < 0.7 else "to invoice"
+        elif rng.random() < 0.15 and date_planned <= now:
+            plan["effective_date"] = date_planned
+            plan["receipt_status"] = "partial"
+            plan["received"] = 0.5
+            plan["invoice_status"] = "to invoice"
+        else:
+            plan["receipt_status"] = "pending"
+        return plan
 
     def _purchase_order_vals(self, rng, plan, buyer, vendors, products):
         return {
@@ -185,9 +176,10 @@ class ErpDemoPurchaseStock(models.Model):
         now = fields.Datetime.now()
         date_start = now - timedelta(days=365 * years)
 
-        buyer = self.env["res.users"].search([("name", "=", BUYER_NAME)], limit=1)
+        buyer_name = demo_names(ROLE_BUYER)[0]
+        buyer = self.env["res.users"].search([("name", "=", buyer_name)], limit=1)
         if not buyer:
-            _logger.warning("buyer %s not found : orders are not assigned", BUYER_NAME)
+            _logger.warning("buyer %s not found : orders are not assigned", buyer_name)
         vendors = [
             self._get_demo_partner(name) for name in VENDOR_NAMES + EXTRA_VENDOR_NAMES
         ]
@@ -202,8 +194,8 @@ class ErpDemoPurchaseStock(models.Model):
         )
         created = 0
         while created < n_purchases:
-            size = min(BATCH_SIZE, n_purchases - created)
-            plans = [_plan_purchase(rng, now, date_start) for _ in range(size)]
+            size = min(DEMO_BATCH_SIZE, n_purchases - created)
+            plans = [self._plan_purchase(rng, now, date_start) for _ in range(size)]
             orders = purchase_order.create(
                 [
                     self._purchase_order_vals(rng, plan, buyer, vendors, products)
