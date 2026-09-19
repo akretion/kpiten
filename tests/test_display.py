@@ -301,9 +301,8 @@ def test_a_new_feature_is_off_unless_odoo_turns_it_on():
         config.set_config({})
 
 
-def test_the_logo_tooltip_says_the_slogan_and_the_pun():
+def test_the_logo_tooltip_says_the_slogan_only():
     from kpiten_core import brand
 
-    text = brand.tooltip()
-    assert text.startswith("KpiTen — Le capitaine de vos KPI")
-    assert "capitaine" in text.split("\n")[1]  # the second line explains the name
+    assert brand.tooltip() == "KpiTen \u2014 Le capitaine de vos KPI"
+    assert "prononce" not in brand.tooltip()  # no explanation of the name
