@@ -1,0 +1,17 @@
+# sources agrégées (make repos)
+src/
+
+# environnement / runtime
+.venv/
+data/
+.env
+*.log
+__pycache__/
+*.pyc
+
+# réglages locaux de Claude Code (contiennent PGPASSWORD)
+.claude/settings.local.json
+
+# documentation : hors de ce dépôt
+docs/
+AGENTS.md
