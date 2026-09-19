@@ -732,6 +732,11 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
             filters_row = ui.row().classes("w-full items-end gap-4")
             cards_grid = ui.element("div").classes("tile-grid card-grid w-full")
             tiles_grid = ui.element("div").classes("tile-grid w-full")
+            # the logo with its name at the end of the page, on the right (our own svg :
+            # nothing to sanitize, and it keeps its colors)
+            ui.html(brand.lockup_svg(64), sanitize=False).classes(
+                "self-end mt-6"
+            ).tooltip(brand.tooltip())
         draw_filters()
 
     draw_tiles()
