@@ -255,8 +255,10 @@ def tile_view(
     edit: bool = False,
     act=None,
     info: str = "",
+    records: dict | None = None,
 ):
-    """Draw one tile inside its card container (with toolbar in edit mode)."""
+    """Draw one tile inside its card container (with toolbar in edit mode). `records`
+    is the link that opens the records the tile lists in Odoo, when it lists some."""
     container_context = ui.element if edit else ui.column
     drillable = bool(line.get("drill")) and bool(result.keys)
     container = container_context().classes("tile drillable" if drillable else "tile")
@@ -315,6 +317,17 @@ def tile_view(
                 note = f"First {rows} of {total:,} rows".replace(",", " ")
         if note:
             ui.label(note).classes("text-xs opacity-60")
+        if records:
+            # the same list of records, in Odoo (the rights of the user apply there)
+            count, total = records["count"], records["total"]
+            label = (
+                f"Open these {count} records in Odoo"
+                if count == total
+                else f"Open the first {count} of {total} records in Odoo"
+            )
+            ui.link(label, records["url"], new_tab=True).classes("text-xs").tooltip(
+                "The same list of records, in Odoo (with your rights)"
+            )
 
 
 def edit_toolbar(line: dict, act):
@@ -546,6 +559,8 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                         drill_state["lines"][line["id"]] = line
                         drill_state["keys"][line["id"]] = result.keys
                     grid = cards_grid if line["kind"] == "card" else tiles_grid
+                    # None unless the feature is on and the rows are records of the model
+                    records = core_tiles.records_link(backend, line["model"], result)
                     with grid:
                         tile_view(
                             line,
@@ -554,6 +569,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                             edit=edit_state["on"],
                             act=act,
                             info=info,
+                            records=records,
                         )
                 except Exception as err:
                     logger.exception("tile %s failed", line.get("name"))
