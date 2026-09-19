@@ -12,8 +12,10 @@ gradient) ; the theme can be picked in the UI bar.
 """
 
 import logging
+import os
 import pathlib
 import re
+import tempfile
 
 from html import escape as html_escape
 
@@ -33,6 +35,13 @@ from .sessions import SESSION_COOKIE, SessionHandler
 STATIC_DIR = pathlib.Path(__file__).parent / "static"
 
 logger = logging.getLogger(__name__)
+
+# html of the last rendering, to look at the tiles (KPITEN_LOG_DIR is set by
+# scripts/kpiten-stack : data/logs)
+TILES_DUMP = (
+    pathlib.Path(os.environ.get("KPITEN_LOG_DIR") or tempfile.gettempdir())
+    / "kpiten_tiles.html"
+)
 
 PLOTLY_JS = "https://cdn.plot.ly/plotly-2.35.2.min.js"
 
@@ -619,8 +628,7 @@ def server(input, output, session):
             (cards if line["kind"] == "card" else blocks).append(rendered)
         html_cards = "".join(cards)
         html_blocks = "".join(blocks)
-        with open("/tmp/kpiten_tiles.html", "w") as dump_file:
-            dump_file.write(html_cards + html_blocks)
+        TILES_DUMP.write_text(html_cards + html_blocks)
         logger.info("rendered %s/%s tiles", len(cards) + len(blocks), len(tile_lines))
         classes = "tile-grid tile-grid--edit" if edit_mode_on else "tile-grid"
         card_classes = classes + " card-grid"
