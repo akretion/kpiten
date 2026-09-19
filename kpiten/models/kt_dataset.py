@@ -173,6 +173,13 @@ class KpitenConfigLine(models.Model):
         help="TOML settings of a card, graph, pivot or union tile ; for a Data "
         "tile, a polars snippet (see the syntax help under the fields).",
     )
+    drill_definition = fields.Text(
+        help="Data tile only : polars snippet run when a row of the table is clicked, "
+        "to show the rows behind it. It runs on the same rows as the tile (rights, "
+        "period and filters kept) with `key`, the hidden columns of the clicked row : "
+        'a column of the tile named `__product_id_` is `key["product_id_"]`. '
+        "Same syntax as the definition.",
+    )
     name = fields.Char()
     group_ids = fields.Many2many(comodel_name="res.groups")
     sequence = fields.Integer()
