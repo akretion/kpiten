@@ -172,6 +172,14 @@ class JsonrpcBackend:
             model, definition, kind, name, user_id, panel_id
         )
 
+    def can_edit_tiles(self, user_id: int) -> bool:
+        """Closed on any error : no edit mode without a clear yes from Odoo."""
+        try:
+            return bool(self.env["kt"].can_edit_tiles(user_id))
+        except Exception:
+            logger.exception("can_edit_tiles(%s) failed", user_id)
+            return False
+
     def delete_tile(self, line_id: int) -> None:
         self.env["kt.dataset.line"].browse(line_id).unlink()
 

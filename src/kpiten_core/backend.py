@@ -100,6 +100,10 @@ class Backend:
     ) -> bool:
         raise NotImplementedError
 
+    def can_edit_tiles(self, user_id: int) -> bool:
+        """Whether the user may use the edit mode (a KpiTen manager in Odoo)."""
+        raise NotImplementedError
+
     def delete_tile(self, line_id: int) -> None:
         raise NotImplementedError
 
