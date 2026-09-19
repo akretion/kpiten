@@ -90,11 +90,19 @@ class KtConfig(models.Model):
         """Chart default styling and card options as expected by the dashboard apps.
 
         i.e. {"graph": {"layout": {"colorway": ["#00dc82", "#34cdfe"]}},
-              "card": {"comparison": True}}
+              "card": {"comparison": True},
+              "currency": {"symbol": "$", "position": "before"}}
+
+        `currency` is the one of the company : a card with `unit = "currency"`
+        shows it, before or after the number as Odoo does.
         """
+        currency = self.env.company.currency_id
+        config = {
+            "currency": {"symbol": currency.symbol, "position": currency.position}
+        }
         rec = self.search([], limit=1)
         if not rec:
-            return {}
+            return config
         colorway = [
             color
             for color in (
@@ -110,7 +118,7 @@ class KtConfig(models.Model):
             layout["colorway"] = colorway
         if rec.graph_title_font_color:
             layout["title"] = {"font": {"color": rec.graph_title_font_color}}
-        config = {"card": {"comparison": rec.show_card_comparison}}
+        config["card"] = {"comparison": rec.show_card_comparison}
         if layout:
             config["graph"] = {"layout": layout}
         return config

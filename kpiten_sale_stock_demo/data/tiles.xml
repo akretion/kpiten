@@ -37,7 +37,7 @@ compare = true
         <field name="definition">where = "state = 'sale'"
 aggregation = "sum"
 measure = "amount_untaxed"
-unit = "$"
+unit = "currency"
 compare = true
 </field>
     </record>
@@ -52,7 +52,7 @@ compare = true
 aggregation = "mean"
 measure = "amount_untaxed"
 decimals = 0
-unit = "$"
+unit = "currency"
 compare = true
 </field>
     </record>
