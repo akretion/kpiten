@@ -6,6 +6,7 @@ through the SSO of Odoo, like a user does from the KpiTen menu.
 """
 
 import os
+from urllib.parse import urljoin
 
 import pytest
 import requests
@@ -253,3 +254,12 @@ def test_the_tab_title_names_the_open_panel(page: Page) -> None:
     other = others.first.inner_text()
     page.select_option("#panel", label=other)
     expect(page).to_have_title(f"{other} · KpiTen (shiny)")
+
+
+def test_the_tab_has_a_favicon(page: Page) -> None:
+    """The icon of the tab is served (the browser asked /favicon.ico : a 404)."""
+    open_dashboard(page)
+    href = page.locator("link[rel='icon']").get_attribute("href")
+    reply = page.request.get(urljoin(page.url, href))
+    assert reply.ok
+    assert reply.headers["content-type"].startswith("image/")

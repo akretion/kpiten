@@ -47,6 +47,10 @@ TILES_DUMP = (
 )
 
 PLOTLY_JS = "https://cdn.plot.ly/plotly-2.35.2.min.js"
+# the KpiTen icon (the one of the Odoo menu), in the tab ; relative like the logo :
+# it works at the app root and under /dashboard
+FAVICON = ui.tags.link(rel="icon", type="image/png", href="static/favicon.png")
+
 EDIT_TOOLTIP = (
     "Edit this panel : move, resize or delete its tiles (drag and drop, or the "
     "buttons on each tile). The changes are saved in Odoo."
@@ -155,6 +159,7 @@ def app_ui(req):  # noqa: ANN001
     ):
         return ui.page_fluid(
             {"class": "kpiten-dashboard"},
+            ui.head_content(FAVICON),
             ui.h3("Not connected"),
             ui.p("Open the dashboard from Odoo : menu KpiTen → Dashboard."),
             title=f"Not connected · {TAB_TITLE}",
@@ -164,7 +169,7 @@ def app_ui(req):  # noqa: ANN001
         {"class": "kpiten-dashboard"},
         # loaded once, before any tile : a figure that loaded it itself could run
         # before the script was there ("Plotly is not defined")
-        ui.head_content(ui.tags.script(src=PLOTLY_JS)),
+        ui.head_content(FAVICON, ui.tags.script(src=PLOTLY_JS)),
         ui.output_ui("theme_style"),
         ui.output_ui("tab_title"),
         ui.div(
