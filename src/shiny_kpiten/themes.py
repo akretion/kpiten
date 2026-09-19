@@ -38,26 +38,107 @@ class Theme:
   ) fixed;
   min-height: 100vh;
 }}
-.filter-bar {{ display: flex; gap: 10px; align-items: end }}
-.filter-bar .shiny-input-container {{ margin-bottom: 6px }}
-.filter-bar input,
-.filter-bar .selectize-input {{ color: {p["text"]} }}
-.freshness-bar {{ margin: -6px 0 8px 12px }}
+.kpiten-dashboard {{
+  --surface-hex: {p["surface_hex"]};
+  --thead: {p["thead"]};
+  padding: 24px;
+}}
+/* one compact row : logo, panel, database, theme, actions, freshness */
+.top-bar, .filter-bar {{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
+}}
+.top-bar .shiny-input-container,
+.filter-bar .shiny-input-container {{ margin-bottom: 0; width: auto }}
+.top-bar .shiny-html-output:empty {{ display: none }}
+.kpiten-dashboard label.control-label {{
+  font-size: 11px;
+  opacity: .7;
+  margin-bottom: 2px;
+}}
+/* the controls take the colors of the theme (bootstrap ones are white) */
+.kpiten-dashboard .form-select,
+.kpiten-dashboard .form-control,
+.kpiten-dashboard .selectize-input {{
+  background-color: color-mix(in srgb, {p["text"]} 8%, transparent);
+  color: {p["text"]};
+  border: 1px solid {p["border"]};
+  border-radius: 6px;
+  font-size: 13px;
+  min-height: 34px;
+  box-shadow: none;
+}}
+.kpiten-dashboard .form-select {{
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='{p["text"].replace("#", "%23")}' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}}
+.kpiten-dashboard .form-select option {{ background: {p["surface_hex"]}; color: {p["text"]} }}
+.kpiten-dashboard .selectize-input input {{ color: {p["text"]} }}
+.kpiten-dashboard .selectize-control.multi .selectize-input > div {{
+  background: {p["thead"]};
+  color: {p["text"]};
+  border-radius: 4px;
+}}
+.kpiten-dashboard .selectize-dropdown {{
+  background: {p["surface_hex"]};
+  color: {p["text"]};
+  border: 1px solid {p["border"]};
+}}
+.kpiten-dashboard .selectize-dropdown .active {{
+  background: {p["thead"]};
+  color: {p["accent"]};
+}}
+.kpiten-dashboard .btn-kpiten {{
+  background: transparent;
+  color: {p["accent"]};
+  border: 1px solid {p["accent"]};
+  border-radius: 6px;
+  font-size: 13px;
+  min-height: 34px;
+}}
+.kpiten-dashboard .btn-kpiten:hover {{
+  background: {p["accent"]};
+  color: {p["surface_hex"]};
+}}
+.kpiten-dashboard .form-check-input:checked {{
+  background-color: {p["accent"]};
+  border-color: {p["accent"]};
+}}
 .data-freshness {{
   font-size: 11px;
   opacity: 0.55;
   color: {p["text"]};
+  align-self: center;
 }}
 .framework-logo {{
-  width: 84px;
+  width: 76px;
   height: auto;
   border-radius: 6px;
   vertical-align: middle;
 }}
 .tile-grid {{
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(6, 1fr);  /* see GRID_SPAN in app.py */
+  grid-auto-flow: dense;  /* a narrow tile fills the hole a wide one leaves */
   gap: 16px;
+}}
+/* the tables sit on the left of their tile, like the other front */
+.tile .gt_table {{ margin-left: 0 !important; margin-right: 0 !important }}
+/* edit mode : the grid item is the wrapper of the tile */
+.tile-edit-item {{ display: flex; flex-direction: column }}
+.tile-edit-item > .tile {{ flex: 1 }}
+.kind-badge {{
+  font-size: 10px;
+  font-weight: 400;
+  color: {p["accent"]};
+  border: 1px solid {p["accent"]};
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-left: 8px;
+  vertical-align: middle;
+  opacity: .8;
 }}
 /* cards row : odoo-dashboard style kpi line — one compact centered row of
    single-value tiles, each sized to its content */
@@ -90,6 +171,7 @@ class Theme:
 .kpi-sub {{ font-size: 12px; opacity: .7 }}
 .kpi-delta-descr {{ font-weight: 400; opacity: .65 }}
 .tile {{
+  max-height: 460px;  /* a long table scrolls in its tile */
   background: {p["surface"]};
   color: {p["text"]};
   border: 1px solid {p["border"]};

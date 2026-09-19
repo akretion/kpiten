@@ -4,7 +4,7 @@ Shiny dashboard app on top of kpiten-core.
 
 The tiles are rendered as raw html (all content is written server-side) :
 - card  -> big value
-- graph -> plotly figure (to_html, plotlyjs loaded from CDN)
+- graph -> plotly figure (to_html ; plotly.js is loaded once, in the page head)
 - pivot / union / data -> great_tables themed table (see themes.py)
 
 Themes and their palette live in `themes.py` (default = Akretion blue
@@ -46,10 +46,20 @@ TILES_DUMP = (
 )
 
 PLOTLY_JS = "https://cdn.plot.ly/plotly-2.35.2.min.js"
+TABLE_ROWS = 20  # rows a table tile shows (the tile scrolls, the page does not grow)
+
+# the grid has 6 columns : a tile of width 1 takes a third of the row, 2 a half, 3 the
+# whole row (two tiles of width 2 sit side by side, none leaves a hole)
+GRID_SPAN = {1: 2, 2: 3, 3: 6}
 
 HEIGHT_STEP = 40  # px ; tile_height resize step in edit mode
 WIDTH_MIN = 1
 WIDTH_MAX = 3
+
+
+def span_of(line: dict) -> int:
+    """Columns of the grid a tile takes."""
+    return GRID_SPAN.get(line.get("col_span") or 1, 2)
 
 
 def dim_input_id(column: str) -> str:
@@ -135,42 +145,34 @@ def app_ui(req):  # noqa: ANN001
     logo = "static/logo.png"  # relative : works at app root and under /dashboard
     return ui.page_fluid(
         {"class": "kpiten-dashboard"},
+        # loaded once, before any tile : a figure that loaded it itself could run
+        # before the script was there ("Plotly is not defined")
+        ui.head_content(ui.tags.script(src=PLOTLY_JS)),
         ui.output_ui("theme_style"),
-        ui.row(
-            ui.column(
-                2,
-                ui.output_ui("db_select"),
+        ui.div(
+            ui.tags.a(
+                ui.tags.img(src=logo, class_="framework-logo"),
+                href="https://shiny.posit.co",
+                title="Made with Shiny",
+                target="_blank",
             ),
-            ui.column(
-                2,
-                ui.tags.a(
-                    ui.tags.img(src=logo, class_="framework-logo"),
-                    href="https://shiny.posit.co",
-                    title="Made with Shiny",
-                    target="_blank",
-                ),
+            ui.input_select("panel", "Panel", choices=[], width="200px"),
+            ui.output_ui("db_select"),
+            ui.output_ui("theme_select"),
+            ui.input_action_button("refresh_data", "Refresh data", class_="btn-kpiten"),
+            ui.download_button(
+                "explore",
+                "\u2913",
+                class_="btn-kpiten",
+                title="Explore : download the rows of this panel (your rights, the "
+                "filters you set) with a marimo notebook",
             ),
-            ui.column(2, ui.input_select("panel", "Panel", choices=[])),
-            ui.column(
-                2,
-                ui.input_action_button("refresh_data", "Refresh data"),
-                ui.download_button(
-                    "explore",
-                    "⤓ Explore",
-                    class_="btn-sm",
-                    title="Download the rows of this panel (your rights, the filters you "
-                    "set) with a marimo notebook to explore them",
-                ),
-            ),
-            ui.column(2, ui.output_ui("theme_select")),
-            ui.column(2, ui.output_ui("filters")),
-            ui.column(
-                2,
-                ui.input_switch("edit_mode", "Edit mode", False),
-                ui.output_ui("edit_lock"),
-            ),
+            ui.input_switch("edit_mode", "Edit mode", False),
+            ui.output_ui("edit_lock"),
+            ui.output_ui("data_freshness"),
+            class_="top-bar",
         ),
-        ui.tags.div(ui.output_ui("data_freshness"), class_="freshness-bar"),
+        ui.output_ui("filters"),
         ui.div(ui.output_ui("tiles")),
     )
 
@@ -244,8 +246,10 @@ def tile_html(
             + (comparison.html_block(result.comparison) if result.comparison else "")
             + "</div>"
         )
-    parts = [f"<h3>{line['name'] or result.kind}</h3>"]
-    tile_height = (line.get("tile_height") or 260) - 40
+    parts = [
+        f"<h3>{line['name'] or result.kind}"
+        f'<span class="kind-badge">{result.kind}</span></h3>'
+    ]
     if result.kind == "graph":
         result.figure.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
@@ -253,10 +257,16 @@ def tile_html(
             font=dict(color=p["text"], size=11),
             margin=dict(l=10, r=10, t=30, b=20),
         )
-        parts.append(result.figure.to_html(include_plotlyjs=PLOTLY_JS))
+        parts.append(result.figure.to_html(include_plotlyjs=False, full_html=False))
     else:
         assert result.df is not None
-        parts.append(themes.gt_df(theme, result.df).as_raw_html())
+        parts.append(themes.gt_df(theme, result.df.head(TABLE_ROWS)).as_raw_html())
+        # out of what the tile holds (`total_rows` when the core already cut it off)
+        total = result.meta.get("total_rows", result.df.height)
+        if total > TABLE_ROWS:
+            result.meta["note"] = f"First {TABLE_ROWS} of {total:,} rows".replace(
+                ",", " "
+            )
     if result.note:
         # the tile was reduced to stay renderable (see kpiten_core.tiles)
         parts.append(
@@ -264,23 +274,27 @@ def tile_html(
             f"{result.note}</div>"
         )
     html = "".join(str(part) for part in parts)
-    col_span = line.get("col_span") or 1
     drillable = bool(line.get("drill")) and bool(result.keys)
+    height = line.get("tile_height") or 260
+    # a graph keeps the height of its tile ; a table is as tall as its rows, up to it
+    size = (
+        f"min-height: {max(height - 40, 120)}px"
+        if result.kind == "graph"
+        else f"max-height: {max(height, 340)}px"
+    )
     return (
         f'<div class="tile{" drillable" if drillable else ""}" '
-        f'data-tile-id="{line["id"]}"{tooltip} style="grid-column: span {col_span}; '
-        f'min-height: {max(tile_height, 120)}px">{html}</div>'
+        f'data-tile-id="{line["id"]}"{tooltip} style="grid-column: span {span_of(line)}; '
+        f'{size}">{html}</div>'
     )
 
 
 def tile_error_html(line: dict, error: str, info: str = "") -> str:
     error = error.replace('"', "'")
     tooltip = f' title="{info}"' if info else ""
-    col_span = line.get("col_span") or 1
-    height = max((line.get("tile_height") or 260) - 40, 120)
     return (
-        f'<div class="tile"{tooltip} style="grid-column: span {col_span}; '
-        f'min-height: {height}px"><h3>{line["name"]}</h3>'
+        f'<div class="tile"{tooltip} style="grid-column: span {span_of(line)}">'
+        f'<h3>{line["name"]}</h3>'
         f'<p style="color: #ff6e6f">{error}</p></div>'
     )
 
@@ -367,7 +381,11 @@ def server(input, output, session):
         except Exception:
             databases = [backend_rv().db]
         return ui.input_select(
-            "db", "Database", choices=databases, selected=backend_rv().db
+            "db",
+            "Database",
+            choices=databases,
+            selected=backend_rv().db,
+            width="160px",
         )
 
     @reactive.calc
@@ -402,7 +420,11 @@ def server(input, output, session):
         """Theme select + persistence, rendered once the app is up."""
         choices = {key: t.name for key, t in themes.THEMES.items()}
         return ui.input_select(
-            "theme", "Theme", choices=choices, selected=themes.DEFAULT_THEME
+            "theme",
+            "Theme",
+            choices=choices,
+            selected=themes.DEFAULT_THEME,
+            width="150px",
         )
 
     @render.ui
@@ -484,6 +506,7 @@ def server(input, output, session):
                     "Period",
                     choices=options,
                     selected=filterstate.default_date_option(options, span),
+                    width="170px",
                 )
             )
         for dim in config.get("dimensions", []):
@@ -588,7 +611,7 @@ def server(input, output, session):
         content = _inject_toolbar(tile_html(line, theme, result, tile_info(line)), line)
         return (
             f'<div class="tile-edit-item" data-tile-id="{line["id"]}"'
-            f' draggable="true">{content}</div>'
+            f' draggable="true" style="grid-column: span {span_of(line)}">{content}</div>'
         )
 
     def tile_error_item_html(line: dict, error: str) -> str:
@@ -597,7 +620,7 @@ def server(input, output, session):
         )
         return (
             f'<div class="tile-edit-item" data-tile-id="{line["id"]}"'
-            f' draggable="true">{content}</div>'
+            f' draggable="true" style="grid-column: span {span_of(line)}">{content}</div>'
         )
 
     # ---- data refresh effect (on-demand button) --------------------------
