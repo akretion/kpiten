@@ -287,3 +287,15 @@ def test_the_graph_colors_of_kt_config():
         assert config.graph_fill_color() == "#333"
     finally:
         config.set_config({})
+
+
+def test_a_new_feature_is_off_unless_odoo_turns_it_on():
+    from kpiten_core import config
+
+    try:
+        assert not any(config.feature(name) for name in config.FEATURES)  # nothing said
+        config.set_config({"features": {"alerts": True, "outliers": False}})
+        assert config.feature("alerts") and not config.feature("outliers")
+        assert not config.feature("save_tile")  # not mentioned : off
+    finally:
+        config.set_config({})

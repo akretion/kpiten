@@ -132,3 +132,21 @@ def ai_enabled() -> bool:
 
 def ai_send_values() -> bool:
     return bool(_section("ai").get("send_values", True))
+
+
+# ---- new features (off until Odoo turns them on)
+FEATURES = (
+    "save_tile",
+    "alerts",
+    "concentration",
+    "outliers",
+    "export_ods",
+    "ai_refine",
+)
+
+
+def feature(name: str) -> bool:
+    """Whether a new function of the marimo explorer is on : off unless `kt.config`
+    (Odoo) says yes, so an older kpiten module, or a database that did not check it,
+    keeps things as they were."""
+    return bool(_section("features").get(name, False))
