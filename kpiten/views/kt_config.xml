@@ -19,13 +19,6 @@
                             <field name="graph_color_8" widget="color" />
                             <field name="graph_fill_color" widget="color" />
                         </group>
-                        <group colspan="2">
-                            <field
-                                name="graph_color_preview"
-                                readonly="1"
-                                nolabel="0"
-                            />
-                        </group>
                     </group>
                     <group string="Card defaults">
                         <group>

@@ -34,7 +34,6 @@ class TestKtConfig(TransactionCase):
         colorway = self._graph()["layout"]["colorway"]
         self.assertEqual(len(colorway), 8)
         self.assertEqual(colorway[7], "#000008")
-        self.assertIn("#000008", self.config.graph_color_preview)
 
     def test_a_gap_in_the_palette_is_skipped(self):
         self.config.write({f"graph_color_{i}": False for i in range(1, 9)})

@@ -76,11 +76,6 @@ class KtConfig(models.Model):
         "opacity. The palette above is for the bars ; empty, the default color "
         "of the chart library is used.",
     )
-    graph_color_preview = fields.Html(
-        compute="_compute_graph_color_preview",
-        sanitize=False,
-        help="Live preview of the chart palette.",
-    )
 
     # ---- cards
     show_card_comparison = fields.Boolean(
@@ -251,24 +246,6 @@ class KtConfig(models.Model):
         self.ensure_one()
         colors = (self[f"graph_color_{i}"] for i in range(1, NUM_COLORS + 1))
         return [color for color in colors if color]
-
-    @api.depends(*[f"graph_color_{i}" for i in range(1, NUM_COLORS + 1)])
-    def _compute_graph_color_preview(self):
-        for rec in self:
-            colors = rec._palette()
-            if not colors:
-                rec.graph_color_preview = False
-                continue
-            swatches = "".join(
-                f'<div style="display:inline-block;width:48px;height:48px;'
-                f"background:{color};border-radius:6px;margin:0 6px 6px 0;"
-                f'border:1px solid rgba(0,0,0,0.2);"></div>'
-                for color in colors
-            )
-            rec.graph_color_preview = (
-                f'<div style="display:flex;flex-wrap:wrap;align-items:center;">'
-                f"{swatches}</div>"
-            )
 
     @api.depends("card_good_color", "card_bad_color")
     def _compute_card_color_preview(self):
