@@ -273,3 +273,17 @@ def test_the_card_colors_of_kt_config():
         assert comparison.color({"direction": "up", "tone": "neutral"}) is None
     finally:
         config.set_config({})
+
+
+def test_the_graph_colors_of_kt_config():
+    from kpiten_core import config
+
+    try:
+        assert config.graph_colorway() == [] and config.graph_fill_color() is None
+        config.set_config(
+            {"graph": {"layout": {"colorway": ["#111", "#222"]}, "fill_color": "#333"}}
+        )
+        assert config.graph_colorway() == ["#111", "#222"]
+        assert config.graph_fill_color() == "#333"
+    finally:
+        config.set_config({})

@@ -132,6 +132,10 @@ def test_the_default_period_and_the_fiscal_year_of_kt_config():
         options = filters.date_options(span, today)
         assert filters.default_date_option(options, span, today) == "last 90 days"
 
+        config.set_config({"period": {"default": ""}})  # the full range, chosen
+        assert config.default_period() == ""
+        assert filters.default_date_option(options, span, today) == ""
+
         config.set_config({"period": {"default": "year to date"}})
         options = filters.date_options(span, today)
         assert filters.default_date_option(options, span, today) == "year to date"

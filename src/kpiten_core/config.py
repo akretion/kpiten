@@ -41,6 +41,17 @@ def _section(name: str) -> dict:
     return CONFIG.get(name) or {}
 
 
+# ---- graphs
+def graph_colorway() -> list[str]:
+    """The palette of the bars (`kt.config`), empty when Odoo sets none."""
+    return list((_section("graph").get("layout") or {}).get("colorway") or [])
+
+
+def graph_fill_color() -> str | None:
+    """The color of the filled graphs (area), None when Odoo sets none."""
+    return _section("graph").get("fill_color") or None
+
+
 # ---- cards
 def comparison_enabled() -> bool:
     """Whether the cards may show their comparison with the previous period ; on when
@@ -71,7 +82,10 @@ def quantity_digits(value) -> int:
 
 # ---- periods
 def default_period() -> str:
-    return _section("period").get("default") or DEFAULT_PERIOD
+    """The period a dashboard opens on ; `""` is the full range, `None` (not set) the
+    default one."""
+    default = _section("period").get("default")
+    return DEFAULT_PERIOD if default is None else default
 
 
 def fiscal_start_month() -> int:
