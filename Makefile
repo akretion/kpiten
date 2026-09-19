@@ -16,10 +16,23 @@ N       ?= 100000
 # filtre des bases visibles en mode multi-bases (regex) ; vide = celui de odoo.conf
 DBFILTER ?=
 
-.PHONY: repos venv apps db run run-db shell update add-sales sync
+.PHONY: check-repos repos venv apps db run run-db shell update add-sales sync
+
+## Refuse d'agréger si des commits n'existent que localement dans src/ :
+## git-aggregator remet la branche cible à l'état du remote (reset --hard) et les
+## perdrait. Pousser d'abord, ou passer outre :  make repos FORCE=1
+check-repos:
+	@bad=0; for d in src/*/; do \
+	  [ -e $$d.git ] || continue; \
+	  n=$$(git -C $$d rev-list --branches --not --remotes --count 2>/dev/null); \
+	  if [ "$${n:-0}" -gt 0 ]; then echo "$$d : $$n commit(s) non poussé(s)"; bad=1; fi; \
+	done; \
+	if [ $$bad = 1 ]; then \
+	  echo "make repos les écraserait : git -C src/<dossier> push, ou make repos FORCE=1"; exit 1; \
+	fi
 
 ## Clone / met à jour les sources (git-aggregator)
-repos:
+repos: $(if $(FORCE),,check-repos)
 	gitaggregate -c repos.yml -j 4
 
 ## Venv Odoo (Python 3.12) : dépendances d'Odoo + addons
