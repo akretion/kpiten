@@ -299,3 +299,11 @@ def test_a_new_feature_is_off_unless_odoo_turns_it_on():
         assert not config.feature("save_tile")  # not mentioned : off
     finally:
         config.set_config({})
+
+
+def test_the_logo_tooltip_says_the_slogan_and_the_pun():
+    from kpiten_core import brand
+
+    text = brand.tooltip()
+    assert text.startswith("KpiTen — Le capitaine de vos KPI")
+    assert "capitaine" in text.split("\n")[1]  # the second line explains the name
