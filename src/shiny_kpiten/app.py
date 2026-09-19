@@ -24,6 +24,7 @@ from shiny import App, reactive, render, req, ui
 from shiny.types import SilentException
 
 from kpiten_core import comparison, links
+from kpiten_core.gtable import DRILL_CSS
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
 
@@ -189,6 +190,26 @@ def _inject_toolbar(content: str, line: dict) -> str:
     return block + content
 
 
+# a click on a row of a drillable table tells the server which tile and which row
+# (the hidden key columns of the row stay on the server)
+DRILL_JS = """
+(function () {
+  if (window.__kpitenDrill) { return; }
+  window.__kpitenDrill = true;
+  document.addEventListener("click", function (ev) {
+    if (ev.target.closest("a")) { return; }
+    var row = ev.target.closest(".tile.drillable .gt_table tbody tr");
+    if (!row || !window.Shiny) { return; }
+    var tile = row.closest(".tile");
+    var rows = Array.prototype.slice.call(tile.querySelectorAll(".gt_table tbody tr"));
+    Shiny.setInputValue("drill_click",
+      {line: parseInt(tile.dataset.tileId, 10), row: rows.indexOf(row)},
+      {priority: "event"});
+  });
+})();
+"""
+
+
 # ---- tiles html rendering ---------------------------------------------
 def tile_html(
     line: dict, theme: themes.Theme, result: core_tiles.TileResult, info: str = ""
@@ -233,8 +254,10 @@ def tile_html(
         )
     html = "".join(str(part) for part in parts)
     col_span = line.get("col_span") or 1
+    drillable = bool(line.get("drill")) and bool(result.keys)
     return (
-        f'<div class="tile"{tooltip} style="grid-column: span {col_span}; '
+        f'<div class="tile{" drillable" if drillable else ""}" '
+        f'data-tile-id="{line["id"]}"{tooltip} style="grid-column: span {col_span}; '
         f'min-height: {max(tile_height, 120)}px">{html}</div>'
     )
 
@@ -376,8 +399,9 @@ def server(input, output, session):
         return ui.tags.div(
             ui.tags.style("{}".format(current_theme().css())),
             ui.tags.script(THEME_PERSIST_JS),
-            ui.tags.style(links.LINK_CSS),
+            ui.tags.style(links.LINK_CSS + DRILL_CSS),
             ui.tags.script(links.NEW_TAB_JS),
+            ui.tags.script(DRILL_JS),
         )
 
     @reactive.calc
@@ -615,6 +639,46 @@ def server(input, output, session):
             layout_version.set(layout_version() + 1)
             ui.notification_show("Tiles order saved.")
 
+    # ---- drill-down : a click on a row of a table shows the rows behind it -------
+    drill_keys: dict[int, list[dict]] = {}  # tile id -> the hidden key of each row
+
+    @reactive.effect
+    def _drill():
+        click = req(input.drill_click())  # {line, row} from DRILL_JS
+        with reactive.isolate():
+            line_id, row = int(click["line"]), int(click["row"])
+            line = next((l for l in lines() if l["id"] == line_id), None)
+            keys = drill_keys.get(line_id) or []
+            if line is None or not line.get("drill") or not 0 <= row < len(keys):
+                return
+            try:
+                result = core_tiles.exec_drill(
+                    line, line["model"], store(), predicates(), keys[row]
+                )
+            except Exception as err:
+                logger.exception("drill-down of tile %s failed", line["name"])
+                ui.notification_show(f"Drill-down failed : {err}", type="error")
+                return
+            palette = current_theme().palette
+            note = (
+                f'<div style="font-size: 11px; opacity: .65">{result.note}</div>'
+                if result.note
+                else ""
+            )
+            body = themes.gt_df(current_theme(), result.df).as_raw_html()
+            ui.modal_show(
+                ui.modal(
+                    ui.HTML(
+                        f'<div style="background: {palette["surface_hex"]}; padding: 8px; max-height: 70vh; overflow: auto">'
+                        f"{body}{note}</div>"
+                    ),
+                    title=result.label,
+                    easy_close=True,
+                    size="xl",
+                    footer=None,
+                )
+            )
+
     @render.ui
     def tiles():
         panels()  # ensure the select is populated
@@ -630,6 +694,7 @@ def server(input, output, session):
             edit_mode_on = False
         logger.info("predicates : %s", [str(p) for p in predicate_list])
         cards, blocks = [], []
+        drill_keys.clear()
         for line in tile_lines:
             try:
                 result = core_tiles.exec_tile(
@@ -640,6 +705,8 @@ def server(input, output, session):
                     previous_predicates,
                     previous_label,
                 )
+                if result.keys:
+                    drill_keys[line["id"]] = result.keys
                 rendered = (
                     tile_edit_item(line, theme, result)
                     if edit_mode_on
