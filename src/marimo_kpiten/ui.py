@@ -31,6 +31,14 @@ def brand_mark(height: int = 30) -> mo.Html:
     )
 
 
+def framework_mark(height: int = 28) -> mo.Html:
+    """The logo of marimo (the framework), which marimo serves itself."""
+    return mo.Html(
+        f'<img src="/dashboard/logo.png" alt="marimo" title="Made with marimo" '
+        f'style="height:{height}px;width:auto">'
+    )
+
+
 def header(key: str, user_id, db) -> mo.Html:
     """Title of an analysis, with the way back to the list and who is connected."""
     analysis = ANALYSES[key]
@@ -38,12 +46,20 @@ def header(key: str, user_id, db) -> mo.Html:
         [
             mo.hstack(
                 [
-                    brand_mark(28),
-                    mo.md("<small>[← Marimo notebook](/dashboard/)</small>"),
+                    # the logo of KpiTen on the left, the one of the framework on the right
+                    mo.hstack(
+                        [
+                            brand_mark(56),
+                            mo.md("<small>[← Marimo notebook](/dashboard/)</small>"),
+                        ],
+                        justify="start",
+                        align="center",
+                        gap=0.8,
+                    ),
+                    framework_mark(),
                 ],
-                justify="start",
+                justify="space-between",
                 align="center",
-                gap=0.6,
             ),
             mo.md(f"""
                 # {analysis["icon"]} {analysis["title"]}

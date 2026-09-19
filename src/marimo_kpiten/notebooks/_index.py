@@ -34,7 +34,7 @@ def _(ANALYSES, html, mo, ui):
             mo.hstack(
                 [
                     mo.hstack(
-                        [ui.brand_mark(44), mo.md("# Marimo notebook")],
+                        [ui.brand_mark(88), mo.md("# Marimo notebook")],
                         justify="start",
                         align="center",
                         gap=0.8,
