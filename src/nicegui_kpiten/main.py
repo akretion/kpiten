@@ -20,6 +20,7 @@ from fastapi import Request
 from fastapi.responses import RedirectResponse
 from nicegui import app, ui, run
 
+from kpiten_core import config as core_config
 from kpiten_core import filters
 from kpiten_core import comparison, links
 from kpiten_core import explore as explore_core
@@ -301,16 +302,17 @@ def tile_view(
         else:
             assert result.df is not None
             # setHTML drops the `style` of the links : their color comes from here
-            ui.html(gt_table(result.df.head(20), palette).as_raw_html()).style(
+            rows = core_config.table_rows()
+            ui.html(gt_table(result.df.head(rows), palette).as_raw_html()).style(
                 f"--link-color: {palette['accent']}"
             )
         note = result.note
         if result.df is not None:
-            # 20 rows shown, out of what the tile holds (`total_rows` when the
-            # core already cut it off)
+            # the rows of `kt.config` shown, out of what the tile holds (`total_rows`
+            # when the core already cut it off)
             total = result.meta.get("total_rows", result.df.height)
-            if total > 20:
-                note = f"First 20 of {total:,} rows".replace(",", " ")
+            if total > rows:
+                note = f"First {rows} of {total:,} rows".replace(",", " ")
         if note:
             ui.label(note).classes("text-xs opacity-60")
 
@@ -345,7 +347,7 @@ def error_view(line: dict, error: str, info: str = ""):
 
 
 @ui.page("/")
-def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = None):
+def dashboard(request: Request, theme: str | None = None, db: str | None = None):
     ui.add_head_html(f"<style>{CSS}{links.LINK_CSS}{DRILL_CSS}</style>")
     ui.add_head_html(f"<script>{links.NEW_TAB_JS}</script>")
     ui.add_head_html(f"<script>{DRILL_JS}</script>")
@@ -383,8 +385,14 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
         databases = [sso.db] if sso else backend.list_databases() or [backend.db]
     except Exception:
         databases = [backend.db]
-    filt = {"date": filters.DEFAULT_DATE_OPTION, "dims": {}}
-    theme_key = theme if theme in THEMES else DEFAULT_THEME
+    filt = {"date": core_config.default_period(), "dims": {}}
+    # the theme asked in the url, else the one this browser chose, else the default
+    # of `kt.config` (the settings are loaded above)
+    kept = app.storage.browser.get("theme")
+    theme_key = next(
+        (t for t in (theme, kept, core_config.default_theme()) if t in THEMES),
+        DEFAULT_THEME,
+    )
     app.storage.browser["theme"] = theme_key
 
     store_cache = user_store(backend, user_id)
@@ -450,6 +458,9 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
 
     async def on_explore():
         """Download the rows of the panel (this user's store, current filters) as a zip."""
+        if not core_config.explore_allowed(can_edit):
+            ui.notify("You may not export the rows.", type="negative")
+            return
         try:
             _name, data = await run.io_bound(
                 explore_core.build_archive,
@@ -670,10 +681,13 @@ def dashboard(request: Request, theme: str = DEFAULT_THEME, db: str | None = Non
                 .set_visibility(False)
             )
             ui.button("Refresh data", on_click=on_refresh_data)
-            ui.button(icon="download", on_click=on_explore).props("flat dense").tooltip(
-                "Explore : download the rows of this panel (your rights, the filters "
-                "you set) with a marimo notebook"
-            )
+            if core_config.explore_allowed(can_edit):
+                ui.button(icon="download", on_click=on_explore).props(
+                    "flat dense"
+                ).tooltip(
+                    "Explore : download the rows of this panel (your rights, the "
+                    "filters you set) with a marimo notebook"
+                )
             ui.button("Refresh tiles", on_click=draw_tiles).props("flat")
             if can_edit:
                 ui.switch("Edit", value=False, on_change=on_edit_mode).props(
