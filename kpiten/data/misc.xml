@@ -9,5 +9,9 @@
         <field name="graph_color_2">#1c71d8</field>
         <field name="graph_color_3">#c061cb</field>
         <field name="graph_color_4">#865e3c</field>
+        <field name="graph_color_5">#f6d32d</field>
+        <field name="graph_color_6">#ff7800</field>
+        <field name="graph_color_7">#e01b24</field>
+        <field name="graph_color_8">#2190a4</field>
     </record>
 </odoo>

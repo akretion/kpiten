@@ -11,6 +11,9 @@ from odoo.tools.translate import _
 
 from . import kt_sql
 
+# the name of the generic list actions `get_records_action` makes (one per model)
+RECORDS_ACTION_NAME = "KpiTen records"
+
 logger = logging.getLogger(__name__)
 
 
@@ -453,6 +456,34 @@ class Kt(models.AbstractModel):
         The dashboard apps ask it to open a session : an expired uuid opens nothing.
         """
         return self.env["res.users.log"]._valid_uuid_user(user_uuid)
+
+    @api.model
+    def get_records_action(self, model: str) -> int:
+        """The id of the list action that shows, in Odoo, the records a KPI lists.
+
+        One generic action per model, made when it is first asked : its domain is
+        `[('id', 'in', active_ids)]`, so a link `/odoo/action-<id>?active_ids=1,2,3`
+        opens the list of those records. The domain does not widen anything : Odoo
+        applies the rights and the record rules of whoever opens the link. Only the
+        models of a KpiTen dataset are served.
+        """
+        datasets = self.env["kt.dataset"].sudo().search([]).mapped("model_id.model")
+        if model not in datasets:
+            raise exceptions.UserError(_("%s is not a KpiTen data source.", model))
+        actions = self.env["ir.actions.act_window"].sudo()
+        action = actions.search(
+            [("res_model", "=", model), ("name", "=", RECORDS_ACTION_NAME)], limit=1
+        )
+        if not action:
+            action = actions.create(
+                {
+                    "name": RECORDS_ACTION_NAME,
+                    "res_model": model,
+                    "domain": "[('id', 'in', active_ids)]",
+                    "view_mode": "list,form",
+                }
+            )
+        return action.id
 
     @api.model
     def can_edit_tiles(self, user_id=None):

@@ -90,6 +90,7 @@
                                 <field name="feature_concentration" />
                                 <field name="feature_outliers" />
                                 <field name="feature_export_ods" />
+                                <field name="feature_open_in_odoo" />
                             </group>
                             <group string="AI (marimo explorer)">
                                 <field name="feature_ai_refine" />

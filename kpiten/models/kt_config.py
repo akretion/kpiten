@@ -10,6 +10,7 @@ FEATURES = (
     "outliers",
     "export_ods",
     "ai_refine",
+    "open_in_odoo",
 )
 # what a scorecard of Odoo uses (`baselineColorUp`, `baselineColorDown`)
 DEFAULT_GOOD, DEFAULT_BAD = "#00A04A", "#DC6965"
@@ -256,6 +257,12 @@ class KtConfig(models.Model):
         default=False,
         help="Download the table of a KPI as an OpenDocument spreadsheet "
         "(LibreOffice), highlights included.",
+    )
+    feature_open_in_odoo = fields.Boolean(
+        string="Open a list of records in Odoo",
+        default=False,
+        help="A KPI that lists Odoo records (an order per row...) gets a link that "
+        "opens the same list in Odoo, with the rights of the user.",
     )
     feature_ai_refine = fields.Boolean(
         string="Refine a KPI with the AI",
