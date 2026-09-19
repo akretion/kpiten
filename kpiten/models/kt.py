@@ -87,7 +87,14 @@ class Kt(models.AbstractModel):
             .search([("model", "=", model), ("store", "=", True)])
             .mapped("name")
         )
-        user_fields = self.env[model].with_user(allowed_uid)._fields
+        # `_fields` lists every field of the model : a field restricted by `groups=` is
+        # only kept when this user may access it (what `fields_get` does)
+        user_env = self.env(user=allowed_uid)
+        user_fields = [
+            name
+            for name, field in user_env[model]._fields.items()
+            if field.is_accessible(user_env)
+        ]
 
         additionnal_fields = self._get_relational_paths_for_model(model)
 
