@@ -57,3 +57,19 @@ class TestKpitenPreview(TransactionCase):
         self.assertTrue(
             self.env["kt.dataset.line.preview"].browse(action["res_id"]).preview_html
         )
+
+    def test_the_columns_of_a_dataset(self):
+        action = self.dataset.action_view_columns()
+        self.assertEqual(action["res_model"], "kt.dataset.column")
+        columns = {
+            c.name: c for c in self.env["kt.dataset.column"].search(action["domain"])
+        }
+        self.assertEqual(columns["name"].origin, "Field")
+        self.assertEqual(columns["create_date.year"].origin, "Date part")
+        self.assertTrue(columns["create_date.year"].examples)
+        many2one = [
+            n
+            for n in columns
+            if n.endswith("_") and columns[n].origin == "Id of a many2one"
+        ]
+        self.assertIn("country_id_", many2one)  # its name is in `country_id`
