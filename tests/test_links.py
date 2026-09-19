@@ -102,3 +102,75 @@ def test_a_data_snippet_builds_its_links_from_odoo_url():
         "[Bob](http://odoo.test:8069/odoo/sale.order/8)",
     ]
     assert links.link_columns(res.df) == ["Customer"]
+
+
+# ---- the link that opens the records of a KPI in Odoo
+from kpiten_core import config, tiles  # noqa: E402
+
+
+class FakeBackend:
+    def __init__(self, action=488, fail=False):
+        self.action, self.fail, self.asked = action, fail, []
+
+    def get_records_action_id(self, model):
+        self.asked.append(model)
+        if self.fail:
+            raise RuntimeError("not a data source")
+        return self.action
+
+
+def result_with_ids(ids):
+    return tiles.TileResult(
+        "data", "Top orders", meta={"keys": [{"id": i} for i in ids]}
+    )
+
+
+def test_the_link_lists_the_ids_in_the_generic_action_of_the_model():
+    url, count = links.records_url("http://odoo:8069", 488, [3, 1, 2])
+    assert url == "http://odoo:8069/odoo/action-488?active_ids=3,1,2"
+    assert count == 3
+
+
+def test_a_link_holds_at_most_500_ids():
+    url, count = links.records_url("http://odoo", 1, list(range(1200)))
+    assert count == links.RECORDS_LIMIT == 500
+    assert url.endswith(",".join(map(str, range(500))))
+
+
+def test_a_kpi_that_lists_records_gets_the_link_only_when_the_feature_is_on():
+    links.set_odoo_url("http://odoo:8069")
+    backend, result = FakeBackend(), result_with_ids([7, 8])
+    try:
+        config.set_config({})
+        assert tiles.records_link(backend, "sale.order", result) is None
+        assert backend.asked == []  # Odoo is not even asked
+        config.set_config({"features": {"open_in_odoo": True}})
+        link = tiles.records_link(backend, "sale.order", result)
+        assert link == {
+            "url": "http://odoo:8069/odoo/action-488?active_ids=7,8",
+            "count": 2,
+            "total": 2,
+        }
+        assert backend.asked == ["sale.order"]
+    finally:
+        config.set_config({})
+        links.set_odoo_url("")
+
+
+def test_rows_that_are_not_records_get_no_link():
+    try:
+        config.set_config({"features": {"open_in_odoo": True}})
+        backend = FakeBackend()
+        no_keys = tiles.TileResult("data", "T")
+        assert tiles.records_link(backend, "sale.order", no_keys) is None
+        other = tiles.TileResult("data", "T", meta={"keys": [{"product_id_": 5}]})
+        assert tiles.records_link(backend, "sale.order", other) is None  # not `id`
+        text = tiles.TileResult("data", "T", meta={"keys": [{"id": "S0001"}]})
+        assert tiles.records_link(backend, "sale.order", text) is None  # not an id
+        # a model Odoo does not serve : no link, and no error on the dashboard
+        assert (
+            tiles.records_link(FakeBackend(fail=True), "x", result_with_ids([1]))
+            is None
+        )
+    finally:
+        config.set_config({})

@@ -14,6 +14,9 @@ from kpiten_core import env
 
 logger = logging.getLogger(__name__)
 
+# (database, model) -> id of the Odoo action that lists records by ids
+_RECORDS_ACTIONS: dict[tuple[str, str], int] = {}
+
 
 def _parse_filter_config(raw):
     if not raw:
@@ -176,6 +179,12 @@ class JsonrpcBackend:
         return self.env["kt.dataset.line"].create_tile(
             model, definition, kind, name, user_id, panel_id
         )
+
+    def get_records_action_id(self, model: str) -> int:
+        key = (self.db, model)
+        if key not in _RECORDS_ACTIONS:  # the action of a model does not change
+            _RECORDS_ACTIONS[key] = self.env["kt"].get_records_action(model)
+        return _RECORDS_ACTIONS[key]
 
     def can_edit_tiles(self, user_id: int) -> bool:
         """Closed on any error : no edit mode without a clear yes from Odoo."""

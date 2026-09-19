@@ -62,6 +62,19 @@ def get_odoo_url() -> str:
     return _odoo_url
 
 
+# ids in a link : the address stays short enough for any browser and server
+RECORDS_LIMIT = 500
+
+
+def records_url(odoo_url: str, action_id: int, ids: list[int]) -> tuple[str, int]:
+    """The link that opens, in Odoo, the list of these records : the generic action of
+    their model (`kt.get_records_action`) with the ids as `active_ids`. Returns the url
+    and how many ids it holds (at most `RECORDS_LIMIT`)."""
+    kept = [int(i) for i in ids[:RECORDS_LIMIT]]
+    listed = ",".join(map(str, kept))
+    return f"{odoo_url}/odoo/action-{int(action_id)}?active_ids={listed}", len(kept)
+
+
 def is_odoo_url(url: str) -> bool:
     base = _odoo_url
     return bool(base) and (url == base or url.startswith(base + "/"))

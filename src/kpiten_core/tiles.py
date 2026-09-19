@@ -68,6 +68,25 @@ class TileResult:
         return self.display if self.display is not None else str(self.value)
 
 
+def records_link(backend, model: str, result: TileResult) -> dict | None:
+    """The link that opens, in Odoo, the records a `data` tile lists : the same list, with
+    the rights of whoever opens it. A tile lists records when its rows carry the hidden
+    key `__id` (the id of a record of `model`). None when the feature is off in `kt.config`,
+    when the rows are not records, or when Odoo has no action for the model."""
+    if not settings.feature("open_in_odoo") or not result.keys:
+        return None
+    ids = [key.get("id") for key in result.keys]
+    if not all(isinstance(i, int) and not isinstance(i, bool) for i in ids):
+        return None
+    try:
+        action = backend.get_records_action_id(model)
+    except Exception:
+        logger.exception("no records action for %s", model)
+        return None
+    url, count = links.records_url(links.get_odoo_url(), action, ids)
+    return {"url": url, "count": count, "total": len(ids)}
+
+
 def _fmt_int(n: int) -> str:
     return numfmt.format_number(n)
 

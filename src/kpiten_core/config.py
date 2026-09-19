@@ -142,6 +142,7 @@ FEATURES = (
     "outliers",
     "export_ods",
     "ai_refine",
+    "open_in_odoo",
 )
 
 

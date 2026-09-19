@@ -100,6 +100,11 @@ class Backend:
     ) -> bool:
         raise NotImplementedError
 
+    def get_records_action_id(self, model: str) -> int:
+        """The id of the Odoo list action that opens the records whose ids it is given
+        (`/odoo/action-<id>?active_ids=1,2,3`), one per model."""
+        raise NotImplementedError
+
     def can_edit_tiles(self, user_id: int) -> bool:
         """Whether the user may use the edit mode (a KpiTen manager in Odoo)."""
         raise NotImplementedError
