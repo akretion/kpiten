@@ -32,11 +32,20 @@ def brand_mark(height: int = 30) -> mo.Html:
 
 
 def footer() -> mo.Html:
-    """The logo of KpiTen with its name, at the end of a page, on the right."""
+    """At the end of a page : "Built with marimo" on the left (the logo of marimo says
+    the name), the logo of KpiTen with its name on the right."""
     tip = html.escape(brand.tooltip(), quote=True)
+    built_with = (
+        '<a href="https://marimo.io" target="_blank" rel="noopener noreferrer" '
+        'title="Built with marimo" style="display:flex;align-items:center;gap:8px;'
+        'text-decoration:none;color:inherit;opacity:.7;font-size:.85rem">'
+        'Built with <img src="/dashboard/logo.png" alt="marimo" '
+        'style="height:20px;width:auto"></a>'
+    )
     return mo.Html(
-        f'<div style="display:flex;justify-content:flex-end;margin-top:32px" title="{tip}">'
-        f"{brand.lockup_svg(64)}</div>"
+        '<div style="display:flex;justify-content:space-between;align-items:flex-end;'
+        'margin-top:32px">'
+        f'{built_with}<div title="{tip}">{brand.lockup_svg(64)}</div></div>'
     )
 
 
