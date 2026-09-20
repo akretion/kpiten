@@ -70,17 +70,20 @@ class Df:
             return pl.col(col_name)
         return pl.col(col_name).cast(pl.Decimal(scale=max_scale))
 
+    def _is_date_field(self, name: str, field: dict) -> bool:
+        """A date or datetime column : the type of the field decides. Only when the
+        metadata gives no type is the name used (`prevalidated` holds "date" too)."""
+        field_type = field.get("type")
+        if field_type:
+            return field_type in ("date", "datetime")
+        return "date" in name and not self.df[name].is_null().all()
+
     def set_datetime_string2date_columns(self):
         fields = {k: v for k, v in (self.fields or {}).items() if isinstance(v, dict)}
         datetime_fields = [
             x
             for x in fields
-            if x in self.df.columns
-            and (
-                fields[x].get("type") == "datetime"
-                or "date" in x
-                and not self.df[x].is_null().all()
-            )
+            if x in self.df.columns and self._is_date_field(x, fields[x])
         ]
         self.df = self.df.with_columns(
             pl.col(datetime_fields).cast(pl.String).str.to_datetime(strict=False)
