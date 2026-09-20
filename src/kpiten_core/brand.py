@@ -8,7 +8,7 @@ import functools
 import pathlib
 
 NAME = "KpiTen"
-SLOGAN = "Le capitaine de vos KPI"
+SLOGAN = "Le capitaine de vos data"
 
 
 def tooltip() -> str:
