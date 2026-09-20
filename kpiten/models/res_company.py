@@ -3,7 +3,7 @@ import json
 from odoo import _, exceptions, models
 
 # one system parameter per front, holding one dict, set by the module of that front
-# (kpiten_shiny, kpiten_nice_gui, kpiten_marimo) : `kpiten_shiny_service`,
+# (kpiten_shiny, kpiten_nicegui, kpiten_marimo) : `kpiten_shiny_service`,
 # `kpiten_nicegui_service`, `kpiten_marimo_service`
 SERVICE_KEY = "kpiten_%s_service"
 

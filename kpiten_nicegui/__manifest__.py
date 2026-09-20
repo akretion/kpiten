@@ -19,7 +19,7 @@ kpiten itself stays free of it : without this module there is no NiceGUI menu.
     "depends": ["kpiten"],
     "data": [
         "data/ir_config_parameter.xml",
-        "views/kpiten_nice_gui.xml",
+        "views/kpiten_nicegui.xml",
     ],
     "installable": True,
 }

@@ -1,13 +1,12 @@
 {
-    "name": "KPI Ten Demo Data",
+    "name": "KpiTen Data",
     "version": "18.0.1.0.0",
     "category": "Sales",
-    "summary": "Demo data for KPI Ten dashboard",
+    "summary": "Data for KpiTen dashboard with commercial purposes",
     "author": "Akretion",
     "license": "LGPL-3",
     "depends": [
         "kpiten",
-        "erp_demo_generator",
         "sale_management",
         "purchase",
         "purchase_stock",
