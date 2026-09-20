@@ -33,12 +33,17 @@
     - akretion odoo-multiversion
   target: akretion odoo-multiversion
 
-./src/kpiten-override:
-  remotes:
-    akretion: git@github.com:akretion/kpiten.git
-  merges:
-    - akretion 18-override
-  target: akretion 18-override
+# Une série antérieure : les vues (écrites pour Odoo 18) sont converties par
+# scripts/downgrade.py, qui change aussi la version des manifests.
+# ./src/kpiten-addons-16:
+#   remotes:
+#     akretion: git@github.com:akretion/kpiten.git
+#   merges:
+#     - akretion odoo-multiversion
+#   target: akretion 16.0
+#   shell_command_after:
+#     - python3 scripts/downgrade.py 16.0
+#     - git add . && git commit -m "downgrade to 16.0"
 
 # Applications Python (uv sync dans chaque dossier)
 ./src/kpiten-core:

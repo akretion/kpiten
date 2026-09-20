@@ -1,5 +1,5 @@
 DB      ?= kpiten
-MODULES ?= kpiten,kpiten_override,kpiten_demo
+MODULES ?= kpiten,kpiten_demo
 
 # mot de passe Postgres de l'utilisateur odoo : PGPASSWORD dans .env (voir
 # .env.example), ni dans odoo.conf ni dans le dépôt ; lu par libpq pour odoo-bin,
@@ -39,7 +39,7 @@ repos: $(if $(FORCE),,check-repos)
 venv:
 	uv venv --allow-existing --python 3.12 .venv
 	uv pip install --python $(PY) -r src/odoo/requirements.txt
-	@for r in src/oca-server-tools src/kpiten-addons src/kpiten-override; do \
+	@for r in src/oca-server-tools src/kpiten-addons; do \
 	  [ -f $$r/requirements.txt ] && uv pip install --python $(PY) -r $$r/requirements.txt || true; \
 	done
 	# le module Odoo kpiten importe kpiten_core
