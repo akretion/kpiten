@@ -19,6 +19,8 @@ The domain/order helpers are shared with `kt_card_wizard` so both produce the
 same SQL.
 """
 
+from __future__ import annotations
+
 from psycopg2 import sql
 
 from odoo.exceptions import ValidationError

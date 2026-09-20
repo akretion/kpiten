@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 import pathlib
@@ -9,6 +11,7 @@ import requests
 from odoo import SUPERUSER_ID, api, exceptions, models
 from odoo.tools.translate import _
 
+from ..compat import LIST
 from . import kt_sql
 
 # the name of the generic list actions `get_records_action` makes (one per model)
@@ -480,7 +483,7 @@ class Kt(models.AbstractModel):
                     "name": RECORDS_ACTION_NAME,
                     "res_model": model,
                     "domain": "[('id', 'in', active_ids)]",
-                    "view_mode": "list,form",
+                    "view_mode": f"{LIST},form",
                 }
             )
         return action.id

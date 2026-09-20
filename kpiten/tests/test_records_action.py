@@ -1,6 +1,8 @@
 from odoo import exceptions
 from odoo.tests.common import TransactionCase, tagged
 
+from ..compat import LIST
+
 
 @tagged("post_install", "-at_install")
 class TestRecordsAction(TransactionCase):
@@ -15,7 +17,7 @@ class TestRecordsAction(TransactionCase):
         )
         self.assertEqual(action.res_model, "res.partner")
         self.assertEqual(action.domain, "[('id', 'in', active_ids)]")
-        self.assertIn("list", action.view_mode)
+        self.assertIn(LIST, action.view_mode)
 
     def test_the_action_is_made_once(self):
         first = self.env["kt"].get_records_action("res.partner")

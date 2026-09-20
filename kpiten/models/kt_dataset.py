@@ -1,9 +1,10 @@
 import logging
 
-import tomllib
 from kpiten_core.validate import validate_toml as kt_validate_toml
 
 from odoo import _, api, exceptions, fields, models
+
+from ..compat import LIST, tomllib
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +64,9 @@ class KtDataset(models.Model):
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
-            "name": _("Tiles of %s", self.display_name),
+            "name": _("Tiles of %s") % self.display_name,
             "res_model": "kt.dataset.line",
-            "view_mode": "list,form",
+            "view_mode": f"{LIST},form",
             "domain": [("dataset_id", "=", self.id)],
             # the archived tiles are listed too, `active` tells them apart
             "context": {"default_dataset_id": self.id, "active_test": False},
