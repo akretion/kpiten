@@ -11,7 +11,7 @@ import requests
 from odoo import SUPERUSER_ID, api, exceptions, models
 from odoo.tools.translate import _
 
-from ..compat import LIST
+from ..compat import LIST, can_read, ids_sql, readable_fields
 from . import kt_sql
 
 # the name of the generic list actions `get_records_action` makes (one per model)
@@ -96,11 +96,7 @@ class Kt(models.AbstractModel):
         # `_fields` lists every field of the model : a field restricted by `groups=` is
         # only kept when this user may access it (what `fields_get` does)
         user_env = self.env(user=allowed_uid)
-        user_fields = [
-            name
-            for name, field in user_env[model]._fields.items()
-            if field.is_accessible(user_env)
-        ]
+        user_fields = readable_fields(user_env, model)
 
         additionnal_fields = self._get_relational_paths_for_model(model)
 
@@ -120,10 +116,9 @@ class Kt(models.AbstractModel):
         these rows. An empty string means the user cannot read the model.
         """
         records = self.env[model].with_user(user_id).with_context(active_test=False)
-        if not records.has_access("read"):
+        if not can_read(records):
             return ""
-        sql = records._search([]).select()
-        return self.env.cr.mogrify(sql.code, sql.params).decode()
+        return ids_sql(records)
 
     def _get_useless_fields(self):
         """return Dict of list
@@ -523,9 +518,10 @@ class Kt(models.AbstractModel):
         uuid = log.uuid
         urls = self.env["res.company"]._get_kpiten_services(application)
         route = "dashboard"
+        internal_url, external_url = urls["internal_url"], urls["external_url"]
         try:
             resp = requests.post(
-                f"{urls["internal_url"]}/",
+                f"{internal_url}/",
                 json={"user_uuid": uuid, "db": self.env.cr.dbname},
             )
         except Exception as err:
@@ -547,7 +543,7 @@ class Kt(models.AbstractModel):
         resp.raise_for_status()
         return {
             "type": "ir.actions.act_url",
-            "url": f"{urls["external_url"]}/{route}/auth?session={session}",
+            "url": f"{external_url}/{route}/auth?session={session}",
             "target": "new",
         }
 
