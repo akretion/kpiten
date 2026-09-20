@@ -154,3 +154,23 @@ def test_the_default_period_and_the_fiscal_year_of_kt_config():
         )
     finally:
         config.set_config({})
+
+
+def test_date_columns_follow_the_field_type():
+    """A boolean named `is_prevalidated` is no date : the type decides, not the name."""
+    df = pl.DataFrame(
+        {
+            "is_prevalidated": [True, False],
+            "invoice_date": ["2026-01-05", "2026-02-10"],
+            "date_order": ["2026-01-05 10:00:00", "2026-02-10 08:30:00"],
+        }
+    )
+    fields = {
+        "is_prevalidated": {"type": "boolean"},
+        "invoice_date": {"type": "date"},
+        "date_order": {"type": "datetime"},
+    }
+    out = Df(df, fields=fields).get_df()
+    assert out["is_prevalidated"].dtype == pl.Boolean
+    assert out["invoice_date"].dtype == pl.Date
+    assert out["date_order"].dtype == pl.Date
