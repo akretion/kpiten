@@ -1,4 +1,6 @@
-from odoo import api, fields, models
+from odoo import _, api, fields, models
+
+from odoo.addons.kpiten.compat import LIST
 
 SAMPLE_SIZE = 200
 EXAMPLES = 3
@@ -16,9 +18,9 @@ class KtDataset(models.Model):
         Column.create(self._column_values())
         return {
             "type": "ir.actions.act_window",
-            "name": self.env._("Columns of %s", self.display_name),
+            "name": _("Columns of %s") % self.display_name,
             "res_model": "kt.dataset.column",
-            "view_mode": "list",
+            "view_mode": LIST,
             "domain": [("dataset_id", "=", self.id)],
         }
 

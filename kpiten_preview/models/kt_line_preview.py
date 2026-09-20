@@ -1,4 +1,4 @@
-from odoo import api, fields, models
+from odoo import _, api, fields, models
 
 DEFAULT_SIZE = 200
 
@@ -59,7 +59,7 @@ class KtDatasetLinePreview(models.TransientModel):
         line = self.line_id
         model = line.dataset_id.model_id.model
         if not model:
-            return render.error_html(self.env._("The tile has no dataset."))
+            return render.error_html(_("The tile has no dataset."))
         kt = self.env["kt"]
         sampler = self.env["parquet.sample"]
         try:

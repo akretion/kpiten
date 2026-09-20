@@ -1,10 +1,9 @@
 import logging
 
-from kpiten_core.validate import validate_toml as kt_validate_toml
-
 from odoo import _, api, exceptions, fields, models
 
 from ..compat import LIST, tomllib
+from ..compat import validate_toml as kt_validate_toml
 
 logger = logging.getLogger(__name__)
 
@@ -263,7 +262,7 @@ class KpitenConfigLine(models.Model):
     @api.model
     def _structural_messages(self, rec) -> list:
         """Run the kpiten-core structural validation on a line definition."""
-        if rec.kind == "data" or not rec.definition:
+        if kt_validate_toml is None or rec.kind == "data" or not rec.definition:
             return []
         fields = self._valid_columns(rec)
         try:

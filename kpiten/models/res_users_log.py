@@ -60,7 +60,9 @@ class ResUsersLog(models.Model):
             [("uuid", "=", user_uuid), ("uuid_date", ">=", self._uuid_cutoff())],
             limit=1,
         )
-        return log.create_uid.id or False
+        # create_uid is a record on the recent series, a bare id on the oldest
+        user = log.create_uid
+        return getattr(user, "id", user) or False
 
     @api.model
     def _cron_renew_uuids(self):

@@ -1,4 +1,4 @@
-from odoo import models
+from odoo import _, models
 
 
 class KtDatasetLine(models.Model):
@@ -10,7 +10,7 @@ class KtDatasetLine(models.Model):
         wizard = self.env["kt.dataset.line.preview"].create({"line_id": self.id})
         return {
             "type": "ir.actions.act_window",
-            "name": self.env._("Preview of %s", self.name or self.kind),
+            "name": _("Preview of %s") % (self.name or self.kind),
             "res_model": "kt.dataset.line.preview",
             "res_id": wizard.id,
             "view_mode": "form",

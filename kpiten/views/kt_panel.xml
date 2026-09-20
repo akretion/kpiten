@@ -57,7 +57,7 @@
         <field name="model">kt.panel</field>
         <field name="arch" type="xml">
             <search>
-                <filter name="name" />
+                <field name="name" />
             </search>
         </field>
     </record>

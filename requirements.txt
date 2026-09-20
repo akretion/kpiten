@@ -1,2 +1,4 @@
 # generated from manifests external_dependencies
 polars
+# kpiten/compat.py : the TOML reader of Python < 3.11 (Odoo 14 to 16)
+tomli; python_version < "3.11"

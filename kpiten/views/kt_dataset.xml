@@ -52,6 +52,8 @@
                                 <field name="tile_height" />
                                 <field name="group_ids" widget="many2many_tags" />
                                 <field name="active" widget="boolean_toggle" />
+                                <!-- read for the decoration-danger : older series check it -->
+                                <field name="validation_msg" column_invisible="1" />
                             </list>
                             <kanban>
                                 <templates>
@@ -258,7 +260,7 @@ aggregation = "sum"</pre>
         <field name="model">kt.dataset</field>
         <field name="arch" type="xml">
             <search>
-                <filter name="name" />
+                <field name="model_id" />
             </search>
         </field>
     </record>
