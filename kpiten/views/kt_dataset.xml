@@ -41,6 +41,18 @@
                     </group>
                     <group colspan="1">
                         <field name="line_ids" nolabel="1">
+                            <list
+                                decoration-muted="not active"
+                                decoration-danger="validation_msg"
+                            >
+                                <field name="sequence" widget="handle" />
+                                <field name="name" />
+                                <field name="kind" />
+                                <field name="col_span" />
+                                <field name="tile_height" />
+                                <field name="group_ids" widget="many2many_tags" />
+                                <field name="active" widget="boolean_toggle" />
+                            </list>
                             <kanban>
                                 <templates>
                                     <t t-name="card">
