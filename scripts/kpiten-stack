@@ -5,7 +5,9 @@
 #   nicegui :5001   (src/nicegui-kpiten)
 #   marimo  :5002   (src/marimo-kpiten)
 #
-# Usage : scripts/kpiten-stack {start|stop|restart|status} [odoo|shiny|nicegui|marimo|all]
+# Usage : scripts/kpiten-stack {start|stop|restart|status} [odoo|shiny|nicegui|marimo|all] [odoo-bin args]
+#   the extra args are passed to odoo-bin (only when the target is odoo), e.g. update a module :
+#   scripts/kpiten-stack restart odoo -d big -u kpiten
 #
 # A service is found by the port it listens on (never by a name pattern), and
 # logs go to data/logs/{odoo,shiny,nicegui,marimo}.log (appended ; rotated at start past KPITEN_LOG_MAX bytes), and shiny
@@ -73,7 +75,7 @@ run_service() {
         odoo)
             # relative addons_path / data_dir of odoo.conf : run from the root
             cd "$ROOT" || exit 1
-            exec .venv/bin/python src/odoo/odoo-bin -c odoo.conf --db-filter "$DB_FILTER"
+            exec .venv/bin/python src/odoo/odoo-bin -c odoo.conf --db-filter "$DB_FILTER" "${@:2}"
             ;;
         shiny)
             cd "$ROOT/src/shiny-kpiten" || exit 1
@@ -103,7 +105,7 @@ start_one() {
     rotate_log "$(log_of "$name")"
     # detached from this shell (own session) : it survives the script and the
     # terminal that started it
-    nohup setsid "$0" _run "$name" >>"$(log_of "$name")" 2>&1 </dev/null &
+    nohup setsid "$0" _run "$name" "${EXTRA_ARGS[@]}" >>"$(log_of "$name")" 2>&1 </dev/null &
     for i in $(seq 1 60); do
         if curl -s -o /dev/null -m 2 "http://localhost:$port$(probe_of "$name")"; then
             echo "$name: up on :$port (log $(log_of "$name"))"
@@ -154,10 +156,11 @@ usage() {
 
 cmd=${1:-status}
 target=${2:-all}
+EXTRA_ARGS=("${@:3}")
 
 # hidden : how a service is launched (see start_one)
 if [ "$cmd" = _run ]; then
-    run_service "$target"
+    run_service "$target" "${@:3}"
     exit 1
 fi
 
