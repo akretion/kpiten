@@ -3,12 +3,12 @@
         <field name="name">Sales</field>
         <field
             name="filter_config"
-        >{"date": {"field": ["date_order", "order_id.date_order"]}, "dimensions": [{"name": "user_id.name", "label": "Salesperson"}, {"name": "partner_id.name", "label": "Customer"}]}</field>
+        >{"date": {"field": ["date_order", "order_id.date_order"]}, "dimensions": [{"name": "user_id", "label": "Salesperson"}, {"name": "partner_id", "label": "Customer"}]}</field>
     </record>
     <record model="kt.panel" id="panel_purchase">
         <field name="name">Purchase</field>
         <field
             name="filter_config"
-        >{"date": {"field": "date_order"}, "dimensions": [{"name": "partner_id.name", "label": "Vendor"}]}</field>
+        >{"date": {"field": "date_order"}, "dimensions": [{"name": "partner_id", "label": "Vendor"}]}</field>
     </record>
 </odoo>

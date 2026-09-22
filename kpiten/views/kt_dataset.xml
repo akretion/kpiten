@@ -145,7 +145,7 @@ aggregation = "sum"</pre>
                                     and dimensions. <code>pl</code> : polars. <code>odoo_url</code> : the base url of Odoo.</li>
                                 <li><b>Columns</b> : a many2one gives its name in <code>partner_id</code> and its id in
                                     <code>partner_id_</code> ; relational paths declared for the dataset
-                                    (<code>partner_id.country_id.name</code>) ; date parts
+                                    (<code>partner_id.country_id</code>) ; date parts
                                     <code>date_order.year</code> (<code>.quarter .month .week .day</code>).</li>
                                 <li><b>Links</b> : a cell <code>[label](url)</code> is drawn as a link when the url is an Odoo one,
                                     see the "Top" tiles (<code>pl.concat_str</code> with <code>odoo_url</code>).</li>
