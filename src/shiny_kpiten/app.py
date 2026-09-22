@@ -53,9 +53,10 @@ PLOTLY_JS = "https://cdn.plot.ly/plotly-2.35.2.min.js"
 FAVICON = ui.tags.link(rel="icon", type="image/png", href="static/favicon.png")
 
 REFRESH_TOOLTIP = "Refresh data : sync with Odoo now, to see its latest changes"
-ODS_TOOLTIP = (
-    "Download the rows of this panel as a spreadsheet (.ods) : on"
-    "e sheet per tile, your rights and the filters you set"
+ODS_TOOLTIP = "Download the rows of an Odoo model as a spreadsheet (.ods)"
+ODS_MODEL_TOOLTIP = (
+    "The raw rows of this model you may read, without the filters of the panel ; "
+    "50 000 rows at most"
 )
 EDIT_TOOLTIP = (
     "Edit this panel : move, resize or delete its tiles (drag and drop, or the "
@@ -648,33 +649,48 @@ def server(input, output, session):
                     pass
         return filterstate.describe_filters(config, date_value, dim_values)
 
-    # ---- the rows of the panel as a spreadsheet, with the user's rights and filters
+    # ---- the raw rows of an Odoo model as a spreadsheet, with the user's rights
     @render.ui
     def ods_button():
         """The export is for who `kt.config` says (everyone, the managers, nobody)."""
         if not core_config.explore_allowed(can_edit()):
             return None
-        return ui.download_button(
-            "ods", "\u2913", class_="btn-kpiten", title=ODS_TOOLTIP
+        return ui.input_action_button(
+            "ods_open", "\u2913", class_="btn-kpiten", title=ODS_TOOLTIP
+        )
+
+    @reactive.effect
+    @reactive.event(input.ods_open)
+    def _ods_dialog():
+        models = core_ods.exportable_models(store())
+        ui.modal_show(
+            ui.modal(
+                ui.input_select("ods_model", None, models, width="100%"),
+                title="Download the rows of a model (.ods)",
+                easy_close=True,
+                size="s",
+                footer=ui.download_button(
+                    "ods", "\u2913 .ods", class_="btn-kpiten", title=ODS_MODEL_TOOLTIP
+                ),
+            )
         )
 
     @render.download(
-        filename=lambda: f"kpiten-{backend_rv().db}-{input.panel()}.ods",
+        filename=lambda: f"kpiten-{backend_rv().db}-{input.ods_model()}.ods",
         media_type="application/vnd.oasis.opendocument.spreadsheet",
     )
     def ods():
         with reactive.isolate():
             if not core_config.explore_allowed(can_edit()):
                 raise PermissionError("You may not export the rows.")
-            _name, data = core_ods.build_ods(
+            _name, data, note = core_ods.model_ods(
                 store(),
-                lines(),
-                predicates(),
+                input.ods_model(),
                 user_id=current_user_id(),
                 db=backend_rv().db,
-                panel=panel_settings().get("name") or str(input.panel()),
-                filters_text=filters_text(),
             )
+        if note:
+            ui.notification_show(f"{input.ods_model()} : {note}", type="warning")
         yield data
 
     def tile_info(line: dict) -> str:

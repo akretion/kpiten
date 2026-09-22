@@ -164,21 +164,24 @@ def test_drill_down_of_an_order_reads_another_table(page: Page) -> None:
     assert columns == ["Product", "Quantity", "Unit price", "Subtotal"]
 
 
-def test_ods_downloads_the_rows_of_the_user_one_sheet_per_tile(page: Page) -> None:
-    """The rows of the panel as .ods, with the rights of the user : Marie sees her own
-    orders only."""
+def test_ods_downloads_the_raw_rows_of_a_model_the_user_may_read(page: Page) -> None:
+    """One model, one sheet, the rows of the user : Marie sees her own orders only, and
+    not the ids of the relations."""
     import zipfile
 
     open_dashboard(page)
-    page.locator("#ods").wait_for(timeout=60_000)
+    page.locator("#ods_open").wait_for(timeout=60_000)
+    page.locator("#ods_open").click()
+    page.locator("#ods_model").select_option("sale.order")
     with page.expect_download(timeout=120_000) as download:
         page.locator("#ods").click()
-    assert download.value.suggested_filename.endswith(".ods")
+    assert download.value.suggested_filename.endswith("-sale.order.ods")
     archive = zipfile.ZipFile(download.value.path())
     assert archive.read("mimetype") == b"application/vnd.oasis.opendocument.spreadsheet"
     content = archive.read("content.xml").decode()
-    assert content.count("<table:table ") > 1  # the KpiTen sheet, then the tiles
+    assert content.count("<table:table ") == 1
     assert "Marie STOURNE" in content and "Jim NASTIC" not in content
+    assert "partner_id_" not in content
 
 
 def rgb(hex_color: str) -> str:
