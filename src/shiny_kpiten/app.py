@@ -54,10 +54,7 @@ FAVICON = ui.tags.link(rel="icon", type="image/png", href="static/favicon.png")
 
 REFRESH_TOOLTIP = "Refresh data : sync with Odoo now, to see its latest changes"
 ODS_TOOLTIP = "Download the rows of an Odoo model as a spreadsheet (.ods)"
-ODS_MODEL_TOOLTIP = (
-    "The raw rows of this model you may read, without the filters of the panel ; "
-    "50 000 rows at most"
-)
+ODS_MODEL_TOOLTIP = "The rows of this model you may read, with the filters of the panel"
 EDIT_TOOLTIP = (
     "Edit this panel : move, resize or delete its tiles (drag and drop, or the "
     "buttons on each tile). The changes are saved in Odoo."
@@ -686,6 +683,7 @@ def server(input, output, session):
             _name, data, note = core_ods.model_ods(
                 store(),
                 input.ods_model(),
+                predicates(),
                 user_id=current_user_id(),
                 db=backend_rv().db,
             )
