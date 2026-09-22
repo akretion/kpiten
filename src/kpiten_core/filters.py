@@ -2,7 +2,7 @@
 
 filter_config JSON schema ::
     {"date": {"field": "date_order"},   # or a list : ["date_order", "order_id.date_order"]
-     "dimensions": [{"name": "user_id.name", "label": "Salesperson"}]}
+     "dimensions": [{"name": "user_id", "label": "Salesperson"}]}
 
 All expressions are polars predicates (list[pl.Expr]).
 """
