@@ -164,6 +164,23 @@ def test_drill_down_of_an_order_reads_another_table(page: Page) -> None:
     assert columns == ["Product", "Quantity", "Unit price", "Subtotal"]
 
 
+def test_ods_downloads_the_rows_of_the_user_one_sheet_per_tile(page: Page) -> None:
+    """The rows of the panel as .ods, with the rights of the user : Marie sees her own
+    orders only."""
+    import zipfile
+
+    open_dashboard(page)
+    page.locator("#ods").wait_for(timeout=60_000)
+    with page.expect_download(timeout=120_000) as download:
+        page.locator("#ods").click()
+    assert download.value.suggested_filename.endswith(".ods")
+    archive = zipfile.ZipFile(download.value.path())
+    assert archive.read("mimetype") == b"application/vnd.oasis.opendocument.spreadsheet"
+    content = archive.read("content.xml").decode()
+    assert content.count("<table:table ") > 1  # the KpiTen sheet, then the tiles
+    assert "Marie STOURNE" in content and "Jim NASTIC" not in content
+
+
 def rgb(hex_color: str) -> str:
     """`#00dc82` as the browser writes a computed color."""
     red, green, blue = (int(hex_color[i : i + 2], 16) for i in (1, 3, 5))

@@ -26,6 +26,7 @@ from shiny.types import SilentException
 
 from kpiten_core import brand, comparison, links
 from kpiten_core import config as core_config
+from kpiten_core import ods as core_ods
 from kpiten_core.gtable import DRILL_CSS
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
@@ -52,6 +53,10 @@ PLOTLY_JS = "https://cdn.plot.ly/plotly-2.35.2.min.js"
 FAVICON = ui.tags.link(rel="icon", type="image/png", href="static/favicon.png")
 
 REFRESH_TOOLTIP = "Refresh data : sync with Odoo now, to see its latest changes"
+ODS_TOOLTIP = (
+    "Download the rows of this panel as a spreadsheet (.ods) : on"
+    "e sheet per tile, your rights and the filters you set"
+)
 EDIT_TOOLTIP = (
     "Edit this panel : move, resize or delete its tiles (drag and drop, or the "
     "buttons on each tile). The changes are saved in Odoo."
@@ -186,6 +191,7 @@ def app_ui(req):  # noqa: ANN001
             ui.input_action_button(
                 "refresh_data", "\u27f3", class_="btn-kpiten", title=REFRESH_TOOLTIP
             ),
+            ui.output_ui("ods_button"),
             ui.tags.span(
                 ui.input_switch("edit_mode", "Edit", False), title=EDIT_TOOLTIP
             ),
@@ -641,6 +647,35 @@ def server(input, output, session):
                 except (KeyError, TypeError):
                     pass
         return filterstate.describe_filters(config, date_value, dim_values)
+
+    # ---- the rows of the panel as a spreadsheet, with the user's rights and filters
+    @render.ui
+    def ods_button():
+        """The export is for who `kt.config` says (everyone, the managers, nobody)."""
+        if not core_config.explore_allowed(can_edit()):
+            return None
+        return ui.download_button(
+            "ods", "\u2913", class_="btn-kpiten", title=ODS_TOOLTIP
+        )
+
+    @render.download(
+        filename=lambda: f"kpiten-{backend_rv().db}-{input.panel()}.ods",
+        media_type="application/vnd.oasis.opendocument.spreadsheet",
+    )
+    def ods():
+        with reactive.isolate():
+            if not core_config.explore_allowed(can_edit()):
+                raise PermissionError("You may not export the rows.")
+            _name, data = core_ods.build_ods(
+                store(),
+                lines(),
+                predicates(),
+                user_id=current_user_id(),
+                db=backend_rv().db,
+                panel=panel_settings().get("name") or str(input.panel()),
+                filters_text=filters_text(),
+            )
+        yield data
 
     def tile_info(line: dict) -> str:
         """Tooltip text : active panel filters + tile own WHERE (card)."""
