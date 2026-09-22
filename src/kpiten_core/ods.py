@@ -1,8 +1,7 @@
-"""The rows of a panel as an OpenDocument spreadsheet (.ods) : one sheet per tile.
+"""The rows of an Odoo model as an OpenDocument spreadsheet (.ods) : one file per model,
+the one the user chooses, one sheet per file.
 
-A sheet holds the rows a tile is computed from, not its result : the table of the tile
-(its `from`, or the model of its dataset), narrowed by the panel filters and by the tile's
-own `where`. The rows come from the user's store : his columns and his rows only.
+The rows are the raw rows of the user's store : his columns and his rows only.
 
 The content is generated column by column with polars expressions (no cell by cell
 python loop, no odfpy) : a sheet of 50 000 rows is written in a few seconds.
@@ -12,7 +11,6 @@ repeated on each printed page, the pages are in landscape, and each column is as
 its content.
 """
 
-import datetime
 import io
 import json
 import logging
@@ -21,8 +19,7 @@ import zipfile
 
 import polars as pl
 
-from kpiten_core import config, env, serial
-from kpiten_core.tiles import expand_today, filter_df, union_case
+from kpiten_core import config, env
 
 logger = logging.getLogger(__name__)
 
@@ -286,80 +283,45 @@ def write_ods(sheets: list[tuple[str, pl.DataFrame]]) -> bytes:
     return buffer.getvalue()
 
 
-def tile_rows(line: dict, store: dict, predicates: list) -> pl.LazyFrame | None:
-    """The rows a tile is computed from : its table, the panel filters, its `where`.
-    None when its table is not in the store (not readable by the user)."""
-    kind, table = line.get("kind"), line.get("model")
-    definition = {}
-    if kind != "data":
-        try:
-            definition = serial.loads(line.get("content") or "") or {}
-        except Exception:
-            definition = {}
-    if kind == "union":
-        try:
-            return union_case(line, store, predicates).lazy()
-        except Exception:
-            return None
-    table = definition.get("from") or table
-    if table not in store:
-        return None
-    rows = filter_df(store[table].lazy(), predicates)
-    if definition.get("where"):
-        rows = rows.sql(f"SELECT * FROM self WHERE {expand_today(definition['where'])}")
-    return rows
+def exportable_models(store: dict) -> list[str]:
+    """The Odoo models the user may export : the tables of HIS store."""
+    return sorted(store)
 
 
-def build_ods(
+def model_ods(
     store: dict,
-    lines: list[dict],
-    predicates: list,
+    model: str,
     *,
     user_id: int,
     db: str,
-    panel: str,
-    filters_text: str = "",
     max_rows: int | None = None,
-) -> tuple[str, bytes]:
-    """The .ods to download : `(filename, bytes)`. `store` is the store of THE USER.
-
-    A first sheet says who, when and which filters, and which sheets were cut at
-    `max_rows` (`kt.config` [explore] max_rows, or the ODS_MAX_ROWS environment), 50 000
-    at most.
+) -> tuple[str, bytes, str]:
+    """The .ods of one Odoo model : `(filename, bytes, note)`. `store` is the store of
+    THE USER : the file holds the raw rows and columns he may read, and nothing else (no
+    filter of a panel), in one sheet. The ids of the relations (the columns ending with `_`)
+    are left out : their names say the same thing. `note` says when the rows were cut
+    at `max_rows` (`kt.config` [explore] max_rows, or ODS_MAX_ROWS), 50 000 at most.
     """
+    if model not in store:
+        raise PermissionError(f"{model} : no rows you may read")
     max_rows = min(max_rows or config.explore_max_rows(env.ods_max_rows), MAX_ROWS)
-    created = datetime.datetime.now().replace(microsecond=0).isoformat(sep=" ")
-    sheets, notes, counts = [], [], {}
-    for line in lines:
-        title = line.get("name") or line.get("kind") or "tile"
-        rows = tile_rows(line, store, predicates)
-        if rows is None:
-            notes.append(f"{title} : no rows you may read")
-            continue
-        total = rows.select(pl.len()).collect().item()
-        df = rows.head(max_rows).collect()
-        if total > max_rows:
-            notes.append(f"{title} : first {max_rows} of {total} rows")
-        sheets.append((title, df))
-        counts[title] = df.height
-    about = pl.DataFrame(
-        {
-            "What": ["Panel", "Database", "User", "Taken", "Filters", *notes],
-            "Value": [panel, db, str(user_id), created, filters_text or "none"]
-            + [""] * len(notes),
-        }
-    )
-    data = write_ods([("KpiTen", about), *sheets])
+    rows = store[model].lazy()
+    rows = rows.select([c for c in rows.collect_schema() if not c.endswith("_")])
+    total = rows.select(pl.len()).collect().item()
+    df = rows.head(max_rows).collect()
+    note = f"first {max_rows} of {total} rows" if total > max_rows else ""
+    data = write_ods([(model, df)])
     logger.info(
         "ods : %s",
         json.dumps(
             {
                 "db": db,
                 "user_id": user_id,
-                "panel": panel,
-                "rows": counts,
+                "model": model,
+                "rows": df.height,
+                "total": total,
                 "bytes": len(data),
             }
         ),
     )
-    return f"kpiten-{db}-{panel}.ods".replace(" ", "_"), data
+    return f"kpiten-{db}-{model}.ods".replace(" ", "_"), data, note
