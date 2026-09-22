@@ -433,18 +433,13 @@ class KtConfig(models.Model):
             if not fields_map:
                 rec.relations_preview = "<p>No relation.</p>"
                 continue
-            rows = "".join(
-                "<tr>"
-                f'<td style="padding:2px 12px;font-weight:600;vertical-align:top">'
-                f"{escape(model)}</td>"
-                f'<td style="padding:2px 12px">'
-                f"{escape(', '.join(sorted(paths)))}</td></tr>"
+            rec.relations_preview = "".join(
+                f'<div style="margin-top:8px"><strong>{escape(model)}</strong></div>'
+                + "".join(
+                    f'<div style="padding-left:20px">{escape(path)}</div>'
+                    for path in sorted(paths)
+                )
                 for model, paths in sorted(fields_map.items())
-            )
-            rec.relations_preview = (
-                "<table><tr><th>Model</th><th>Followed paths</th></tr>"
-                + rows
-                + "</table>"
             )
 
     @api.model_create_multi
