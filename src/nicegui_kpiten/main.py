@@ -22,6 +22,7 @@ from nicegui import app, ui, run
 
 from kpiten_core import brand
 from kpiten_core import config as core_config
+from kpiten_core import ods as core_ods
 from kpiten_core import filters
 from kpiten_core import comparison, links
 from kpiten_core import tiles as core_tiles
@@ -470,6 +471,32 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
         date_value = filters.bounds_of_option(filt["date"])
         return filters.make_predicates(get_config(), date_value, filt["dims"])
 
+    async def on_ods():
+        """Download the rows of the panel (this user's store, current filters) as .ods."""
+        if not core_config.explore_allowed(can_edit):
+            ui.notify("You may not export the rows.", type="negative")
+            return
+        try:
+            name, data = await run.io_bound(
+                core_ods.build_ods,
+                store_cache,
+                backend.get_panel_tiles(panel_label["id"], user_id),
+                current_predicates(),
+                user_id=user_id,
+                db=backend.db,
+                panel=panels_map.get(str(panel_label["id"]), str(panel_label["id"])),
+                filters_text=filters.describe_filters(
+                    get_config(),
+                    filters.bounds_of_option(filt["date"]),
+                    filt["dims"],
+                ),
+            )
+        except Exception as err:
+            logger.exception("ods export failed")
+            ui.notify(f"Export failed : {err}", type="negative")
+            return
+        ui.download(data, name)
+
     def on_drill(e):
         """A click on a row of a table : show the rows behind it in a dialog."""
         line_id, row = int(e.args["line"]), int(e.args["row"])
@@ -680,6 +707,12 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                 ).tooltip(
                     "Refresh data : sync with Odoo now, to see its latest changes"
                 )
+                if core_config.explore_allowed(can_edit):
+                    ui.button(icon="download", on_click=on_ods).props(
+                        "flat dense"
+                    ).tooltip(
+                        "Download the rows of this panel as a spreadsheet (.ods) : one sheet per tile, your rights and the filters you set"
+                    )
                 ui.button("Refresh tiles", on_click=draw_tiles).props("flat")
                 if can_edit:
                     ui.switch("Edit", value=False, on_change=on_edit_mode).props(
