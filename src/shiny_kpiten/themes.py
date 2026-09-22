@@ -4,6 +4,9 @@ A theme is a CSS palette injected at runtime:
 - page background (as `linear-gradient` with 3 stops)
 - tile surface / borders / accent for titles
 - table header fill and text colors (drives the GT styling)
+- optionally the colors of the page around the tiles (`page_text`, `page_accent`,
+  `page_border`, `page_surface`) : a dark page with light tiles ; the colors of the
+  tiles when not set
 
 The default theme is `akretion` (matches akretion.com hero gradient) ; a
 theme can be chosen in the UI or through the `?theme=` query param.
@@ -24,6 +27,15 @@ class Theme:
 
     def css(self) -> str:
         p = self.palette
+        page = {
+            key: p.get(f"page_{key}", p[fallback])
+            for key, fallback in (
+                ("text", "text"),
+                ("accent", "accent"),
+                ("border", "border"),
+                ("surface", "surface_hex"),
+            )
+        }
         return f"""
 :root {{
   --accent: {p["accent"]};
@@ -32,7 +44,7 @@ class Theme:
   --border: {p["border"]};
 }}
 .kpiten-dashboard {{
-  color: {p["text"]};
+  color: {page["text"]};
   background: linear-gradient(
     {p["gradient_deg"]}, {p["bg_from"]} 0%, {p["bg_mid"]} 45%, {p["bg_to"]} 130%
   ) fixed;
@@ -63,19 +75,19 @@ class Theme:
 .kpiten-dashboard .form-select,
 .kpiten-dashboard .form-control,
 .kpiten-dashboard .selectize-input {{
-  background-color: color-mix(in srgb, {p["text"]} 8%, transparent);
-  color: {p["text"]};
-  border: 1px solid {p["border"]};
+  background-color: color-mix(in srgb, {page["text"]} 8%, transparent);
+  color: {page["text"]};
+  border: 1px solid {page["border"]};
   border-radius: 6px;
   font-size: 13px;
   min-height: 34px;
   box-shadow: none;
 }}
 .kpiten-dashboard .form-select {{
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='{p["text"].replace("#", "%23")}' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='{page["text"].replace("#", "%23")}' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
 }}
 .kpiten-dashboard .form-select option {{ background: {p["surface_hex"]}; color: {p["text"]} }}
-.kpiten-dashboard .selectize-input input {{ color: {p["text"]} }}
+.kpiten-dashboard .selectize-input input {{ color: {page["text"]} }}
 .kpiten-dashboard .selectize-control.multi .selectize-input > div {{
   background: {p["thead"]};
   color: {p["text"]};
@@ -92,24 +104,24 @@ class Theme:
 }}
 .kpiten-dashboard .btn-kpiten {{
   background: transparent;
-  color: {p["accent"]};
-  border: 1px solid {p["accent"]};
+  color: {page["accent"]};
+  border: 1px solid {page["accent"]};
   border-radius: 6px;
   font-size: 13px;
   min-height: 34px;
 }}
 .kpiten-dashboard .btn-kpiten:hover {{
-  background: {p["accent"]};
-  color: {p["surface_hex"]};
+  background: {page["accent"]};
+  color: {page["surface"]};
 }}
 .kpiten-dashboard .form-check-input:checked {{
-  background-color: {p["accent"]};
-  border-color: {p["accent"]};
+  background-color: {page["accent"]};
+  border-color: {page["accent"]};
 }}
 .data-freshness {{
   font-size: 11px;
   opacity: 0.55;
-  color: {p["text"]};
+  color: {page["text"]};
   align-self: center;
 }}
 .kpiten-logo {{ height: 80px; width: 80px; align-self: center }}
@@ -292,7 +304,26 @@ LIGHT = Theme(
     },
 )
 
-THEMES: dict[str, Theme] = {t.key: t for t in (AKRETION, MIDNIGHT, LIGHT)}
+# the page of akretion (dark gradient, its controls), the tiles of sand
+AKRETION_SAND = Theme(
+    "akretion_sand",
+    "Akretion Sand",
+    {
+        **LIGHT.palette,
+        **{
+            k: AKRETION.palette[k]
+            for k in ("gradient_deg", "bg_from", "bg_mid", "bg_to")
+        },
+        "page_text": AKRETION.palette["text"],
+        "page_accent": AKRETION.palette["accent"],
+        "page_border": AKRETION.palette["border"],
+        "page_surface": AKRETION.palette["surface_hex"],
+    },
+)
+
+THEMES: dict[str, Theme] = {
+    t.key: t for t in (AKRETION, MIDNIGHT, LIGHT, AKRETION_SAND)
+}
 DEFAULT_THEME = "akretion"
 
 
