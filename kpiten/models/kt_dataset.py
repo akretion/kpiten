@@ -47,6 +47,31 @@ class KtDataset(models.Model):
         help="Number of tiles of this dataset, the archived ones included.",
     )
 
+    _sql_constraints = [
+        (
+            "model_unique",
+            "UNIQUE(model_id,company_id)",
+            "Model field must unique by company",
+        )
+    ]
+
+    @api.constrains("model_id", "company_id")
+    def _check_model_unique_no_company(self):
+        """UNIQUE(model_id, company_id) lets several (model, NULL) rows through
+        since NULL != NULL in SQL: check the "no company" case here."""
+        for rec in self.filtered(lambda r: not r.company_id):
+            if self.search_count(
+                [
+                    ("id", "!=", rec.id),
+                    ("model_id", "=", rec.model_id.id),
+                    ("company_id", "=", False),
+                ]
+            ):
+                raise exceptions.ValidationError(
+                    _("Model '%s' already has a dataset without company.")
+                    % rec.model_id.display_name
+                )
+
     @api.depends("model_id")
     def _compute_name(self):
         for rec in self:

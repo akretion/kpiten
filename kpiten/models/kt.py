@@ -42,18 +42,37 @@ class Kt(models.AbstractModel):
         """
         for walkable paths only (e.g : some_model.user_id.name)
         [destined to be consumed by odoo's mapped function]
+
+        On top of the paths below, an admin may add more without touching code :
+        `kt.config` -> "Relations" tab -> "Other relations" (`_other_relational_fields`).
         """
-        return {
+        fields = {
             "product.product": {
                 "default_code",
                 "name",
-                "categ_id.name",
+                "categ_id",
                 "product_tmpl_id.type",
             },
-            "product.category": {"name"},
-            "res.partner": {"commercial_partner_id.name", "commercial_partner_id.ref"},
-            "res.users": {"name"},
+            "res.partner": {"commercial_partner_id", "commercial_partner_id.ref"},
         }
+        for model, paths in self._other_relational_fields().items():
+            fields[model] = set(fields.get(model, ())) | set(paths)
+        return fields
+
+    def _other_relational_fields(self) -> dict:
+        """The extra dot-paths an admin added in `kt.config` ("Other relations"), a
+        json object validated at save (`kt.config._check_other_relations`).
+
+        `{}` without a config record, or with nothing set there.
+        """
+        config = self.env["kt.config"].sudo().search([], limit=1)
+        if not config or not config.other_relations:
+            return {}
+        try:
+            data = json.loads(config.other_relations)
+        except ValueError:
+            return {}
+        return data if isinstance(data, dict) else {}
 
     def _get_reverse_lookups(self):
         """TODO is it required ?

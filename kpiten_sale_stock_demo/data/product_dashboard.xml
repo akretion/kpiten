@@ -14,7 +14,7 @@
 
     <!-- the two scorecards : the name of the best, its units sold under it -->
     <record id="product_best_seller_card" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales_lines" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">card</field>
         <field name="name">Best Seller</field>
         <field name="panel_id" ref="panel_product" />
@@ -28,7 +28,7 @@ detail_label = "sold"
     </record>
 
     <record id="product_best_category_card" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales_lines" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">card</field>
         <field name="name">Best Category</field>
         <field name="panel_id" ref="panel_product" />
@@ -43,7 +43,7 @@ detail_label = "sold"
 
     <!-- Best Sellers by Revenue / by Units Sold : a bar per product, biggest first -->
     <record id="product_best_sellers_revenue_graph" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales_lines" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
         <field name="name">Best Sellers by Revenue</field>
         <field name="panel_id" ref="panel_product" />
@@ -62,7 +62,7 @@ aggregation = "sum"
     </record>
 
     <record id="product_best_sellers_units_graph" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales_lines" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
         <field name="name">Best Sellers by Units Sold</field>
         <field name="panel_id" ref="panel_product" />
@@ -82,7 +82,7 @@ aggregation = "sum"
 
     <!-- Best Selling Products (a link to each product) / Best Selling Categories -->
     <record id="product_best_selling_products_table" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales_lines" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Best Selling Products</field>
         <field name="panel_id" ref="panel_product" />
@@ -120,7 +120,7 @@ d_next = d_next.select([
     </record>
 
     <record id="product_best_selling_categories_table" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales_lines" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Best Selling Categories</field>
         <field name="panel_id" ref="panel_product" />

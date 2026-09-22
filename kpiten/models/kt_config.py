@@ -1,3 +1,7 @@
+import json
+
+from markupsafe import escape
+
 from odoo import _, api, exceptions, fields, models
 
 NUM_COLORS = 8
@@ -228,6 +232,21 @@ class KtConfig(models.Model):
         "but with an online model those values leave the company. Never a row.",
     )
 
+    # ---- relations (dot-paths `kt` follows through many2one fields)
+    other_relations = fields.Text(
+        string="Other relations",
+        help="Dot-paths to follow on top of the ones built into kpiten (and its "
+        "addons), as a json object : one key per model, each mapped to a list of "
+        'paths, e.g. {"res.partner": ["category_id.name"]}. Read by '
+        "`kt._follow_relational_fields()`.",
+    )
+    relations_preview = fields.Html(
+        compute="_compute_relations_preview",
+        sanitize=False,
+        help="The paths `kt._follow_relational_fields()` currently returns : the "
+        "ones built into kpiten (and its addons), and the ones added above.",
+    )
+
     # ---- new features of the marimo explorer : off until they are checked
     feature_save_tile = fields.Boolean(
         string="Save a KPI as a tile",
@@ -295,6 +314,50 @@ class KtConfig(models.Model):
             if rec.explore_max_rows < 1:
                 raise exceptions.ValidationError(_("An export holds at least 1 row."))
 
+    @api.constrains("other_relations")
+    def _check_other_relations(self):
+        for rec in self:
+            if not rec.other_relations or not rec.other_relations.strip():
+                continue
+            try:
+                data = json.loads(rec.other_relations)
+            except ValueError as err:
+                raise exceptions.ValidationError(
+                    _("'Other relations' must be valid json : %(err)s", err=err)
+                ) from err
+            if not isinstance(data, dict):
+                raise exceptions.ValidationError(
+                    _(
+                        "'Other relations' must be a json object : one model name "
+                        'per key, e.g. {"res.partner": ["category_id.name"]}.'
+                    )
+                )
+            for model, paths in data.items():
+                if not isinstance(model, str) or not model:
+                    raise exceptions.ValidationError(
+                        _(
+                            "'Other relations' : every key must be a model name "
+                            '(e.g. "res.partner"), got %(model)r.',
+                            model=model,
+                        )
+                    )
+                if model not in rec.env:
+                    raise exceptions.ValidationError(
+                        _("'Other relations' : unknown model %(model)r.", model=model)
+                    )
+                if (
+                    not isinstance(paths, list)
+                    or not paths
+                    or not all(isinstance(path, str) and path for path in paths)
+                ):
+                    raise exceptions.ValidationError(
+                        _(
+                            "'Other relations' : %(model)s must map to a non-empty "
+                            'list of field paths, e.g. ["category_id.name"].',
+                            model=model,
+                        )
+                    )
+
     # ---- previews
     def _palette(self):
         self.ensure_one()
@@ -360,6 +423,27 @@ class KtConfig(models.Model):
             rec.number_preview = (
                 "<table><tr><th>Value</th><th></th><th>In a table</th></tr>"
                 + "".join(rows)
+                + "</table>"
+            )
+
+    @api.depends("other_relations")
+    def _compute_relations_preview(self):
+        for rec in self:
+            fields_map = rec.env["kt"]._follow_relational_fields()
+            if not fields_map:
+                rec.relations_preview = "<p>No relation.</p>"
+                continue
+            rows = "".join(
+                "<tr>"
+                f'<td style="padding:2px 12px;font-weight:600;vertical-align:top">'
+                f"{escape(model)}</td>"
+                f'<td style="padding:2px 12px">'
+                f"{escape(', '.join(sorted(paths)))}</td></tr>"
+                for model, paths in sorted(fields_map.items())
+            )
+            rec.relations_preview = (
+                "<table><tr><th>Model</th><th>Followed paths</th></tr>"
+                + rows
                 + "</table>"
             )
 

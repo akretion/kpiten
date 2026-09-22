@@ -14,7 +14,7 @@ meant to feed purchase dashboards, not accounting.
 """,
     "author": "Akretion",
     "license": "LGPL-3",
-    # no kpiten_demo : this module only adds purchase orders (no panel nor tile)
+    # no kpiten_commercial_data : this module only adds purchase orders (no panel nor tile)
     "depends": ["erp_demo_generator", "purchase_stock"],
     "data": ["data/demo_purchases.xml"],
     "installable": True,
