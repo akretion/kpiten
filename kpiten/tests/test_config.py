@@ -126,12 +126,21 @@ class TestKtConfig(TransactionCase):
             self.config.table_rows = 0
 
     def test_the_export_settings_are_sent(self):
-        self.config.write({"explore_access": "managers", "explore_max_rows": 1000})
+        self.config.write(
+            {
+                "explore_access": "managers",
+                "explore_max_rows": 1000,
+                "ods_max_rows": 20000,
+            }
+        )
         self.assertEqual(
-            self._json()["explore"], {"access": "managers", "max_rows": 1000}
+            self._json()["explore"],
+            {"access": "managers", "max_rows": 1000, "ods_max_rows": 20000},
         )
         with self.assertRaises(exceptions.ValidationError):
             self.config.explore_max_rows = 0
+        with self.assertRaises(exceptions.ValidationError):
+            self.config.ods_max_rows = 0
 
     def test_the_ai_switches_are_sent(self):
         self.config.write({"ai_enabled": False, "ai_send_values": False})

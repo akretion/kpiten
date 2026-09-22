@@ -71,6 +71,10 @@
                                 name="explore_max_rows"
                                 invisible="explore_access == 'nobody'"
                             />
+                            <field
+                                name="ods_max_rows"
+                                invisible="explore_access == 'nobody'"
+                            />
                         </group>
                         <group string="AI (marimo explorer)">
                             <field name="ai_enabled" />
