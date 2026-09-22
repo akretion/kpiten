@@ -18,7 +18,7 @@ Orders" / "Top Quotations" tables in the KPI Ten "Sales" panel.
 """,
     "author": "Akretion",
     "license": "LGPL-3",
-    "depends": ["erp_demo_generator", "sale_stock", "kpiten_data"],
+    "depends": ["erp_demo_generator", "sale_stock", "kpiten_commercial_data"],
     "data": ["data/demo_sales.xml", "data/tiles.xml", "data/product_dashboard.xml"],
     "installable": True,
 }
