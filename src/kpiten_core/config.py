@@ -26,7 +26,7 @@ NUMBER_FORMATS = {
     "dot_comma": (".", ","),  # 1.234,56
     "comma_dot": (",", "."),  # 1,234.56
 }
-THEMES = ("akretion", "midnight", "light")
+THEMES = ("akretion", "midnight", "light", "akretion_sand")
 EXPLORE_ACCESS = ("nobody", "managers", "everyone")
 DEFAULT_PERIOD = "last 90 days"  # the dashboards open on it, like Odoo
 
