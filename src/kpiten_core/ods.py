@@ -1,7 +1,8 @@
 """The rows of an Odoo model as an OpenDocument spreadsheet (.ods) : one file per model,
 the one the user chooses, one sheet per file.
 
-The rows are the raw rows of the user's store : his columns and his rows only.
+The rows are the raw rows of the user's store (his columns and his rows only), narrowed
+by the filters of the panel.
 
 The content is generated column by column with polars expressions (no cell by cell
 python loop, no odfpy) : a sheet of 50 000 rows is written in a few seconds.
@@ -19,7 +20,8 @@ import zipfile
 
 import polars as pl
 
-from kpiten_core import config, env
+from kpiten_core import config
+from kpiten_core.tiles import filter_df
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +43,6 @@ NS = (
     'xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0" '
     'office:version="1.2"'
 )
-# no more rows than this per sheet, whatever ODS_MAX_ROWS or `kt.config` say
-MAX_ROWS = 50_000
 # printed in landscape (A4), the sheets fitted to the width of the page
 STYLES = f"""<?xml version="1.0" encoding="UTF-8"?>
 <office:document-styles {NS}>
@@ -291,21 +291,23 @@ def exportable_models(store: dict) -> list[str]:
 def model_ods(
     store: dict,
     model: str,
+    predicates: list,
     *,
     user_id: int,
     db: str,
-    max_rows: int | None = None,
 ) -> tuple[str, bytes, str]:
-    """The .ods of one Odoo model : `(filename, bytes, note)`. `store` is the store of
-    THE USER : the file holds the raw rows and columns he may read, and nothing else (no
-    filter of a panel), in one sheet. The ids of the relations (the columns ending with `_`)
-    are left out : their names say the same thing. `note` says when the rows were cut
-    at `max_rows` (`kt.config` [explore] max_rows, or ODS_MAX_ROWS), 50 000 at most.
+    """The .ods of one Odoo model : `(filename, bytes, note)`, in one sheet.
+
+    `store` is the store of THE USER : the file holds the rows and columns he may read,
+    narrowed by the `predicates` of the panel. The ids of the relations (the columns
+    ending with `_`) are left out : their names say the same thing. `note` says when
+    the rows were cut at `kt.config` [explore] ods_max_rows (50 000 by default).
     """
     if model not in store:
         raise PermissionError(f"{model} : no rows you may read")
-    max_rows = min(max_rows or config.explore_max_rows(env.ods_max_rows), MAX_ROWS)
-    rows = store[model].lazy()
+    max_rows = config.ods_max_rows()
+    # the filters of the panel first : they may read the ids left out below
+    rows = filter_df(store[model].lazy(), predicates)
     rows = rows.select([c for c in rows.collect_schema() if not c.endswith("_")])
     total = rows.select(pl.len()).collect().item()
     df = rows.head(max_rows).collect()

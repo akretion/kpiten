@@ -10,7 +10,7 @@ kpiten module, nothing changes.
                 "large_decimals": 0},
      "period": {"default": "last 90 days", "fiscal_start_month": 1},
      "ui": {"theme": "akretion", "table_rows": 20},
-     "explore": {"access": "everyone", "max_rows": 500000},
+     "explore": {"access": "everyone", "max_rows": 500000, "ods_max_rows": 50000},
      "ai": {"enabled": True, "send_values": True},
      "currency": {"symbol": "$", "position": "before"}}
 """
@@ -123,6 +123,11 @@ def explore_allowed(is_manager: bool) -> bool:
 def explore_max_rows(default: int) -> int:
     """Rows per table of an export, `default` (the environment) when not set."""
     return _section("explore").get("max_rows") or default
+
+
+def ods_max_rows() -> int:
+    """Rows of a model downloaded as .ods (50 000 when Odoo sets none)."""
+    return _section("explore").get("ods_max_rows") or 50_000
 
 
 # ---- AI (marimo explorer)
