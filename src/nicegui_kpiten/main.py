@@ -81,6 +81,14 @@ THEMES = {
         "row_line": "rgba(74, 66, 56, .07)",
     },
 }
+# the page of akretion (dark gradient, its controls), the tiles of sand
+THEMES["akretion_sand"] = {
+    **THEMES["light"],
+    "name": "Akretion Sand",
+    "theme": "dark",
+    "gradient": THEMES["akretion"]["gradient"],
+    "page_text": THEMES["akretion"]["text"],
+}
 DEFAULT_THEME = "akretion"
 
 CSS = """
@@ -91,7 +99,7 @@ CSS = """
   --border: rgba(0, 220, 130, .25);
   --thead: #081225;
   --gradient: linear-gradient(135deg, #101226 0%, #0b1f3b 45%, #0a3f6b 130%);
-  color: var(--text);
+  color: var(--page-text, var(--text));
   background: var(--gradient) fixed;
   min-height: 100vh;
 }
@@ -101,7 +109,7 @@ CSS = """
 .bb-ktd .q-field--dark .q-field__native,
 .bb-ktd .q-field--dark .q-field__label,
 .bb-ktd .q-field--dark .q-field__append {
-  color: var(--text) !important;
+  color: var(--page-text, var(--text)) !important;
 }
 .bb-ktd .q-field--dark .q-field__control { background: rgba(255,255,255,.06); }
 /* sand theme : lighten the quasar dark-styled controls */
@@ -178,8 +186,10 @@ CSS = """
 
 
 def theme_style(palette: dict) -> str:
-    """CSS vars of the theme, applied server-side (no js dependency)."""
-    return (
+    """CSS vars of the theme, applied server-side (no js dependency). `page_text` :
+    the text around the tiles, when it is not the one of the tiles."""
+    page = f"--page-text: {palette['page_text']};" if "page_text" in palette else ""
+    return page + (
         f"--accent: {palette['accent']};"
         f"--surface: {palette['surface']};"
         f"--text: {palette['text']};"
@@ -708,7 +718,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                 ).props("dark dense outlined").props(
                     'popup-content-class="bb-menu-dark"'
                 ).classes(
-                    "w-32"
+                    "w-40"
                 )
                 sync_holder["bar"] = (
                     ui.linear_progress(value=0, show_value=True)
