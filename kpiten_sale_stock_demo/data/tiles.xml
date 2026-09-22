@@ -7,10 +7,10 @@
         they give the same figures as Odoo's dashboard for any period. -->
 
     <record id="sale_quotations_card" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Quotations</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">20</field>
         <field name="definition">where = "state in ('draft', 'sent')"
 compare = true
@@ -18,10 +18,10 @@ compare = true
     </record>
 
     <record id="sale_orders_card" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Orders</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">21</field>
         <field name="definition">where = "state = 'sale'"
 compare = true
@@ -29,10 +29,10 @@ compare = true
     </record>
 
     <record id="sale_revenue_card" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Revenue</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">22</field>
         <field name="definition">where = "state = 'sale'"
 aggregation = "sum"
@@ -43,10 +43,10 @@ compare = true
     </record>
 
     <record id="sale_avg_order_card" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Average Order</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">23</field>
         <field name="definition">where = "state = 'sale'"
 aggregation = "mean"
@@ -60,10 +60,10 @@ compare = true
     <!-- the "Monthly sales" chart of the same dashboard : revenue of the
         confirmed orders per month, as a filled line, full width -->
     <record id="sale_monthly_sales_graph" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
         <field name="name">Monthly sales</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">1</field>
         <field name="col_span">3</field>
         <field name="tile_height">340</field>
@@ -85,10 +85,10 @@ aggregation = "sum"
         the order in Odoo : a cell "[label](url)" is drawn as a link, `odoo_url`
         is the base url of Odoo given to the snippet -->
     <record id="sale_top_orders_table" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Sales Orders</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -121,10 +121,10 @@ d_next = d_next.select([
         sent) with the biggest untaxed amount, then the default order of
         sale.order, with the panel period -->
     <record id="sale_top_quotations_table" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Quotations</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -158,10 +158,10 @@ d_next = d_next.select([
         (see models/kt.py and the panel filter_config). The product is a link to
         its form in Odoo (see the Top Sales Orders table) -->
     <record id="sale_top_products_table" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales_lines" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Top Products</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -197,10 +197,10 @@ d_next = d_next.select([
     <!-- "Top Salespeople" of the same dashboard : per salesperson, the number of
         confirmed orders and their revenue, the ten best, with the panel period -->
     <record id="sale_top_salespeople_table" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Salespeople</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -228,10 +228,10 @@ d_next = d_next.select([
 
     <!-- "Top Customers" of the same dashboard : per customer, the confirmed orders and their revenue, the ten best. The customer is a link to its form in Odoo -->
     <record id="sale_top_customers_table" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Customers</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -266,10 +266,10 @@ d_next = d_next.select([
 
     <!-- "Top Categories" : per product category, the orders it is in and its revenue, on the order lines. The category is shown with its path, as Odoo does -->
     <record id="sale_top_categories_table" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales_lines" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Top Categories</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -300,10 +300,10 @@ d_next = d_next.select([
 
     <!-- "Top Sales Teams" : per sales team, the confirmed orders and their revenue -->
     <record id="sale_top_sales_teams_table" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Sales Teams</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -319,10 +319,10 @@ d_next = d_next.rename({"team_id": "Sales Team"})</field>
 
     <!-- "Top Sources" : per campaign source, the confirmed orders and their revenue (empty while no order has a source) -->
     <record id="sale_top_sources_table" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Sources</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -338,10 +338,10 @@ d_next = d_next.rename({"source_id": "Source"})</field>
 
     <!-- "Top Mediums" : per campaign medium, the confirmed orders and their revenue (empty while no order has a medium) -->
     <record id="sale_top_mediums_table" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Mediums</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -357,10 +357,10 @@ d_next = d_next.rename({"medium_id": "Medium"})</field>
 
     <!-- "Top Countries" : per customer country, the confirmed orders and their revenue (empty while no customer has a country) -->
     <record id="sale_top_countries_table" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_demo.kpiten_sales" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Countries</field>
-        <field name="panel_id" ref="kpiten_demo.panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>

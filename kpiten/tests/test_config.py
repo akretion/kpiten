@@ -187,6 +187,42 @@ class TestKtConfig(TransactionCase):
             },
         )
 
+    # ---- relations
+    def test_other_relations_must_be_a_json_dict(self):
+        with self.assertRaises(exceptions.ValidationError):
+            self.config.other_relations = "not json"
+        with self.assertRaises(exceptions.ValidationError):
+            self.config.other_relations = "[1, 2]"
+
+    def test_other_relations_keys_must_be_known_models(self):
+        with self.assertRaises(exceptions.ValidationError):
+            self.config.other_relations = '{"not.a.model": ["name"]}'
+
+    def test_other_relations_values_must_be_non_empty_lists_of_paths(self):
+        with self.assertRaises(exceptions.ValidationError):
+            self.config.other_relations = '{"res.partner": "name"}'
+        with self.assertRaises(exceptions.ValidationError):
+            self.config.other_relations = '{"res.partner": []}'
+
+    def test_other_relations_are_followed_on_top_of_the_built_in_ones(self):
+        built_in = self.env["kt"]._follow_relational_fields()["res.partner"]
+        self.config.other_relations = (
+            '{"res.partner": ["category_id.name"], "res.country": ["code"]}'
+        )
+        fields_map = self.env["kt"]._follow_relational_fields()
+        # merged with the built-in paths of the same model (and any other addon's
+        # own additions), not replaced
+        self.assertLessEqual(built_in, fields_map["res.partner"])
+        self.assertIn("category_id.name", fields_map["res.partner"])
+        self.assertEqual(fields_map["res.country"], {"code"})
+
+    def test_the_relations_preview_shows_the_followed_paths(self):
+        self.config.other_relations = '{"res.country": ["code"]}'
+        preview = self.config.relations_preview
+        self.assertIn("res.country", preview)
+        self.assertIn("code", preview)
+        self.assertIn("res.partner", preview)  # a built-in one
+
     def test_the_data_file_gives_the_eight_colors_of_the_palette(self):
         """A new database opens with a palette of 8 : the record of `data/misc.xml`."""
         import re

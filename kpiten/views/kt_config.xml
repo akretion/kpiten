@@ -97,6 +97,23 @@
                             </group>
                         </group>
                     </page>
+                    <page string="Relations" name="relations">
+                        <div class="alert alert-info" role="alert">
+                            The dot-paths a dashboard may follow through a many2one field
+                            (e.g. <code>partner_id.category_id.name</code>) : built into kpiten
+                            and its addons below, with room to add your own beside them.
+                        </div>
+                        <group string="Followed paths">
+                            <field name="relations_preview" readonly="1" nolabel="1" />
+                        </group>
+                        <group string="Other relations">
+                            <field
+                                name="other_relations"
+                                nolabel="1"
+                                placeholder='{"res.partner": ["category_id.name"], "product.product": ["seller_ids.partner_id.name"]}'
+                            />
+                        </group>
+                    </page>
                     </notebook>
                 </sheet>
             </form>
