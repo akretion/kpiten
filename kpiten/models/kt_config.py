@@ -217,6 +217,12 @@ class KtConfig(models.Model):
         default=500000,
         help="An export is cut at this number of rows per table.",
     )
+    ods_max_rows = fields.Integer(
+        string="Rows of a spreadsheet (.ods)",
+        default=50000,
+        help="The download of the rows of a model as .ods is cut at this number of "
+        "rows.",
+    )
 
     # ---- AI (marimo explorer)
     ai_enabled = fields.Boolean(
@@ -308,10 +314,10 @@ class KtConfig(models.Model):
                     _("A table shows between 1 and 500 rows.")
                 )
 
-    @api.constrains("explore_max_rows")
+    @api.constrains("explore_max_rows", "ods_max_rows")
     def _check_explore_max_rows(self):
         for rec in self:
-            if rec.explore_max_rows < 1:
+            if rec.explore_max_rows < 1 or rec.ods_max_rows < 1:
                 raise exceptions.ValidationError(_("An export holds at least 1 row."))
 
     @api.constrains("other_relations")
@@ -459,7 +465,8 @@ class KtConfig(models.Model):
               "number": {"format": "space_comma", "small_below": 10, ...},
               "period": {"default": "last 90 days", "fiscal_start_month": 1},
               "ui": {"theme": "akretion", "table_rows": 20},
-              "explore": {"access": "everyone", "max_rows": 500000},
+              "explore": {"access": "everyone", "max_rows": 500000,
+                          "ods_max_rows": 50000},
               "ai": {"enabled": True, "send_values": True},
               "currency": {"symbol": "$", "position": "before"}}
 
@@ -507,6 +514,7 @@ class KtConfig(models.Model):
         config["explore"] = {
             "access": rec.explore_access,
             "max_rows": rec.explore_max_rows,
+            "ods_max_rows": rec.ods_max_rows,
         }
         config["ai"] = {
             "enabled": rec.ai_enabled,
