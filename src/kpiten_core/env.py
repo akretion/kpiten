@@ -57,8 +57,6 @@ tile_max_rows = int(get("TILE_MAX_ROWS", "500"))
 explore_max_rows = int(get("EXPLORE_MAX_ROWS", "500000"))  # per table
 explore_dir = get("EXPLORE_DIR")  # default : `explore` next to DATA_PATH
 explore_ttl_hours = int(get("EXPLORE_TTL_HOURS", "1"))  # a leftover export is purged
-# The rows of a panel as a spreadsheet (see `ods`) : rows per sheet, 50 000 at most
-ods_max_rows = min(int(get("ODS_MAX_ROWS", "50000")), 50_000)
 
 tile_max_categories = int(get("TILE_MAX_CATEGORIES", "50"))
 # Points kept by a graph on a date axis (above : grouped by month, then cut)

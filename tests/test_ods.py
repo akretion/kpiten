@@ -7,7 +7,7 @@ import zipfile
 import polars as pl
 import pytest
 
-from kpiten_core import ods
+from kpiten_core import config, ods
 
 
 def test_the_ods_is_landscape_its_header_frozen_its_columns_fitted():
@@ -30,17 +30,20 @@ def test_the_ods_is_landscape_its_header_frozen_its_columns_fitted():
     assert 'style:name="co26"' in content and 'style:name="co7"' in content
 
 
-def test_one_model_one_sheet_no_ids_50_000_rows_at_most():
+def test_one_model_one_sheet_filtered_no_ids_cut_as_kt_config_says():
     store = {
         "sale.order": pl.LazyFrame(
             {"id": range(60_000), "partner_id": ["Azure"] * 60_000}
         ).with_columns(partner_id_=pl.lit(7), incoterm_=pl.lit(3))
     }
+    config.set_config({"explore": {"ods_max_rows": 50_000}})
+    predicates = [pl.col("id") >= 5_000, pl.col("missing") == 1]  # not on the table
     name, data, note = ods.model_ods(
-        store, "sale.order", user_id=2, db="claude", max_rows=100_000
+        store, "sale.order", predicates, user_id=2, db="claude"
     )
+    config.set_config({})
     assert name == "kpiten-claude-sale.order.ods"
-    assert note == "first 50000 of 60000 rows"
+    assert note == "first 50000 of 55000 rows"
     content = zipfile.ZipFile(io.BytesIO(data)).read("content.xml").decode()
     assert content.count("<table:table ") == 1
     assert (
@@ -49,4 +52,4 @@ def test_one_model_one_sheet_no_ids_50_000_rows_at_most():
         and "Azure" in content
     )
     with pytest.raises(PermissionError):
-        ods.model_ods(store, "purchase.order", user_id=2, db="claude")
+        ods.model_ods(store, "purchase.order", [], user_id=2, db="claude")
