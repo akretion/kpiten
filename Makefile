@@ -1,5 +1,5 @@
 DB      ?= kpiten
-MODULES ?= kpiten,kpiten_data
+MODULES ?= kpiten,kpiten_commercial_data
 
 # mot de passe Postgres de l'utilisateur odoo : PGPASSWORD dans .env (voir
 # .env.example), ni dans odoo.conf ni dans le dépôt ; lu par libpq pour odoo-bin,
