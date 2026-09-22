@@ -24,7 +24,6 @@ from kpiten_core import brand
 from kpiten_core import config as core_config
 from kpiten_core import filters
 from kpiten_core import comparison, links
-from kpiten_core import explore as explore_core
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
 from kpiten_core.loaders import (
@@ -471,32 +470,6 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
         date_value = filters.bounds_of_option(filt["date"])
         return filters.make_predicates(get_config(), date_value, filt["dims"])
 
-    async def on_explore():
-        """Download the rows of the panel (this user's store, current filters) as a zip."""
-        if not core_config.explore_allowed(can_edit):
-            ui.notify("You may not export the rows.", type="negative")
-            return
-        try:
-            _name, data = await run.io_bound(
-                explore_core.build_archive,
-                store_cache,
-                backend.get_panel_tiles(panel_label["id"], user_id),
-                current_predicates(),
-                user_id=user_id,
-                db=backend.db,
-                panel=panels_map.get(str(panel_label["id"]), str(panel_label["id"])),
-                filters_text=filters.describe_filters(
-                    get_config(),
-                    filters.bounds_of_option(filt["date"]),
-                    filt["dims"],
-                ),
-            )
-        except Exception as err:
-            logger.exception("explore failed")
-            ui.notify(f"Explore failed : {err}", type="negative")
-            return
-        ui.download(data, f"kpiten-explore-{backend.db}-{panel_label['id']}.zip")
-
     def on_drill(e):
         """A click on a row of a table : show the rows behind it in a dialog."""
         line_id, row = int(e.args["line"]), int(e.args["row"])
@@ -702,14 +675,11 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                     .classes("w-64")
                     .set_visibility(False)
                 )
-                ui.button("Refresh data", on_click=on_refresh_data)
-                if core_config.explore_allowed(can_edit):
-                    ui.button(icon="download", on_click=on_explore).props(
-                        "flat dense"
-                    ).tooltip(
-                        "Explore : download the rows of this panel (your rights, the "
-                        "filters you set) with a marimo notebook"
-                    )
+                ui.button(icon="sync", on_click=on_refresh_data).props(
+                    "flat dense"
+                ).tooltip(
+                    "Refresh data : sync with Odoo now, to see its latest changes"
+                )
                 ui.button("Refresh tiles", on_click=draw_tiles).props("flat")
                 if can_edit:
                     ui.switch("Edit", value=False, on_change=on_edit_mode).props(
@@ -721,7 +691,9 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                 stamp = last_sync(backend, user_id)
                 if stamp:
                     ui.label("⏱ " + stamp).classes("text-xs opacity-55").tooltip(
-                        "Data as of " + stamp + " — 'Refresh data' syncs with Odoo"
+                        "Data as of "
+                        + stamp
+                        + " — the sync button refreshes it from Odoo"
                     )
             # linking to the app origin
             with ui.link(target="https://nicegui.io", new_tab=True):
