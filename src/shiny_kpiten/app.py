@@ -54,7 +54,17 @@ FAVICON = ui.tags.link(rel="icon", type="image/png", href="static/favicon.png")
 
 REFRESH_TOOLTIP = "Refresh data : sync with Odoo now, to see its latest changes"
 ODS_TOOLTIP = "Download the rows of an Odoo model as a spreadsheet (.ods)"
-ODS_MODEL_TOOLTIP = "The rows of this model you may read, with the filters of the panel"
+# a spreadsheet (a grid with its header row), in the color of the text
+SPREADSHEET_ICON = (
+    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" '
+    'stroke="currentColor" stroke-width="2" aria-hidden="true">'
+    '<rect x="3" y="3" width="18" height="18" rx="2"/>'
+    '<path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>'
+)
+ODS_MODEL_TOOLTIP = (
+    "Download as a spreadsheet (.ods) : the rows of this model you may read, with the "
+    "filters of the panel"
+)
 EDIT_TOOLTIP = (
     "Edit this panel : move, resize or delete its tiles (drag and drop, or the "
     "buttons on each tile). The changes are saved in Odoo."
@@ -667,7 +677,10 @@ def server(input, output, session):
                 easy_close=True,
                 size="s",
                 footer=ui.download_button(
-                    "ods", "\u2913 .ods", class_="btn-kpiten", title=ODS_MODEL_TOOLTIP
+                    "ods",
+                    ui.HTML(SPREADSHEET_ICON),
+                    class_="btn-kpiten",
+                    title=ODS_MODEL_TOOLTIP,
                 ),
             )
         )
