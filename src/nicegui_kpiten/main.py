@@ -472,13 +472,18 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
         return filters.make_predicates(get_config(), date_value, filt["dims"])
 
     async def download_model(model: str, dialog) -> None:
-        """The raw rows of `model` the user may read (his store, no filter) as .ods."""
+        """The rows of `model` the user may read (his store, the panel filters) as .ods."""
         if not core_config.explore_allowed(can_edit):
             ui.notify("You may not export the rows.", type="negative")
             return
         try:
             name, data, note = await run.io_bound(
-                core_ods.model_ods, store_cache, model, user_id=user_id, db=backend.db
+                core_ods.model_ods,
+                store_cache,
+                model,
+                current_predicates(),
+                user_id=user_id,
+                db=backend.db,
             )
         except Exception as err:
             logger.exception("ods export failed")
@@ -502,8 +507,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                 icon="download",
                 on_click=lambda: download_model(choice.value, dialog),
             ).tooltip(
-                "The raw rows of this model you may read, without the filters of "
-                "the panel ; 50 000 rows at most"
+                "The rows of this model you may read, with the filters of the panel"
             )
         dialog.open()
 
