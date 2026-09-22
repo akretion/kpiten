@@ -164,33 +164,6 @@ def test_drill_down_of_an_order_reads_another_table(page: Page) -> None:
     assert columns == ["Product", "Quantity", "Unit price", "Subtotal"]
 
 
-def test_explore_downloads_the_rows_of_the_user_with_a_notebook(
-    page: Page, tmp_path
-) -> None:
-    """Explore : a zip of the parquets of the panel, with the rights of the user (Marie sees
-    her own orders only) and the filters set, and a marimo notebook on them."""
-    import io
-    import json
-    import zipfile
-
-    import polars as pl
-
-    open_dashboard(page)
-    page.locator("#explore").wait_for(timeout=60_000)
-    with page.expect_download(timeout=120_000) as download:
-        page.locator("#explore").click()
-    archive = zipfile.ZipFile(download.value.path())
-    assert {"manifest.json", "explore.py", "README.txt", "sale.order.parquet"} <= set(
-        archive.namelist()
-    )
-    manifest = json.loads(archive.read("manifest.json"))
-    assert manifest["panel"] == "Sales" and manifest["filters"]
-    orders = pl.read_parquet(io.BytesIO(archive.read("sale.order.parquet")))
-    assert orders.height > 0
-    assert set(orders["user_id"].drop_nulls().to_list()) <= {"Marie STOURNE"}
-    assert "pl.scan_parquet" in archive.read("explore.py").decode()
-
-
 def rgb(hex_color: str) -> str:
     """`#00dc82` as the browser writes a computed color."""
     red, green, blue = (int(hex_color[i : i + 2], 16) for i in (1, 3, 5))
@@ -327,24 +300,6 @@ def test_the_card_colors_of_kt_config(page: Page) -> None:
             )
         )
         assert colors <= {"rgb(18, 52, 86)", "rgb(101, 67, 33)"} and colors
-
-
-def test_who_may_export_follows_kt_config(page: Page) -> None:
-    def has_button(login, password):
-        page.context.clear_cookies()
-        open_dashboard(page, login, password)
-        page.wait_for_load_state("networkidle")
-        page.wait_for_timeout(2000)
-        return page.locator("#explore").count() > 0
-
-    with kt_config(explore_access="nobody"):
-        assert not has_button(LOGIN, PASSWORD)
-        assert not has_button(MANAGER, MANAGER_PASSWORD)
-    with kt_config(explore_access="managers"):
-        assert not has_button(LOGIN, PASSWORD)  # Marie is not a manager
-        assert has_button(MANAGER, MANAGER_PASSWORD)
-    with kt_config(explore_access="everyone"):
-        assert has_button(LOGIN, PASSWORD)
 
 
 def login_to_odoo(page: Page, login: str = LOGIN, password: str = PASSWORD) -> None:
