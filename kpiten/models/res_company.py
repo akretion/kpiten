@@ -12,7 +12,7 @@ class ResCompany(models.Model):
     _inherit = "res.company"
 
     def _get_kpiten_services(self, app_name: str = "shiny"):
-        """The urls of a front : `{"application", "internal_url", "external_url"}`.
+        """The urls of a front : `{"internal_url", "external_url"}`.
 
         `internal_url` is where Odoo asks for a session (SSO), `external_url` what the
         browser of the user opens. Inherit to set an alternative way to get them.
