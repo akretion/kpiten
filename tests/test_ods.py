@@ -5,6 +5,7 @@ import io
 import zipfile
 
 import polars as pl
+import pytest
 
 from kpiten_core import ods
 
@@ -29,11 +30,23 @@ def test_the_ods_is_landscape_its_header_frozen_its_columns_fitted():
     assert 'style:name="co26"' in content and 'style:name="co7"' in content
 
 
-def test_no_more_than_50_000_rows_per_sheet():
-    lines = [{"kind": "data", "model": "sale.order", "name": "Orders"}]
-    store = {"sale.order": pl.DataFrame({"id": range(60_000)})}
-    _name, data = ods.build_ods(
-        store, lines, [], user_id=2, db="claude", panel="Sales", max_rows=100_000
+def test_one_model_one_sheet_no_ids_50_000_rows_at_most():
+    store = {
+        "sale.order": pl.LazyFrame(
+            {"id": range(60_000), "partner_id": ["Azure"] * 60_000}
+        ).with_columns(partner_id_=pl.lit(7), incoterm_=pl.lit(3))
+    }
+    name, data, note = ods.model_ods(
+        store, "sale.order", user_id=2, db="claude", max_rows=100_000
     )
+    assert name == "kpiten-claude-sale.order.ods"
+    assert note == "first 50000 of 60000 rows"
     content = zipfile.ZipFile(io.BytesIO(data)).read("content.xml").decode()
-    assert "first 50000 of 60000 rows" in content
+    assert content.count("<table:table ") == 1
+    assert (
+        "partner_id_" not in content
+        and "incoterm_" not in content
+        and "Azure" in content
+    )
+    with pytest.raises(PermissionError):
+        ods.model_ods(store, "purchase.order", user_id=2, db="claude")
