@@ -188,7 +188,12 @@ class KtConfig(models.Model):
 
     # ---- interface
     default_theme = fields.Selection(
-        [("akretion", "Akretion"), ("midnight", "Midnight"), ("light", "Sand")],
+        [
+            ("akretion", "Akretion"),
+            ("midnight", "Midnight"),
+            ("light", "Sand"),
+            ("akretion_sand", "Akretion Sand"),
+        ],
         string="Default theme",
         default="akretion",
         help="The theme a user gets until they choose another one.",
