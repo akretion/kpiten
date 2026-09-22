@@ -5,7 +5,6 @@ from odoo.tests.common import TransactionCase, tagged
 class TestKpitenNicegui(TransactionCase):
     def test_the_service_is_set_by_the_module(self):
         service = self.env.company._get_kpiten_services("nicegui")
-        self.assertEqual(service["application"], "NiceGUI")
         self.assertEqual(service["internal_url"], "http://localhost:5001")
         self.assertTrue(service["external_url"])
 

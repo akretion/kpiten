@@ -5,6 +5,6 @@
              external_url : what the browser of the user opens -->
         <field
             name="value"
-        >{"application": "Marimo", "external_url": "http://localhost:5002", "internal_url": "http://localhost:5002"}</field>
+        >{"external_url": "http://localhost:5002", "internal_url": "http://localhost:5002"}</field>
     </record>
 </odoo>
