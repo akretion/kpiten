@@ -50,6 +50,21 @@ def test_df_norm_many2one_split():
     assert df["date_order"].dtype == pl.Date
 
 
+def test_a_path_ending_with_name_is_stored_without_it():
+    recs = [
+        {
+            "id": 1,
+            "user_id": [1, "Alice"],
+            "user_id.name": "Alice",
+            "partner_id.country_id.name": "France",
+        }
+    ]
+    df = Df(pl.DataFrame(recs, strict=False)).get_df()
+    # `user_id` was there : the path is dropped ; the other one is renamed
+    assert df.columns == ["id", "user_id", "partner_id.country_id", "user_id_"]
+    assert df["partner_id.country_id"][0] == "France"
+
+
 def test_every_many2one_gets_a_name_and_an_id_column():
     """Whatever the field is called : `product_uom` and `create_uid` have no `_id`
     in their name (or a different one), their id column is still `<field>_`."""

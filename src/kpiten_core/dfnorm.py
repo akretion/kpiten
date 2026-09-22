@@ -43,7 +43,27 @@ class Df:
             for col in self.get_decimal_columns()
         )
         self._fix_false_strings()
+        self.strip_name_suffix()
         return self.df
+
+    def strip_name_suffix(self):
+        """A relational path ending with `.name` loses it before it is stored :
+        `partner_id.commercial_partner_id.name` -> `partner_id.commercial_partner_id`.
+
+        When the shorter name is already a column (`user_id.name` and `user_id`, the
+        name Odoo shows of the many2one), that column is kept and the path dropped.
+        """
+        columns = set(self.df.columns)
+        renames, dropped = {}, []
+        for col in self.df.columns:
+            if not col.endswith(".name"):
+                continue
+            short = col.removesuffix(".name")
+            if short in columns or short in renames.values():
+                dropped.append(col)
+            else:
+                renames[col] = short
+        self.df = self.df.drop(dropped).rename(renames)
 
     def _fix_false_strings(self):
         self.df = self.df.with_columns(pl.col(pl.String).replace("false", ""))
