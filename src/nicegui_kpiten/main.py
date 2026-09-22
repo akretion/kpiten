@@ -503,11 +503,11 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                 "w-full"
             )
             ui.button(
-                ".ods",
-                icon="download",
+                icon="table_view",
                 on_click=lambda: download_model(choice.value, dialog),
             ).tooltip(
-                "The rows of this model you may read, with the filters of the panel"
+                "Download as a spreadsheet (.ods) : the rows of this model you may "
+                "read, with the filters of the panel"
             )
         dialog.open()
 
