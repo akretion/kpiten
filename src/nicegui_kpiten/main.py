@@ -471,31 +471,41 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
         date_value = filters.bounds_of_option(filt["date"])
         return filters.make_predicates(get_config(), date_value, filt["dims"])
 
-    async def on_ods():
-        """Download the rows of the panel (this user's store, current filters) as .ods."""
+    async def download_model(model: str, dialog) -> None:
+        """The raw rows of `model` the user may read (his store, no filter) as .ods."""
         if not core_config.explore_allowed(can_edit):
             ui.notify("You may not export the rows.", type="negative")
             return
         try:
-            name, data = await run.io_bound(
-                core_ods.build_ods,
-                store_cache,
-                backend.get_panel_tiles(panel_label["id"], user_id),
-                current_predicates(),
-                user_id=user_id,
-                db=backend.db,
-                panel=panels_map.get(str(panel_label["id"]), str(panel_label["id"])),
-                filters_text=filters.describe_filters(
-                    get_config(),
-                    filters.bounds_of_option(filt["date"]),
-                    filt["dims"],
-                ),
+            name, data, note = await run.io_bound(
+                core_ods.model_ods, store_cache, model, user_id=user_id, db=backend.db
             )
         except Exception as err:
             logger.exception("ods export failed")
             ui.notify(f"Export failed : {err}", type="negative")
             return
+        if note:
+            ui.notify(f"{model} : {note}", type="warning")
+        dialog.close()
         ui.download(data, name)
+
+    def on_ods():
+        """Choose the Odoo model to download."""
+        models = core_ods.exportable_models(store_cache)
+        with ui.dialog() as dialog, ui.card().classes("w-96"):
+            ui.label("Download the rows of a model (.ods)").classes("text-bold")
+            choice = ui.select(models, value=models[0] if models else None).classes(
+                "w-full"
+            )
+            ui.button(
+                ".ods",
+                icon="download",
+                on_click=lambda: download_model(choice.value, dialog),
+            ).tooltip(
+                "The raw rows of this model you may read, without the filters of "
+                "the panel ; 50 000 rows at most"
+            )
+        dialog.open()
 
     def on_drill(e):
         """A click on a row of a table : show the rows behind it in a dialog."""
@@ -711,7 +721,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                     ui.button(icon="download", on_click=on_ods).props(
                         "flat dense"
                     ).tooltip(
-                        "Download the rows of this panel as a spreadsheet (.ods) : one sheet per tile, your rights and the filters you set"
+                        "Download the rows of an Odoo model as a spreadsheet (.ods)"
                     )
                 ui.button("Refresh tiles", on_click=draw_tiles).props("flat")
                 if can_edit:
