@@ -1,5 +1,5 @@
 {
-    "name": "KpiTen Data",
+    "name": "KpiTen Commercial Data",
     "version": "18.0.1.0.0",
     "category": "Sales",
     "summary": "Data for KpiTen dashboard with commercial purposes",
