@@ -367,17 +367,17 @@ d_next = d_next.rename({"medium_id": "Medium"})</field>
         <field name="definition">d_next = d
 # d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
 # confirmed orders
-d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("partner_id.country_id.name").is_not_null())
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("partner_id.country_id").is_not_null())
 # dotted name : a relational path declared for the dataset (order &gt; customer &gt; country)
-d_next = d_next.group_by("partner_id.country_id.name").agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
+d_next = d_next.group_by("partner_id.country_id").agg([pl.len().alias("Orders"), pl.col("amount_untaxed").sum().alias("Revenue")])
 # the last sort keys only break ties : stable order
-d_next = d_next.sort(["Revenue", "partner_id.country_id.name"], descending=[True, False]).head(10)
-d_next = d_next.rename({"partner_id.country_id.name": "Country"})
+d_next = d_next.sort(["Revenue", "partner_id.country_id"], descending=[True, False]).head(10)
+d_next = d_next.rename({"partner_id.country_id": "Country"})
 # hidden column : the country name is the key
 d_next = d_next.with_columns(pl.col("Country").alias("__country"))</field>
         <field name="drill_definition">d_next = d
 # the orders of the clicked country, same rows as the tile
-d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; (pl.col("partner_id.country_id.name") == key["country"]))
+d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; (pl.col("partner_id.country_id") == key["country"]))
 d_next = d_next.sort(["date_order", "id"], descending=[True, True])
 d_next = d_next.select([
     pl.col("date_order").alias("Date"),

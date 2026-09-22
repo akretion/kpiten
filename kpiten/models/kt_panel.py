@@ -10,7 +10,7 @@ class KtPanel(models.Model):
     sequence = fields.Integer()
     description = fields.Char()
     # Filters available on the dashboard, as JSON
-    # e.g. {"date": {"field": "date_order"}, "dimensions": [{"name": "user_id.name", "label": "Salesperson"}]}
+    # e.g. {"date": {"field": "date_order"}, "dimensions": [{"name": "user_id", "label": "Salesperson"}]}
     filter_config = fields.Text(default="{}")
     active = fields.Boolean(default=True)
     config_line_ids = fields.One2many(

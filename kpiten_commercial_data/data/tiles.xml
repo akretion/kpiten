@@ -21,7 +21,7 @@
         <field name="col_span">2</field>
         <field name="definition">graph_type = "bar"
 [x]
-name = "user_id.name"
+name = "user_id"
 aggregation = "none"
 [y]
 name = "amount_untaxed"
@@ -36,7 +36,7 @@ aggregation = "sum"
         <field name="sequence">4</field>
         <field name="panel_id" ref="panel_sale" />
         <field name="col_span">2</field>
-        <field name="definition">index = "user_id.name"
+        <field name="definition">index = "user_id"
 column = "date_order.year"
 measure = "amount_untaxed"
 aggregation = "sum"
@@ -69,7 +69,7 @@ amount_untaxed = "amount_untaxed"
         <field name="col_span">2</field>
         <field name="definition">graph_type = "bar"
 [x]
-name = "product_id.name"
+name = "product_id"
 aggregation = "none"
 [y]
 name = "product_uom_qty"
@@ -85,7 +85,7 @@ aggregation = "sum"
         <field name="sequence">8</field>
         <field name="definition">graph_type = "area"
 [x]
-name = "salesman_id.name"
+name = "salesman_id"
 aggregation = "none"
 [y]
 name = "product_uom_qty"
@@ -102,7 +102,7 @@ aggregation = "sum"
         <field name="sequence">1</field>
         <field name="definition">graph_type = "bar"
 [x]
-name = "product_id.name"
+name = "product_id"
 aggregation = "none"
 [y]
 name = "product_qty"
@@ -119,7 +119,7 @@ aggregation = "sum"
         <field name="col_span">2</field>
         <field name="definition">graph_type = "bar"
 [x]
-name = "partner_id.commercial_partner_id.name"
+name = "partner_id.commercial_partner_id"
 aggregation = "none"
 [y]
 name = "amount_untaxed"
