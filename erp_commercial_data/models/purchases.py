@@ -152,23 +152,46 @@ class ErpDemoPurchaseStock(models.Model):
 
     def _force_purchase_lifecycle(self, orders, plans):
         """Write state, dates and receipt/invoice statuses in SQL : no real
-        receipts nor vendor bills are created (fast, dashboard-oriented)."""
-        self._bulk_update(
-            "purchase_order",
-            ORDER_COLUMNS,
-            [(o.id, *(p[c] for c in ORDER_COLUMNS)) for o, p in zip(orders, plans)],
-        )
+        receipts nor vendor bills are created (fast, dashboard-oriented).
+
+        Odoo 20 has no `done` state (a done order is a locked one) and no stored
+        `state` on the lines : only the columns of the database are written."""
+        order_model = self.env["purchase.order"]
+        done = "done" in dict(order_model._fields["state"].selection)
+        order_columns = dict(ORDER_COLUMNS)
+        if not done:
+            order_columns["locked"] = "boolean"
+        rows = []
+        for order, plan in zip(orders, plans):
+            plan = dict(plan)
+            if not done:
+                plan["locked"] = plan["state"] == "done"
+                if plan["state"] == "done":
+                    plan["state"] = "purchase"
+            rows.append((order.id, *(plan[c] for c in order_columns)))
+        self._bulk_update("purchase_order", order_columns, rows)
+
+        line_fields = self.env["purchase.order.line"]._fields
+        line_columns = {
+            column: kind
+            for column, kind in LINE_COLUMNS.items()
+            if line_fields[column].store
+        }
+        values = {
+            "state": lambda line, p: (
+                p["state"] if done or p["state"] != "done" else "purchase"
+            ),
+            "qty_received": lambda line, p: line.product_qty * p["received"],
+            "qty_invoiced": lambda line, p: (
+                line.product_qty if p["invoice_status"] == "invoiced" else 0
+            ),
+            "create_date": lambda line, p: p["create_date"],
+        }
         self._bulk_update(
             "purchase_order_line",
-            LINE_COLUMNS,
+            line_columns,
             [
-                (
-                    line.id,
-                    p["state"],
-                    line.product_qty * p["received"],
-                    line.product_qty if p["invoice_status"] == "invoiced" else 0,
-                    p["create_date"],
-                )
+                (line.id, *(values[c](line, p) for c in line_columns))
                 for o, p in zip(orders, plans)
                 for line in o.order_line
             ],

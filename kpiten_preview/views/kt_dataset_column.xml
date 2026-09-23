@@ -17,7 +17,7 @@
             <search>
                 <field name="name" />
                 <field name="dtype" />
-                <group expand="0" string="Group by">
+                <group>
                     <filter
                         name="group_origin"
                         string="Origin"

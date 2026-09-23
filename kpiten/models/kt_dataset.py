@@ -2,7 +2,7 @@ import logging
 
 from odoo import _, api, exceptions, fields, models
 
-from ..compat import LIST, tomllib
+from ..compat import LIST, sql_constraints, tomllib
 from ..compat import validate_toml as kt_validate_toml
 
 logger = logging.getLogger(__name__)
@@ -47,13 +47,13 @@ class KtDataset(models.Model):
         help="Number of tiles of this dataset, the archived ones included.",
     )
 
-    _sql_constraints = [
-        (
-            "model_unique",
+    sql_constraints(
+        locals(),
+        model_unique=(
             "UNIQUE(model_id,company_id)",
             "Model field must unique by company",
-        )
-    ]
+        ),
+    )
 
     @api.constrains("model_id", "company_id")
     def _check_model_unique_no_company(self):

@@ -1,5 +1,7 @@
 from odoo.tests.common import TransactionCase, tagged
 
+from ..compat import groups_field
+
 
 @tagged("post_install", "-at_install")
 class TestAllowedFields(TransactionCase):
@@ -10,7 +12,7 @@ class TestAllowedFields(TransactionCase):
             {
                 "name": "Internal",
                 "login": "internal-kt",
-                "groups_id": [(6, 0, [self.env.ref("base.group_user").id])],
+                groups_field(self.env): [(6, 0, [self.env.ref("base.group_user").id])],
             }
         )
         admin_fields = self.env["kt"].get_allowed_fields(

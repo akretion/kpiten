@@ -1,5 +1,7 @@
 from odoo import _, api, fields, models
 
+from odoo.addons.kpiten.compat import get_param
+
 DEFAULT_SIZE = 200
 
 
@@ -70,9 +72,7 @@ class KtDatasetLinePreview(models.TransientModel):
                     name, self.size or DEFAULT_SIZE, style="store", extra_paths=paths
                 ).lazy()
             tiles.set_chart_config(self.env["kt.config"].get_config_json())
-            links.set_odoo_url(
-                self.env["ir.config_parameter"].sudo().get_param("web.base.url")
-            )
+            links.set_odoo_url(get_param(self.env, "web.base.url"))
             with core_env.db_scope(self.env.cr.dbname):
                 result = tiles.exec_tile(
                     {

@@ -267,14 +267,12 @@ class ErpDemoWorld(models.Model):
             if not team:
                 team = team_model.create({"name": name})
             member_users = [users[m] for m in members if m in users]
-            team.write(
-                {
-                    "member_ids": [(6, 0, [u.id for u in member_users])],
-                    "invoiced_target": {"France": 180000, "Europe": 110000}.get(
-                        name, 60000
-                    ),
-                }
-            )
+            vals = {"member_ids": [(6, 0, [u.id for u in member_users])]}
+            if "invoiced_target" in team_model._fields:  # not in Odoo 20
+                vals["invoiced_target"] = {"France": 180000, "Europe": 110000}.get(
+                    name, 60000
+                )
+            team.write(vals)
             if name == "France" and manager_name in users:
                 team.user_id = users[manager_name]
                 # the French team works in French (the dashboards follow the
@@ -307,7 +305,11 @@ class ErpDemoWorld(models.Model):
     def _demo_categories(self):
         """The category tree of the products (`CATEGORIES`), each product in its own."""
         category_model = self.env["product.category"]
-        root = self.env.ref("product.product_category_all")
+        # under « All » until Odoo 18 ; at the top after (there is no « All »)
+        root = (
+            self.env.ref("product.product_category_all", raise_if_not_found=False)
+            or category_model
+        )
         for product_name, path in CATEGORIES.items():
             parent = root
             for part in path.split(" / "):

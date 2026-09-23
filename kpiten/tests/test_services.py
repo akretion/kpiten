@@ -3,11 +3,13 @@ import json
 from odoo import exceptions
 from odoo.tests.common import TransactionCase, tagged
 
+from ..compat import set_param
+
 
 @tagged("post_install", "-at_install")
 class TestKpitenServices(TransactionCase):
     def _set(self, app, value):
-        self.env["ir.config_parameter"].sudo().set_param(f"kpiten_{app}_service", value)
+        set_param(self.env, f"kpiten_{app}_service", value)
 
     def _get(self, app):
         return self.env.company._get_kpiten_services(app)
