@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <data noupdate="1">
+        <!-- after the users, before the orders : currencies, teams, customers, vendors -->
+        <record id="demo_generator_world" model="erp.demo.generator" />
+        <function model="erp.demo.generator" name="setup_demo_world">
+            <function
+                eval="[[('id', '=', ref('demo_generator_world'))]]"
+                model="erp.demo.generator"
+                name="search"
+            />
+        </function>
+    </data>
+</odoo>

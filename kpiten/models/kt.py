@@ -57,8 +57,10 @@ class Kt(models.AbstractModel):
                 "commercial_partner_id",
                 "commercial_partner_id.ref",
             },
-            # the order lines get `order_id.date_order` : the period of a panel on lines
-            "sale.order": {"date_order"},
+            # the order lines get `order_id.date_order` : the period of a panel on lines ;
+            # and the rate of the order : their amounts in the currency of the company
+            "sale.order": {"date_order", "currency_rate"},
+            "purchase.order": {"currency_rate"},
         }
         for model, paths in self._other_relational_fields().items():
             fields[model] = set(fields.get(model, ())) | set(paths)

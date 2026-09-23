@@ -4,6 +4,14 @@ from datetime import timedelta
 
 from odoo import fields, models
 
+from .world import (
+    MEDIUMS,
+    SOURCES,
+    ZONE_WEIGHTS,
+    ZONES,
+    seasonal_date,
+    weighted,
+)
 from .erp_demo_generator import (
     CUSTOMER_NAMES,
     DEMO_BATCH_SIZE,
@@ -97,8 +105,8 @@ class ErpDemoSaleStock(models.Model):
             plan["create_date"] = now - timedelta(days=rng.uniform(0, 45))
             return plan
 
-        # slightly growing activity : more orders in recent years
-        plan["create_date"] = date_start + (now - date_start) * (rng.random() ** 0.8)
+        # slightly growing activity, busier months (world.SEASON)
+        plan["create_date"] = seasonal_date(rng, date_start, now)
         if state == "cancel":
             return plan
 
@@ -155,10 +163,17 @@ class ErpDemoSaleStock(models.Model):
             [("name", "in", demo_names(ROLE_SELLER, ROLE_SALES_MANAGER))]
         )
 
-    def _sale_order_vals(self, rng, plan, salesperson, customer, products):
+    def _sale_order_vals(self, rng, plan, salesperson, customer, products, deal):
+        """`deal` : the team, the price list (its currency) and the channel of the
+        order ; the prices are the list prices in the currency of the price list."""
+        rate = self.demo_rate(deal["currency"], plan["create_date"])
         vals = {
             "partner_id": customer.id,
             "user_id": salesperson.id,
+            "team_id": deal["team"].id,
+            "pricelist_id": deal["pricelist"].id,
+            "medium_id": deal["medium"].id,
+            "source_id": deal["source"].id,
             "date_order": plan["create_date"],
             "order_line": [
                 (
@@ -168,7 +183,7 @@ class ErpDemoSaleStock(models.Model):
                         "product_id": product.id,
                         "product_uom_qty": rng.randint(1, 12),
                         "price_unit": round(
-                            product.list_price * rng.uniform(0.95, 1.05), 2
+                            product.list_price * rate * rng.uniform(0.95, 1.05), 2
                         ),
                     },
                 )
@@ -221,13 +236,40 @@ class ErpDemoSaleStock(models.Model):
         now = fields.Datetime.now()
         date_start = now - timedelta(days=365 * years)
 
-        salespeople = list(self._demo_salespeople())
-        if not salespeople:
-            _logger.warning("no demo salesperson found : orders are not assigned")
+        # the world : each zone its customers, team, salespeople, price list
+        teams = self._demo_teams()
+        pricelists = self._demo_pricelists()
+        by_zone = {}
+        for partner, zone in self.demo_customers().items():
+            by_zone.setdefault(zone, []).append(partner)
+        zones = [z for z in ZONE_WEIGHTS if by_zone.get(z)]
+        zone_weights = [ZONE_WEIGHTS[z] for z in zones]
+        team_of = {z: teams[ZONES[z]["team"]] for z in zones}
+        sellers = {
+            z: list(team_of[z].member_ids) or list(self._demo_salespeople())
+            for z in zones
+        }
         # uneven activity between salespeople
-        weights = [rng.uniform(0.6, 1.6) for _ in salespeople]
-        customers = list(self._demo_customers())
+        seller_weights = {z: [rng.uniform(0.6, 1.6) for _ in sellers[z]] for z in zones}
+        mediums = {
+            n: self.env["utm.medium"].search([("name", "=", n)], limit=1)
+            for n, _w in MEDIUMS
+        }
+        sources = {
+            n: self.env["utm.source"].search([("name", "=", n)], limit=1)
+            for n, _w in SOURCES
+        }
         products = [self._create_product(*product) for product in PRODUCTS]
+        self = self.with_context(demo_rates={})  # the rate of a month, read once
+
+        def deal(zone):
+            return {
+                "team": team_of[zone],
+                "pricelist": pricelists[zone],
+                "currency": ZONES[zone]["pricelist"][1],
+                "medium": mediums[weighted(rng, MEDIUMS)],
+                "source": sources[weighted(rng, SOURCES)],
+            }
 
         # silent context : no mail tracking, much faster creations
         sale_order = self.env["sale.order"].with_context(
@@ -240,20 +282,18 @@ class ErpDemoSaleStock(models.Model):
         while created < n_orders:
             size = min(DEMO_BATCH_SIZE, n_orders - created)
             plans = [self._plan_sale(rng, now, date_start) for _ in range(size)]
+            picks = [rng.choices(zones, zone_weights)[0] for _ in plans]
             orders = sale_order.create(
                 [
                     self._sale_order_vals(
                         rng,
                         plan,
-                        (
-                            rng.choices(salespeople, weights)[0]
-                            if salespeople
-                            else self.env["res.users"]
-                        ),
-                        rng.choice(customers),
+                        rng.choices(sellers[zone], seller_weights[zone])[0],
+                        rng.choice(by_zone[zone]),
                         products,
+                        deal(zone),
                     )
-                    for plan in plans
+                    for plan, zone in zip(plans, picks)
                 ]
             )
             # stored computed fields (delivery_status...) are recomputed on

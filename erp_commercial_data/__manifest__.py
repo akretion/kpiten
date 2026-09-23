@@ -28,6 +28,7 @@ install, and again with `generate_all_demo_data`. The volume : erp_commercial_da
         "data/demo_company.xml",
         "data/demo_users.xml",
         "data/demo_orders.xml",
+        "data/demo_world.xml",
         "data/demo_sales.xml",
         "data/demo_purchases.xml",
     ],
