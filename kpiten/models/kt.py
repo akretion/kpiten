@@ -49,11 +49,14 @@ class Kt(models.AbstractModel):
         fields = {
             "product.product": {
                 "default_code",
-                "name",
                 "categ_id",
                 "product_tmpl_id.type",
             },
-            "res.partner": {"commercial_partner_id", "commercial_partner_id.ref"},
+            "res.partner": {
+                "country_id",
+                "commercial_partner_id",
+                "commercial_partner_id.ref",
+            },
         }
         for model, paths in self._other_relational_fields().items():
             fields[model] = set(fields.get(model, ())) | set(paths)
