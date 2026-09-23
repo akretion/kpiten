@@ -8,6 +8,7 @@ from kpiten_core.filters import (  # noqa: F401
     DEFAULT_DATE_OPTION,
     bounds_of_option,
     date_options,
+    date_fields,
     date_range,
     default_date_option,
     describe_filters,

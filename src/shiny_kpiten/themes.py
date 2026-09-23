@@ -57,6 +57,34 @@ class Theme:
   --thead: {p["thead"]};
   padding: 24px;
 }}
+/* the side bar : the panel, its filters, the theme ; the colors of the page */
+.kpiten-layout {{
+  background: transparent !important; --_sidebar-bg: transparent;
+  min-height: calc(100vh - 48px);  /* the side bar goes down the whole page */
+}}
+.kpiten-layout > .main {{ background: transparent; padding: 8px 16px 16px }}
+.kpiten-sidebar {{
+  --_sidebar-fg: {page["text"]};
+  --bslib-sidebar-fg: {page["text"]};
+  background: color-mix(in srgb, {page["surface"]} 70%, transparent) !important;
+  color: {page["text"]} !important;
+  border-right: 1px solid {page["border"]} !important;
+}}
+.kpiten-sidebar label, .kpiten-sidebar .form-check-label, .kpiten-brand {{
+  color: {page["text"]} !important;
+}}
+.kpiten-sidebar .filter-bar {{ display: block }}
+.kpiten-sidebar .shiny-input-container {{ width: 100% !important; margin-bottom: 12px }}
+.kpiten-sidebar .collapse-toggle {{ color: {page["text"]} }}
+.kpiten-brand {{
+  display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px;
+  margin-bottom: 8px;
+}}
+.kpiten-brand img.kpiten-logo {{ width: 40px; height: 40px }}
+.top-bar h2 {{ font-size: 22px; font-weight: 700; margin: 0 8px 0 0; color: {page["text"]} }}
+.top-bar {{ align-items: center !important }}
+.top-bar .btn-kpiten {{ width: 38px; padding: 0; display: grid; place-items: center }}
+.top-bar .btn-kpiten svg {{ width: 15px; height: 15px; fill: currentColor }}
 /* one compact row : logo, panel, database, theme, actions, freshness */
 .top-bar, .filter-bar {{
   display: flex;
@@ -175,13 +203,22 @@ class Theme:
 }}
 .card-grid .tile {{
   width: auto;
-  min-width: 160px;
+  min-width: 200px;
   max-width: 280px;
   min-height: 86px !important;  /* grows for a card with a change line */
   height: auto;
   justify-content: center;
   gap: 2px;
+  padding: 10px 14px 6px;
 }}
+/* a card : its badge on the line of its title, its value, a thin trend */
+.kpi-head {{ display: flex; align-items: center; gap: 8px; min-width: 0 }}
+.badge-icon {{
+  width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+  flex: none;
+}}
+.card-grid .tile .kpi-head .kpi-label {{ text-transform: uppercase; letter-spacing: .04em }}
+.kpi-trend {{ height: 34px; margin: 2px -4px 0; overflow: hidden }}
 .card-grid .tile .kpi-label {{
   font-size: 12px;
   opacity: 0.7;
@@ -189,7 +226,7 @@ class Theme:
   overflow: hidden;
   text-overflow: ellipsis;
 }}
-.card-grid .tile .value {{ font-size: 30px; font-weight: 700; line-height: 1.1 }}
+.card-grid .tile .value {{ font-size: 26px; font-weight: 700; line-height: 1.15 }}
 .kpi-delta {{ font-size: 12px; font-weight: 600; margin-top: 2px }}
 .card-grid .tile .value.kpi-text {{ font-size: 16px; line-height: 1.25; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }}
 .kpi-sub {{ font-size: 12px; opacity: .7 }}
@@ -208,10 +245,30 @@ class Theme:
 }}
 .tile h3 {{
   margin: 0 0 8px 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: {p["accent"]};
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }}
+.tile h3 .tile-icon svg, .tile h3 .tile-actions svg {{
+  width: 14px; height: 14px; fill: currentColor;
+}}
+.tile h3 .tile-actions {{ margin-left: auto; display: flex; gap: 6px; align-items: center }}
+.tile h3 .tile-info {{ opacity: .45; cursor: help; color: {p["text"]} }}
+.tile-full {{
+  background: transparent; border: 0; padding: 2px; color: {p["text"]}; opacity: .45;
+  cursor: pointer; line-height: 1;
+}}
+.tile-full:hover, .tile h3 .tile-info:hover {{ opacity: .9 }}
+/* a tile in full screen : over the page, all its rows */
+.tile.tile--full {{
+  position: fixed; inset: 24px; z-index: 1050; max-height: none !important;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .45);
+}}
+.tile:not(.tile--full) {{ transition: transform .15s ease, box-shadow .15s ease }}
+.tile-grid:not(.tile-grid--edit) .tile:not(.tile--full):hover {{ transform: translateY(-2px) }}
 .tile .value {{ font-size: 42px; font-weight: 700 }}
 /* edit mode */
 .tile-grid--edit .tile {{

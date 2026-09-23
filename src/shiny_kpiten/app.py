@@ -5,7 +5,8 @@ Shiny dashboard app on top of kpiten-core.
 The tiles are rendered as raw html (all content is written server-side) :
 - card  -> big value
 - graph -> plotly figure (to_html ; plotly.js is loaded once, in the page head)
-- pivot / union / data -> great_tables themed table (see themes.py)
+- pivot / union / data -> great_tables themed table (see themes.py), or an
+  interactive grid (sort, filter) when the tile asks for it (`table_view = grid`)
 
 Themes and their palette live in `themes.py` (default = the one of `kt.config`) ; the
 theme can be picked in the UI bar, and is then kept in Odoo for the user.
@@ -21,6 +22,8 @@ import tempfile
 
 from html import escape as html_escape
 
+import faicons
+import plotly.graph_objects as go
 import polars as pl
 from shiny import App, reactive, render, req, ui
 from shiny.types import SilentException
@@ -30,7 +33,7 @@ from kpiten_core import config as core_config
 from kpiten_core import ods as core_ods
 from kpiten_core import plugins as core_plugins
 from kpiten_core.render.gtable import DRILL_CSS
-from kpiten_core.render.plotly import apply_theme_colors
+from kpiten_core.render.plotly import _with_alpha, apply_theme_colors
 from kpiten_core import themes as core_themes
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
@@ -184,51 +187,170 @@ def app_ui(req):  # noqa: ANN001
         ui.head_content(
             FAVICON,
             ui.tags.script(src=PLOTLY_JS),
+            ui.tags.script(FULLSCREEN_JS),
             # the scripts and styles of the plugins' tiles (kpiten_core.hookspecs)
             ui.HTML(core_plugins.head_html()),
         ),
         ui.output_ui("theme_style"),
         ui.output_ui("tab_title"),
-        ui.div(
-            # the logo of KpiTen, and its slogan on hover
-            ui.tags.img(
-                src="static/kpiten.png",
-                class_="kpiten-logo",
-                alt=brand.NAME,
+        # shiny shows the page is working : a spinner on a tile, a line on top
+        ui.busy_indicators.use(spinners=True, pulse=True),
+        ui.layout_sidebar(
+            # the side bar : what the page shows (panel, filters) and how (theme)
+            ui.sidebar(
+                # the logo of KpiTen, and its slogan on hover
+                ui.div(
+                    ui.tags.img(
+                        src="static/kpiten.png",
+                        alt=brand.NAME,
+                        class_="kpiten-logo",
+                        title=brand.tooltip(),
+                    ),
+                    ui.span(brand.NAME),
+                    class_="kpiten-brand",
+                ),
+                ui.input_select("panel", "Panel", choices=[], width="100%"),
+                ui.output_ui("filters"),
+                ui.output_ui("theme_select"),
+                ui.output_ui("db_select"),
+                ui.tags.span(
+                    ui.input_switch("edit_mode", "Edit", False), title=EDIT_TOOLTIP
+                ),
+                ui.output_ui("edit_lock"),
+                id="sidebar",
+                open="desktop",
+                width=260,
+                class_="kpiten-sidebar",
+            ),
+            # the head of the page : the panel, its actions, the freshness of the data
+            ui.div(
+                ui.h2(ui.output_text("panel_title", inline=True)),
+                ui.input_action_button(
+                    "refresh_data",
+                    ui.HTML(svg("rotate")),
+                    class_="btn-kpiten",
+                    title=REFRESH_TOOLTIP,
+                ),
+                ui.output_ui("ods_button"),
+                # the exports of the panel the plugins offer (quarto-kpiten : a PDF)
+                ui.output_ui("plugin_exports"),
+                ui.output_ui("data_freshness"),
+                # the logo of the framework, on the right
+                ui.tags.a(
+                    ui.tags.img(src=logo, class_="framework-logo"),
+                    href="https://shiny.posit.co",
+                    title="Made with Shiny",
+                    target="_blank",
+                    class_="framework-side",
+                ),
+                class_="top-bar",
+            ),
+            ui.div(ui.output_ui("tiles")),
+            # the logo with its name at the end of the page, on the right
+            ui.div(
+                ui.HTML(brand.lockup_svg(64)),
+                class_="app-footer",
                 title=brand.tooltip(),
             ),
-            ui.input_select("panel", "Panel", choices=[], width="200px"),
-            ui.output_ui("db_select"),
-            ui.output_ui("theme_select"),
-            ui.input_action_button(
-                "refresh_data", "\u27f3", class_="btn-kpiten", title=REFRESH_TOOLTIP
-            ),
-            ui.output_ui("ods_button"),
-            # the exports of the panel the plugins offer (quarto-kpiten : a PDF)
-            ui.output_ui("plugin_exports"),
-            ui.tags.span(
-                ui.input_switch("edit_mode", "Edit", False), title=EDIT_TOOLTIP
-            ),
-            ui.output_ui("edit_lock"),
-            ui.output_ui("data_freshness"),
-            # the logo of the framework, on the right (the one of KpiTen is on the left)
-            ui.tags.a(
-                ui.tags.img(src=logo, class_="framework-logo"),
-                href="https://shiny.posit.co",
-                title="Made with Shiny",
-                target="_blank",
-                class_="framework-side",
-            ),
-            class_="top-bar",
-        ),
-        ui.output_ui("filters"),
-        ui.div(ui.output_ui("tiles")),
-        # the logo with its name at the end of the page, on the right
-        ui.div(
-            ui.HTML(brand.lockup_svg(64)), class_="app-footer", title=brand.tooltip()
+            border=False,
+            fillable=False,
+            class_="kpiten-layout",
         ),
         title=TAB_TITLE,
     )
+
+
+# the badge of a card, by the words of its name : the kind of figure at a glance
+CARD_ICONS = [
+    (r"late|delay", "clock", "#f59e0b"),
+    (r"days|lead", "hourglass-half", "#f59e0b"),
+    (r"quotation|rfq", "file-invoice", "#8b5cf6"),
+    (r"revenue|amount|value|spend|average|margin", "sack-dollar", "#10b981"),
+    (r"best|top", "trophy", "#ec4899"),
+    (r"order|purchased|sold", "cart-shopping", "#3b82f6"),
+]
+CARD_ICON = ("chart-line", "#4f7cff")
+TILE_ICONS = {
+    "graph": "chart-column",
+    "pivot": "table-cells",
+    "data": "table-list",
+    "union": "layer-group",
+}
+
+
+def svg(name: str, **kwargs) -> str:
+    return str(faicons.icon_svg(name, **kwargs))
+
+
+def card_icon(name: str) -> tuple[str, str]:
+    for pattern, glyph, color in CARD_ICONS:
+        if re.search(pattern, name or "", re.I):
+            return glyph, color
+    return CARD_ICON
+
+
+def card_badge(name: str) -> str:
+    glyph, color = card_icon(name)
+    return (
+        f'<span class="badge-icon" style="background: color-mix(in srgb, {color} 16%, '
+        f'transparent)">{svg(glyph, fill=color, width=".9rem", height=".9rem")}</span>'
+    )
+
+
+def tile_header(line: dict, kind: str, info: str) -> str:
+    """The title of a tile : its icon, its name, its kind ; the filters it was
+    computed with (an info icon) and the full screen button on the right."""
+    info_icon = (
+        f'<span class="tile-info" title="{info}">{svg("circle-info")}</span>'
+        if info
+        else ""
+    )
+    return (
+        f'<h3><span class="tile-icon">{svg(TILE_ICONS.get(kind, "table-list"))}</span>'
+        f'<span class="tile-name">{line["name"] or kind}</span>'
+        f'<span class="kind-badge">{kind}</span>'
+        f'<span class="tile-actions">{info_icon}'
+        f'<button type="button" class="tile-full" title="Full screen (Esc to leave)">'
+        f"{svg('expand')}</button></span></h3>"
+    )
+
+
+def grid_rows(df: pl.DataFrame) -> pl.DataFrame:
+    """The rows of an interactive grid : a `[label](url)` link is its label (a grid
+    shows text ; the links stay in the table view)."""
+    return df.with_columns(
+        pl.col(name).str.replace(r"^\[(.*)\]\(https?://[^)]*\)$", "$1")
+        for name, dtype in df.schema.items()
+        if dtype == pl.String
+    )
+
+
+# the javascript of `ui.output_data_frame` : a grid output written in the html of a tile
+# (a string) comes without it
+GRID_DEPENDENCIES = ui.output_data_frame("grid").get_dependencies()
+
+# a tile in full screen : the button of its title ; Esc gives the page back
+FULLSCREEN_JS = """
+(function () {
+  if (window.__kpitenFull) { return; }
+  window.__kpitenFull = true;
+  function resize() { window.dispatchEvent(new Event("resize")); }
+  document.addEventListener("click", function (e) {
+    var button = e.target.closest(".tile-full");
+    if (!button) { return; }
+    e.stopPropagation();
+    button.closest(".tile").classList.toggle("tile--full");
+    resize();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") { return; }
+    document.querySelectorAll(".tile--full").forEach(function (t) {
+      t.classList.remove("tile--full");
+    });
+    resize();
+  });
+})();
+"""
 
 
 def _inject_toolbar(content: str, line: dict) -> str:
@@ -303,16 +425,21 @@ def tile_html(
     result: core_tiles.TileResult,
     info: str = "",
     records: dict | None = None,
+    sparkline: str = "",
+    grid: bool = False,
 ) -> str:
     """Tile html ; `info` goes in a tooltip = active filters description ; `records` is
-    the link that opens the listed records in Odoo (when the KPI lists some)."""
+    the link that opens the listed records in Odoo (when the KPI lists some) ;
+    `sparkline` the trend under a card's value ; `grid` : a table drawn as an
+    interactive grid (`grid_<id>`, the server renders it)."""
     p = theme.palette
     tooltip = f' title="{info}"' if info else ""
     if result.kind == "card":
         # odoo-dashboard style kpi : compact single value, no big title
         return (
             f'<div class="tile kpi-card" data-tile-id="{line["id"]}"{tooltip}>'
-            f'<div class="kpi-label">{line["name"] or ""}</div>'
+            f'<div class="kpi-head">{card_badge(line["name"])}'
+            f'<span class="kpi-label">{line["name"] or ""}</span></div>'
             # a name (best seller...) is text : smaller, it can be long
             f'<div class="value{" kpi-text" if isinstance(result.value, str) else ""}">'
             f"{html_escape(result.text)}</div>"
@@ -322,12 +449,10 @@ def tile_html(
                 else ""
             )
             + (comparison.html_block(result.comparison, p) if result.comparison else "")
+            + (f'<div class="kpi-trend">{sparkline}</div>' if sparkline else "")
             + "</div>"
         )
-    parts = [
-        f"<h3>{line['name'] or result.kind}"
-        f'<span class="kind-badge">{result.kind}</span></h3>'
-    ]
+    parts = [tile_header(line, result.kind, info)]
     # a plugin may draw the tile (kpiten_core.hookspecs), e.g. perspective-kpiten
     plugged = core_plugins.render_tile(line, result, p)
     if plugged:
@@ -341,6 +466,9 @@ def tile_html(
             margin=dict(l=10, r=10, t=30, b=20),
         )
         parts.append(result.figure.to_html(include_plotlyjs=False, full_html=False))
+    elif grid and result.df is not None:
+        # sorted and filtered by the user : the server renders `grid_<id>`
+        parts.append(str(ui.output_data_frame(f"grid_{line['id']}")))
     else:
         assert result.df is not None
         # the rows of `kt.config` shown : the tile scrolls, the page does not grow
@@ -358,12 +486,12 @@ def tile_html(
         )
     parts.append(records_link_html(records))
     html = "".join(str(part) for part in parts)
-    drillable = bool(line.get("drill")) and bool(result.keys)
+    drillable = bool(line.get("drill")) and bool(result.keys) and not grid
     height = line.get("tile_height") or 260
     # a graph keeps the height of its tile ; a table is as tall as its rows, up to it
     size = (
         f"min-height: {max(height - 40, 120)}px"
-        if result.kind == "graph" or plugged
+        if result.kind == "graph" or plugged or grid
         else f"max-height: {max(height, 340)}px"
     )
     return (
@@ -477,7 +605,7 @@ def server(input, output, session):
             "Database",
             choices=databases,
             selected=backend_rv().db,
-            width="160px",
+            width="100%",
         )
 
     @reactive.calc
@@ -523,7 +651,7 @@ def server(input, output, session):
             "Theme",
             choices=choices,
             selected=selected,
-            width="150px",
+            width="100%",
         )
 
     @reactive.effect
@@ -536,6 +664,11 @@ def server(input, output, session):
                 return
             backend_rv().set_user_theme(current_user_id(), key)
             saved_theme.set(key)
+
+    @render.text
+    def panel_title():
+        """The name of the open panel, at the head of the page."""
+        return panels().get(str(req(input.panel()))) or ""
 
     @render.ui
     def tab_title():
@@ -623,7 +756,7 @@ def server(input, output, session):
                     "Period",
                     choices=options,
                     selected=filterstate.default_date_option(options, span),
-                    width="170px",
+                    width="100%",
                 )
             )
         for dim in config.get("dimensions", []):
@@ -635,7 +768,7 @@ def server(input, output, session):
                     choices=sorted(choices),
                     selected=[],
                     multiple=True,
-                    width="220px",
+                    width="100%",
                 )
             )
         if controls:
@@ -964,6 +1097,76 @@ def server(input, output, session):
     for export in exports:
         export_download(export)
 
+    # ---- the trend under a card : its model's documents per month, over the period
+    def sparkline(line: dict, color: str) -> str:
+        config = panel_settings().get("filter_config") or {}
+        frame = store().get(line["model"])
+        if frame is None:
+            return ""
+        columns = frame.collect_schema()
+        date = next((f for f in filterstate.date_fields(config) if f in columns), None)
+        if date is None:
+            return ""
+        try:
+            # the core leaves out a filter on a column this model does not have
+            rows = (
+                core_tiles.filter_df(frame.lazy(), predicates())
+                .group_by(pl.col(date).dt.truncate("1mo").alias("month"))
+                .agg(pl.len().alias("n"))
+                .sort("month")
+                .collect()
+            )
+        except Exception:  # a predicate on a column this model does not have
+            return ""
+        if rows.height < 2:
+            return ""
+        fig = go.Figure(
+            go.Scatter(
+                x=rows["month"],
+                y=rows["n"],
+                mode="lines",
+                line=dict(width=2, color=color),
+                fill="tozeroy",
+                fillcolor=_with_alpha(color, 0.15),
+                hoverinfo="skip",
+            )
+        )
+        fig.update_xaxes(visible=False)
+        fig.update_yaxes(visible=False)
+        fig.update_layout(
+            showlegend=False,
+            height=34,
+            margin=dict(l=0, r=0, t=0, b=0),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+        )
+        return fig.to_html(
+            include_plotlyjs=False,
+            full_html=False,
+            config={"displayModeBar": False, "staticPlot": True},
+        )
+
+    # ---- the interactive grids : a `grid_<id>` output per tile that asks for it
+    grid_frames: dict[int, pl.DataFrame] = {}
+    grid_heights: dict[int, str] = {}  # the height of the tile, less its title
+    grid_version = reactive.Value(0)
+    grids: set[int] = set()
+
+    def grid_output(tile_id: int) -> None:
+        if tile_id in grids:
+            return
+        grids.add(tile_id)
+
+        def grid():
+            grid_version()
+            frame = grid_frames.get(tile_id)
+            if frame is None:
+                return None
+            return render.DataGrid(frame, filters=True, height=grid_heights[tile_id])
+
+        grid.__name__ = f"grid_{tile_id}"
+        render.data_frame(grid)
+
     @render.ui
     def tiles():
         panels()  # ensure the select is populated
@@ -984,10 +1187,33 @@ def server(input, output, session):
                     drill_keys[line["id"]] = result.keys
                 # None unless the feature is on and the rows are records of the model
                 records = core_tiles.records_link(backend_rv(), line["model"], result)
+                grid = (
+                    line.get("table_view") == "grid"
+                    and result.df is not None
+                    and not edit_mode_on
+                )
+                if grid:
+                    grid_output(line["id"])
+                    grid_frames[line["id"]] = grid_rows(result.df)
+                    height = max((line.get("tile_height") or 260) - 60, 200)
+                    grid_heights[line["id"]] = f"{height}px"
+                trend = (
+                    sparkline(line, card_icon(line["name"])[1])
+                    if result.kind == "card" and not edit_mode_on
+                    else ""
+                )
                 rendered = (
                     tile_edit_item(line, theme, result, records)
                     if edit_mode_on
-                    else tile_html(line, theme, result, tile_info(line), records)
+                    else tile_html(
+                        line,
+                        theme,
+                        result,
+                        tile_info(line),
+                        records,
+                        sparkline=trend,
+                        grid=grid,
+                    )
                 )
             except Exception as err:
                 logger.exception("tile %s failed", line["name"])
@@ -999,6 +1225,8 @@ def server(input, output, session):
             # cards have a fixed height : their own grid section, right
             # below the filters and above the other kpis
             (cards if line["kind"] == "card" else blocks).append(rendered)
+        with reactive.isolate():
+            grid_version.set(grid_version() + 1)  # the grids read their new rows
         html_cards = "".join(cards)
         html_blocks = "".join(blocks)
         TILES_DUMP.write_text(html_cards + html_blocks)
@@ -1012,6 +1240,9 @@ def server(input, output, session):
         return ui.tags.div(
             [p for p in parts if p is not None]
             + ([ui.tags.script(EDIT_MODE_JS)] if edit_mode_on else [])
+            # the script of the data grids : their outputs are in the html of the
+            # tiles (a string), which does not bring it
+            + list(GRID_DEPENDENCIES)
         )
 
 
