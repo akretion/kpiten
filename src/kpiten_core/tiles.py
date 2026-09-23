@@ -528,7 +528,9 @@ def apply_theme_colors(fig, palette: dict) -> None:
         _apply_colorway(fig, colorway)
     if themed or not settings.graph_fill_color():
         for trace in fig.data:
-            if getattr(trace, "fill", None) in ("tozeroy", "tonexty"):
+            # px.area fills through its stackgroup (`fill` stays None)
+            filled = getattr(trace, "fill", None) in ("tozeroy", "tonexty")
+            if filled or getattr(trace, "stackgroup", None):
                 trace.line.color = colorway[0]
                 trace.fillcolor = _with_alpha(colorway[0], 0.5)
 
