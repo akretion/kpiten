@@ -5,7 +5,8 @@ The rows are the raw rows of the user's store (his columns and his rows only), n
 by the filters of the panel.
 
 The content is generated column by column with polars expressions (no cell by cell
-python loop, no odfpy) : a sheet of 50 000 rows is written in a few seconds.
+python loop, no odfpy), and written into the zip `CHUNK_ROWS` rows at a time : 500 000
+rows of 65 columns take about fifteen seconds, without their xml in memory at once.
 
 The file is ready to read and to print : the header row stays in view (frozen) and is
 repeated on each printed page, the pages are in landscape, and each column is as wide as
@@ -86,6 +87,11 @@ FROZEN_HEADER = """<config:config-item-map-entry config:name="{name}">
 <config:config-item config:name="PositionTop" config:type="int">0</config:config-item>
 <config:config-item config:name="PositionBottom" config:type="int">1</config:config-item>
 </config:config-item-map-entry>"""
+# the rows of a sheet are turned into xml and written into the zip this many at a time :
+# the memory an export takes stays about the same, whatever its number of rows
+CHUNK_ROWS = 50_000
+# past this many cells content.xml may pass 2 GiB : the file is written as zip64
+ZIP64_CELLS = 10_000_000
 # a column as wide as its content, between these widths (in characters)
 MIN_CHARS, MAX_CHARS = 4, 60
 CM_PER_CHAR = 0.21
@@ -239,57 +245,61 @@ def _column_style(chars: int) -> str:
     return f"co{chars}"
 
 
-def _sheet(
-    name: str,
-    df: pl.DataFrame,
-    fills: dict | None = None,
-    bold: bool = True,
-    registry: dict | None = None,
-) -> str:
+def _prepare(
+    df: pl.DataFrame, fills: dict | None, bold: bool, registry: dict
+) -> tuple[pl.DataFrame, list[pl.Expr]]:
+    """The dataframe of a sheet, with a hidden column per column that has cells put in
+    relief (the name of their style), and the expressions of the xml of its cells. The
+    styles of the cells in relief are registered here, before any row is written : they
+    are declared at the top of content.xml."""
+    styles = {}
+    for (column, row), color in (fills or {}).items():
+        if column in df.schema and 0 <= row < df.height:
+            dtype = df.schema[column]
+            kind = "date" if dtype == pl.Date else None
+            kind = "datetime" if dtype == pl.Datetime else kind
+            cells_of = styles.setdefault(column, [None] * df.height)
+            cells_of[row] = _fill_style(registry, color, bold, kind)
+    hidden = {c: f"__fill_{i}" for i, c in enumerate(styles)}
+    cells = [
+        _cell(c, t, pl.col(hidden[c]) if c in hidden else None).alias(c)
+        for c, t in df.schema.items()
+    ]
+    if styles:
+        df = df.with_columns(
+            pl.Series(hidden[c], v, dtype=pl.String) for c, v in styles.items()
+        )
+    return df, cells
+
+
+def _sheet(name: str, df: pl.DataFrame, cells: list[pl.Expr], widths: list[int]):
+    """The xml of a sheet, in pieces : its head, then its rows `CHUNK_ROWS` at a time
+    (the whole sheet is never one string in memory)."""
     columns = "".join(
-        f'<table:table-column table:style-name="{_column_style(w)}"/>'
-        for w in _widths(df)
+        f'<table:table-column table:style-name="{_column_style(w)}"/>' for w in widths
     )
     head = "".join(
         _text(c).replace(
             "<table:table-cell ", '<table:table-cell table:style-name="head" ', 1
         )
         for c in df.columns
+        if not c.startswith("__fill_")
     )
-    rows = ""
-    if df.height and df.width:
-        # the style of each cell put in relief, as a hidden column per filled column
-        styles = {}
-        for (column, row), color in (fills or {}).items():
-            if column in df.schema and 0 <= row < df.height:
-                dtype = df.schema[column]
-                kind = "date" if dtype == pl.Date else None
-                kind = "datetime" if dtype == pl.Datetime else kind
-                cells_of = styles.setdefault(column, [None] * df.height)
-                cells_of[row] = _fill_style(registry, color, bold, kind)
-        hidden = {c: f"__fill_{i}" for i, c in enumerate(styles)}
-        if styles:
-            df = df.with_columns(
-                pl.Series(hidden[c], v, dtype=pl.String) for c, v in styles.items()
-            )
-        cells = [
-            _cell(c, t, pl.col(hidden[c]) if c in hidden else None).alias(c)
-            for c, t in df.schema.items()
-            if c not in hidden.values()
-        ]
-        lines = df.select(
-            pl.concat_str(
-                [pl.lit("<table:table-row>"), *cells, pl.lit("</table:table-row>")]
-            ).alias("xml")
-        )
-        rows = "\n".join(lines["xml"].to_list())
     # the header row is repeated on each printed page
-    return (
+    yield (
         f'<table:table table:name="{name}" table:style-name="sheet">{columns}'
         "<table:table-header-rows>"
         f"<table:table-row>{head}</table:table-row>"
-        f"</table:table-header-rows>\n{rows}</table:table>"
+        "</table:table-header-rows>\n"
     )
+    if cells:
+        row = pl.concat_str(
+            [pl.lit("<table:table-row>"), *cells, pl.lit("</table:table-row>")]
+        ).alias("xml")
+        for offset in range(0, df.height, CHUNK_ROWS):
+            lines = df.slice(offset, CHUNK_ROWS).select(row)["xml"]
+            yield "\n".join(lines.to_list()) + "\n"
+    yield "</table:table>"
 
 
 def _sheet_name(title: str, taken: set[str]) -> str:
@@ -312,23 +322,14 @@ def write_ods(sheets: list[tuple], bold_fills: bool = True) -> bytes:
     sheets = [(s[0], s[1], s[2] if len(s) > 2 else None) for s in sheets]
     taken: set[str] = set()
     names = [_sheet_name(t, taken) for t, _df, _f in sheets]
+    widths = [_widths(df) for _t, df, _f in sheets]
     registry: dict = {}
-    body = "\n".join(
-        _sheet(name, df, fills, bold_fills, registry)
-        for name, (_t, df, fills) in zip(names, sheets)
-    )
-    widths = sorted({w for _t, df, _f in sheets for w in _widths(df)})
+    prepared = [_prepare(df, fills, bold_fills, registry) for _t, df, fills in sheets]
     columns = "".join(
         f' <style:style style:name="{_column_style(w)}" style:family="table-column">'
         f'<style:table-column-properties style:column-width="{w * CM_PER_CHAR + 0.3:.2f}cm"/>'
         "</style:style>\n"
-        for w in widths
-    )
-    content = (
-        f'<?xml version="1.0" encoding="UTF-8"?>\n<office:document-content {NS}>'
-        f"{AUTOMATIC_STYLES.format(columns=columns, fills=_fill_styles(registry))}"
-        f"<office:body><office:spreadsheet>{body}"
-        "</office:spreadsheet></office:body></office:document-content>"
+        for w in sorted({w for sheet in widths for w in sheet})
     )
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -336,7 +337,26 @@ def write_ods(sheets: list[tuple], bold_fills: bool = True) -> bytes:
         zf.writestr("mimetype", MIMETYPE, compress_type=zipfile.ZIP_STORED)
         zf.writestr("META-INF/manifest.xml", MANIFEST)
         zf.writestr("styles.xml", STYLES)
-        zf.writestr("content.xml", content)
+        # content.xml streamed into the zip : the rows go in, compressed, chunk by chunk.
+        # Its size is not known beforehand : a big one may pass 2 GiB (about 30 million
+        # cells), which only the zip64 format holds ; a small file stays a plain zip
+        cells = sum(df.height * df.width for _t, df, _f in sheets)
+        big = cells > ZIP64_CELLS
+        with zf.open("content.xml", "w", force_zip64=big) as content:
+            content.write(
+                (
+                    f'<?xml version="1.0" encoding="UTF-8"?>\n'
+                    f"<office:document-content {NS}>"
+                    f"{AUTOMATIC_STYLES.format(columns=columns, fills=_fill_styles(registry))}"
+                    "<office:body><office:spreadsheet>"
+                ).encode()
+            )
+            for name, (df, cells), sheet_widths in zip(names, prepared, widths):
+                for piece in _sheet(name, df, cells, sheet_widths):
+                    content.write(piece.encode())
+            content.write(
+                b"</office:spreadsheet></office:body></office:document-content>"
+            )
         tables = "".join(FROZEN_HEADER.format(name=name) for name in names)
         zf.writestr("settings.xml", SETTINGS.format(tables=tables))
     return buffer.getvalue()
@@ -360,7 +380,7 @@ def model_ods(
     `store` is the store of THE USER : the file holds the rows and columns he may read,
     narrowed by the `predicates` of the panel. The ids of the relations (the columns
     ending with `_`) are left out : their names say the same thing. `note` says when
-    the rows were cut at `kt.config` [explore] ods_max_rows (50 000 by default).
+    the rows were cut at `kt.config` [explore] ods_max_rows (500 000 by default).
     """
     if model not in store:
         raise PermissionError(f"{model} : no rows you may read")
