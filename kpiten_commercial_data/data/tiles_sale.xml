@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<odoo noupdate="1">
+<odoo>
     <!-- Sales KPI cards, the four scorecards of the Odoo "Sales" dashboard
         (spreadsheet_dashboard_sale) : same states and measures, the period of
         the panel plays the role of Odoo's Period filter, and `compare = true`

@@ -1,6 +1,6 @@
 {
     "name": "KpiTen Commercial Data",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.1.0",
     "category": "Sales",
     "summary": "Data for KpiTen dashboard with commercial purposes",
     "author": "Akretion",
