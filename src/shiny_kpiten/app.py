@@ -11,6 +11,7 @@ Themes and their palette live in `themes.py` (default = the one of `kt.config`) 
 theme can be picked in the UI bar, and is then kept in Odoo for the user.
 """
 
+import datetime
 import json
 import logging
 import os
@@ -201,6 +202,8 @@ def app_ui(req):  # noqa: ANN001
                 "refresh_data", "\u27f3", class_="btn-kpiten", title=REFRESH_TOOLTIP
             ),
             ui.output_ui("ods_button"),
+            # the exports of the panel the plugins offer (kpiten-quarto : a PDF)
+            ui.output_ui("plugin_exports"),
             ui.tags.span(
                 ui.input_switch("edit_mode", "Edit", False), title=EDIT_TOOLTIP
             ),
@@ -882,23 +885,15 @@ def server(input, output, session):
                 )
             )
 
-    @render.ui
-    def tiles():
-        panels()  # ensure the select is populated
-        req(input.panel())  # no rendering before a panel is selected
-        theme = current_theme()
-        tile_lines = lines()
+    def panel_results() -> list:
+        """(line, result, error) per tile of the panel : computed with its period, its
+        filters and the rights of the user (the tiles on screen, the exports)."""
         store_data = store()
         predicate_list = predicates()
         previous_predicates, previous_label = previous()
-        try:  # the switch is only there for a manager, and after its first render
-            edit_mode_on = can_edit() and bool(input.edit_mode())
-        except SilentException:
-            edit_mode_on = False
         logger.info("predicates : %s", [str(p) for p in predicate_list])
-        cards, blocks = [], []
-        drill_keys.clear()
-        for line in tile_lines:
+        results = []
+        for line in lines():
             try:
                 result = core_tiles.exec_tile(
                     line,
@@ -908,6 +903,79 @@ def server(input, output, session):
                     previous_predicates,
                     previous_label,
                 )
+                results.append((line, result, None))
+            except Exception as err:
+                logger.exception("tile %s failed", line["name"])
+                results.append((line, None, str(err)))
+        return results
+
+    # ---- the exports of the panel the plugins offer (kpiten_core.hookspecs)
+    exports = core_plugins.panel_exports()
+
+    @render.ui
+    def plugin_exports():
+        return ui.TagList(
+            *(
+                ui.download_button(
+                    f"export_{export['key']}",
+                    ui.HTML(export.get("icon") or export["label"]),
+                    class_="btn-kpiten",
+                    title=export.get("tooltip") or export["label"],
+                )
+                for export in exports
+            )
+        )
+
+    def export_download(export: dict):
+        """The download of an export : the plugin makes the file of the panel."""
+
+        def filename() -> str:
+            name = panels().get(str(input.panel())) or "panel"
+            slug = re.sub(r"[^\w-]+", "-", name).strip("-").lower()
+            return f"kpiten-{slug}-{datetime.date.today()}.{export['extension']}"
+
+        def download():
+            with reactive.isolate():
+                panel_id = int(req(input.panel()))
+                backend = backend_rv()
+                user_id = current_user_id()
+                context = {
+                    "filters": filters_text(),
+                    "user": backend.env["res.users"].browse(user_id).name,
+                    "db": backend.db,
+                    "palette": current_theme().palette,
+                    "date": datetime.date.today(),
+                }
+                panel = {"id": panel_id, "name": panels().get(str(panel_id))}
+                data = core_plugins.export_panel(
+                    export["key"], panel, panel_results(), context
+                )
+            yield data
+
+        download.__name__ = f"export_{export['key']}"  # the id of its button
+        return render.download(filename=filename, media_type=export["media_type"])(
+            download
+        )
+
+    for export in exports:
+        export_download(export)
+
+    @render.ui
+    def tiles():
+        panels()  # ensure the select is populated
+        req(input.panel())  # no rendering before a panel is selected
+        theme = current_theme()
+        tile_lines = lines()
+        try:  # the switch is only there for a manager, and after its first render
+            edit_mode_on = can_edit() and bool(input.edit_mode())
+        except SilentException:
+            edit_mode_on = False
+        cards, blocks = [], []
+        drill_keys.clear()
+        for line, result, error in panel_results():
+            try:
+                if error is not None:
+                    raise core_tiles.TileError(error)
                 if result.keys:
                     drill_keys[line["id"]] = result.keys
                 # None unless the feature is on and the rows are records of the model
