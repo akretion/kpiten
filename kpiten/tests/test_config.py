@@ -123,8 +123,13 @@ class TestKtConfig(TransactionCase):
 
     # ---- interface, explore, AI
     def test_the_interface_settings_are_sent(self):
-        self.config.write({"default_theme": "graphite", "table_rows": 35})
-        self.assertEqual(self._json()["ui"], {"theme": "graphite", "table_rows": 35})
+        self.config.write(
+            {"default_theme": "graphite", "table_rows": 35, "colors_from": "config"}
+        )
+        self.assertEqual(
+            self._json()["ui"],
+            {"theme": "graphite", "table_rows": 35, "colors": "config"},
+        )
         with self.assertRaises(exceptions.ValidationError):
             self.config.table_rows = 0
 
@@ -172,6 +177,7 @@ class TestKtConfig(TransactionCase):
         self.assertEqual(fresh.default_period, "last 90 days")
         self.assertEqual(fresh.fiscal_year_start_month, "1")
         self.assertEqual(fresh.default_theme, "capitaine")
+        self.assertEqual(fresh.colors_from, "theme")
         self.assertEqual(fresh.table_rows, 20)
         self.assertEqual(fresh.explore_access, "everyone")
         self.assertTrue(fresh.ai_enabled and fresh.ai_send_values)

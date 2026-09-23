@@ -8,18 +8,55 @@
                     <page string="Settings" name="settings">
                     <group string="Graph defaults">
                         <group>
+                            <field name="colors_from" widget="radio" />
                             <field name="graph_title_font_color" widget="color" />
-                            <field name="graph_color_1" widget="color" />
-                            <field name="graph_color_2" widget="color" />
-                            <field name="graph_color_3" widget="color" />
-                            <field name="graph_color_4" widget="color" />
+                            <field
+                                name="graph_color_1"
+                                widget="color"
+                                invisible="colors_from == 'theme'"
+                            />
+                            <field
+                                name="graph_color_2"
+                                widget="color"
+                                invisible="colors_from == 'theme'"
+                            />
+                            <field
+                                name="graph_color_3"
+                                widget="color"
+                                invisible="colors_from == 'theme'"
+                            />
+                            <field
+                                name="graph_color_4"
+                                widget="color"
+                                invisible="colors_from == 'theme'"
+                            />
                         </group>
                         <group>
-                            <field name="graph_color_5" widget="color" />
-                            <field name="graph_color_6" widget="color" />
-                            <field name="graph_color_7" widget="color" />
-                            <field name="graph_color_8" widget="color" />
-                            <field name="graph_fill_color" widget="color" />
+                            <field
+                                name="graph_color_5"
+                                widget="color"
+                                invisible="colors_from == 'theme'"
+                            />
+                            <field
+                                name="graph_color_6"
+                                widget="color"
+                                invisible="colors_from == 'theme'"
+                            />
+                            <field
+                                name="graph_color_7"
+                                widget="color"
+                                invisible="colors_from == 'theme'"
+                            />
+                            <field
+                                name="graph_color_8"
+                                widget="color"
+                                invisible="colors_from == 'theme'"
+                            />
+                            <field
+                                name="graph_fill_color"
+                                widget="color"
+                                invisible="colors_from == 'theme'"
+                            />
                         </group>
                     </group>
                     <group string="Card defaults">
@@ -28,17 +65,17 @@
                             <field
                                 name="card_good_color"
                                 widget="color"
-                                invisible="not show_card_comparison"
+                                invisible="not show_card_comparison or colors_from == 'theme'"
                             />
                             <field
                                 name="card_bad_color"
                                 widget="color"
-                                invisible="not show_card_comparison"
+                                invisible="not show_card_comparison or colors_from == 'theme'"
                             />
                         </group>
                         <group
                             colspan="2"
-                            invisible="not show_card_comparison"
+                            invisible="not show_card_comparison or colors_from == 'theme'"
                         >
                             <field name="card_color_preview" readonly="1" />
                         </group>

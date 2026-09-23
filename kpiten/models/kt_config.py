@@ -66,6 +66,15 @@ class KtConfig(models.Model):
     title = fields.Char(default="Configuration")
 
     # ---- graphs
+    colors_from = fields.Selection(
+        [("theme", "The theme"), ("config", "This configuration")],
+        string="Colors of the graphs and cards",
+        default="theme",
+        required=True,
+        help="The theme : each theme of the dashboards has its colors (the bars, the "
+        "filled graphs, the change of a card), drawn for its background. This "
+        "configuration : the colors below, whatever the theme.",
+    )
     graph_title_font_color = fields.Char(
         string="Graph title font color",
         help="Color of the chart title font (hex, e.g. #dbe4ef).",
@@ -513,7 +522,7 @@ class KtConfig(models.Model):
               "card": {"comparison": True, "good_color": "#00A04A"},
               "number": {"format": "space_comma", "small_below": 10, ...},
               "period": {"default": "last 90 days", "fiscal_start_month": 1},
-              "ui": {"theme": "capitaine", "table_rows": 20},
+              "ui": {"theme": "capitaine", "table_rows": 20, "colors": "theme"},
               "explore": {"access": "everyone", "max_rows": 500000,
                           "ods_max_rows": 50000},
               "ai": {"enabled": True, "send_values": True},
@@ -559,7 +568,11 @@ class KtConfig(models.Model):
             "default": "" if rec.default_period == "full range" else rec.default_period,
             "fiscal_start_month": int(rec.fiscal_year_start_month or 1),
         }
-        config["ui"] = {"theme": rec.default_theme, "table_rows": rec.table_rows}
+        config["ui"] = {
+            "theme": rec.default_theme,
+            "table_rows": rec.table_rows,
+            "colors": rec.colors_from,
+        }
         config["explore"] = {
             "access": rec.explore_access,
             "max_rows": rec.explore_max_rows,
