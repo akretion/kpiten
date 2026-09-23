@@ -64,6 +64,14 @@
                             <field name="table_rows" />
                         </group>
                     </group>
+                    <group string="Themes of the users">
+                        <field name="user_theme_ids" nolabel="1" colspan="2">
+                            <list editable="bottom">
+                                <field name="user_id" />
+                                <field name="theme" />
+                            </list>
+                        </field>
+                    </group>
                     <group>
                         <group string="Explore (export of the rows)">
                             <field name="explore_access" />

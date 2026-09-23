@@ -11,6 +11,9 @@ class TestKtConfig(TransactionCase):
     def _json(self):
         return self.env["kt.config"].get_config_json()
 
+    def _user(self, login):
+        return self.env["res.users"].create({"name": login, "login": login})
+
     def _graph(self):
         return self._json().get("graph", {})
 
@@ -120,10 +123,27 @@ class TestKtConfig(TransactionCase):
 
     # ---- interface, explore, AI
     def test_the_interface_settings_are_sent(self):
-        self.config.write({"default_theme": "midnight", "table_rows": 35})
-        self.assertEqual(self._json()["ui"], {"theme": "midnight", "table_rows": 35})
+        self.config.write({"default_theme": "graphite", "table_rows": 35})
+        self.assertEqual(self._json()["ui"], {"theme": "graphite", "table_rows": 35})
         with self.assertRaises(exceptions.ValidationError):
             self.config.table_rows = 0
+
+    def test_the_theme_of_a_user_is_kept(self):
+        config, user = self.env["kt.config"], self._user("kt_theme_one")
+        self.assertFalse(config.get_user_theme(user.id))
+        config.set_user_theme(user.id, "prune")
+        config.set_user_theme(user.id, "peche")  # the line is updated, not doubled
+        self.assertEqual(config.get_user_theme(user.id), "peche")
+        self.assertEqual(self.config.user_theme_ids.user_id, user)
+        config.set_user_theme(user.id, False)
+        self.assertFalse(config.get_user_theme(user.id))
+
+    def test_a_user_sets_only_their_own_theme(self):
+        user, other = self._user("kt_theme_one"), self._user("kt_theme_two")
+        config = self.env["kt.config"].with_user(user)
+        config.set_user_theme(user.id, "graphite")
+        with self.assertRaises(exceptions.AccessError):
+            config.set_user_theme(other.id, "graphite")
 
     def test_the_export_settings_are_sent(self):
         self.config.write(
@@ -151,7 +171,7 @@ class TestKtConfig(TransactionCase):
         fresh = self.env["kt.config"].new({})
         self.assertEqual(fresh.default_period, "last 90 days")
         self.assertEqual(fresh.fiscal_year_start_month, "1")
-        self.assertEqual(fresh.default_theme, "akretion")
+        self.assertEqual(fresh.default_theme, "capitaine")
         self.assertEqual(fresh.table_rows, 20)
         self.assertEqual(fresh.explore_access, "everyone")
         self.assertTrue(fresh.ai_enabled and fresh.ai_send_values)

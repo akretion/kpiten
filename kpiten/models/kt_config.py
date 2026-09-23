@@ -25,6 +25,15 @@ NUMBER_FORMATS = {
     "dot_comma": (".", ","),
     "comma_dot": (",", "."),
 }
+# the themes of the dashboard apps (`kpiten_core.themes`), the first is the default
+THEMES = [
+    ("capitaine", "Capitaine"),
+    ("graphite", "Graphite"),
+    ("mixed", "Mixed"),
+    ("light", "Sand"),
+    ("peche", "Pêche"),
+    ("prune", "Prune"),
+]
 PERIODS = [
     ("last 7 days", "Last 7 days"),
     ("last 30 days", "Last 30 days"),
@@ -188,15 +197,17 @@ class KtConfig(models.Model):
 
     # ---- interface
     default_theme = fields.Selection(
-        [
-            ("akretion", "Akretion"),
-            ("midnight", "Midnight"),
-            ("light", "Sand"),
-            ("akretion_sand", "Akretion Sand"),
-        ],
+        THEMES,
         string="Default theme",
-        default="akretion",
+        default="capitaine",
         help="The theme a user gets until they choose another one.",
+    )
+    user_theme_ids = fields.One2many(
+        "kt.user.theme",
+        "config_id",
+        string="Themes of the users",
+        help="The theme each user chose in a dashboard app : it follows them from "
+        "one browser, or one app, to another.",
     )
     table_rows = fields.Integer(
         string="Rows of a table",
@@ -461,6 +472,39 @@ class KtConfig(models.Model):
             )
         return super().create(vals_list)
 
+    # ---- the theme of a user (the apps read Odoo with one rpc account)
+    def _check_theme_user(self, user_id):
+        user = self.env.user
+        if user_id != user.id and not (
+            user.has_group("kpiten.group_kpiten_manager")
+            or user.has_group("base.group_system")
+        ):
+            raise exceptions.AccessError(
+                _("Only a KpiTen manager sets the theme of another user.")
+            )
+
+    @api.model
+    def get_user_theme(self, user_id):
+        """The theme the user chose, False when they chose none."""
+        self._check_theme_user(user_id)
+        line = self.env["kt.user.theme"].sudo().search([("user_id", "=", user_id)])
+        return line.theme or False
+
+    @api.model
+    def set_user_theme(self, user_id, theme):
+        """Keep the theme the user chose in an app ; False forgets it."""
+        self._check_theme_user(user_id)
+        lines = self.env["kt.user.theme"].sudo()
+        line = lines.search([("user_id", "=", user_id)])
+        if not theme:
+            line.unlink()
+        elif line:
+            line.theme = theme
+        else:
+            config = self.sudo().search([], limit=1) or self.sudo().create({})
+            lines.create({"config_id": config.id, "user_id": user_id, "theme": theme})
+        return True
+
     @api.model
     def get_config_json(self):
         """The settings as the dashboard apps read them (`kpiten_core.config`).
@@ -469,7 +513,7 @@ class KtConfig(models.Model):
               "card": {"comparison": True, "good_color": "#00A04A"},
               "number": {"format": "space_comma", "small_below": 10, ...},
               "period": {"default": "last 90 days", "fiscal_start_month": 1},
-              "ui": {"theme": "akretion", "table_rows": 20},
+              "ui": {"theme": "capitaine", "table_rows": 20},
               "explore": {"access": "everyone", "max_rows": 500000,
                           "ods_max_rows": 50000},
               "ai": {"enabled": True, "send_values": True},
@@ -527,3 +571,19 @@ class KtConfig(models.Model):
         }
         config["features"] = {name: rec[f"feature_{name}"] for name in FEATURES}
         return config
+
+
+class KtUserTheme(models.Model):
+    """The theme a user chose in a dashboard app (one line per user)."""
+
+    _name = "kt.user.theme"
+    _description = "KpiTen theme of a user"
+    _rec_name = "user_id"
+
+    config_id = fields.Many2one("kt.config", required=True, ondelete="cascade")
+    user_id = fields.Many2one("res.users", required=True, ondelete="cascade")
+    theme = fields.Selection(THEMES, required=True)
+
+    _sql_constraints = [
+        ("user_uniq", "unique(user_id)", "A user has only one theme."),
+    ]
