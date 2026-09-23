@@ -181,6 +181,28 @@ class ErpDemoGenerator(models.Model):
             template="(" + ", ".join(casts) + ")",
         )
 
+    def setup_demo_company(self):
+        """The company of the demo is French : France, euro, the French chart of
+        accounts. A new database gets the generic chart of the United States ; it is
+        replaced while the company has no accounting entry."""
+        self.ensure_one()
+        company = self.env.company
+        if company.chart_template == "fr":
+            return True
+        if self.env["account.move"].search_count([("company_id", "=", company.id)]):
+            _logger.warning("demo company : entries already, the chart stays")
+            return False
+        company.write({"country_id": self.env.ref("base.fr").id})
+        self.env["account.chart.template"].try_loading("fr", company, force_create=True)
+        # installing `account` scheduled the generic chart for the end of the install
+        # (the company was not French yet) : it would load over this one
+        if hasattr(self.env.registry, "_auto_install_template"):
+            del self.env.registry._auto_install_template
+        _logger.info(
+            "demo company : French chart of accounts, %s", company.currency_id.name
+        )
+        return True
+
     def _demo_steps(self):
         """The generators of the installed demo modules, in order, as
         `(label, method)`. A demo module adds its own with `super()` :
@@ -188,7 +210,10 @@ class ErpDemoGenerator(models.Model):
             def _demo_steps(self):
                 return [*super()._demo_steps(), ("sales", self.generate_sale_demo)]
         """
-        return [("erp demo data", self.generate_demo_data)]
+        return [
+            ("company", self.setup_demo_company),
+            ("erp demo data", self.generate_demo_data),
+        ]
 
     def generate_all_demo_data(self):
         """Run every generator of the installed demo modules (they add their

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <data noupdate="1">
+        <!-- first of all : the company is French (France, euro, French chart of accounts) -->
+        <record id="demo_generator_company" model="erp.demo.generator" />
+        <function model="erp.demo.generator" name="setup_demo_company">
+            <function
+                eval="[[('id', '=', ref('demo_generator_company'))]]"
+                model="erp.demo.generator"
+                name="search"
+            />
+        </function>
+    </data>
+</odoo>

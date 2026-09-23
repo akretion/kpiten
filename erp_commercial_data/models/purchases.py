@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from odoo import fields, models
 
-from odoo.addons.erp_demo_generator.models.erp_demo_generator import (
+from .erp_demo_generator import (
     DEMO_BATCH_SIZE,
     PRODUCTS,
     ROLE_BUYER,

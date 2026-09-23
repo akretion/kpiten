@@ -8,7 +8,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from odoo import fields, models
 from odoo.exceptions import UserError
 
-from odoo.addons.erp_demo_generator.models.erp_demo_generator import PRODUCTS
+from odoo.addons.erp_commercial_data.models.erp_demo_generator import PRODUCTS
 
 _logger = logging.getLogger(__name__)
 
@@ -591,10 +591,10 @@ class ErpDemoSaleStockBig(models.Model):
 
     def generate_big_sale_demo_install(self):
         """Called by the module installation : the number of orders is the
-        system parameter `kpiten_sale_stock_demo_big.initial_orders`."""
+        system parameter `erp_commercial_data_big.initial_orders`."""
         param = self.env["ir.config_parameter"].sudo()
         n_orders = int(
-            param.get_param("kpiten_sale_stock_demo_big.initial_orders", 300_000)
+            param.get_param("erp_commercial_data_big.initial_orders", 300_000)
         )
         return self.generate_big_sale_demo(n_orders=n_orders)
 

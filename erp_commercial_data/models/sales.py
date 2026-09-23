@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from odoo import fields, models
 
-from odoo.addons.erp_demo_generator.models.erp_demo_generator import (
+from .erp_demo_generator import (
     CUSTOMER_NAMES,
     DEMO_BATCH_SIZE,
     PRODUCTS,
@@ -210,7 +210,7 @@ class ErpDemoSaleStock(models.Model):
             ],
         )
 
-    def generate_sale_stock_demo(self, n_orders=9000, years=3, seed=42):
+    def generate_sale_stock_demo(self, n_orders=10000, years=3, seed=42):
         """Sales orders spread over `years` and over the salespeople.
 
         Reuses erp_demo_generator's products and customers (plus extra
