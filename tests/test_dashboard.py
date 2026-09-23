@@ -89,18 +89,18 @@ def test_without_session_asks_to_log_in(page: Page) -> None:
 
 def test_edit_mode_is_for_kpiten_managers_only(page: Page) -> None:
     open_dashboard(page)  # Marie : reads, does not edit
-    assert not page.locator("#edit_mode").is_visible()
+    assert not page.locator("input#edit_mode").is_visible()
 
     page.context.clear_cookies()
     open_dashboard(page, MANAGER, MANAGER_PASSWORD)
-    page.locator("#edit_mode").wait_for(state="visible", timeout=30_000)
+    page.locator("input#edit_mode").wait_for(state="visible", timeout=30_000)
 
 
 def test_edit_mode_moves_a_tile_among_the_tiles(page: Page) -> None:
     """▶ swaps a tile with its neighbour on screen (not with a card), ◀ puts it back ;
     the grid of the tiles comes after the one of the cards, both are in edit mode."""
     open_dashboard(page, MANAGER, MANAGER_PASSWORD)
-    page.locator("#edit_mode").check()
+    page.locator("input#edit_mode").check()
     items = page.locator(".tile-grid--edit:not(.card-grid) .tile-edit-item")
     items.first.wait_for(timeout=60_000)
 
