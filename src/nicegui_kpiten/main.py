@@ -6,8 +6,8 @@ with a minimal NiceGUI UI :
 - panel select, period + dimension filters (panel.filter_config)
 - 3-column CSS grid of dark tiles (card / graph / pivot / union / data)
 - tile refresh, parquet refresh
-- 2 simple css-var themes (initial via `?theme=` query param, selected
-  value stays in browser storage)
+- css-var themes (the palettes of `kpiten_core.themes`) : the one the user
+  chooses is kept in Odoo (`kt.user.theme`), `?theme=` in the url chooses one
 
 No SSO and no edit mode (that's the "simplified" part of the port).
 """
@@ -25,6 +25,7 @@ from kpiten_core import config as core_config
 from kpiten_core import ods as core_ods
 from kpiten_core import filters
 from kpiten_core import comparison, links
+from kpiten_core import themes as core_themes
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
 from kpiten_core.loaders import (
@@ -40,56 +41,16 @@ app.add_static_files("/static", STATIC_DIR)
 
 logger = logging.getLogger(__name__)
 
+# `theme` : the page is dark or light (its quasar controls follow)
 THEMES = {
-    "akretion": {
-        "name": "Akretion",
-        "theme": "dark",
-        "gradient": "linear-gradient(135deg, #101226 0%, #0b1f3b 45%, #0a3f6b 130%)",
-        "accent": "#00dc82",
-        "surface": "rgba(9, 12, 28, .85)",
-        "text": "#dbe4ef",
-        "border": "rgba(0, 220, 130, .25)",
-        "thead": "#081225",
-        "surface_hex": "#101226",
-        "border_hex": "rgba(0,220,130,.25)",
-        "row_line": "rgba(255,255,255,.06)",
-    },
-    "midnight": {
-        "name": "Midnight",
-        "theme": "dark",
-        "gradient": "linear-gradient(160deg, #0e1231 0%, #142452 45%, #0047e1 130%)",
-        "accent": "#34cdfe",
-        "surface": "rgba(14, 18, 49, .8)",
-        "text": "#e8ecf8",
-        "border": "rgba(52, 205, 254, .25)",
-        "thead": "#0b1030",
-        "surface_hex": "#0e1231",
-        "border_hex": "rgba(52,205,254,.25)",
-        "row_line": "rgba(52,205,254,.12)",
-    },
-    "light": {
-        "name": "Sand",
-        "theme": "light",
-        "gradient": "linear-gradient(180deg, #faf6ef 0%, #f3ecdd 45%, #e9dfc9 130%)",
-        "accent": "#a06b2a",
-        "surface": "rgba(255, 253, 249, .94)",
-        "text": "#4a4238",
-        "border": "rgba(160, 107, 42, .25)",
-        "thead": "#f1e9d9",
-        "surface_hex": "#fffdf9",
-        "border_hex": "rgba(160,107,42,.25)",
-        "row_line": "rgba(74, 66, 56, .07)",
-    },
+    key: {
+        **palette,
+        "theme": "dark" if palette["dark"] else "light",
+        "gradient": core_themes.gradient(palette),
+    }
+    for key, palette in core_themes.PALETTES.items()
 }
-# the page of akretion (dark gradient, its controls), the tiles of sand
-THEMES["akretion_sand"] = {
-    **THEMES["light"],
-    "name": "Akretion Sand",
-    "theme": "dark",
-    "gradient": THEMES["akretion"]["gradient"],
-    "page_text": THEMES["akretion"]["text"],
-}
-DEFAULT_THEME = "akretion"
+DEFAULT_THEME = core_themes.DEFAULT
 
 CSS = """
 .bb-ktd {
@@ -112,24 +73,22 @@ CSS = """
   color: var(--page-text, var(--text)) !important;
 }
 .bb-ktd .q-field--dark .q-field__control { background: rgba(255,255,255,.06); }
-/* sand theme : lighten the quasar dark-styled controls */
+/* light themes : lighten the quasar dark-styled controls */
 .bb-ktd-light .q-field--dark .q-field__control,
 .bb-ktd-light .q-field--dark .q-field__native,
 .bb-ktd-light .q-field--dark .q-field__label,
 .bb-ktd-light .q-field--dark .q-field__append {
-  color: #4a4238 !important;
+  color: var(--text) !important;
 }
 .bb-ktd-light .q-field--dark .q-field__control {
-  background: rgba(74, 66, 56, .07) !important;
+  background: color-mix(in srgb, var(--text) 7%, transparent) !important;
 }
 .bb-ktd-light .q-field--dark .q-field__native .q-select__dropdown-icon,
 .bb-ktd-light .q-field--dark .q-field__marginal {
-  color: #4a4238 !important;
+  color: var(--text) !important;
 }
-.bb-ktd-light .bb-menu-dark { background: #fffdf9; color: #4a4238 }
-.bb-ktd-light .bb-menu-dark .q-item { color: #4a4238 }
-.bb-ktd-light .q-switch__inner { color: #4a4238 }
-.bb-ktd-light .q-btn { color: #4a4238 }
+.bb-ktd-light .q-switch__inner { color: var(--text) }
+.bb-ktd-light .q-btn { color: var(--text) }
 .tile-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -173,7 +132,7 @@ CSS = """
   overflow: auto;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, .25);
+  box-shadow: var(--shadow, 0 4px 24px rgba(0, 0, 0, .25));
 }
 .tile h3 {
   margin: 0 0 8px 0;
@@ -195,6 +154,8 @@ def theme_style(palette: dict) -> str:
         f"--text: {palette['text']};"
         f"--border: {palette['border']};"
         f"--thead: {palette['thead']};"
+        f"--surface-hex: {palette['surface_hex']};"
+        f"--shadow: {palette['shadow']};"
         f"--gradient: {palette['gradient']}"
     )
 
@@ -299,7 +260,7 @@ def tile_view(
             if result.comparison:
                 # variation against the period before, like an Odoo scorecard
                 delta = result.comparison
-                color = comparison.color(delta)
+                color = comparison.color(delta, palette)
                 with ui.row().classes("items-baseline gap-1 text-xs"):
                     ui.label(comparison.label(delta)).classes("font-semibold").style(
                         f"color: {color}" if color else ""
@@ -312,6 +273,7 @@ def tile_view(
                 f'outline style="color:{palette["accent"]}"'
             )
         if result.kind == "graph":
+            core_tiles.apply_theme_colors(result.figure, palette)
             ui.plotly(result.figure).classes("w-full")
         else:
             assert result.df is not None
@@ -411,14 +373,13 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
     except Exception:
         databases = [backend.db]
     filt = {"date": core_config.default_period(), "dims": {}}
-    # the theme asked in the url, else the one this browser chose, else the default
-    # of `kt.config` (the settings are loaded above)
-    kept = app.storage.browser.get("theme")
-    theme_key = next(
-        (t for t in (theme, kept, core_config.default_theme()) if t in THEMES),
-        DEFAULT_THEME,
-    )
-    app.storage.browser["theme"] = theme_key
+    # the theme asked in the url, else the one the user chose (kept in Odoo), else the
+    # default of `kt.config` (the settings are loaded above) ; the one asked is kept
+    asked = core_themes.key(theme)
+    chosen = core_themes.key(backend.get_user_theme(user_id))
+    theme_key = asked or chosen or core_config.default_theme()
+    if asked and asked != (chosen or core_config.default_theme()):
+        backend.set_user_theme(user_id, asked)
 
     store_cache = user_store(backend, user_id)
     if not store_cache:
@@ -673,6 +634,13 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
 
     palette = THEMES[theme_key]
     light = palette["theme"] == "light"
+    if light:
+        # the menus of the selects are drawn outside the page : the colors, not its vars
+        ui.add_head_html(
+            f"<style>.bb-menu-dark {{ background: {palette['surface_hex']}; "
+            f"color: {palette['text']} }} "
+            f".bb-menu-dark .q-item {{ color: {palette['text']} }}</style>"
+        )
     with (
         ui.column()
         .style(theme_style(palette))
@@ -699,9 +667,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                 ui.select(
                     options=databases,
                     value=backend.db,
-                    on_change=lambda e: ui.navigate.to(
-                        f"/?theme={theme_key}&db={e.value}"
-                    ),
+                    on_change=lambda e: ui.navigate.to(f"/?db={e.value}"),
                     label="Database",
                 ).props("dark dense outlined").props(
                     'popup-content-class="bb-menu-dark"'
@@ -713,7 +679,9 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                 ui.select(
                     options={key: theme["name"] for key, theme in THEMES.items()},
                     value=theme_key,
-                    on_change=lambda e: ui.navigate.to(f"/?theme={e.value}"),
+                    on_change=lambda e: ui.navigate.to(
+                        f"/?theme={e.value}&db={backend.db}"
+                    ),
                     label="Theme",
                 ).props("dark dense outlined").props(
                     'popup-content-class="bb-menu-dark"'
