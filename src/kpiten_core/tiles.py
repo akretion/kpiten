@@ -16,7 +16,7 @@ import plotly.graph_objs as go
 import polars as pl
 
 from kpiten_core import config as settings
-from kpiten_core import env, links, numfmt, serial, sandbox
+from kpiten_core import env, links, numfmt, serial, sandbox, sqltile
 from kpiten_core.month import apply_monthly, is_date
 from kpiten_core.validate import CARD_AGGREGATIONS, DERIVE_RE
 
@@ -327,7 +327,8 @@ def card_value(content, table, store, full_predicates):
     df = filter_df(df, full_predicates)
     df = derive_columns(df, card_json.get("derive") or {})
     if card_json.get("where"):
-        df = df.sql(f"SELECT * FROM self WHERE {expand_today(card_json['where'])}")
+        where = sqltile.check_where(expand_today(card_json["where"]))
+        df = df.sql(f"SELECT * FROM self WHERE {where}")
 
     if card_json.get("best"):
         return _best_case(card_json, df)
@@ -441,9 +442,8 @@ def graph_case(content, table, store, full_predicates):
 
     source = filter_df(df, full_predicates)
     if graph_json.get("where"):
-        source = source.sql(
-            f"SELECT * FROM self WHERE {expand_today(graph_json['where'])}"
-        )
+        where = sqltile.check_where(expand_today(graph_json["where"]))
+        source = source.sql(f"SELECT * FROM self WHERE {where}")
     temporal = is_date(source, cx["name"])
     if temporal and graph_json.get("monthly"):
         source = apply_monthly(source, cx["name"])
@@ -714,16 +714,23 @@ def exec_drill(
 
 
 def dataframe_case(content, table, store, full_predicates, extra_variables=None):
-    """Run the `data` kind definition through the sandbox.
+    """Run the `data` kind definition : SQL (`sqltile`), or a polars snippet through the
+    sandbox.
 
-    The definition's first line `d_next = d ` holds the input/output vars.
-    `extra_variables` are more read-only names for the snippet (the drill-down's `key`).
+    The snippet's first line `d_next = d ` holds the input/output vars ; the SQL reads
+    the table `d`. `extra_variables` are more read-only names for the snippet (the
+    drill-down's `key`, and its `tables`) ; the SQL gets the tables by their name and
+    the values of `key` as `:name`.
     """
+    lazy = filter_df(_resolve_table(store, table), full_predicates)
+    variables = {"odoo_url": links.get_odoo_url(), **(extra_variables or {})}
+    if sqltile.is_sql(content):
+        tables = {**variables.pop("tables", {}), "d": lazy}
+        key = variables.pop("key", None) or {}
+        return sqltile.run(content, tables, {**variables, **key})
     first_line = content.partition("\n")[0]
     out_var = first_line.split(" ")[0]
     df_var = first_line.split(" ")[2]
-    lazy = filter_df(_resolve_table(store, table), full_predicates)
-    variables = {"odoo_url": links.get_odoo_url(), **(extra_variables or {})}
     try:
         return sandbox.run(content, lazy, df_var, out_var, variables)
     except AttributeError:
