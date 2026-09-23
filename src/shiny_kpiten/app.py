@@ -27,6 +27,7 @@ from shiny.types import SilentException
 from kpiten_core import brand, comparison, links
 from kpiten_core import config as core_config
 from kpiten_core import ods as core_ods
+from kpiten_core import plugins as core_plugins
 from kpiten_core.gtable import DRILL_CSS
 from kpiten_core import themes as core_themes
 from kpiten_core import tiles as core_tiles
@@ -177,7 +178,12 @@ def app_ui(req):  # noqa: ANN001
         {"class": "kpiten-dashboard"},
         # loaded once, before any tile : a figure that loaded it itself could run
         # before the script was there ("Plotly is not defined")
-        ui.head_content(FAVICON, ui.tags.script(src=PLOTLY_JS)),
+        ui.head_content(
+            FAVICON,
+            ui.tags.script(src=PLOTLY_JS),
+            # the scripts and styles of the plugins' tiles (kpiten_core.hookspecs)
+            ui.HTML(core_plugins.head_html()),
+        ),
         ui.output_ui("theme_style"),
         ui.output_ui("tab_title"),
         ui.div(
@@ -317,7 +323,11 @@ def tile_html(
         f"<h3>{line['name'] or result.kind}"
         f'<span class="kind-badge">{result.kind}</span></h3>'
     ]
-    if result.kind == "graph":
+    # a plugin may draw the tile (kpiten_core.hookspecs), e.g. kpiten-perspective
+    plugged = core_plugins.render_tile(line, result, p)
+    if plugged:
+        parts.append(plugged)
+    elif result.kind == "graph":
         core_tiles.apply_theme_colors(result.figure, p)
         result.figure.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
@@ -348,7 +358,7 @@ def tile_html(
     # a graph keeps the height of its tile ; a table is as tall as its rows, up to it
     size = (
         f"min-height: {max(height - 40, 120)}px"
-        if result.kind == "graph"
+        if result.kind == "graph" or plugged
         else f"max-height: {max(height, 340)}px"
     )
     return (
