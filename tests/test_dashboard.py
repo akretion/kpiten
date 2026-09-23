@@ -87,6 +87,16 @@ def test_without_session_asks_to_log_in(page: Page) -> None:
     expect(page).to_have_title("Not connected · KpiTen (shiny)")
 
 
+def test_the_page_speaks_the_language_of_the_user_in_odoo(page: Page) -> None:
+    open_dashboard(page)  # Marie works in French
+    expect(page.locator("label[for=panel]")).to_have_text("Tableau")
+    expect(page.locator(".kind-badge").first).not_to_have_text("graph")
+
+    page.context.clear_cookies()
+    open_dashboard(page, MANAGER, MANAGER_PASSWORD)  # the admin, in English
+    expect(page.locator("label[for=panel]")).to_have_text("Panel")
+
+
 def test_edit_mode_is_for_kpiten_managers_only(page: Page) -> None:
     open_dashboard(page)  # Marie : reads, does not edit
     assert not page.locator("input#edit_mode").is_visible()
@@ -326,7 +336,7 @@ def test_the_rows_of_a_table_follow_kt_config(page: Page) -> None:
             "tables => tables.map(t => t.querySelectorAll('tbody tr').length)"
         )
         assert rows and max(rows) <= 5
-        page.get_by_text(re.compile(r"First 5 of")).first.wait_for(timeout=30_000)
+        page.get_by_text(re.compile(r"5 premières lignes sur")).first.wait_for(timeout=30_000)
 
 
 def test_the_number_format_of_kt_config(page: Page) -> None:
