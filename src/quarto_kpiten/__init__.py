@@ -20,8 +20,8 @@ import plotly.io as pio
 import polars as pl
 
 from kpiten_core import comparison, config, numfmt, themes
-from kpiten_core import tiles as core_tiles
 from kpiten_core.hookspecs import hookimpl
+from kpiten_core.render.plotly import apply_theme_colors
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +145,7 @@ def document(panel: dict, tiles: list, context: dict, folder: Path) -> str:
             parts += [f"_{_cell(error)}_", ""]
         elif result.figure is not None:
             fig = result.figure
-            core_tiles.apply_theme_colors(fig, palette)
+            apply_theme_colors(fig, palette)
             fig.update_layout(
                 template="plotly_white",
                 paper_bgcolor="white",

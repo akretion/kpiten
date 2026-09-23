@@ -3,7 +3,7 @@ authors = [
   {name = "David Beal", email = "david.beal@akretion.com"},
 ]
 dependencies = [
-  "kpiten-core",
+  "kpiten-core[render]",
   "kaleido>=1.0",
   "quarto-cli>=1.6",
 ]
