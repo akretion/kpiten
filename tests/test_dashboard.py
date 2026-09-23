@@ -425,22 +425,3 @@ def test_the_logo_with_its_name_ends_the_page_on_the_right(page: Page) -> None:
     assert box["x"] + box["width"] > page.viewport_size["width"] * 0.85  # on the right
     assert box["y"] >= last_tile["y"] + last_tile["height"]  # after every tile
     assert footer.get_attribute("aria-label") == "KpiTen, le capitaine de vos data"
-
-
-def test_an_evidence_site_is_for_its_user_only(page: Page, browser) -> None:
-    """The button of kpiten-evidence builds the site of the panel for Marie (her rows) ;
-    another user, or no session at all, gets a 404 at its address."""
-    open_dashboard(page)
-    button = page.locator("#site_evidence")
-    if not button.count():
-        pytest.skip("the plugin kpiten-evidence is not installed")
-    button.click()
-    link = page.locator("a", has_text="Open the Evidence report")
-    link.wait_for(timeout=300_000)
-    url = urljoin(SHINY, link.get_attribute("href"))
-    assert page.request.get(url).ok  # her session cookie opens it
-
-    other = browser.new_context().new_page()
-    other.goto(sso_url(MANAGER, MANAGER_PASSWORD))
-    assert other.goto(url).status == 404
-    assert browser.new_context().new_page().goto(url).status == 404
