@@ -244,9 +244,10 @@ class KtConfig(models.Model):
     )
     ods_max_rows = fields.Integer(
         string="Rows of a spreadsheet (.ods)",
-        default=50000,
+        default=500000,
         help="The download of the rows of a model as .ods is cut at this number of "
-        "rows.",
+        "rows. The file is written 50 000 rows at a time : the memory it takes on the "
+        "server stays about the same ; LibreOffice opens 500 000 rows in about 15 s.",
     )
 
     # ---- AI (marimo explorer)
@@ -524,7 +525,7 @@ class KtConfig(models.Model):
               "period": {"default": "last 90 days", "fiscal_start_month": 1},
               "ui": {"theme": "capitaine", "table_rows": 20, "colors": "theme"},
               "explore": {"access": "everyone", "max_rows": 500000,
-                          "ods_max_rows": 50000},
+                          "ods_max_rows": 500000},
               "ai": {"enabled": True, "send_values": True},
               "currency": {"symbol": "$", "position": "before"}}
 
