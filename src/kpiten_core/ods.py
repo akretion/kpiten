@@ -9,7 +9,10 @@ python loop, no odfpy) : a sheet of 50 000 rows is written in a few seconds.
 
 The file is ready to read and to print : the header row stays in view (frozen) and is
 repeated on each printed page, the pages are in landscape, and each column is as wide as
-its content.
+its content. Cells may be put in relief (`fills` : a background color, in bold) : the
+export of a KPI of the marimo explorer keeps the cells its table highlights.
+
+How the file is made : docs/kpiten-ods.md.
 """
 
 import io
@@ -105,9 +108,11 @@ AUTOMATIC_STYLES = """<office:automatic-styles>
  </number:date-style>
  <style:style style:name="date" style:family="table-cell" style:data-style-name="nd"/>
  <style:style style:name="datetime" style:family="table-cell" style:data-style-name="ndt"/>
-{columns}</office:automatic-styles>
+{columns}{fills}</office:automatic-styles>
 """
-EMPTY = "<table:table-cell/>"
+# the data style of a date / datetime cell, kept by a cell put in relief
+DATA_STYLES = {"date": "nd", "datetime": "ndt"}
+COLOR = re.compile(r"#[0-9a-fA-F]{3,8}")
 # characters XML 1.0 does not allow, even escaped
 CONTROL = r"[\x00-\x08\x0b\x0c\x0e-\x1f]"
 FORBIDDEN_IN_SHEET_NAME = re.compile(r"[\[\]*?:/\\']")
@@ -134,41 +139,36 @@ def _text(value: str) -> str:
     return f'<table:table-cell office:value-type="string"><text:p>{escaped}</text:p></table:table-cell>'
 
 
-def _cell(name: str, dtype: pl.DataType) -> pl.Expr:
-    """The xml of the cells of one column, as a string expression."""
+def _cell(name: str, dtype: pl.DataType, fill: pl.Expr | None = None) -> pl.Expr:
+    """The xml of the cells of one column, as a string expression. `fill` : the name of
+    the style of each cell put in relief (null for the others)."""
     col = pl.col(name)
+    kind = "date" if dtype == pl.Date else "datetime" if dtype == pl.Datetime else None
+    style = pl.lit(kind, dtype=pl.String)
+    if fill is not None:
+        style = pl.coalesce(fill, style)
+    # ` table:style-name="..."` when the cell has a style, else nothing
+    attr = (
+        pl.when(style.is_not_null())
+        .then(pl.format(' table:style-name="{}"', style))
+        .otherwise(pl.lit(""))
+    )
     if dtype == pl.Boolean:
         value = col.cast(pl.String)
-        xml = pl.format(
-            '<table:table-cell office:value-type="boolean" office:boolean-value="{}">'
-            "<text:p>{}</text:p></table:table-cell>",
-            value,
-            value,
-        )
+        body = [' office:value-type="boolean" office:boolean-value="', value]
+        body += ['"><text:p>', value]
     elif dtype.is_numeric():
         value = col.cast(pl.Float64) if dtype.is_decimal() else col
         value = value.cast(pl.String)
-        xml = pl.format(
-            '<table:table-cell office:value-type="float" office:value="{}">'
-            "<text:p>{}</text:p></table:table-cell>",
-            value,
-            value,
-        )
+        body = [' office:value-type="float" office:value="', value, '"><text:p>', value]
     elif dtype == pl.Date:
         value = col.dt.strftime("%Y-%m-%d")
-        xml = pl.format(
-            '<table:table-cell table:style-name="date" office:value-type="date" '
-            'office:date-value="{}"><text:p>{}</text:p></table:table-cell>',
-            value,
-            value,
-        )
+        body = [' office:value-type="date" office:date-value="', value, '"><text:p>']
+        body += [value]
     elif dtype == pl.Datetime:
-        xml = pl.format(
-            '<table:table-cell table:style-name="datetime" office:value-type="date" '
-            'office:date-value="{}"><text:p>{}</text:p></table:table-cell>',
-            col.dt.strftime("%Y-%m-%dT%H:%M:%S"),
-            col.dt.strftime("%Y-%m-%d %H:%M"),
-        )
+        body = [' office:value-type="date" office:date-value="']
+        body += [col.dt.strftime("%Y-%m-%dT%H:%M:%S"), '"><text:p>']
+        body += [col.dt.strftime("%Y-%m-%d %H:%M")]
     else:
         # strings, and anything else (a list, a struct...) in its text form
         if dtype == pl.String:
@@ -177,13 +177,36 @@ def _cell(name: str, dtype: pl.DataType) -> pl.Expr:
             value = col.map_elements(str, return_dtype=pl.String)
         else:
             value = col.cast(pl.String)
-        value = _escape(value)
-        xml = pl.format(
-            '<table:table-cell office:value-type="string"><text:p>{}</text:p>'
-            "</table:table-cell>",
-            value,
+        body = [' office:value-type="string"><text:p>', _escape(value)]
+    parts = [pl.lit("<table:table-cell"), attr]
+    parts += [pl.lit(p) if isinstance(p, str) else p for p in body]
+    parts += [pl.lit("</text:p></table:table-cell>")]
+    empty = pl.concat_str([pl.lit("<table:table-cell"), attr, pl.lit("/>")])
+    return pl.when(col.is_null()).then(empty).otherwise(pl.concat_str(parts))
+
+
+def _fill_style(registry: dict, color: str, bold: bool, kind: str | None) -> str:
+    """The name of the style of a cell put in relief (one per color, bold, data type)."""
+    if not COLOR.fullmatch(color or ""):
+        raise ValueError(f"not a color : {color!r}")
+    key = (color.lower(), bold, kind)
+    if key not in registry:
+        registry[key] = f"fill{len(registry)}"
+    return registry[key]
+
+
+def _fill_styles(registry: dict) -> str:
+    """The xml of the styles of the cells put in relief."""
+    out = []
+    for (color, bold, kind), name in registry.items():
+        data = f' style:data-style-name="{DATA_STYLES[kind]}"' if kind else ""
+        weight = '<style:text-properties fo:font-weight="bold"/>' if bold else ""
+        out.append(
+            f' <style:style style:name="{name}" style:family="table-cell"{data}>'
+            f'<style:table-cell-properties fo:background-color="{color}"/>'
+            f"{weight}</style:style>\n"
         )
-    return pl.when(col.is_null()).then(pl.lit(EMPTY)).otherwise(xml)
+    return "".join(out)
 
 
 def _widths(df: pl.DataFrame) -> list[int]:
@@ -214,7 +237,13 @@ def _column_style(chars: int) -> str:
     return f"co{chars}"
 
 
-def _sheet(name: str, df: pl.DataFrame) -> str:
+def _sheet(
+    name: str,
+    df: pl.DataFrame,
+    fills: dict | None = None,
+    bold: bool = True,
+    registry: dict | None = None,
+) -> str:
     columns = "".join(
         f'<table:table-column table:style-name="{_column_style(w)}"/>'
         for w in _widths(df)
@@ -227,7 +256,25 @@ def _sheet(name: str, df: pl.DataFrame) -> str:
     )
     rows = ""
     if df.height and df.width:
-        cells = [_cell(c, t).alias(c) for c, t in df.schema.items()]
+        # the style of each cell put in relief, as a hidden column per filled column
+        styles = {}
+        for (column, row), color in (fills or {}).items():
+            if column in df.schema and 0 <= row < df.height:
+                dtype = df.schema[column]
+                kind = "date" if dtype == pl.Date else None
+                kind = "datetime" if dtype == pl.Datetime else kind
+                cells_of = styles.setdefault(column, [None] * df.height)
+                cells_of[row] = _fill_style(registry, color, bold, kind)
+        hidden = {c: f"__fill_{i}" for i, c in enumerate(styles)}
+        if styles:
+            df = df.with_columns(
+                pl.Series(hidden[c], v, dtype=pl.String) for c, v in styles.items()
+            )
+        cells = [
+            _cell(c, t, pl.col(hidden[c]) if c in hidden else None).alias(c)
+            for c, t in df.schema.items()
+            if c not in hidden.values()
+        ]
         lines = df.select(
             pl.concat_str(
                 [pl.lit("<table:table-row>"), *cells, pl.lit("</table:table-row>")]
@@ -253,12 +300,22 @@ def _sheet_name(title: str, taken: set[str]) -> str:
     return name.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;")
 
 
-def write_ods(sheets: list[tuple[str, pl.DataFrame]]) -> bytes:
-    """The bytes of an .ods holding each `(title, dataframe)` as a sheet."""
+def write_ods(sheets: list[tuple], bold_fills: bool = True) -> bytes:
+    """The bytes of an .ods holding each `(title, dataframe)` as a sheet.
+
+    A sheet may be `(title, dataframe, fills)` : `fills` is `{(column, row): "#rrggbb"}`,
+    the cells put in relief (their background, in bold unless `bold_fills` is off : a
+    heat map). `row` counts the rows of the dataframe from 0, the header left out.
+    """
+    sheets = [(s[0], s[1], s[2] if len(s) > 2 else None) for s in sheets]
     taken: set[str] = set()
-    names = [_sheet_name(t, taken) for t, _df in sheets]
-    body = "\n".join(_sheet(name, df) for name, (_t, df) in zip(names, sheets))
-    widths = sorted({w for _t, df in sheets for w in _widths(df)})
+    names = [_sheet_name(t, taken) for t, _df, _f in sheets]
+    registry: dict = {}
+    body = "\n".join(
+        _sheet(name, df, fills, bold_fills, registry)
+        for name, (_t, df, fills) in zip(names, sheets)
+    )
+    widths = sorted({w for _t, df, _f in sheets for w in _widths(df)})
     columns = "".join(
         f' <style:style style:name="{_column_style(w)}" style:family="table-column">'
         f'<style:table-column-properties style:column-width="{w * CM_PER_CHAR + 0.3:.2f}cm"/>'
@@ -267,7 +324,7 @@ def write_ods(sheets: list[tuple[str, pl.DataFrame]]) -> bytes:
     )
     content = (
         f'<?xml version="1.0" encoding="UTF-8"?>\n<office:document-content {NS}>'
-        f"{AUTOMATIC_STYLES.format(columns=columns)}"
+        f"{AUTOMATIC_STYLES.format(columns=columns, fills=_fill_styles(registry))}"
         f"<office:body><office:spreadsheet>{body}"
         "</office:spreadsheet></office:body></office:document-content>"
     )
