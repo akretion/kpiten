@@ -516,15 +516,17 @@ def _apply_colorway(fig, colorway: list | None) -> None:
 
 
 def apply_theme_colors(fig, palette: dict) -> None:
-    """The colors of the theme on a graph, where `kt.config` sets none : its colorway
-    on the bars, its first color on a filled graph (area)."""
+    """The colors of the theme on a graph : its colorway on the bars, its first color on
+    a filled graph (area). When `kt.config` says the colors come from it, only where it
+    sets none."""
     colorway = palette.get("colorway")
     if not colorway:
         return
-    if not settings.graph_colorway():
+    themed = settings.colors_from_theme()
+    if themed or not settings.graph_colorway():
         fig.update_layout(colorway=colorway)
         _apply_colorway(fig, colorway)
-    if not settings.graph_fill_color():
+    if themed or not settings.graph_fill_color():
         for trace in fig.data:
             if getattr(trace, "fill", None) in ("tozeroy", "tonexty"):
                 trace.line.color = colorway[0]

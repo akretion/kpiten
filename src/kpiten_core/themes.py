@@ -8,7 +8,7 @@ A palette is a dict :
   `page_surface`) : a dark page with light tiles ; the colors of the tiles when not set
 - `dark` : whether the page is dark (the controls of the page follow it)
 - `colorway` (the bars, the filled graphs) and `good` / `bad` (the change of a card) :
-  used when `kt.config` sets no color of its own
+  used unless `kt.config` says the colors come from it (`colors_from = config`)
 
 The keys are the values of `kt.config.default_theme` and `kt.user.theme` (Odoo).
 """
@@ -73,6 +73,9 @@ SAND = {
     "thead": "#f1e9d9",
     "row_line": "rgba(74, 66, 56, .07)",
     "shadow": "0 2px 12px rgba(74, 66, 56, .10)",
+    "colorway": ["#a06b2a", "#3d7a78", "#c9793b", "#6b5b95", "#8a9a5b", "#b5654a"],
+    "good": "#2e7d4f",
+    "bad": "#b8483f",
 }
 
 # the page of Capitaine (dark gradient, its controls), the tiles of Sand

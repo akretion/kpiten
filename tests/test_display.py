@@ -275,14 +275,18 @@ def test_the_card_colors_of_kt_config():
         config.set_config({})
 
 
-def test_the_theme_colors_give_way_to_kt_config():
+def test_the_card_colors_come_from_the_theme_or_kt_config():
     from kpiten_core import comparison, config, themes
 
-    prune = themes.PALETTES["prune"]
-    assert comparison.color({"direction": "up"}, prune) == prune["good"]
+    prune, up = themes.PALETTES["prune"], {"direction": "up"}
+    assert comparison.color(up, prune) == prune["good"]
     try:
         config.set_config({"card": {"good_color": "#123456"}})
-        assert comparison.color({"direction": "up"}, prune) == "#123456"
+        assert comparison.color(up, prune) == prune["good"]  # the theme's by default
+        config.set_config(
+            {"card": {"good_color": "#123456"}, "ui": {"colors": "config"}}
+        )
+        assert comparison.color(up, prune) == "#123456"
     finally:
         config.set_config({})
 
