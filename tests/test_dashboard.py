@@ -323,9 +323,13 @@ def test_the_number_format_of_kt_config(page: Page) -> None:
 
 
 def test_the_card_colors_of_kt_config(page: Page) -> None:
-    """The change of a card is drawn in the good / bad color of the configuration."""
+    """The change of a card is drawn in the good / bad color of the configuration, when
+    it says the colors come from it (not from the theme)."""
     with kt_config(
-        show_card_comparison=True, card_good_color="#123456", card_bad_color="#654321"
+        colors_from="config",
+        show_card_comparison=True,
+        card_good_color="#123456",
+        card_bad_color="#654321",
     ):
         open_dashboard(page)
         page.locator(DELTAS).first.wait_for(timeout=30_000)
