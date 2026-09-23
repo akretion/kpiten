@@ -2,6 +2,7 @@
 
 import datetime
 import io
+import re
 import zipfile
 
 import polars as pl
@@ -55,3 +56,14 @@ def test_one_model_one_sheet_filtered_no_ids_cut_as_kt_config_says():
     )
     with pytest.raises(PermissionError):
         ods.model_ods(store, "purchase.order", [], user_id=2, db="claude")
+
+
+def test_the_rows_are_written_chunk_by_chunk_all_of_them_in_order(monkeypatch):
+    monkeypatch.setattr(ods, "CHUNK_ROWS", 2)  # 5 rows : chunks of 2, 2 and 1
+    df = pl.DataFrame({"n": [1, 2, 3, 4, 5], "who": list("abcde")})
+    fills = {("n", 1): "#ff0000", ("n", 4): "#ff0000"}  # in the 1st and the 3rd chunks
+    archive = zipfile.ZipFile(io.BytesIO(ods.write_ods([("Rows", df, fills)])))
+    content = archive.read("content.xml").decode()
+    values = [int(v) for v in re.findall(r'office:value="(\d+)"', content)]
+    assert values == [1, 2, 3, 4, 5]
+    assert content.count('table:style-name="fill0"') == 2

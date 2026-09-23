@@ -10,7 +10,7 @@ kpiten module, nothing changes.
                 "large_decimals": 0},
      "period": {"default": "last 90 days", "fiscal_start_month": 1},
      "ui": {"theme": "capitaine", "table_rows": 20, "colors": "theme"},
-     "explore": {"access": "everyone", "max_rows": 500000, "ods_max_rows": 50000},
+     "explore": {"access": "everyone", "max_rows": 500000, "ods_max_rows": 500000},
      "ai": {"enabled": True, "send_values": True},
      "currency": {"symbol": "$", "position": "before"}}
 """
@@ -134,8 +134,8 @@ def explore_max_rows(default: int) -> int:
 
 
 def ods_max_rows() -> int:
-    """Rows of a model downloaded as .ods (50 000 when Odoo sets none)."""
-    return _section("explore").get("ods_max_rows") or 50_000
+    """Rows of a model downloaded as .ods (500 000 when Odoo sets none)."""
+    return _section("explore").get("ods_max_rows") or 500_000
 
 
 # ---- AI (marimo explorer)
