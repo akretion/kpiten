@@ -64,6 +64,14 @@ ZONES = {
 COUNTRY_ZONE = {"FR": "france", "GB": "uk", "CH": "switzerland"}
 EUROPE = {"DE", "IT", "ES", "BE", "NL", "PT", "AT", "LU"}
 FRENCH_SPEAKING = {"FR", "BE", "CH", "MA", "LU"}
+# the countries of each zone, for the many customers of erp_commercial_data_big
+ZONE_COUNTRIES = {
+    "france": ["FR"],
+    "europe": ["DE", "IT", "ES", "BE", "NL", "PT"],
+    "uk": ["GB"],
+    "switzerland": ["CH"],
+    "export": ["US", "CA", "MA", "JP", "AE", "BR"],
+}
 
 # the salespeople of each team (the sales manager leads France and sees everything)
 TEAMS = {
@@ -321,6 +329,22 @@ class ErpDemoWorld(models.Model):
             f"account.{self.env.company.id}_{template}", raise_if_not_found=False
         )
 
+    def demo_zone_vals(self, zone: str, country, pricelists: dict) -> dict:
+        """The values of a customer of `zone` in `country` (a res.country) : its
+        language, price list (currency), payment terms and fiscal position."""
+        spec = ZONES[zone]
+        vals = {
+            "country_id": country.id,
+            "lang": "fr_FR" if country.code in FRENCH_SPEAKING else "en_US",
+            "customer_rank": 1,
+            "property_product_pricelist": pricelists[zone].id,
+            "property_payment_term_id": self.env.ref(spec["payment_term"]).id,
+        }
+        position = self._demo_fiscal_position(spec["fiscal_position"])
+        if position:
+            vals["property_account_position_id"] = position.id
+        return vals
+
     def demo_customers(self):
         """The customers : the French ones of the sales generator, and the foreign
         ones ; each with its country, language, price list, payment terms and fiscal
@@ -340,18 +364,8 @@ class ErpDemoWorld(models.Model):
         customers = {}
         for name, code in wanted:
             zone = zone_of(code)
-            spec = ZONES[zone]
             partner = partner_model.search([("name", "=", name)], limit=1)
-            vals = {
-                "country_id": countries[code].id,
-                "lang": "fr_FR" if code in FRENCH_SPEAKING else "en_US",
-                "customer_rank": 1,
-                "property_product_pricelist": pricelists[zone].id,
-                "property_payment_term_id": self.env.ref(spec["payment_term"]).id,
-            }
-            position = self._demo_fiscal_position(spec["fiscal_position"])
-            if position:
-                vals["property_account_position_id"] = position.id
+            vals = self.demo_zone_vals(zone, countries[code], pricelists)
             if partner:
                 partner.write(vals)
             else:
