@@ -9,7 +9,7 @@ dependencies = [
   "uvicorn>=0.44.0",
   "shiny>=1.6.0",
   "great-tables>=0.21.0",
-  "kpiten-core",
+  "kpiten-core[render]",
   "requests>=2.34.2",
   "pyppeteer>=0.0.25",
 ]

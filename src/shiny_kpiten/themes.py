@@ -16,7 +16,7 @@ in Odoo (`kt.user.theme`), and a theme can be asked through the `?theme=` query 
 import polars as pl
 from great_tables import GT  # noqa: F401 (annotation)
 from kpiten_core import themes as core_themes
-from kpiten_core.gtable import gt_table
+from kpiten_core.render.gtable import gt_table
 
 
 class Theme:
