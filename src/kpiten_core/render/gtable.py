@@ -1,32 +1,16 @@
-"""great_tables styling shared by the dashboard apps (dark palettes)."""
-
-import re
+"""A table as great_tables draws it, in the colors of the theme (the `render` extra)."""
 
 import polars as pl
 from great_tables import GT
 
 from kpiten_core import links, numfmt
+from kpiten_core.numfmt import number_columns
 
 # a table that can be drilled into : its rows are clickable (see `tiles.exec_drill`)
 DRILL_CSS = """
 .tile.drillable .gt_table tbody tr { cursor: pointer; }
 .tile.drillable .gt_table tbody tr:hover { filter: brightness(1.25); }
 """
-
-# numbers that are not quantities : ids and calendar parts stay as they are
-NOT_A_QUANTITY_RE = re.compile(r"(?i)(^|[\s._-])(id|year|quarter|month|week|day)s?$")
-
-
-def number_columns(df: pl.DataFrame) -> tuple[list[str], list[str]]:
-    """The (integer, decimal) columns of quantities : those are formatted."""
-    integers, decimals = [], []
-    for name, dtype in df.schema.items():
-        if dtype == pl.Boolean or not dtype.is_numeric():
-            continue
-        if NOT_A_QUANTITY_RE.search(name):
-            continue
-        (integers if dtype.is_integer() else decimals).append(name)
-    return integers, decimals
 
 
 def gt_table(df: pl.DataFrame, palette: dict) -> GT:
