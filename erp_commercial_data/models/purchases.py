@@ -54,7 +54,7 @@ class ErpDemoPurchaseStock(models.Model):
             ("purchase orders", self.generate_purchase_stock_demo),
         ]
 
-    def _plan_purchase(self, rng, now, date_start):
+    def _plan_purchase(self, rng, now, date_start, lead=(3, 21)):
         """Draw the lifecycle of one purchase order.
 
         Returns a dict : state, create_date, deadline (date_order),
@@ -94,7 +94,8 @@ class ErpDemoPurchaseStock(models.Model):
         # confirmed : 0 to 6 days to confirm (usually short)
         date_approve = create_date + timedelta(days=min(6, rng.expovariate(1 / 1.5)))
         date_approve = min(date_approve, now)
-        date_planned = date_approve + timedelta(days=rng.randint(3, 21))
+        # the lead time of the vendor : a few days in France, weeks from China
+        date_planned = date_approve + timedelta(days=rng.randint(*lead))
         plan["date_approve"] = date_approve
         plan["date_planned"] = date_planned
 
@@ -118,10 +119,18 @@ class ErpDemoPurchaseStock(models.Model):
             plan["receipt_status"] = "pending"
         return plan
 
-    def _purchase_order_vals(self, rng, plan, buyer, vendors, products):
+    def _purchase_order_vals(self, rng, plan, buyer, vendor, terms, products):
+        """`terms` : the currency, incoterm and lead time of `vendor` ; the prices are
+        the costs in the currency of the vendor."""
+        currency_code, incoterm, _lead = terms
+        rate = self.demo_rate(currency_code, plan["create_date"])
+        incoterm = self.env.ref(
+            f"account.incoterm_{incoterm}", raise_if_not_found=False
+        )
         return {
-            "partner_id": rng.choice(vendors).id,
+            "partner_id": vendor.id,
             "user_id": buyer.id,
+            "incoterm_id": incoterm.id if incoterm else False,
             "date_order": plan["deadline"],
             "date_planned": plan["date_planned"],
             "order_line": [
@@ -132,7 +141,7 @@ class ErpDemoPurchaseStock(models.Model):
                         "product_id": product.id,
                         "product_qty": rng.randint(1, 50),
                         "price_unit": round(
-                            product.standard_price * rng.uniform(0.9, 1.2), 2
+                            product.standard_price * rate * rng.uniform(0.9, 1.2), 2
                         ),
                         "date_planned": plan["date_planned"],
                     },
@@ -180,9 +189,12 @@ class ErpDemoPurchaseStock(models.Model):
         buyer = self.env["res.users"].search([("name", "=", buyer_name)], limit=1)
         if not buyer:
             _logger.warning("buyer %s not found : orders are not assigned", buyer_name)
-        vendors = [
-            self._get_demo_partner(name) for name in VENDOR_NAMES + EXTRA_VENDOR_NAMES
-        ]
+        # the vendors of the world : French ones, and abroad (currency, lead time)
+        vendors = self.demo_vendors()
+        vendor_list = list(vendors)
+        # the French vendors get most of the orders, the far ones the big ones
+        vendor_weights = [3 if terms[0] == "EUR" else 1 for terms in vendors.values()]
+        self = self.with_context(demo_rates={})  # the rate of a month, read once
         products = [self._create_product(*product) for product in PRODUCTS]
 
         # silent context : no mail tracking, much faster creations
@@ -195,11 +207,17 @@ class ErpDemoPurchaseStock(models.Model):
         created = 0
         while created < n_purchases:
             size = min(DEMO_BATCH_SIZE, n_purchases - created)
-            plans = [self._plan_purchase(rng, now, date_start) for _ in range(size)]
+            picks = rng.choices(vendor_list, vendor_weights, k=size)
+            plans = [
+                self._plan_purchase(rng, now, date_start, vendors[vendor][2])
+                for vendor in picks
+            ]
             orders = purchase_order.create(
                 [
-                    self._purchase_order_vals(rng, plan, buyer, vendors, products)
-                    for plan in plans
+                    self._purchase_order_vals(
+                        rng, plan, buyer, vendor, vendors[vendor], products
+                    )
+                    for plan, vendor in zip(plans, picks)
                 ]
             )
             # stored computed fields (receipt_status...) are recomputed on

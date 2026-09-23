@@ -1,1 +1,1 @@
-from . import erp_demo_generator, sales, purchases
+from . import erp_demo_generator, sales, purchases, world
