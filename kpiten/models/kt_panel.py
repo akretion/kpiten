@@ -7,7 +7,8 @@ class KtPanel(models.Model):
     _order = "sequence, id"
 
     name = fields.Char(required=True)
-    sequence = fields.Integer()
+    # never empty : Postgres puts an empty sequence last, after "Main" (50)
+    sequence = fields.Integer(default=10)
     description = fields.Char()
     # Filters available on the dashboard, as JSON
     # e.g. {"date": {"field": "date_order"}, "dimensions": [{"name": "user_id", "label": "Salesperson"}]}
