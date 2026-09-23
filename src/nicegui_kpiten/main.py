@@ -476,7 +476,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
         """Choose the Odoo model to download."""
         models = core_ods.exportable_models(store_cache)
         with ui.dialog() as dialog, ui.card().classes("w-96"):
-            ui.label("Download the rows of a model (.ods)").classes("text-bold")
+            ui.label("Download the rows of a model").classes("text-bold")
             choice = ui.select(models, value=models[0] if models else None).classes(
                 "w-full"
             )
@@ -484,7 +484,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                 icon="table_view",
                 on_click=lambda: download_model(choice.value, dialog),
             ).tooltip(
-                "Download as a spreadsheet (.ods) : the rows of this model you may "
+                "Download as a spreadsheet : the rows of this model you may "
                 "read, with the filters of the panel"
             )
         dialog.open()
@@ -709,9 +709,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                 if core_config.explore_allowed(can_edit):
                     ui.button(icon="download", on_click=on_ods).props(
                         "flat dense"
-                    ).tooltip(
-                        "Download the rows of an Odoo model as a spreadsheet (.ods)"
-                    )
+                    ).tooltip("Download the rows of an Odoo model as a spreadsheet")
                 ui.button("Refresh tiles", on_click=draw_tiles).props("flat")
                 if can_edit:
                     ui.switch("Edit", value=False, on_change=on_edit_mode).props(
