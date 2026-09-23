@@ -277,6 +277,12 @@ class ErpDemoWorld(models.Model):
             )
             if name == "France" and manager_name in users:
                 team.user_id = users[manager_name]
+                # the French team works in French (the dashboards follow the
+                # language of the user) ; the other teams in English
+                team.user_id.lang = "fr_FR"
+            if name == "France":
+                for user in member_users:
+                    user.lang = "fr_FR"
             teams[name] = team
         return teams
 
