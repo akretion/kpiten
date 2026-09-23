@@ -1,4 +1,4 @@
-# kpiten-perspective
+# perspective-kpiten
 
 A KpiTen plugin (pluggy hooks of `kpiten_core.hookspecs`) : a `data` tile whose
 definition holds a line `-- perspective: {...}` (SQL) or `# perspective: {...}`
@@ -9,4 +9,4 @@ charts in the browser. The json is the config of the viewer (`plugin`, `group_by
 
 Without this plugin, the same tile is an ordinary table.
 
-    uv pip install -e src/kpiten-perspective   # in the venv the dashboards run in
+    uv pip install -e src/perspective-kpiten   # in the venv the dashboards run in
