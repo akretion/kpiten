@@ -21,12 +21,16 @@ def tone(comparison: dict) -> str:
 
 
 def color(comparison: dict, palette: dict | None = None) -> str | None:
-    """The color of a tone : those of `kt.config` (the card colors), else the ones of
-    the theme (`palette`), else Odoo's."""
+    """The color of a tone : the one of the theme (`palette`) when `kt.config` says the
+    colors come from the theme, else the card colors of `kt.config` ; Odoo's when
+    neither has one."""
     name = tone(comparison)
     if name not in ("good", "bad"):
         return None
-    return config.card_color(name, (palette or {}).get(name) or COLORS[name])
+    themed = (palette or {}).get(name)
+    if themed and config.colors_from_theme():
+        return themed
+    return config.card_color(name, themed or COLORS[name])
 
 
 def label(comparison: dict) -> str:

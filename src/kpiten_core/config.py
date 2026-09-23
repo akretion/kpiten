@@ -9,7 +9,7 @@ kpiten module, nothing changes.
      "number": {"format": "space_comma", "small_below": 10, "small_decimals": 2,
                 "large_decimals": 0},
      "period": {"default": "last 90 days", "fiscal_start_month": 1},
-     "ui": {"theme": "capitaine", "table_rows": 20},
+     "ui": {"theme": "capitaine", "table_rows": 20, "colors": "theme"},
      "explore": {"access": "everyone", "max_rows": 500000, "ods_max_rows": 50000},
      "ai": {"enabled": True, "send_values": True},
      "currency": {"symbol": "$", "position": "before"}}
@@ -106,6 +106,12 @@ def fiscal_year_start(today: datetime.date) -> datetime.date:
 def default_theme() -> str:
     """The theme of `kt.config` (an old key gives the theme that replaced it)."""
     return themes.key(_section("ui").get("theme")) or themes.DEFAULT
+
+
+def colors_from_theme() -> bool:
+    """Whether the graphs and the cards take the colors of the theme (`kt.config`
+    says `theme`, the default), not the ones of `kt.config` (`config`)."""
+    return _section("ui").get("colors", "theme") == "theme"
 
 
 def table_rows() -> int:
