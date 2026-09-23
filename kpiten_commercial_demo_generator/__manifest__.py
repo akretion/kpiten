@@ -1,5 +1,5 @@
 {
-    "name": "KPI Ten Sale Demo Data",
+    "name": "KPI Ten Commercial Demo Generator",
     "version": "18.0.1.0.0",
     "category": "Sales",
     "summary": "Sales orders with a realistic lifecycle (late deliveries, lead times) for dashboards",
@@ -12,13 +12,12 @@ partial deliveries and invoicing statuses.
 The lifecycle is forced in SQL (no real deliveries nor customer invoices) :
 it is meant to feed sales dashboards, not accounting.
 
-It also declares the KPI cards of the Odoo "Sales" dashboard (Quotations,
-Orders, Revenue, Average Order) its "Monthly sales" chart and its "Top Sales
-Orders" / "Top Quotations" tables in the KPI Ten "Sales" panel.
+The tiles of the "Sales" panel that show these orders are in
+kpiten_commercial_data (data/tiles_sale.xml).
 """,
     "author": "Akretion",
     "license": "LGPL-3",
     "depends": ["erp_demo_generator", "sale_stock", "kpiten_commercial_data"],
-    "data": ["data/demo_sales.xml", "data/tiles.xml", "data/product_dashboard.xml"],
+    "data": ["data/demo_sales.xml"],
     "installable": True,
 }
