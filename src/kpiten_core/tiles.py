@@ -16,7 +16,7 @@ import polars as pl
 
 from kpiten_core import config as settings
 from kpiten_core.charts import KINDS, Chart
-from kpiten_core import env, links, numfmt, serial, sandbox, sqltile
+from kpiten_core import env, i18n, links, numfmt, serial, sandbox, sqltile
 from kpiten_core.month import apply_monthly, is_date
 from kpiten_core.validate import CARD_AGGREGATIONS, DERIVE_RE
 
@@ -54,7 +54,13 @@ class TileResult:
     @property
     def note(self) -> str | None:
         """Why the tile shows less than the whole data (None when complete)."""
-        return self.meta.get("note")
+        return self.note_in(i18n.english)
+
+    def note_in(self, tr) -> str | None:
+        """The note in the language of `tr` (`kpiten_core.i18n.translator`) : the
+        notes are `(text, values)` messages in `meta["notes"]`."""
+        notes = [tr(text, **values) for text, values in self.meta.get("notes", [])]
+        return ". ".join(notes) or None
 
     @property
     def subtitle(self) -> str | None:
@@ -101,6 +107,14 @@ def _fmt_int(n: int) -> str:
     return numfmt.format_number(n)
 
 
+def rows_note(shown: int, total: int) -> tuple[str, dict]:
+    """The note of a table cut off at `shown` rows (a message : `TileResult.note_in`)."""
+    return (
+        "First {rows} of {total} rows",
+        {"rows": _fmt_int(shown), "total": _fmt_int(total)},
+    )
+
+
 def _collect(lf: pl.LazyFrame, ordered: bool = False) -> pl.DataFrame:
     """Run a lazy query. Streaming keeps the memory bounded when it has to
     go through a big table (the result itself is always small here).
@@ -119,7 +133,7 @@ def cap_rows(
     """Keep the first `env.tile_max_rows` rows of a table tile.
 
     Takes a DataFrame or a LazyFrame (a union of two big tables is only ever
-    read for its first rows). Returns (df, meta) ; `meta["note"]` says what
+    read for its first rows). Returns (df, meta) ; `meta["notes"]` says what
     was cut off. The front never gets more rows than it can render.
     """
     if isinstance(frame, pl.LazyFrame):
@@ -134,7 +148,7 @@ def cap_rows(
         df = frame.head(env.tile_max_rows)
     return df, {
         "total_rows": total,
-        "note": f"First {_fmt_int(env.tile_max_rows)} of {_fmt_int(total)} rows",
+        "notes": [rows_note(env.tile_max_rows, total)],
     }
 
 
@@ -361,7 +375,7 @@ def _bound_dates(source: pl.LazyFrame, column: str) -> tuple[pl.LazyFrame, str |
     distinct = _collect(source.select(pl.col(column).n_unique())).item()
     if distinct <= env.tile_max_points:
         return source, None
-    return apply_monthly(source, column), "Grouped by month"
+    return apply_monthly(source, column), ("Grouped by month", {})
 
 
 def _bound_categories(
@@ -377,7 +391,7 @@ def _bound_categories(
     if total <= limit:
         return source, None
     top, rest = source.head(limit), source.tail(total - limit)
-    note = f"Top {_fmt_int(limit)} of {_fmt_int(total)}"
+    note = "Top {limit} of {total}"
     if others and aggregation in ("sum", "count") and source.schema[x] == pl.String:
         folded = pl.DataFrame(
             {x: ["Others"], y: [rest[y].sum()]},
@@ -385,7 +399,7 @@ def _bound_categories(
         )
         top = pl.concat([top, folded])
         note += " (rest in Others)"
-    return top, note
+    return top, (note, {"limit": _fmt_int(limit), "total": _fmt_int(total)})
 
 
 def card_comparison(
@@ -439,7 +453,7 @@ def card_comparison(
 def graph_case(content, table, store, full_predicates):
     """The data of a graph tile (`charts.Chart` : drawn by the front). Returns
     `(chart, meta)` ;
-    `meta["note"]` says how the data was reduced to stay drawable.
+    `meta["notes"]` says how the data was reduced to stay drawable.
 
     Optional keys : `where` (SQL over the rows, like a card's), `monthly` (a date
     x axis is grouped by month) and `others` (the bars past the limit are
@@ -470,7 +484,9 @@ def graph_case(content, table, store, full_predicates):
         source = source.sort(cx["name"])
         if source.height > env.tile_max_points:  # still too many : latest ones
             source = source.tail(env.tile_max_points)
-            notes.append(f"Latest {_fmt_int(env.tile_max_points)} points")
+            notes.append(
+                ("Latest {points} points", {"points": _fmt_int(env.tile_max_points)})
+            )
     else:
         # ties on y are ordered by x : the bars do not swap between two runs
         source = source.sort([cy["name"], cx["name"]], descending=[True, False])
@@ -489,7 +505,7 @@ def graph_case(content, table, store, full_predicates):
     kind = graph_json["graph_type"] if graph_json["graph_type"] in KINDS else "bar"
     chart = Chart(kind, cx["name"], cy["name"], source, labels, temporal)
     notes = [n for n in notes if n]
-    return chart, ({"note": ". ".join(notes)} if notes else {})
+    return chart, ({"notes": notes} if notes else {})
 
 
 # Chart styling defaults and card options, set by the UI apps from their odoo

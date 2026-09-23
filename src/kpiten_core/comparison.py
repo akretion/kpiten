@@ -6,7 +6,7 @@ The colors and the arrows are the ones of an Odoo scorecard (`baselineColorUp`,
 
 import html
 
-from kpiten_core import config
+from kpiten_core import config, i18n
 
 # the color follows the tone (good / bad), the arrow follows the direction : a fall
 # of the late deliveries is drawn ▼ in green (`good = "down"` on the card)
@@ -39,18 +39,22 @@ def label(comparison: dict) -> str:
     return f"{arrow} {comparison['text']}".strip()
 
 
-def tooltip(comparison: dict) -> str:
-    """`Previous period 2026-04-20 → 2026-06-18 : 41 000`."""
+def tooltip(comparison: dict, tr=i18n.english) -> str:
+    """`Previous period 2026-04-20 → 2026-06-18 : 41 000` (in the language of `tr`)."""
     period = f" {comparison['period']}" if comparison.get("period") else ""
-    return f"Previous period{period} : {comparison['previous']}"
+    return tr(
+        "Previous period{period} : {previous}",
+        period=period,
+        previous=comparison["previous"],
+    )
 
 
-def html_block(comparison: dict, palette: dict | None = None) -> str:
-    """The line under a card's value, as html (escaped)."""
+def html_block(comparison: dict, palette: dict | None = None, tr=i18n.english) -> str:
+    """The line under a card's value, as html (escaped), in the language of `tr`."""
     text_color = color(comparison, palette)
     style = f' style="color: {text_color}"' if text_color else ""
     return (
-        f'<div class="kpi-delta"{style} title="{html.escape(tooltip(comparison), quote=True)}">'
+        f'<div class="kpi-delta"{style} title="{html.escape(tooltip(comparison, tr), quote=True)}">'
         f"{html.escape(label(comparison))} "
-        f'<span class="kpi-delta-descr">{html.escape(comparison["description"])}</span></div>'
+        f'<span class="kpi-delta-descr">{html.escape(tr(comparison["description"]))}</span></div>'
     )
