@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<odoo noupdate="1">
+<odoo>
     <!-- KPI configs used for functional tests of the shiny dashboard -->
 
     <record id="sale_count_card" model="kt.dataset.line">
