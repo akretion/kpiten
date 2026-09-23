@@ -54,7 +54,7 @@ PLOTLY_JS = "https://cdn.plot.ly/plotly-2.35.2.min.js"
 FAVICON = ui.tags.link(rel="icon", type="image/png", href="static/favicon.png")
 
 REFRESH_TOOLTIP = "Refresh data : sync with Odoo now, to see its latest changes"
-ODS_TOOLTIP = "Download the rows of an Odoo model as a spreadsheet (.ods)"
+ODS_TOOLTIP = "Download the rows of an Odoo model as a spreadsheet"
 # a spreadsheet (a grid with its header row), in the color of the text
 SPREADSHEET_ICON = (
     '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" '
@@ -63,7 +63,7 @@ SPREADSHEET_ICON = (
     '<path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>'
 )
 ODS_MODEL_TOOLTIP = (
-    "Download as a spreadsheet (.ods) : the rows of this model you may read, with the "
+    "Download as a spreadsheet : the rows of this model you may read, with the "
     "filters of the panel"
 )
 EDIT_TOOLTIP = (
@@ -695,7 +695,7 @@ def server(input, output, session):
         ui.modal_show(
             ui.modal(
                 ui.input_select("ods_model", None, models, width="100%"),
-                title="Download the rows of a model (.ods)",
+                title="Download the rows of a model",
                 easy_close=True,
                 size="s",
                 footer=ui.download_button(
