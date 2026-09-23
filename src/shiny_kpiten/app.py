@@ -29,7 +29,8 @@ from kpiten_core import brand, comparison, links
 from kpiten_core import config as core_config
 from kpiten_core import ods as core_ods
 from kpiten_core import plugins as core_plugins
-from kpiten_core.gtable import DRILL_CSS
+from kpiten_core.render.gtable import DRILL_CSS
+from kpiten_core.render.plotly import apply_theme_colors
 from kpiten_core import themes as core_themes
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
@@ -332,7 +333,7 @@ def tile_html(
     if plugged:
         parts.append(plugged)
     elif result.kind == "graph":
-        core_tiles.apply_theme_colors(result.figure, p)
+        apply_theme_colors(result.figure, p)
         result.figure.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
