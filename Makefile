@@ -1,5 +1,5 @@
 DB      ?= kpiten
-MODULES ?= kpiten,kpiten_commercial_data
+MODULES ?= erp_commercial_data,kpiten_kpi,kpiten_shiny,kpiten_marimo,kpiten_nicegui,kpiten_preview
 
 # mot de passe Postgres de l'utilisateur odoo : PGPASSWORD dans .env (voir
 # .env.example), ni dans odoo.conf ni dans le dépôt ; lu par libpq pour odoo-bin,
@@ -58,10 +58,10 @@ db:
 update:
 	$(ODOO) -d $(DB) -u $(MODULES) --stop-after-init
 
-## Ajoute N ventes de 4 lignes à la base DB (module kpiten_sale_stock_demo_big
+## Ajoute N ventes de 4 lignes à la base DB (module erp_commercial_data_big
 ## installé) :  make add-sales DB=big N=100000
 add-sales:
-	echo "env.ref('kpiten_sale_stock_demo_big.demo_generator_sale_big').add_big_sales($(N))" | $(ODOO_SHELL) -d $(DB)
+	echo "env.ref('erp_commercial_data_big.demo_generator_sale_big').add_big_sales($(N))" | $(ODOO_SHELL) -d $(DB)
 
 ## Odoo multi-bases : PAS de -d (qui restreint Odoo à une seule base). Les bases
 ## visibles sont celles de odoo.conf (dbfilter), ou de DBFILTER ; la base se
