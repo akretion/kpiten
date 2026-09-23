@@ -45,9 +45,16 @@ venv:
 	# le module Odoo kpiten importe kpiten_core
 	uv pip install --python $(PY) -e src/kpiten-core
 
-## Environnements des applications (un uv.lock par projet)
+## Environnements des applications (un uv.lock par projet), puis les plugins dans le
+## venv de shiny-kpiten : après son `uv sync`, qui retire ce que son uv.lock n'a pas.
+## Sans un plugin :  make apps PLUGINS=quarto-kpiten
+PLUGINS ?= perspective-kpiten quarto-kpiten
 apps:
 	@for a in kpiten-core nicegui-kpiten shiny-kpiten marimo-kpiten; do (cd src/$$a && uv sync); done
+	@for p in $(PLUGINS); do \
+	  [ -d src/$$p ] && uv pip install --python src/shiny-kpiten/.venv/bin/python -e src/$$p \
+	    || echo "plugin $$p absent de src/ (make repos)"; \
+	done
 
 ## Crée la base DB et installe MODULES :  make db DB=kpiten
 db:

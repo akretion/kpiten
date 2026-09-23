@@ -73,3 +73,19 @@
   merges:
     - akretion marimo-kpiten
   target: akretion marimo-kpiten
+
+# Plugins (pluggy, voir docs/kpiten-plugins.md) : installés par `make apps` dans le
+# venv de shiny-kpiten (PLUGINS du Makefile)
+./src/perspective-kpiten:
+  remotes:
+    akretion: git@github.com:akretion/kpiten.git
+  merges:
+    - akretion perspective-kpiten
+  target: akretion perspective-kpiten
+
+./src/quarto-kpiten:
+  remotes:
+    akretion: git@github.com:akretion/kpiten.git
+  merges:
+    - akretion quarto-kpiten
+  target: akretion quarto-kpiten
