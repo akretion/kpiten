@@ -11,4 +11,11 @@
             name="filter_config"
         >{"date": {"field": "date_order"}, "dimensions": [{"name": "partner_id", "label": "Vendor"}]}</field>
     </record>
+    <record id="panel_product" model="kt.panel">
+        <field name="name">Product</field>
+        <field
+            name="filter_config"
+        >{"date": {"field": "order_id.date_order"}, "dimensions": [{"name": "product_id", "label": "Product"}, {"name": "product_id.categ_id", "label": "Category"}]}</field>
+    </record>
+
 </odoo>
