@@ -55,3 +55,19 @@ def kpiten_export_panel(
     filters and the rights of the user, or None and the `error` text) ; `context` :
     `{"filters": text, "user": name, "db": name, "palette": theme colors, "date": date}`.
     """
+
+
+@hookspec
+def kpiten_panel_sites() -> list[dict]:
+    """The sites of a panel the plugin builds, one dict each :
+    `{"key": "evidence", "label": "Evidence", "icon": "<svg...>", "tooltip": "..."}` ;
+    the front shows a button per site, and serves the site it built."""
+
+
+@hookspec(firstresult=True)
+def kpiten_build_panel_site(
+    key: str, panel: dict, tiles: list, context: dict, folder, base_path: str
+) -> bool | None:
+    """Build the static site `key` of the panel in `folder` (a `pathlib.Path`), to be
+    served at `base_path` (`/dashboard/sites/<token>`) ; None when it is not the
+    plugin's. `panel`, `tiles`, `context` : as for `kpiten_export_panel`."""

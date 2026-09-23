@@ -104,3 +104,24 @@ def export_panel(key: str, panel: dict, tiles: list, context: dict) -> bytes | N
     return plugin_manager().hook.kpiten_export_panel(
         key=key, panel=panel, tiles=tiles, context=context
     )
+
+
+def panel_sites() -> list[dict]:
+    """The sites of a panel the plugins build (a button each in the front)."""
+    return [
+        site
+        for sites in plugin_manager().hook.kpiten_panel_sites()
+        for site in sites or ()
+    ]
+
+
+def build_panel_site(key, panel, tiles, context, folder, base_path) -> bool | None:
+    """Build a site of the panel (see `hookspecs.kpiten_build_panel_site`)."""
+    return plugin_manager().hook.kpiten_build_panel_site(
+        key=key,
+        panel=panel,
+        tiles=tiles,
+        context=context,
+        folder=folder,
+        base_path=base_path,
+    )
