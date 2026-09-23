@@ -9,6 +9,9 @@ behavior. Plugins can either:
 - implement any function of the `Backend` API and monkeypatch /
   subclass in place.
 
+- implement the hooks of `hookspecs.py` (pluggy) : draw a tile, add scripts to the
+  page (`plugin_manager`, `head_html`, `render_tile`).
+
 Discovery is based on the `kpiten_core` entry points group:
 
 ```toml
@@ -23,10 +26,15 @@ from kpiten_core.plugins import load_plugins
 load_plugins(["my_project.plugins_ext"])  # module path is python import name
 """
 
+import functools
 import importlib
 import logging
 from importlib.metadata import entry_points
 from typing import Callable
+
+import pluggy
+
+from kpiten_core import hookspecs
 
 logger = logging.getLogger(__name__)
 
@@ -49,3 +57,34 @@ def load_plugins(module_names: list[str] | None = None) -> list[str]:
         mods.append(name)
     logger.info("loaded plugins : %s", mods)
     return mods
+
+
+# ---- pluggy : the hooks of `hookspecs.py`, answered by the plugins of the same entry
+# points group
+@functools.cache
+def plugin_manager() -> pluggy.PluginManager:
+    """The plugin manager, with the plugins of the `kpiten_core` entry points."""
+    manager = pluggy.PluginManager(hookspecs.PROJECT)
+    manager.add_hookspecs(hookspecs)
+    try:
+        manager.load_setuptools_entrypoints(ENTRY_POINT_GROUP)
+    except Exception:
+        logger.exception("failed to load the kpiten plugins")
+    logger.info("kpiten plugins : %s", [n for n, _ in manager.list_name_plugin()])
+    return manager
+
+
+def head_html() -> str:
+    """What the plugins put in the <head> of a dashboard page."""
+    return "\n".join(filter(None, plugin_manager().hook.kpiten_head_html()))
+
+
+def render_tile(line: dict, result, palette: dict) -> str | None:
+    """The html of a tile drawn by a plugin, None when no plugin draws it."""
+    try:
+        return plugin_manager().hook.kpiten_render_tile(
+            line=line, result=result, palette=palette
+        )
+    except Exception:
+        logger.exception("a plugin failed to draw the tile %s", line.get("name"))
+        return None
