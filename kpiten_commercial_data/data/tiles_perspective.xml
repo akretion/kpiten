@@ -1,0 +1,27 @@
+<odoo>
+    <!-- a `data` tile drawn by Perspective (plugin kpiten-perspective) : the line
+         `perspective: {...}` (an SQL comment) is the config of the viewer ; without the plugin the
+         tile is an ordinary table -->
+    <record id="sale_perspective_explorer_table" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_sales_lines" />
+        <field name="kind">data</field>
+        <field name="name">Sales explorer (Perspective)</field>
+        <field name="panel_id" ref="panel_sale" />
+        <field name="sequence">90</field>
+        <field name="col_span">6</field>
+        <field name="tile_height">460</field>
+        <field name="definition">-- perspective: {"plugin": "Datagrid", "group_by": ["Salesperson"], "split_by": ["Year"], "columns": ["Revenue"], "sort": [["Revenue", "col desc"]]}
+-- the confirmed order lines, by salesperson and month : a pivot to move in the browser
+SELECT
+    "salesman_id" AS "Salesperson",
+    STRFTIME("order_id.date_order", '%Y') AS "Year",
+    STRFTIME("order_id.date_order", '%Y-%m') AS "Month",
+    COUNT(DISTINCT "order_id") AS "Orders",
+    SUM("product_uom_qty") AS "Units",
+    SUM("price_subtotal") AS "Revenue"
+FROM d
+WHERE "state" NOT IN ('draft', 'sent', 'cancel')
+GROUP BY "Salesperson", "Year", "Month"
+ORDER BY "Month", "Salesperson"</field>
+    </record>
+</odoo>

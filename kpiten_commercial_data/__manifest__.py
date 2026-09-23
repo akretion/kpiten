@@ -17,6 +17,7 @@
         "data/tiles.xml",
         "data/tiles_sale.xml",
         "data/tiles_sql.xml",
+        "data/tiles_perspective.xml",
     ],
     "installable": True,
 }
