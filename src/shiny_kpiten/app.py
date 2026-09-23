@@ -7,8 +7,8 @@ The tiles are rendered as raw html (all content is written server-side) :
 - graph -> plotly figure (to_html ; plotly.js is loaded once, in the page head)
 - pivot / union / data -> great_tables themed table (see themes.py)
 
-Themes and their palette live in `themes.py` (default = Akretion blue
-gradient) ; the theme can be picked in the UI bar.
+Themes and their palette live in `themes.py` (default = the one of `kt.config`) ; the
+theme can be picked in the UI bar, and is then kept in Odoo for the user.
 """
 
 import json
@@ -28,6 +28,7 @@ from kpiten_core import brand, comparison, links
 from kpiten_core import config as core_config
 from kpiten_core import ods as core_ods
 from kpiten_core.gtable import DRILL_CSS
+from kpiten_core import themes as core_themes
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
 
@@ -127,15 +128,14 @@ EDIT_MODE_JS = """
 """
 
 
-# On page load: restore the saved theme (localStorage, or `?theme=` url
-# param). On select change: save the new value to localStorage.
+# On page load: apply the `?theme=` url param. The theme the user chose is kept in
+# Odoo (`kt.user.theme`) : the server selects it.
 THEME_PERSIST_JS = """
 (function () {
   if (window.__kpitenThemeInit) { return; }
   window.__kpitenThemeInit = true;
   function persisted() {
-    const qp = new URLSearchParams(window.location.search).get("theme");
-    return qp || localStorage.getItem("kpiten.theme") || null;
+    return new URLSearchParams(window.location.search).get("theme");
   }
   function applyPersisted(tries) {
     const saved = persisted();
@@ -153,11 +153,6 @@ THEME_PERSIST_JS = """
       el.value = saved;  // a native <select> : show it
       el.dispatchEvent(new Event("change", {bubbles: true}));
     }
-  }
-  if (window.jQuery) {
-    $(document).on("change", "#theme", function () {
-      if (this.value) { localStorage.setItem("kpiten.theme", this.value); }
-    });
   }
   setTimeout(function () { applyPersisted(0); }, 100);
 })();
@@ -315,7 +310,7 @@ def tile_html(
                 if result.subtitle
                 else ""
             )
-            + (comparison.html_block(result.comparison) if result.comparison else "")
+            + (comparison.html_block(result.comparison, p) if result.comparison else "")
             + "</div>"
         )
     parts = [
@@ -323,6 +318,7 @@ def tile_html(
         f'<span class="kind-badge">{result.kind}</span></h3>'
     ]
     if result.kind == "graph":
+        core_tiles.apply_theme_colors(result.figure, p)
         result.figure.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
@@ -407,6 +403,11 @@ def server(input, output, session):
             return None
         return ui.tags.style(".shiny-input-container:has(#edit_mode) { display: none }")
 
+    # the theme the user chose (kept in Odoo), None : the default of `kt.config`
+    saved_theme = reactive.Value(
+        core_themes.key(initial_backend.get_user_theme(current_user_id()))
+    )
+
     # Apply the odoo-side chart defaults (colors) once per session.
     core_tiles.set_chart_config(initial_backend.get_chart_config())
     links.set_odoo_url(initial_backend.get_base_url())
@@ -442,6 +443,9 @@ def server(input, output, session):
             backend_rv.set(new_backend)
             core_tiles.set_chart_config(new_backend.get_chart_config())
             links.set_odoo_url(new_backend.get_base_url())
+            saved_theme.set(
+                core_themes.key(new_backend.get_user_theme(current_user_id()))
+            )
             data_version.set(data_version() + 1)
             layout_version.set(layout_version() + 1)
             ui.notification_show(f"Database switched to {db}")
@@ -479,6 +483,10 @@ def server(input, output, session):
         ui.update_select("panel", choices=choices, selected=current)
         return choices
 
+    def user_theme() -> str:
+        """The theme of the user : the one they chose, else the default of Odoo."""
+        return saved_theme() or core_config.default_theme()
+
     @reactive.calc
     def current_theme() -> themes.Theme:
         if "theme" in input:
@@ -486,19 +494,33 @@ def server(input, output, session):
                 return themes.get_theme(input.theme())
             except (KeyError, TypeError):
                 pass
-        return themes.get_theme(core_config.default_theme())
+        return themes.get_theme(user_theme())
 
     @render.ui
     def theme_select():
-        """Theme select + persistence, rendered once the app is up."""
+        """Theme select, rendered once the app is up (and again on a db switch)."""
         choices = {key: t.name for key, t in themes.THEMES.items()}
+        with reactive.isolate():
+            selected = user_theme()
+        backend_rv()
         return ui.input_select(
             "theme",
             "Theme",
             choices=choices,
-            selected=core_config.default_theme(),
+            selected=selected,
             width="150px",
         )
+
+    @reactive.effect
+    @reactive.event(input.theme)
+    def _save_theme():
+        """A theme chosen in the select is kept in Odoo for the user."""
+        key = core_themes.key(input.theme())
+        with reactive.isolate():
+            if not key or key == user_theme():
+                return
+            backend_rv().set_user_theme(current_user_id(), key)
+            saved_theme.set(key)
 
     @render.ui
     def tab_title():

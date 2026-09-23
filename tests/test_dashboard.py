@@ -212,9 +212,22 @@ def check_theme_is_shown(page: Page, key: str) -> None:
     )
 
 
+@pytest.fixture
+def no_user_theme():
+    """The user of the tests has chosen no theme, before and after the test (the one
+    chosen in the dashboard is kept in Odoo)."""
+    from kpiten_core.backend import Backend
+
+    odoo = Backend.create(db=DB).env
+    user_id = odoo["res.users"].search([("login", "=", LOGIN)])[0]
+    odoo["kt.config"].set_user_theme(user_id, False)
+    yield
+    odoo["kt.config"].set_user_theme(user_id, False)
+
+
 @pytest.mark.parametrize("key", list(themes.THEMES))
 def test_selecting_a_theme_applies_it_and_the_dropdown_shows_it(
-    page: Page, key: str
+    page: Page, key: str, no_user_theme
 ) -> None:
     open_dashboard(page)
     page.locator("#theme").wait_for(state="visible", timeout=30_000)
@@ -222,16 +235,18 @@ def test_selecting_a_theme_applies_it_and_the_dropdown_shows_it(
     check_theme_is_shown(page, key)
 
 
-def test_the_theme_is_kept_when_the_page_is_reloaded(page: Page) -> None:
-    """The choice is remembered by the browser : after a reload the tiles are still
-    drawn in it, and the dropdown still shows it (not the default theme)."""
+def test_the_theme_is_kept_when_the_page_is_reloaded(page: Page, no_user_theme) -> None:
+    """The choice is kept in Odoo : after a new login, even with nothing left in the
+    browser, the tiles are still drawn in it, and the dropdown still shows it (not the
+    default theme)."""
     open_dashboard(page)
     other = next(key for key in themes.THEMES if key != themes.DEFAULT_THEME)
     page.locator("#theme").wait_for(state="visible", timeout=30_000)
     page.select_option("#theme", other)
     check_theme_is_shown(page, other)
 
-    page.reload()
+    page.evaluate("localStorage.clear()")
+    open_dashboard(page)
     page.locator(TILES).first.wait_for(timeout=90_000)
     check_theme_is_shown(page, other)
 
@@ -276,13 +291,13 @@ def kt_config(**values):
         config.write(ids, initial)
 
 
-def test_the_default_theme_of_kt_config(page: Page) -> None:
+def test_the_default_theme_of_kt_config(page: Page, no_user_theme) -> None:
     """A user who chose nothing gets the theme of the configuration, in the page and
     in the dropdown."""
-    with kt_config(default_theme="midnight"):
+    with kt_config(default_theme="graphite"):
         open_dashboard(page)
         page.locator("#theme").wait_for(state="visible", timeout=30_000)
-        check_theme_is_shown(page, "midnight")
+        check_theme_is_shown(page, "graphite")
 
 
 def test_the_rows_of_a_table_follow_kt_config(page: Page) -> None:

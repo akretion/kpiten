@@ -1,19 +1,21 @@
 """Dashboard themes.
 
-A theme is a CSS palette injected at runtime:
+A theme is a CSS palette injected at runtime ; the palettes are the ones of
+`kpiten_core.themes` (shared with NiceGUI) :
 - page background (as `linear-gradient` with 3 stops)
-- tile surface / borders / accent for titles
+- tile surface / borders / shadow / accent for titles
 - table header fill and text colors (drives the GT styling)
 - optionally the colors of the page around the tiles (`page_text`, `page_accent`,
   `page_border`, `page_surface`) : a dark page with light tiles ; the colors of the
   tiles when not set
 
-The default theme is `akretion` (matches akretion.com hero gradient) ; a
-theme can be chosen in the UI or through the `?theme=` query param.
+The default theme is the one of `kt.config` ; the one a user chooses in the UI is kept
+in Odoo (`kt.user.theme`), and a theme can be asked through the `?theme=` query param.
 """
 
 import polars as pl
 from great_tables import GT  # noqa: F401 (annotation)
+from kpiten_core import themes as core_themes
 from kpiten_core.gtable import gt_table
 
 
@@ -202,7 +204,7 @@ class Theme:
   overflow: auto;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, .25);
+  box-shadow: {p.get("shadow", core_themes.DARK_SHADOW)};
 }}
 .tile h3 {{
   margin: 0 0 8px 0;
@@ -247,85 +249,14 @@ def gt_df(theme: "Theme", df: "polars.DataFrame") -> GT:
     return gt_table(df, theme.palette)
 
 
-AKRETION = Theme(
-    "akretion",
-    "Akretion",
-    {
-        "gradient_deg": "135deg",
-        "bg_from": "#101226",
-        "bg_mid": "#0b1f3b",
-        "bg_to": "#0a3f6b",
-        "accent": "#00dc82",
-        "surface": "rgba(9, 12, 28, .85)",
-        "surface_hex": "#0c0f1e",
-        "text": "#dbe4ef",
-        "border": "rgba(0, 220, 130, .25)",
-        "border_hex": "rgba(0,220,130,.25)",
-        "thead": "#081225",
-        "row_line": "rgba(255,255,255,.06)",
-    },
-)
-
-MIDNIGHT = Theme(
-    "midnight",
-    "Midnight",
-    {
-        "gradient_deg": "160deg",
-        "bg_from": "#0e1231",
-        "bg_mid": "#142452",
-        "bg_to": "#0047e1",
-        "accent": "#34cdfe",
-        "surface": "rgba(14, 18, 49, .8)",
-        "surface_hex": "#0e1231",
-        "text": "#e8ecf8",
-        "border": "rgba(52, 205, 254, .25)",
-        "border_hex": "rgba(52,205,254,.25)",
-        "thead": "#0b1030",
-        "row_line": "rgba(52,205,254,.12)",
-    },
-)
-
-LIGHT = Theme(
-    "light",
-    "Sand",
-    {
-        "gradient_deg": "180deg",
-        "bg_from": "#faf6ef",
-        "bg_mid": "#f3ecdd",
-        "bg_to": "#e9dfc9",
-        "accent": "#a06b2a",
-        "surface": "rgba(255, 253, 249, .94)",
-        "surface_hex": "#fffdf9",
-        "text": "#4a4238",
-        "border": "rgba(160, 107, 42, .25)",
-        "border_hex": "rgba(160,107,42,.25)",
-        "thead": "#f1e9d9",
-        "row_line": "rgba(74, 66, 56, .07)",
-    },
-)
-
-# the page of akretion (dark gradient, its controls), the tiles of sand
-AKRETION_SAND = Theme(
-    "akretion_sand",
-    "Akretion Sand",
-    {
-        **LIGHT.palette,
-        **{
-            k: AKRETION.palette[k]
-            for k in ("gradient_deg", "bg_from", "bg_mid", "bg_to")
-        },
-        "page_text": AKRETION.palette["text"],
-        "page_accent": AKRETION.palette["accent"],
-        "page_border": AKRETION.palette["border"],
-        "page_surface": AKRETION.palette["surface_hex"],
-    },
-)
-
 THEMES: dict[str, Theme] = {
-    t.key: t for t in (AKRETION, MIDNIGHT, LIGHT, AKRETION_SAND)
+    key: Theme(key, palette["name"], palette)
+    for key, palette in core_themes.PALETTES.items()
 }
-DEFAULT_THEME = "akretion"
+DEFAULT_THEME = core_themes.DEFAULT
 
 
-def get_theme(key: str) -> Theme:
-    return THEMES.get(key or DEFAULT_THEME, THEMES[DEFAULT_THEME])
+def get_theme(key: str | None) -> Theme:
+    """The theme of a key (an old key gives the theme that replaced it), else the
+    default one."""
+    return THEMES[core_themes.key(key) or DEFAULT_THEME]
