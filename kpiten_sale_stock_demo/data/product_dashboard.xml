@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<odoo noupdate="1">
-    <!-- The "Product" dashboard of Odoo (spreadsheet_dashboard_sale) : best sellers
-        and best categories over the order lines, by revenue and by units sold. The
-        Period filter is on the date of the order (order_id.date_order, see
-        models/kt.py). -->
-
-</odoo>
