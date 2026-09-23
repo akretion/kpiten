@@ -275,6 +275,30 @@ def test_the_card_colors_of_kt_config():
         config.set_config({})
 
 
+def test_the_theme_colors_give_way_to_kt_config():
+    from kpiten_core import comparison, config, themes
+
+    prune = themes.PALETTES["prune"]
+    assert comparison.color({"direction": "up"}, prune) == prune["good"]
+    try:
+        config.set_config({"card": {"good_color": "#123456"}})
+        assert comparison.color({"direction": "up"}, prune) == "#123456"
+    finally:
+        config.set_config({})
+
+
+def test_an_old_theme_gives_the_one_that_replaced_it():
+    from kpiten_core import config
+
+    try:
+        config.set_config({"ui": {"theme": "akretion_sand"}})
+        assert config.default_theme() == "mixed"
+        config.set_config({"ui": {"theme": "gone"}})
+        assert config.default_theme() == "capitaine"
+    finally:
+        config.set_config({})
+
+
 def test_the_graph_colors_of_kt_config():
     from kpiten_core import config
 

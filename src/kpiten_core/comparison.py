@@ -20,10 +20,13 @@ def tone(comparison: dict) -> str:
     return comparison.get("tone") or _TONE_OF_DIRECTION[comparison["direction"]]
 
 
-def color(comparison: dict) -> str | None:
-    """The color of a tone : those of `kt.config` (the card colors), else Odoo's."""
+def color(comparison: dict, palette: dict | None = None) -> str | None:
+    """The color of a tone : those of `kt.config` (the card colors), else the ones of
+    the theme (`palette`), else Odoo's."""
     name = tone(comparison)
-    return config.card_color(name, COLORS[name]) if name in ("good", "bad") else None
+    if name not in ("good", "bad"):
+        return None
+    return config.card_color(name, (palette or {}).get(name) or COLORS[name])
 
 
 def label(comparison: dict) -> str:
@@ -38,9 +41,9 @@ def tooltip(comparison: dict) -> str:
     return f"Previous period{period} : {comparison['previous']}"
 
 
-def html_block(comparison: dict) -> str:
+def html_block(comparison: dict, palette: dict | None = None) -> str:
     """The line under a card's value, as html (escaped)."""
-    text_color = color(comparison)
+    text_color = color(comparison, palette)
     style = f' style="color: {text_color}"' if text_color else ""
     return (
         f'<div class="kpi-delta"{style} title="{html.escape(tooltip(comparison), quote=True)}">'

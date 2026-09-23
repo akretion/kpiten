@@ -84,6 +84,22 @@ class JsonrpcBackend:
             return self.env["kt.config"].get_config_json()
         return {}
 
+    def get_user_theme(self, user_id: int) -> str | None:
+        """The theme the user chose (`kt.user.theme`), None when they chose none or
+        when the kpiten module is older."""
+        try:
+            return self.env["kt.config"].get_user_theme(user_id) or None
+        except Exception:
+            logger.exception("get_user_theme(%s) failed", user_id)
+            return None
+
+    def set_user_theme(self, user_id: int, theme: str | None) -> None:
+        """Keep in Odoo the theme the user chose ; None forgets it."""
+        try:
+            self.env["kt.config"].set_user_theme(user_id, theme or False)
+        except Exception:
+            logger.exception("set_user_theme(%s, %s) failed", user_id, theme)
+
     def get_panel_lines(self, model: str, panel_id: int | None = None) -> list[dict]:
         """Fetch kt.dataset.line records for a model, optionally a panel."""
         model_id = self.env["ir.model"].search([("model", "=", model)])

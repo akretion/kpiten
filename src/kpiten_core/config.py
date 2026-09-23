@@ -9,13 +9,15 @@ kpiten module, nothing changes.
      "number": {"format": "space_comma", "small_below": 10, "small_decimals": 2,
                 "large_decimals": 0},
      "period": {"default": "last 90 days", "fiscal_start_month": 1},
-     "ui": {"theme": "akretion", "table_rows": 20},
+     "ui": {"theme": "capitaine", "table_rows": 20},
      "explore": {"access": "everyone", "max_rows": 500000, "ods_max_rows": 50000},
      "ai": {"enabled": True, "send_values": True},
      "currency": {"symbol": "$", "position": "before"}}
 """
 
 import datetime
+
+from kpiten_core import themes
 
 CONFIG: dict = {}
 
@@ -26,7 +28,7 @@ NUMBER_FORMATS = {
     "dot_comma": (".", ","),  # 1.234,56
     "comma_dot": (",", "."),  # 1,234.56
 }
-THEMES = ("akretion", "midnight", "light", "akretion_sand")
+THEMES = tuple(themes.PALETTES)
 EXPLORE_ACCESS = ("nobody", "managers", "everyone")
 DEFAULT_PERIOD = "last 90 days"  # the dashboards open on it, like Odoo
 
@@ -102,8 +104,8 @@ def fiscal_year_start(today: datetime.date) -> datetime.date:
 
 # ---- interface
 def default_theme() -> str:
-    theme = _section("ui").get("theme")
-    return theme if theme in THEMES else THEMES[0]
+    """The theme of `kt.config` (an old key gives the theme that replaced it)."""
+    return themes.key(_section("ui").get("theme")) or themes.DEFAULT
 
 
 def table_rows() -> int:
