@@ -57,7 +57,7 @@ def card_icon(name: str) -> tuple[str, str]:
 def badge(name: str):
     glyph, color = card_icon(name)
     return ui.div(
-        icon(glyph, fill=color, width="1.4rem", height="1.4rem"),
+        icon(glyph, fill=color, width=".9rem", height=".9rem"),
         class_="badge-icon",
         style=f"background: color-mix(in srgb, {color} 15%, transparent)",
     )
@@ -121,7 +121,7 @@ def sparkline(tile, predicates, color=ACCENT):
     fig.update_xaxes(visible=False)
     fig.update_yaxes(visible=False)
     fig.update_layout(showlegend=False)
-    return plot_html(fig, 60)
+    return plot_html(fig, 34)
 
 
 CSS = """
@@ -136,9 +136,15 @@ body { background: var(--bs-tertiary-bg); }
   display: flex; align-items: center; gap: .5rem; }
 .card-header .tile-icon { color: var(--bs-primary); }
 .card-header .info { margin-left: auto; opacity: .5; cursor: help; }
-.badge-icon { width: 3rem; height: 3rem; border-radius: 12px; display: grid;
-  place-items: center; }
-.value-box-title { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em;
+.badge-icon { width: 1.7rem; height: 1.7rem; border-radius: 8px; display: grid;
+  place-items: center; flex: none; }
+.vb-title { display: flex; align-items: center; gap: .5rem; }
+.vb-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* compact value boxes : a line of title, the value, a thin trend */
+.bslib-value-box .value-box-area { padding: .6rem .9rem .4rem !important; }
+.bslib-value-box .value-box-value { font-size: 1.6rem; line-height: 1.15;
+  margin-bottom: .1rem; }
+.value-box-title { font-size: .72rem; margin-bottom: .1rem; text-transform: uppercase; letter-spacing: .04em;
   opacity: .7; }
 .value-box-value { font-weight: 700; }
 .kpi-delta { font-size: .8rem; font-weight: 600; }
@@ -226,13 +232,11 @@ def server(input, output, session):
                 ui.span(f"{c['text']} {c['description']}", class_=f"kpi-delta {tone}")
             ]
         return ui.value_box(
-            tile["name"],
+            ui.div(badge(tile["name"]), ui.span(tile["name"]), class_="vb-title"),
             result.text,
             *delta,
             sparkline(tile, predicates(), card_icon(tile["name"])[1]) or "",
-            showcase=badge(tile["name"]),
-            showcase_layout="left center",
-            max_height="170px",
+            max_height="120px",
         )
 
     def tile_card(tile, result, error):
@@ -268,7 +272,7 @@ def server(input, output, session):
             elif tile["kind"] != "card":
                 blocks.append(tile_card(tile, result, error))
         return ui.TagList(
-            ui.layout_column_wrap(*cards, width="220px", fill=False) if cards else None,
+            ui.layout_column_wrap(*cards, width="260px", fill=False) if cards else None,
             ui.br(),
             ui.layout_column_wrap(*blocks, width="420px", fill=False),
         )
