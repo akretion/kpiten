@@ -9,4 +9,4 @@ charts in the browser. The json is the config of the viewer (`plugin`, `group_by
 
 Without this plugin, the same tile is an ordinary table.
 
-    uv pip install -e src/perspective-kpiten   # in the venv the dashboards run in
+    make repos apps   # from bi/ : cloned by repos.yml, installed in the venv of shiny-kpiten
