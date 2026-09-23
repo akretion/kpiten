@@ -9,4 +9,4 @@ the graphs are images (kaleido). The document is Markdown rendered by
 `quarto-cli` brings Quarto and Typst in the venv. kaleido needs a Chrome : the one of
 playwright is used when kaleido finds none (`KPITEN_CHROME` to give another).
 
-    uv pip install -e src/quarto-kpiten   # in the venv the dashboards run in
+    make repos apps   # from bi/ : cloned by repos.yml, installed in the venv of shiny-kpiten
