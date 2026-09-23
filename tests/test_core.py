@@ -189,3 +189,27 @@ def test_date_columns_follow_the_field_type():
     assert out["is_prevalidated"].dtype == pl.Boolean
     assert out["invoice_date"].dtype == pl.Date
     assert out["date_order"].dtype == pl.Date
+
+
+def test_the_amounts_of_a_foreign_order_are_in_the_company_currency():
+    """108 dollars at 1.08 dollar for one euro are 100 euros : a KPI adds up euros.
+    The lines reach the rate of their order ; without a rate nothing changes."""
+    from kpiten_core.dfnorm import Df
+
+    fields = {
+        "amount_untaxed": {"type": "monetary"},
+        "price_subtotal": {"type": "monetary"},
+    }
+    order = Df(
+        pl.DataFrame({"amount_untaxed": [108.0, 50.0], "currency_rate": [1.08, 1.0]}),
+        fields=fields,
+    ).get_df()
+    assert order["amount_untaxed"].to_list() == [100.0, 50.0]
+    assert order["amount_untaxed_in_currency"].to_list() == [108.0, 50.0]
+    line = Df(
+        pl.DataFrame({"price_subtotal": [86.0], "order_id.currency_rate": [0.86]}),
+        fields=fields,
+    ).get_df()
+    assert line["price_subtotal"].to_list() == [100.0]
+    plain = Df(pl.DataFrame({"amount_untaxed": [10.0]}), fields=fields).get_df()
+    assert plain.columns == ["amount_untaxed"]
