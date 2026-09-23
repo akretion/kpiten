@@ -34,3 +34,24 @@ def kpiten_render_tile(line: dict, result, palette: dict) -> str | None:
     `line` is the tile (`kt.dataset.line` : its `content`, `name`, `kind`...),
     `result` its `tiles.TileResult` (the rows the user may read, already computed),
     `palette` the colors of the theme (`themes.PALETTES`)."""
+
+
+@hookspec
+def kpiten_panel_exports() -> list[dict]:
+    """The exports of a whole panel the plugin offers, one dict each :
+    `{"key": "pdf", "label": "PDF report", "icon": "<svg...>", "tooltip": "...",
+    "extension": "pdf", "media_type": "application/pdf"}` ; the front shows a button
+    per export."""
+
+
+@hookspec(firstresult=True)
+def kpiten_export_panel(
+    key: str, panel: dict, tiles: list, context: dict
+) -> bytes | None:
+    """The file of the export `key` of the panel, None when it is not the plugin's.
+
+    `panel` : `{"id", "name"}` ; `tiles` : one `(line, result, error)` per tile of the
+    panel, in its order (`result` a `tiles.TileResult` computed with the period, the
+    filters and the rights of the user, or None and the `error` text) ; `context` :
+    `{"filters": text, "user": name, "db": name, "palette": theme colors, "date": date}`.
+    """
