@@ -1,0 +1,31 @@
+[project]
+authors = [
+  {name = "David Beal", email = "david.beal@akretion.com"},
+]
+dependencies = [
+  "kpiten-core",
+  "kaleido>=1.0",
+  "quarto-cli>=1.6",
+]
+description = "KpiTen plugin : the panel on screen as a PDF report (Quarto + Typst)"
+name = "kpiten-quarto"
+readme = "README.md"
+requires-python = ">=3.12"
+version = "0.1.0"
+
+# found by kpiten-core (pluggy) : kpiten_core.plugins.plugin_manager
+[project.entry-points."kpiten_core"]
+quarto = "kpiten_quarto"
+
+[build-system]
+build-backend = "uv_build"
+requires = ["uv_build>=0.11.3,<0.12.0"]
+
+[tool.uv.sources]
+kpiten-core = { path = "../kpiten-core", editable = true }
+
+[dependency-groups]
+dev = [
+  "black>=26.5.1",
+  "pytest>=8",
+]
