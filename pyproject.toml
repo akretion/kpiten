@@ -12,6 +12,7 @@ dependencies = [
   "great-tables>=0.21.0",
   "tomli-w>=1.0",
   "requests>=2.34.2",
+  "sqlglot>=30.19.0",
 ]
 description = "Framework agnostic core to compute KPI tiles stored in Odoo (kpiten)"
 name = "kpiten-core"
