@@ -44,7 +44,10 @@ def auth(payload: dict):
     # scope the parquet store to this db ; the dashboard triggers the actual
     # sync itself (empty store on first render, or the "Refresh data" button).
     env.current_db = backend.db
-    token = SessionHandler.new_session(user_id, db=backend.db)
+    # the language of the user in Odoo : the one of the dashboard
+    token = SessionHandler.new_session(
+        user_id, db=backend.db, lang=backend.get_user_lang(user_id)
+    )
     return Response(status_code=200, content=json.dumps({"session": token}))
 
 

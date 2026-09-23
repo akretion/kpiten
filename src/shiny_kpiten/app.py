@@ -28,7 +28,7 @@ import polars as pl
 from shiny import App, reactive, render, req, ui
 from shiny.types import SilentException
 
-from kpiten_core import brand, comparison, links
+from kpiten_core import brand, comparison, i18n, links
 from kpiten_core import config as core_config
 from kpiten_core import ods as core_ods
 from kpiten_core import plugins as core_plugins
@@ -166,22 +166,36 @@ THEME_PERSIST_JS = """
 """
 
 
+def user_lang(sso) -> str | None:  # noqa: ANN001
+    """The Odoo language of the user : the one of the SSO login, else (dev mode) the
+    one of the rpc login user."""
+    if sso is not None:
+        return sso.lang
+    try:
+        backend = Backend.create()
+        return backend.get_user_lang(backend.env.user.id)
+    except Exception:
+        logger.exception("the language of the rpc user is unknown")
+        return None
+
+
 def app_ui(req):  # noqa: ANN001
     from kpiten_core import env
 
-    if not env.allow_rpc_user and not SessionHandler.get(
-        req.cookies.get(SESSION_COOKIE)
-    ):
+    sso = SessionHandler.get(req.cookies.get(SESSION_COOKIE))
+    if not env.allow_rpc_user and not sso:
+        tr = i18n.translator(req.headers.get("accept-language"))
         return ui.page_fluid(
             {"class": "kpiten-dashboard"},
             ui.head_content(FAVICON),
-            ui.h3("Not connected"),
-            ui.p("Open the dashboard from Odoo : menu KpiTen → Dashboard."),
-            title=f"Not connected · {TAB_TITLE}",
+            ui.h3(tr("Not connected")),
+            ui.p(tr("Open the dashboard from Odoo : menu KpiTen → Dashboard.")),
+            title=f"{tr('Not connected')} · {TAB_TITLE}",
         )
+    tr = i18n.translator(user_lang(sso))
     logo = "static/logo.png"  # relative : works at app root and under /dashboard
     return ui.page_fluid(
-        {"class": "kpiten-dashboard"},
+        {"class": "kpiten-dashboard", "lang": tr.lang},
         # loaded once, before any tile : a figure that loaded it itself could run
         # before the script was there ("Plotly is not defined")
         ui.head_content(
@@ -209,12 +223,13 @@ def app_ui(req):  # noqa: ANN001
                     ui.span(brand.NAME),
                     class_="kpiten-brand",
                 ),
-                ui.input_select("panel", "Panel", choices=[], width="100%"),
+                ui.input_select("panel", tr("Panel"), choices=[], width="100%"),
                 ui.output_ui("filters"),
                 ui.output_ui("theme_select"),
                 ui.output_ui("db_select"),
                 ui.tags.span(
-                    ui.input_switch("edit_mode", "Edit", False), title=EDIT_TOOLTIP
+                    ui.input_switch("edit_mode", tr("Edit"), False),
+                    title=tr(EDIT_TOOLTIP),
                 ),
                 ui.output_ui("edit_lock"),
                 id="sidebar",
@@ -229,7 +244,7 @@ def app_ui(req):  # noqa: ANN001
                     "refresh_data",
                     ui.HTML(svg("rotate")),
                     class_="btn-kpiten",
-                    title=REFRESH_TOOLTIP,
+                    title=tr(REFRESH_TOOLTIP),
                 ),
                 ui.output_ui("ods_button"),
                 # the exports of the panel the plugins offer (quarto-kpiten : a PDF)
@@ -239,7 +254,7 @@ def app_ui(req):  # noqa: ANN001
                 ui.tags.a(
                     ui.tags.img(src=logo, class_="framework-logo"),
                     href="https://shiny.posit.co",
-                    title="Made with Shiny",
+                    title=tr("Made with Shiny"),
                     target="_blank",
                     class_="framework-side",
                 ),
@@ -297,7 +312,7 @@ def card_badge(name: str) -> str:
     )
 
 
-def tile_header(line: dict, kind: str, info: str) -> str:
+def tile_header(line: dict, kind: str, info: str, tr=i18n.english) -> str:
     """The title of a tile : its icon, its name, its kind ; the filters it was
     computed with (an info icon) and the full screen button on the right."""
     info_icon = (
@@ -308,9 +323,9 @@ def tile_header(line: dict, kind: str, info: str) -> str:
     return (
         f'<h3><span class="tile-icon">{svg(TILE_ICONS.get(kind, "table-list"))}</span>'
         f'<span class="tile-name">{line["name"] or kind}</span>'
-        f'<span class="kind-badge">{kind}</span>'
+        f'<span class="kind-badge">{tr(kind)}</span>'
         f'<span class="tile-actions">{info_icon}'
-        f'<button type="button" class="tile-full" title="Full screen (Esc to leave)">'
+        f'<button type="button" class="tile-full" title="{tr("Full screen (Esc to leave)")}">'
         f"{svg('expand')}</button></span></h3>"
     )
 
@@ -353,7 +368,7 @@ FULLSCREEN_JS = """
 """
 
 
-def _inject_toolbar(content: str, line: dict) -> str:
+def _inject_toolbar(content: str, line: dict, tr=i18n.english) -> str:
     """Insert the edit toolbar after the tile's h3 title.
 
     Icons + tooltips only, to keep the interface light.
@@ -368,8 +383,8 @@ def _inject_toolbar(content: str, line: dict) -> str:
         ("delete", "🗑", "Delete"),
     ]
     toolbar = "".join(
-        f'<button class="tile-act" data-action="{key}" title="{label}" '
-        f'aria-label="{label}">{icon}</button>'
+        f'<button class="tile-act" data-action="{key}" title="{tr(label)}" '
+        f'aria-label="{tr(label)}">{icon}</button>'
         for key, icon, label in actions
     )
     block = f'<div class="tile-tools"><span class="tile-id">#{line["id"]}</span>{toolbar}</div>'
@@ -400,21 +415,22 @@ DRILL_JS = """
 
 
 # ---- tiles html rendering ---------------------------------------------
-def records_link_html(records: dict | None) -> str:
+def records_link_html(records: dict | None, tr=i18n.english) -> str:
     """The link under a table that lists Odoo records : the same list, in Odoo (the
     rights of the user apply there). `records` is `core_tiles.records_link`."""
     if not records:
         return ""
     count, total = records["count"], records["total"]
     label = (
-        f"Open these {count} records in Odoo"
+        tr("Open these {count} records in Odoo", count=count)
         if count == total
-        else f"Open the first {count} of {total} records in Odoo"
+        else tr("Open the first {count} of {total} records in Odoo", count=count, total=total)
     )
+    title = tr("The same list of records, in Odoo (with your rights)")
     return (
         f'<a class="records-link" href="{html_escape(records["url"], quote=True)}" '
         'target="_blank" rel="noopener noreferrer" '
-        'title="The same list of records, in Odoo (with your rights)">'
+        f'title="{html_escape(title, quote=True)}">'
         f"{label}</a>"
     )
 
@@ -427,11 +443,13 @@ def tile_html(
     records: dict | None = None,
     sparkline: str = "",
     grid: bool = False,
+    tr=i18n.english,
 ) -> str:
     """Tile html ; `info` goes in a tooltip = active filters description ; `records` is
     the link that opens the listed records in Odoo (when the KPI lists some) ;
     `sparkline` the trend under a card's value ; `grid` : a table drawn as an
-    interactive grid (`grid_<id>`, the server renders it)."""
+    interactive grid (`grid_<id>`, the server renders it) ; `tr` : the language of
+    the user (`kpiten_core.i18n`)."""
     p = theme.palette
     tooltip = f' title="{info}"' if info else ""
     if result.kind == "card":
@@ -448,11 +466,15 @@ def tile_html(
                 if result.subtitle
                 else ""
             )
-            + (comparison.html_block(result.comparison, p) if result.comparison else "")
+            + (
+                comparison.html_block(result.comparison, p, tr)
+                if result.comparison
+                else ""
+            )
             + (f'<div class="kpi-trend">{sparkline}</div>' if sparkline else "")
             + "</div>"
         )
-    parts = [tile_header(line, result.kind, info)]
+    parts = [tile_header(line, result.kind, info, tr)]
     # a plugin may draw the tile (kpiten_core.hookspecs), e.g. perspective-kpiten
     plugged = core_plugins.render_tile(line, result, p)
     if plugged:
@@ -477,14 +499,15 @@ def tile_html(
         # out of what the tile holds (`total_rows` when the core already cut it off)
         total = result.meta.get("total_rows", result.df.height)
         if total > rows:
-            result.meta["note"] = f"First {rows} of {total:,} rows".replace(",", " ")
-    if result.note:
+            result.meta["notes"] = [core_tiles.rows_note(rows, total)]
+    note = result.note_in(tr)
+    if note:
         # the tile was reduced to stay renderable (see kpiten_core.tiles)
         parts.append(
             f'<div style="font-size: 11px; opacity: .65; margin-top: 4px">'
-            f"{result.note}</div>"
+            f"{note}</div>"
         )
-    parts.append(records_link_html(records))
+    parts.append(records_link_html(records, tr))
     html = "".join(str(part) for part in parts)
     drillable = bool(line.get("drill")) and bool(result.keys) and not grid
     height = line.get("tile_height") or 260
@@ -527,6 +550,12 @@ def server(input, output, session):
     initial_backend = Backend.create(db=sso.db if sso else None)
     backend_rv = reactive.Value(initial_backend)
     env.current_db = initial_backend.db
+    # the texts of the page, in the language of the user in Odoo
+    tr = i18n.translator(
+        sso.lang
+        if sso
+        else initial_backend.get_user_lang(initial_backend.env.user.id)
+    )
 
     def current_user_id() -> int:
         """Odoo user of this session (dev mode : the rpc login user)."""
@@ -570,7 +599,12 @@ def server(input, output, session):
             kind = {"full": "initial extract", "delta": "update"}.get(mode, "update")
             p.inc(
                 1,
-                detail=f"{kind} : {model} — {totals[model]} records",
+                detail=tr(
+                    "{kind} : {model} — {count} records",
+                    kind=tr(kind),
+                    model=model,
+                    count=totals[model],
+                ),
             )
 
         return cb
@@ -591,7 +625,7 @@ def server(input, output, session):
             )
             data_version.set(data_version() + 1)
             layout_version.set(layout_version() + 1)
-            ui.notification_show(f"Database switched to {db}")
+            ui.notification_show(tr("Database switched to {db}", db=db))
 
     @render.ui
     def db_select():
@@ -602,7 +636,7 @@ def server(input, output, session):
             databases = [backend_rv().db]
         return ui.input_select(
             "db",
-            "Database",
+            tr("Database"),
             choices=databases,
             selected=backend_rv().db,
             width="100%",
@@ -648,7 +682,7 @@ def server(input, output, session):
         backend_rv()
         return ui.input_select(
             "theme",
-            "Theme",
+            tr("Theme"),
             choices=choices,
             selected=selected,
             width="100%",
@@ -711,9 +745,10 @@ def server(input, output, session):
         return ui.tags.span(
             "⏱ " + stamp,
             class_="data-freshness",
-            title="Data as of "
-            + stamp
-            + " — parquet snapshot time ; \u27f3 syncs with Odoo",
+            title=tr(
+                "Data as of {stamp} — parquet snapshot time ; ⟳ syncs with Odoo",
+                stamp=stamp,
+            ),
         )
 
     @reactive.calc
@@ -753,8 +788,9 @@ def server(input, output, session):
             controls.append(
                 ui.input_select(
                     "date_period",
-                    "Period",
-                    choices=options,
+                    tr("Period"),
+                    # the keys stay the English ones (the value of the input)
+                    choices={key: tr(label) for key, label in options.items()},
                     selected=filterstate.default_date_option(options, span),
                     width="100%",
                 )
@@ -824,7 +860,7 @@ def server(input, output, session):
                     dim_values[dim["name"]] = input[key]()
                 except (KeyError, TypeError):
                     pass
-        return filterstate.describe_filters(config, date_value, dim_values)
+        return filterstate.describe_filters(config, date_value, dim_values, tr)
 
     # ---- the raw rows of an Odoo model as a spreadsheet, with the user's rights
     @render.ui
@@ -833,7 +869,7 @@ def server(input, output, session):
         if not core_config.explore_allowed(can_edit()):
             return None
         return ui.input_action_button(
-            "ods_open", "\u2913", class_="btn-kpiten", title=ODS_TOOLTIP
+            "ods_open", "\u2913", class_="btn-kpiten", title=tr(ODS_TOOLTIP)
         )
 
     @reactive.effect
@@ -843,14 +879,14 @@ def server(input, output, session):
         ui.modal_show(
             ui.modal(
                 ui.input_select("ods_model", None, models, width="100%"),
-                title="Download the rows of a model",
+                title=tr("Download the rows of a model"),
                 easy_close=True,
                 size="s",
                 footer=ui.download_button(
                     "ods",
                     ui.HTML(SPREADSHEET_ICON),
                     class_="btn-kpiten",
-                    title=ODS_MODEL_TOOLTIP,
+                    title=tr(ODS_MODEL_TOOLTIP),
                 ),
             )
         )
@@ -862,7 +898,7 @@ def server(input, output, session):
     def ods():
         with reactive.isolate():
             if not core_config.explore_allowed(can_edit()):
-                raise PermissionError("You may not export the rows.")
+                raise PermissionError(tr("You may not export the rows."))
             _name, data, note = core_ods.model_ods(
                 store(),
                 input.ods_model(),
@@ -881,7 +917,7 @@ def server(input, output, session):
             try:
                 where = core_tiles.serial.loads(line["content"]).get("where")
                 if where:
-                    more = f"Tile: {where}"
+                    more = tr("Tile: {where}", where=where)
                     info = info + "\n" + more if info else more
             except Exception:
                 pass
@@ -895,7 +931,7 @@ def server(input, output, session):
     ) -> str:
         """Same CSS-grid tile, draggable with an edit toolbar."""
         content = _inject_toolbar(
-            tile_html(line, theme, result, tile_info(line), records), line
+            tile_html(line, theme, result, tile_info(line), records, tr=tr), line, tr
         )
         return (
             f'<div class="tile-edit-item" data-tile-id="{line["id"]}"'
@@ -904,7 +940,7 @@ def server(input, output, session):
 
     def tile_error_item_html(line: dict, error: str) -> str:
         content = _inject_toolbar(
-            tile_error_html(line, str(error), tile_info(line)), line
+            tile_error_html(line, str(error), tile_info(line)), line, tr
         )
         return (
             f'<div class="tile-edit-item" data-tile-id="{line["id"]}"'
@@ -920,7 +956,7 @@ def server(input, output, session):
             with ui.Progress(min=1, max=100) as p:
                 data_layer.request_refresh(backend.db, progress=_progress_cb(p))
             data_version.set(data_version() + 1)
-            ui.notification_show("Data synced with Odoo.", duration=3)
+            ui.notification_show(tr("Data synced with Odoo."), duration=3)
 
     # ---- edit mode : layout save + tile delete -------------------------
     @reactive.effect
@@ -930,7 +966,7 @@ def server(input, output, session):
         backend = backend_rv()
         with reactive.isolate():
             if not can_edit():
-                ui.notification_show("Only a KpiTen manager can edit tiles.")
+                ui.notification_show(tr("Only a KpiTen manager can edit tiles."))
                 return
 
         with reactive.isolate():
@@ -942,7 +978,7 @@ def server(input, output, session):
 
         if action == "delete":
             backend.delete_tile(tile_id)
-            ui.notification_show(f"Tile #{tile_id} deleted")
+            ui.notification_show(tr("Tile #{id} deleted", id=tile_id))
 
         elif action in ("winc", "wdec", "hinc", "hdec"):
             col_span = line.get("col_span") or 1
@@ -976,11 +1012,11 @@ def server(input, output, session):
         ids = req(input.tile_order())  # list[str] pushed on html5 drag drop
         with reactive.isolate():
             if not can_edit():
-                ui.notification_show("Only a KpiTen manager can edit tiles.")
+                ui.notification_show(tr("Only a KpiTen manager can edit tiles."))
                 return
             backend_rv().update_tile_order([int(i) for i in ids])
             layout_version.set(layout_version() + 1)
-            ui.notification_show("Tiles order saved.")
+            ui.notification_show(tr("Tiles order saved."))
 
     # ---- drill-down : a click on a row of a table shows the rows behind it -------
     drill_keys: dict[int, list[dict]] = {}  # tile id -> the hidden key of each row
@@ -1000,13 +1036,14 @@ def server(input, output, session):
                 )
             except Exception as err:
                 logger.exception("drill-down of tile %s failed", line["name"])
-                ui.notification_show(f"Drill-down failed : {err}", type="error")
+                ui.notification_show(
+                    tr("Drill-down failed : {error}", error=err), type="error"
+                )
                 return
             palette = current_theme().palette
+            note = result.note_in(tr)
             note = (
-                f'<div style="font-size: 11px; opacity: .65">{result.note}</div>'
-                if result.note
-                else ""
+                f'<div style="font-size: 11px; opacity: .65">{note}</div>' if note else ""
             )
             body = themes.gt_df(current_theme(), result.df).as_raw_html()
             ui.modal_show(
@@ -1213,6 +1250,7 @@ def server(input, output, session):
                         records,
                         sparkline=trend,
                         grid=grid,
+                        tr=tr,
                     )
                 )
             except Exception as err:
