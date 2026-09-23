@@ -5,7 +5,7 @@
     "summary": "Hundreds of thousands of sales orders (4 lines, several years) for volume tests",
     "description": """
 Extends erp_commercial_data with `generate_big_sale_demo` : sales orders of
-4 lines over several years (default 300 000 over 4 years), for dashboards and
+4 lines over several years (default 500 000 over 3 years), for dashboards and
 extraction tests at scale.
 
 The orders are inserted in SQL by batches, cloned from a few real orders
@@ -16,7 +16,9 @@ As in erp_commercial_data the lifecycle (delivery, invoicing) is forced : no
 real deliveries nor customer invoices, meant for dashboards only.
 
 Install : creates `erp_commercial_data_big.initial_orders` orders (system
-parameter, default 300 000).
+parameter, default 500 000). They follow the world of erp_commercial_data : each
+order its zone (customers, team, currency, price list, fiscal position), channel
+and season.
 
 Add sales afterwards, from an Odoo shell (see `make add-sales` in bi/) :
 

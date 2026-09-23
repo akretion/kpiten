@@ -9,6 +9,13 @@ from odoo import fields, models
 from odoo.exceptions import UserError
 
 from odoo.addons.erp_commercial_data.models.erp_demo_generator import PRODUCTS
+from odoo.addons.erp_commercial_data.models.world import (
+    MEDIUMS,
+    SOURCES,
+    ZONE_COUNTRIES,
+    ZONE_WEIGHTS,
+    ZONES,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -69,9 +76,30 @@ PRODUCT_ADJECTIVES = [
     "large", "fin", "long", "court", "brut", "poli", "teinté", "mat",
 ]  # fmt: skip
 
+# the category of an extra product, by its noun (a path of world.CATEGORIES)
+NOUN_CATEGORY = {
+    "Planche": "Bricolage / Bois", "Boulon": "Bricolage / Quincaillerie",
+    "Tuyau": "Bricolage / Plomberie", "Carrelage": "Maison / Revêtements",
+    "Lampe": "Maison / Éclairage", "Chaise": "Maison / Mobilier",
+    "Bureau": "Maison / Mobilier", "Rouleau": "Bricolage / Plomberie",
+    "Cloueur": "Bricolage / Outillage", "Serrure": "Maison / Domotique",
+    "Kit": "Jardin", "Peinture": "Maison / Revêtements",
+    "Câble": "Bricolage / Électricité", "Gants": "Bricolage / Outillage",
+    "Casque": "Bricolage / Outillage", "Vis": "Bricolage / Quincaillerie",
+    "Écrou": "Bricolage / Quincaillerie", "Rondelle": "Bricolage / Quincaillerie",
+    "Perceuse": "Bricolage / Outillage", "Scie": "Bricolage / Outillage",
+    "Marteau": "Bricolage / Outillage", "Tournevis": "Bricolage / Outillage",
+    "Pince": "Bricolage / Outillage", "Niveau": "Bricolage / Outillage",
+    "Échelle": "Bricolage / Outillage", "Colle": "Bricolage / Quincaillerie",
+    "Vernis": "Maison / Revêtements", "Prise": "Bricolage / Électricité",
+    "Interrupteur": "Bricolage / Électricité", "Ampoule": "Maison / Éclairage",
+}  # fmt: skip
+
 ORDER_TEMP = """
 CREATE TEMP TABLE _kt_big_order (
     order_id int, name varchar, partner_id int, user_id int, state varchar,
+    template_id int, team_id int, medium_id int, source_id int,
+    currency_rate numeric,
     create_date timestamp, validity_date date, commitment_date timestamp,
     effective_date timestamp, delivery_status varchar, invoice_status varchar,
     delivered numeric, invoiced boolean,
@@ -151,9 +179,36 @@ class ErpDemoSaleStockBig(models.Model):
                     for name in [n for n in names if n not in taken][:missing]
                 ]
             )
-        return partner.search(
+        customers = partner.search(
             [("ref", "=", CUSTOMER_REF)], order="id", limit=n_customers
         )
+        self._big_zones(customers)
+        return customers
+
+    def _big_zones(self, customers):
+        """Each customer its zone (world.ZONE_WEIGHTS) and a country of the zone :
+        its language, price list (currency), payment terms and fiscal position.
+        Returns {zone: [partner id]}, the same zones on every call."""
+        rng = random.Random(11)
+        pricelists = self._demo_pricelists()
+        countries = {
+            c.code: c
+            for c in self.env["res.country"].search(
+                [("code", "in", [c for cs in ZONE_COUNTRIES.values() for c in cs])]
+            )
+        }
+        zones, weights = list(ZONE_WEIGHTS), list(ZONE_WEIGHTS.values())
+        by_zone, groups = {}, {}
+        for partner in customers:
+            zone = rng.choices(zones, weights)[0]
+            code = rng.choice(ZONE_COUNTRIES[zone])
+            by_zone.setdefault(zone, []).append(partner.id)
+            groups.setdefault((zone, code), []).append(partner.id)
+        partner = self.env["res.partner"].with_context(**SILENT)
+        for (zone, code), ids in groups.items():
+            vals = self.demo_zone_vals(zone, countries[code], pricelists)
+            partner.browse(ids).write(vals)
+        return by_zone
 
     def _big_products(self, n_products):
         """The 12 products of erp_demo_generator plus extra ones, `n_products`
@@ -164,6 +219,19 @@ class ErpDemoSaleStockBig(models.Model):
         template = self.env["product.template"].with_context(**SILENT)
         existing = template.search([("default_code", "in", codes)])
         have = set(existing.mapped("default_code"))
+        self._demo_categories()  # the tree (and the 12 products in it)
+        category_model = self.env["product.category"]
+        category_of = {}
+        for path in set(NOUN_CATEGORY.values()):
+            parent = self.env.ref("product.product_category_all")
+            for part in path.split(" / "):
+                found = category_model.search(
+                    [("name", "=", part), ("parent_id", "=", parent.id)], limit=1
+                )
+                parent = found or category_model.create(
+                    {"name": part, "parent_id": parent.id}
+                )
+            category_of[path] = parent.id
         vals = []
         for i, code in enumerate(codes):
             if code in have:
@@ -182,6 +250,7 @@ class ErpDemoSaleStockBig(models.Model):
                     "purchase_ok": False,
                     "list_price": price,
                     "standard_price": round(price * 0.6, 2),
+                    "categ_id": category_of[NOUN_CATEGORY[noun]],
                 }
             )
         if vals:
@@ -197,7 +266,6 @@ class ErpDemoSaleStockBig(models.Model):
         those of other installed modules, get a valid value). Returns the
         orders and {product id: template line}."""
         order = self.env["sale.order"].with_context(**SILENT)
-        order.search([("origin", "=", TEMPLATE_ORIGIN)]).unlink()  # interrupted run
         ids = products.ids
         vals = []
         for start in range(0, len(ids), 4):
@@ -206,6 +274,7 @@ class ErpDemoSaleStockBig(models.Model):
             vals.append(
                 {
                     "partner_id": customer.id,
+                    "pricelist_id": customer.property_product_pricelist.id,
                     "origin": TEMPLATE_ORIGIN,
                     "order_line": [
                         (0, 0, {"product_id": pid, "product_uom_qty": 1})
@@ -299,12 +368,7 @@ class ErpDemoSaleStockBig(models.Model):
         first_line = self._big_reserve("sale_order_line_id_seq", size * lines_per_order)
         first_number = self._big_reserve(ctx["sequence"], size)
         prefix, padding = ctx["prefix"], ctx["padding"]
-        pids, prices, tpl_lines, rates = (
-            ctx["pids"],
-            ctx["prices"],
-            ctx["tpl_lines"],
-            ctx["rates"],
-        )
+        pids, prices = ctx["pids"], ctx["prices"]
         count = len(pids)
 
         # the orders come in date order : names and ids grow with the date
@@ -316,13 +380,23 @@ class ErpDemoSaleStockBig(models.Model):
         for i, plan in enumerate(plans):
             order_id = first_order + i
             order_ids.append(order_id)
+            # the zone of the order : its customers, team, template (currency, taxes)
+            zone = rng.choices(ctx["zones"], ctx["zone_weights"])[0]
+            z = ctx["by_zone"][zone]
+            tpl_lines, rates = z["tpl_lines"], z["rates"]
+            currency_rate = self.demo_rate(z["currency"], plan["create_date"])
             # `lines_per_order` different products : base + k * step (mod prime)
             base, step = rng.randrange(count), 1 + rng.randrange(count - 1)
             untaxed = tax = 0
             for k in range(lines_per_order):
                 index = (base + k * step) % count
                 qty = rng.randint(1, 12)
-                price = max(1, round(prices[index] * rng.uniform(0.95, 1.05) * 100))
+                price = max(
+                    1,
+                    round(
+                        prices[index] * currency_rate * rng.uniform(0.95, 1.05) * 100
+                    ),
+                )
                 subtotal = qty * price
                 line_tax = _tax_cents(subtotal, rates[index])
                 untaxed += subtotal
@@ -347,9 +421,14 @@ class ErpDemoSaleStockBig(models.Model):
                 (
                     order_id,
                     f"{prefix}{str(first_number + i).zfill(padding)}",
-                    rng.choice(ctx["customer_ids"]),
-                    rng.choices(ctx["seller_ids"], ctx["weights"])[0],
+                    rng.choice(z["customer_ids"]),
+                    rng.choices(z["seller_ids"], z["weights"])[0],
                     plan["state"],
+                    z["template"],
+                    z["team"],
+                    rng.choices(ctx["mediums"], ctx["medium_weights"])[0],
+                    rng.choices(ctx["sources"], ctx["source_weights"])[0],
+                    Decimal(str(currency_rate)),
                     created,
                     (created + timedelta(days=30)).date(),  # quotation validity
                     plan["commitment_date"],
@@ -381,6 +460,10 @@ class ErpDemoSaleStockBig(models.Model):
             "partner_invoice_id": "p.partner_id",
             "partner_shipping_id": "p.partner_id",
             "user_id": "p.user_id",
+            "team_id": "p.team_id",
+            "medium_id": "p.medium_id",
+            "source_id": "p.source_id",
+            "currency_rate": "p.currency_rate",
             "date_order": "p.create_date",
             "create_date": "p.create_date",
             "write_date": "p.create_date",
@@ -399,7 +482,7 @@ class ErpDemoSaleStockBig(models.Model):
         self._big_clone(
             "sale_order",
             {c: e for c, e in order_values.items() if c in columns},
-            f"_kt_big_order p CROSS JOIN sale_order t WHERE t.id = {ctx['template_order']}",
+            "_kt_big_order p JOIN sale_order t ON t.id = p.template_id",
         )
 
         columns = set(self._big_columns("sale_order_line"))
@@ -505,8 +588,8 @@ class ErpDemoSaleStockBig(models.Model):
     # ---- public API ---------------------------------------------------------
     def generate_big_sale_demo(
         self,
-        n_orders=300_000,
-        years=4,
+        n_orders=500_000,
+        years=3,
         days=None,
         n_customers=2000,
         n_products=113,
@@ -526,9 +609,7 @@ class ErpDemoSaleStockBig(models.Model):
         """
         self.ensure_one()
         started = time.monotonic()
-        sellers = list(self._demo_salespeople())
-        if not sellers:
-            raise UserError("No demo salesperson found (erp_demo_generator).")
+        teams = self._demo_teams()
         already = self.env["sale.order"].search_count([("origin", "=", BIG_ORIGIN)])
         rng = random.Random(42 + already if seed is None else seed)
         now = fields.Datetime.now()
@@ -540,24 +621,54 @@ class ErpDemoSaleStockBig(models.Model):
             raise UserError(
                 "lines_per_order must be lower than the number of products."
             )
-        templates, tpl_lines = self._big_templates(products, customers[:1])
+        self.env["sale.order"].with_context(**SILENT).search(
+            [("origin", "=", TEMPLATE_ORIGIN)]
+        ).unlink()  # an interrupted run
+        partners = self.env["res.partner"]
+        by_zone, templates = {}, self.env["sale.order"]
+        for zone, ids in self._big_zones(customers).items():
+            team = teams[ZONES[zone]["team"]]
+            sellers = team.member_ids or self._demo_salespeople()
+            zone_templates, tpl_lines = self._big_templates(
+                products, partners.browse(ids[0])
+            )
+            templates |= zone_templates
+            by_zone[zone] = {
+                "customer_ids": ids,
+                "seller_ids": sellers.ids,
+                "weights": [rng.uniform(0.6, 1.6) for _ in sellers],
+                "team": team.id,
+                "currency": ZONES[zone]["pricelist"][1],
+                "template": zone_templates[0].id,
+                "tpl_lines": [tpl_lines[product.id].id for product in products],
+                # the taxes of the zone : 20 % in France, none for export
+                "rates": [
+                    self._big_tax_rate(tpl_lines[product.id]) for product in products
+                ],
+            }
+        medium = self.env["utm.medium"]
+        source = self.env["utm.source"]
         sequence, prefix, padding = self._big_order_sequence()
         ctx = {
             "lines_per_order": lines_per_order,
-            "customer_ids": customers.ids,
-            "seller_ids": [user.id for user in sellers],
-            "weights": [rng.uniform(0.6, 1.6) for _ in sellers],
+            "zones": list(by_zone),
+            "zone_weights": [ZONE_WEIGHTS[zone] for zone in by_zone],
+            "by_zone": by_zone,
+            "mediums": [
+                medium.search([("name", "=", n)], limit=1).id for n, _ in MEDIUMS
+            ],
+            "medium_weights": [w for _n, w in MEDIUMS],
+            "sources": [
+                source.search([("name", "=", n)], limit=1).id for n, _ in SOURCES
+            ],
+            "source_weights": [w for _n, w in SOURCES],
             "pids": products.ids,
             "prices": [product.list_price for product in products],
-            "tpl_lines": [tpl_lines[product.id].id for product in products],
-            "rates": [
-                self._big_tax_rate(tpl_lines[product.id]) for product in products
-            ],
-            "template_order": templates[0].id,
             "sequence": sequence,
             "prefix": prefix,
             "padding": padding,
         }
+        self = self.with_context(demo_rates={})  # the rate of a month, read once
 
         created, sample = 0, []
         while created < n_orders:
@@ -594,7 +705,7 @@ class ErpDemoSaleStockBig(models.Model):
         system parameter `erp_commercial_data_big.initial_orders`."""
         param = self.env["ir.config_parameter"].sudo()
         n_orders = int(
-            param.get_param("erp_commercial_data_big.initial_orders", 300_000)
+            param.get_param("erp_commercial_data_big.initial_orders", 500_000)
         )
         return self.generate_big_sale_demo(n_orders=n_orders)
 
