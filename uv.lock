@@ -1296,6 +1296,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "dotenv" },
+    { name = "faicons" },
     { name = "fastapi" },
     { name = "great-tables" },
     { name = "kpiten-core", extra = ["render"] },
@@ -1315,6 +1316,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "dotenv", specifier = ">=0.9.9" },
+    { name = "faicons", specifier = ">=0.2.2" },
     { name = "fastapi", specifier = ">=0.135.3" },
     { name = "great-tables", specifier = ">=0.21.0" },
     { name = "kpiten-core", extras = ["render"], editable = "../kpiten-core" },

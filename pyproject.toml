@@ -12,6 +12,7 @@ dependencies = [
   "kpiten-core[render]",
   "requests>=2.34.2",
   "pyppeteer>=0.0.25",
+  "faicons>=0.2.2",
 ]
 description = "Kpi dashboard (shiny) on top of kpiten-core reading Odoo config"
 name = "shiny-kpiten"
