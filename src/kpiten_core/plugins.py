@@ -88,3 +88,19 @@ def render_tile(line: dict, result, palette: dict) -> str | None:
     except Exception:
         logger.exception("a plugin failed to draw the tile %s", line.get("name"))
         return None
+
+
+def panel_exports() -> list[dict]:
+    """The exports of a panel the plugins offer (a button each in the front)."""
+    return [
+        export
+        for exports in plugin_manager().hook.kpiten_panel_exports()
+        for export in exports or ()
+    ]
+
+
+def export_panel(key: str, panel: dict, tiles: list, context: dict) -> bytes | None:
+    """The file of an export of the panel (see `hookspecs.kpiten_export_panel`)."""
+    return plugin_manager().hook.kpiten_export_panel(
+        key=key, panel=panel, tiles=tiles, context=context
+    )
