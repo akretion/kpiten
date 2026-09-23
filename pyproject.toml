@@ -12,7 +12,6 @@ dependencies = [
   "kpiten-core",
   "altair>=6.3.0",
   "anthropic>=1.7.0",
-  "odfpy>=1.4.1",
 ]
 description = "Kpi dashboard (marimo) on top of kpiten-core : marimo explores the rows the user may read"
 name = "marimo-kpiten"

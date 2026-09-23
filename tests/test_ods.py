@@ -31,7 +31,7 @@ def content(data: bytes) -> str:
 
 def test_the_types_of_the_cells_are_kept():
     xml = content(ods.to_ods(FRAME))
-    assert 'office:value="500.0"' in xml and 'office:value="10.0"' in xml  # numbers
+    assert 'office:value="500.0"' in xml and 'office:value="10"' in xml  # numbers
     assert 'office:date-value="2026-01-05"' in xml  # a date is a date
     assert 'office:boolean-value="true"' in xml
     assert ">Ann<" in xml and ">vendor<" in xml  # text, and the header
@@ -60,7 +60,11 @@ def test_a_frame_without_rows_is_still_a_file():
 @pytest.mark.skipif(not shutil.which("soffice"), reason="LibreOffice is not installed")
 def test_libreoffice_reads_the_file_back(tmp_path):
     path = tmp_path / "kpi.ods"
-    path.write_bytes(ods.to_ods(FRAME.select("vendor", "spend", "orders")))
+    # a date put in relief stays a date
+    frame = FRAME.select("vendor", "spend", "orders", "day")
+    path.write_bytes(
+        ods.to_ods(frame, {("day", 0): "#ffcccc", ("spend", 1): "#ffcccc"})
+    )
     subprocess.run(
         [
             "soffice",
@@ -76,5 +80,6 @@ def test_libreoffice_reads_the_file_back(tmp_path):
         timeout=180,
     )
     lines = (tmp_path / "kpi.csv").read_text().strip().splitlines()
-    assert lines[0] == "vendor,spend,orders"
-    assert lines[1].startswith("Ann,500") and lines[2].startswith("Bob,300")
+    assert lines[0] == "vendor,spend,orders,day"
+    assert lines[1] == "Ann,500,10,2026-01-05"
+    assert lines[2].startswith("Bob,300")
