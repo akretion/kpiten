@@ -324,7 +324,7 @@ aggregation = "sum"
 </field>
     </record>
 
-    <!-- Best Selling Products (a link to each product) / Best Selling Categories -->
+    <!-- Best Selling Products (a link to each product), written in SQL (kpiten_core.sqltile) / Best Selling Categories -->
     <record id="product_best_selling_products_table" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_sales_lines" />
         <field name="kind">data</field>
@@ -333,34 +333,32 @@ aggregation = "sum"
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
-        <field name="definition">d_next = d
-# d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
-# confirmed orders
-d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; pl.col("product_id").is_not_null())
-# product_id_ (the id) is kept to build the link
-d_next = d_next.group_by(["product_id", "product_id_"]).agg([pl.col("product_uom_qty").sum().alias("Units"), pl.col("price_subtotal").sum().alias("Revenue")])
-# the last sort keys only break ties : stable order
-d_next = d_next.sort(["Revenue", "product_id"], descending=[True, False]).head(10)
-# a "[label](url)" cell is drawn as a link to Odoo : odoo_url is the base url, `product_id_` the id
-d_next = d_next.select([
-    pl.concat_str([pl.lit("["), pl.col("product_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/product.product/"), pl.col("product_id_").cast(pl.String), pl.lit(")")]).alias("Product"),
-    pl.col("Units"),
-    pl.col("Revenue"),
-    # hidden column (`__` prefix) : a click on the row hands it to the drill-down as key['product_id_']
-    pl.col("product_id_").alias("__product_id_"),
-])</field>
-        <field name="drill_definition">d_next = d
-# the order lines of the clicked product, same rows as the tile
-d_next = d_next.filter(~pl.col("state").is_in(["draft", "sent", "cancel"]) &amp; (pl.col("product_id_") == key["product_id_"]))
-d_next = d_next.sort(["order_id.date_order", "id"], descending=[True, True])
-d_next = d_next.select([
-    pl.col("order_id.date_order").alias("Date"),
-    pl.concat_str([pl.lit("["), pl.col("order_id"), pl.lit("]("), pl.lit(odoo_url), pl.lit("/odoo/sale.order/"), pl.col("order_id_").cast(pl.String), pl.lit(")")]).alias("Order"),
-    pl.col("order_partner_id").alias("Customer"),
-    pl.col("product_id").alias("Product"),
-    pl.col("product_uom_qty").alias("Quantity"),
-    pl.col("price_subtotal").alias("Revenue"),
-])</field>
+        <field name="definition">-- d : the rows the user may read, already filtered by the panel period and dimensions
+-- the confirmed orders, by product ; a "[label](url)" cell is a link to Odoo
+SELECT
+    '[' || "product_id" || '](' || :odoo_url || '/odoo/product.product/'
+        || CAST("product_id_" AS VARCHAR) || ')' AS "Product",
+    SUM("product_uom_qty") AS "Units",
+    SUM("price_subtotal") AS "Revenue",
+    "product_id_" AS "__product_id_"
+FROM d
+WHERE "state" NOT IN ('draft', 'sent', 'cancel') AND "product_id" IS NOT NULL
+GROUP BY "product_id", "product_id_"
+-- the product breaks the ties : a stable order
+ORDER BY "Revenue" DESC, "product_id"
+LIMIT 10</field>
+        <field name="drill_definition">-- the order lines of the clicked product (:product_id_, the hidden column of the tile)
+SELECT
+    "order_id.date_order" AS "Date",
+    '[' || "order_id" || '](' || :odoo_url || '/odoo/sale.order/'
+        || CAST("order_id_" AS VARCHAR) || ')' AS "Order",
+    "order_partner_id" AS "Customer",
+    "product_id" AS "Product",
+    "product_uom_qty" AS "Quantity",
+    "price_subtotal" AS "Revenue"
+FROM d
+WHERE "state" NOT IN ('draft', 'sent', 'cancel') AND "product_id_" = :product_id_
+ORDER BY "order_id.date_order" DESC, "id" DESC</field>
     </record>
 
 <!--     <record id="product_best_selling_categories_table_" model="kt.dataset.line">
