@@ -230,6 +230,15 @@ class KpitenConfigLine(models.Model):
         default=260,
         help="Height of the tile in pixels",
     )
+    table_view = fields.Selection(
+        [("table", "Table"), ("grid", "Interactive grid")],
+        string="Table view",
+        default="table",
+        required=True,
+        help="How a table tile (data, pivot, union) is drawn in the dashboard. Table : "
+        "the numbers formatted, the links to Odoo, the drill-down on a click. "
+        "Interactive grid : the user sorts and filters each column.",
+    )
     active = fields.Boolean(default=True)
     validation_msg = fields.Text(
         compute="_compute_validation_msg",

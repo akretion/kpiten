@@ -181,6 +181,10 @@ aggregation = "sum"</pre>
                             <field name="col_span" />
                             <field name="tile_height" />
                             <field
+                                name="table_view"
+                                invisible="kind not in ('data', 'pivot', 'union')"
+                            />
+                            <field
                                 name="active"
                                 widget="boolean_toggle"
                             />
@@ -202,6 +206,7 @@ aggregation = "sum"</pre>
                 <field name="panel_id" />
                 <field name="col_span" optional="show" />
                 <field name="tile_height" optional="show" />
+                <field name="table_view" optional="hide" />
                 <field name="group_ids" widget="many2many_tags" optional="hide" />
                 <field name="user_id" optional="hide" />
                 <field name="validation_msg" optional="hide" />
