@@ -205,6 +205,7 @@ aggregation = "sum"</pre>
                 <field name="group_ids" widget="many2many_tags" optional="hide" />
                 <field name="user_id" optional="hide" />
                 <field name="validation_msg" optional="hide" />
+                <field name="xml_id" optional="hide" />
                 <field name="active" widget="boolean_toggle" />
             </list>
         </field>
