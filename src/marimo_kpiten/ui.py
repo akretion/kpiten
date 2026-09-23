@@ -6,7 +6,7 @@ import marimo as mo
 import polars as pl
 
 from kpiten_core import brand, config, links, numfmt
-from kpiten_core.gtable import number_columns
+from kpiten_core.numfmt import number_columns
 
 from .analyses import ANALYSES
 

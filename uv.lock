@@ -792,9 +792,7 @@ source = { editable = "../kpiten-core" }
 dependencies = [
     { name = "connectorx" },
     { name = "dotenv" },
-    { name = "great-tables" },
     { name = "odoorpc" },
-    { name = "plotly", extra = ["express"] },
     { name = "pluggy" },
     { name = "polars" },
     { name = "pyarrow" },
@@ -803,13 +801,19 @@ dependencies = [
     { name = "tomli-w" },
 ]
 
+[package.optional-dependencies]
+render = [
+    { name = "great-tables" },
+    { name = "plotly", extra = ["express"] },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "connectorx", specifier = ">=0.3.2" },
     { name = "dotenv", specifier = ">=0.9.9" },
-    { name = "great-tables", specifier = ">=0.21.0" },
+    { name = "great-tables", marker = "extra == 'render'", specifier = ">=0.21.0" },
     { name = "odoorpc", specifier = ">=0.10.1" },
-    { name = "plotly", extras = ["express"], specifier = ">=6.7.0" },
+    { name = "plotly", extras = ["express"], marker = "extra == 'render'", specifier = ">=6.7.0" },
     { name = "pluggy", specifier = ">=1.6.0" },
     { name = "polars", specifier = ">=1.39.3" },
     { name = "pyarrow", specifier = ">=23.0.1" },
@@ -817,10 +821,12 @@ requires-dist = [
     { name = "sqlglot", specifier = ">=30.19.0" },
     { name = "tomli-w", specifier = ">=1.0" },
 ]
+provides-extras = ["render"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "black", specifier = ">=26.5.1" },
+    { name = "kpiten-core", extras = ["render"] },
     { name = "pytest", specifier = ">=8" },
 ]
 
@@ -924,7 +930,7 @@ dependencies = [
     { name = "dotenv" },
     { name = "fastapi" },
     { name = "great-tables" },
-    { name = "kpiten-core" },
+    { name = "kpiten-core", extra = ["render"] },
     { name = "marimo" },
     { name = "uvicorn" },
 ]
@@ -943,7 +949,7 @@ requires-dist = [
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "fastapi", specifier = ">=0.135.3" },
     { name = "great-tables", specifier = ">=0.21.0" },
-    { name = "kpiten-core", editable = "../kpiten-core" },
+    { name = "kpiten-core", extras = ["render"], editable = "../kpiten-core" },
     { name = "marimo", specifier = ">=0.24" },
     { name = "uvicorn", specifier = ">=0.44.0" },
 ]

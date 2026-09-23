@@ -14,7 +14,8 @@ import polars as pl
 from great_tables import GT, loc, style
 
 from kpiten_core import config, filters, numfmt
-from kpiten_core.gtable import gt_table, number_columns
+from kpiten_core.numfmt import number_columns
+from kpiten_core.render.gtable import gt_table
 
 from . import ai
 
@@ -64,7 +65,7 @@ HIGHLIGHT_VALUE = {
     "outliers": (2, "Standard deviations"),
     "pareto": (80, "% of the total"),
 }
-# a light palette for `gtable.gt_table` (the notebooks are light)
+# a light palette for `render.gtable.gt_table` (the notebooks are light)
 LIGHT = {
     "surface_hex": "#ffffff",
     "text": "#24292f",
