@@ -7,7 +7,7 @@ dependencies = [
   "nicegui>=2.0",
   "fastapi>=0.111.0",
   "uvicorn>=0.30.0",
-  "kpiten-core",
+  "kpiten-core[render]",
 ]
 description = "Kpi dashboard (nicegui - simplified) on top of kpiten-core"
 name = "nicegui-kpiten"

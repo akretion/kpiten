@@ -15,7 +15,8 @@ No SSO and no edit mode (that's the "simplified" part of the port).
 import logging
 import pathlib
 
-from kpiten_core.gtable import DRILL_CSS, gt_table
+from kpiten_core.render.gtable import DRILL_CSS, gt_table
+from kpiten_core.render.plotly import apply_theme_colors
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 from nicegui import app, ui, run
@@ -273,7 +274,7 @@ def tile_view(
                 f'outline style="color:{palette["accent"]}"'
             )
         if result.kind == "graph":
-            core_tiles.apply_theme_colors(result.figure, palette)
+            apply_theme_colors(result.figure, palette)
             # the graph is drawn on the tile, in the text color of the theme (as Shiny)
             result.figure.update_layout(
                 paper_bgcolor="rgba(0,0,0,0)",
