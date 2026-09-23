@@ -704,9 +704,10 @@ class ErpDemoSaleStockBig(models.Model):
         """Called by the module installation : the number of orders is the
         system parameter `erp_commercial_data_big.initial_orders`."""
         param = self.env["ir.config_parameter"].sudo()
-        n_orders = int(
-            param.get_param("erp_commercial_data_big.initial_orders", 500_000)
-        )
+        key = "erp_commercial_data_big.initial_orders"
+        # `get_param` until Odoo 18, `get_str` after
+        read = param.get_str if hasattr(param, "get_str") else param.get_param
+        n_orders = int(read(key) or 500_000)
         return self.generate_big_sale_demo(n_orders=n_orders)
 
     def add_big_sales(self, n_orders=100_000, **kwargs):

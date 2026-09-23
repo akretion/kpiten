@@ -4,6 +4,8 @@ from datetime import timedelta
 from odoo import api, fields, models
 from odoo.tools.sql import column_exists
 
+from ..compat import get_param
+
 UUID_DAYS = 7  # a uuid is valid for a week, then renewed (see `kpiten_uuid_days`)
 
 
@@ -34,10 +36,7 @@ class ResUsersLog(models.Model):
     @api.model
     def _uuid_cutoff(self):
         """The oldest date a valid uuid may have been issued."""
-        days = int(
-            self.env["ir.config_parameter"].sudo().get_param("kpiten_uuid_days")
-            or UUID_DAYS
-        )
+        days = int(get_param(self.env, "kpiten_uuid_days") or UUID_DAYS)
         return fields.Datetime.now() - timedelta(days=days)
 
     def _uuid_is_valid(self):

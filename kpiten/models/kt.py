@@ -11,7 +11,7 @@ import requests
 from odoo import SUPERUSER_ID, api, exceptions, models
 from odoo.tools.translate import _
 
-from ..compat import LIST, can_read, ids_sql, readable_fields
+from ..compat import LIST, can_read, get_param, ids_sql, readable_fields
 from . import kt_sql
 
 # the name of the generic list actions `get_records_action` makes (one per model)
@@ -297,7 +297,7 @@ class Kt(models.AbstractModel):
         Single source of truth : the app reads the same path back through
         `get_staging_dir` to consolidate the JSONL into the final parquet.
         """
-        param = self.env["ir.config_parameter"].get_param("kpiten_staging_dir")
+        param = get_param(self.env, "kpiten_staging_dir")
         if not param:
             raise exceptions.UserError(
                 _("Missing 'kpiten_staging_dir' system parameter")

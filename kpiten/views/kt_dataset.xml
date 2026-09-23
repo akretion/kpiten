@@ -233,7 +233,7 @@ aggregation = "sum"</pre>
                     string="Invalid definition"
                     domain="[('validation_msg', '!=', False)]"
                 />
-                <group expand="0" string="Group by">
+                <group>
                     <filter name="by_kind" string="Kind" context="{'group_by': 'kind'}" />
                     <filter
                         name="by_panel"

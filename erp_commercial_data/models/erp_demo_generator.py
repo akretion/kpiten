@@ -106,6 +106,11 @@ class ErpDemoGenerator(models.Model):
             )
         return product
 
+    def _groups_field(self):
+        """The groups of a user : `groups_id` until Odoo 18, `group_ids` after."""
+        users = self.env["res.users"]
+        return "group_ids" if "group_ids" in users._fields else "groups_id"
+
     def _create_salesperson(self, name):
         user = self.env["res.users"].search([("name", "=", name)], limit=1)
         if user:
@@ -118,7 +123,7 @@ class ErpDemoGenerator(models.Model):
                 "login": login,
                 "email": f"{login}@example.com",
                 "password": demo_password(login),
-                "groups_id": [
+                self._groups_field(): [
                     (6, 0, [self.env.ref("base.group_user").id]),
                 ],
             }
@@ -152,16 +157,17 @@ class ErpDemoGenerator(models.Model):
             return self.env.ref(xmlid).id
 
         role_group_ids = {role: ref(xmlid) for role, xmlid in ROLE_GROUPS.items()}
+        groups_field = self._groups_field()
         for user in salespeople:
             role = DEMO_ROLES.get(user.name, ROLE_SELLER)
             groups = [
-                g.id for g in user.groups_id if g.id not in role_group_ids.values()
+                g.id for g in user[groups_field] if g.id not in role_group_ids.values()
             ]
             groups.append(role_group_ids[role])
             user.write(
                 {
                     "password": demo_password(user.login),
-                    "groups_id": [(6, 0, groups)],
+                    groups_field: [(6, 0, groups)],
                 }
             )
 
@@ -187,13 +193,18 @@ class ErpDemoGenerator(models.Model):
         replaced while the company has no accounting entry."""
         self.ensure_one()
         company = self.env.company
-        if company.chart_template == "fr":
+        chart = self.env["account.chart.template"]
+        # the French chart of a company : `fr` until Odoo 18, `fr_comp` after (`fr`
+        # is then its hidden parent)
+        visible = chart._get_chart_template_mapping()
+        code = next(c for c in ("fr", "fr_comp") if c in visible)
+        if company.chart_template == code:
             return True
         if self.env["account.move"].search_count([("company_id", "=", company.id)]):
             _logger.warning("demo company : entries already, the chart stays")
             return False
         company.write({"country_id": self.env.ref("base.fr").id})
-        self.env["account.chart.template"].try_loading("fr", company, force_create=True)
+        chart.try_loading(code, company, force_create=True)
         # installing `account` scheduled the generic chart for the end of the install
         # (the company was not French yet) : it would load over this one
         if hasattr(self.env.registry, "_auto_install_template"):

@@ -4,6 +4,8 @@ from markupsafe import escape
 
 from odoo import _, api, exceptions, fields, models
 
+from ..compat import sql_constraints
+
 NUM_COLORS = 8
 # the new functions of the marimo explorer, each one a `feature_<name>` boolean (off by
 # default) : `{"features": {"alerts": False, ...}}` for the apps
@@ -598,6 +600,6 @@ class KtUserTheme(models.Model):
     user_id = fields.Many2one("res.users", required=True, ondelete="cascade")
     theme = fields.Selection(THEMES, required=True)
 
-    _sql_constraints = [
-        ("user_uniq", "unique(user_id)", "A user has only one theme."),
-    ]
+    sql_constraints(
+        locals(), user_uniq=("unique(user_id)", "A user has only one theme.")
+    )

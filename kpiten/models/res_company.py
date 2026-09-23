@@ -2,6 +2,8 @@ import json
 
 from odoo import _, exceptions, models
 
+from ..compat import get_param
+
 # one system parameter per front, holding one dict, set by the module of that front
 # (kpiten_shiny, kpiten_nicegui, kpiten_marimo) : `kpiten_shiny_service`,
 # `kpiten_nicegui_service`, `kpiten_marimo_service`
@@ -20,7 +22,7 @@ class ResCompany(models.Model):
         key = SERVICE_KEY % app_name
         # system parameters are readable by the Settings group only, while any
         # dashboard user needs the app urls (they hold no secret)
-        value = self.env["ir.config_parameter"].sudo().get_param(key)
+        value = get_param(self.env, key)
         if not value:
             raise exceptions.UserError(
                 _(
