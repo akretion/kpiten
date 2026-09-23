@@ -6,6 +6,8 @@ Port of marimo-kpiten `services/dataframe_util.py`, without marimo:
   with the `monthly` option of a tile instead)
 - many2one `[id, name]` pairs split into `col` (name) + `col_` (id)
 - decimal scale normalization
+- the amounts of an order in a foreign currency in the currency of the company (see
+  `to_company_currency`)
 """
 
 import logging
@@ -43,8 +45,43 @@ class Df:
             for col in self.get_decimal_columns()
         )
         self._fix_false_strings()
+        self.to_company_currency()
         self.strip_name_suffix()
         return self.df
+
+    # the rate of the currency of the row for one unit of the company currency : on an
+    # order (`currency_rate`), or reached from its lines (`order_id.currency_rate`)
+    RATE_COLUMNS = ("currency_rate", "order_id.currency_rate")
+
+    def to_company_currency(self):
+        """The amounts (monetary fields) of a row in a foreign currency, in the currency
+        of the company : divided by the rate of the order, as Odoo's reports do. A KPI
+        adds up euros, not euros and dollars. The amount in the currency of the order
+        stays in `<field>_in_currency`."""
+        rate = next((c for c in self.RATE_COLUMNS if c in self.df.columns), None)
+        if rate is None or not self.fields:
+            return
+        monetary = [
+            name
+            for name, spec in self.fields.items()
+            if isinstance(spec, dict)
+            and spec.get("type") == "monetary"
+            and name in self.df.columns
+        ]
+        if not monetary:
+            return
+        divisor = pl.col(rate).cast(pl.Float64)
+        usable = divisor.is_not_null() & (divisor != 0)
+        self.df = self.df.with_columns(
+            [pl.col(name).alias(f"{name}_in_currency") for name in monetary]
+            + [
+                pl.when(usable)
+                .then((pl.col(name).cast(pl.Float64) / divisor).round(2))
+                .otherwise(pl.col(name).cast(pl.Float64))
+                .alias(name)
+                for name in monetary
+            ]
+        )
 
     def strip_name_suffix(self):
         """A relational path ending with `.name` loses it before it is stored :
