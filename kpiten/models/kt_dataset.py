@@ -236,6 +236,16 @@ class KpitenConfigLine(models.Model):
         store=True,
         help="Structural validation messages for the definition (non blocking).",
     )
+    xml_id = fields.Char(
+        string="External ID",
+        compute="_compute_xml_id",
+        help="The xml id of the tile, when a module's data defines it.",
+    )
+
+    def _compute_xml_id(self):
+        xml_ids = self.get_external_id()
+        for rec in self:
+            rec.xml_id = xml_ids.get(rec.id) or False
 
     @api.model
     def get_conf_id(self, model):
