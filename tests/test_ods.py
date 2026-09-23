@@ -23,6 +23,8 @@ def test_the_ods_is_landscape_its_header_frozen_its_columns_fitted():
     settings = archive.read("settings.xml").decode()
     assert 'config:name="Sales &amp; co"' in settings
     assert 'VerticalSplitPosition" config:type="int">1<' in settings
+    # without it LibreOffice ignores the view settings, the freeze with them
+    assert 'xmlns:ooo="http://openoffice.org/2004/office"' in settings
     content = archive.read("content.xml").decode()
     assert "<table:table-header-rows>" in content
     # the partner as wide as its longest name, the amount as its header

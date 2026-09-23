@@ -61,9 +61,11 @@ STYLES = f"""<?xml version="1.0" encoding="UTF-8"?>
 </office:master-styles>
 </office:document-styles>
 """
-# the header row frozen : set in the view of each sheet
+# the header row frozen : set in the view of each sheet. LibreOffice reads the `ooo:` of
+# `ooo:view-settings` as a namespace prefix : without `xmlns:ooo` it ignores the whole
+# view, the freeze with it
 SETTINGS = """<?xml version="1.0" encoding="UTF-8"?>
-<office:document-settings xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0" office:version="1.2">
+<office:document-settings xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0" xmlns:ooo="http://openoffice.org/2004/office" office:version="1.2">
 <office:settings><config:config-item-set config:name="ooo:view-settings">
 <config:config-item-map-indexed config:name="Views"><config:config-item-map-entry>
 <config:config-item config:name="ViewId" config:type="string">view1</config:config-item>
