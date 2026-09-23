@@ -15,6 +15,7 @@
         "data/panels.xml",
         "data/datasets.xml",
         "data/tiles.xml",
+        "data/tiles_sql.xml",
     ],
     "installable": True,
 }
