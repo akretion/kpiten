@@ -8,8 +8,6 @@ dependencies = [
   "polars>=1.39.3",
   "pyarrow>=23.0.1",
   "connectorx>=0.3.2",
-  "plotly[express]>=6.7.0",
-  "great-tables>=0.21.0",
   "tomli-w>=1.0",
   "requests>=2.34.2",
   "sqlglot>=30.19.0",
@@ -21,6 +19,14 @@ readme = "README.md"
 requires-python = ">=3.12"
 version = "0.1.0"
 
+# drawing the results : plotly figures, great_tables tables (kpiten_core.render) ; the
+# fronts that draw with them ask for it : kpiten-core[render]
+[project.optional-dependencies]
+render = [
+  "plotly[express]>=6.7.0",
+  "great-tables>=0.21.0",
+]
+
 [project.scripts]
 kpiten-sync = "kpiten_core.sync:main"
 
@@ -30,6 +36,7 @@ requires = ["uv_build>=0.11.3,<0.12.0"]
 
 [dependency-groups]
 dev = [
+  "kpiten-core[render]",
   "black>=26.5.1",
   "pytest>=8",
 ]

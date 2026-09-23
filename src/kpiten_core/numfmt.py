@@ -4,6 +4,10 @@ Thousands are separated by a narrow no-break space ; the decimal mark is `,` by
 default (`DECIMAL_MARK` in the environment changes it, e.g. `DECIMAL_MARK=.`).
 """
 
+import re
+
+import polars as pl
+
 from kpiten_core import config, env
 
 THOUSANDS = "\u202f"  # narrow no-break space
@@ -31,3 +35,19 @@ def format_quantity(value) -> str:
     something (`3116.4` -> `3 116`, `6.75` -> `6,75`, `0.42` -> `0,42`). The limit
     and the digits are the ones of `kt.config` (see `config.quantity_digits`)."""
     return format_number(value, config.quantity_digits(value))
+
+
+# numbers that are not quantities : ids and calendar parts stay as they are
+NOT_A_QUANTITY_RE = re.compile(r"(?i)(^|[\s._-])(id|year|quarter|month|week|day)s?$")
+
+
+def number_columns(df: pl.DataFrame) -> tuple[list[str], list[str]]:
+    """The (integer, decimal) columns of quantities : those are formatted."""
+    integers, decimals = [], []
+    for name, dtype in df.schema.items():
+        if dtype == pl.Boolean or not dtype.is_numeric():
+            continue
+        if NOT_A_QUANTITY_RE.search(name):
+            continue
+        (integers if dtype.is_integer() else decimals).append(name)
+    return integers, decimals

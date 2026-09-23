@@ -5,17 +5,17 @@ dependency, usable from any dashboarding framework (shiny, nicegui...).
 """
 
 import datetime
+import functools
 import decimal
 import logging
 import re
 from dataclasses import dataclass, field
 from typing import Any
 
-import plotly.express as px
-import plotly.graph_objs as go
 import polars as pl
 
 from kpiten_core import config as settings
+from kpiten_core.charts import KINDS, Chart
 from kpiten_core import env, links, numfmt, serial, sandbox, sqltile
 from kpiten_core.month import apply_monthly, is_date
 from kpiten_core.validate import CARD_AGGREGATIONS, DERIVE_RE
@@ -32,14 +32,24 @@ class TileResult:
     kind: str
     label: str | None
     df: pl.DataFrame | None = None
-    figure: go.Figure | None = None
+    chart: Chart | None = None  # a graph : its data, drawn by the front
     value: Any = None
     display: str | None = None  # formatted `value` (cards : unit, decimals)
     meta: dict[str, Any] = field(default_factory=dict)
 
     @property
     def is_empty(self) -> bool:
-        return self.df is None and self.figure is None and self.value is None
+        return self.df is None and self.chart is None and self.value is None
+
+    @functools.cached_property
+    def figure(self):
+        """The plotly figure of a graph (`render.plotly`, the `render` extra) : built at
+        the first call, the same one afterwards (a front may restyle it)."""
+        if self.chart is None:
+            return None
+        from kpiten_core.render.plotly import figure
+
+        return figure(self.chart)
 
     @property
     def note(self) -> str | None:
@@ -185,8 +195,8 @@ def exec_tile(
                 meta["subtitle"] = subtitle
             return TileResult("card", label, value=value, display=display, meta=meta)
         if kind == "graph":
-            fig, meta = graph_case(line["content"], table, store, full_predicates)
-            return TileResult("graph", label, figure=fig, meta=meta)
+            chart, meta = graph_case(line["content"], table, store, full_predicates)
+            return TileResult("graph", label, chart=chart, meta=meta)
         if kind == "pivot":
             df = pivot_case(line["content"], table, store, full_predicates)
             df, meta = cap_rows(df)
@@ -427,7 +437,8 @@ def card_comparison(
 
 
 def graph_case(content, table, store, full_predicates):
-    """Build the plotly figure of a graph tile. Returns `(figure, meta)` ;
+    """The data of a graph tile (`charts.Chart` : drawn by the front). Returns
+    `(chart, meta)` ;
     `meta["note"]` says how the data was reduced to stay drawable.
 
     Optional keys : `where` (SQL over the rows, like a card's), `monthly` (a date
@@ -475,86 +486,10 @@ def graph_case(content, table, store, full_predicates):
     labels = {
         col: col.replace("_", " ").capitalize() for col in (cx["name"], cy["name"])
     }
-    common_args = dict(x=cx["name"], y=cy["name"], labels=labels)
-    chart = {"bar": px.bar, "point": px.scatter, "area": px.area}
-    fig = chart.get(graph_json["graph_type"], px.bar)(source, **common_args)
-    layout = dict(
-        autosize=True,
-        margin=dict(l=20, r=20, t=40, b=20),
-    )
-    if CHART_CONFIG.get("graph"):
-        layout = {**CHART_CONFIG["graph"].get("layout", {}), **layout}
-    fig.update_layout(**layout)
-    _apply_colorway(
-        fig, (CHART_CONFIG.get("graph") or {}).get("layout", {}).get("colorway")
-    )
-    _apply_fill_color(
-        fig,
-        (CHART_CONFIG.get("graph") or {}).get("fill_color"),
-        graph_json["graph_type"],
-    )
+    kind = graph_json["graph_type"] if graph_json["graph_type"] in KINDS else "bar"
+    chart = Chart(kind, cx["name"], cy["name"], source, labels, temporal)
     notes = [n for n in notes if n]
-    return fig, ({"note": ". ".join(notes)} if notes else {})
-
-
-def _apply_colorway(fig, colorway: list | None) -> None:
-    """Apply the configured colorway to each bar element.
-
-    px.bar sets a single scalar `marker.color` on the trace, which makes
-    plotly color every bar the same and ignore the layout `colorway`. We
-    therefore expand the palette per element (cycling) so the configured
-    colors actually show up.
-    """
-    if not colorway:
-        return
-    for trace in fig.data:
-        if trace.type != "bar":
-            continue
-        x = trace.x if trace.x is not None else (trace.y if trace.y is not None else [])
-        n = len(x)
-        trace.marker.color = [colorway[i % len(colorway)] for i in range(n)]
-
-
-def apply_theme_colors(fig, palette: dict) -> None:
-    """The colors of the theme on a graph : its colorway on the bars, its first color on
-    a filled graph (area). When `kt.config` says the colors come from it, only where it
-    sets none."""
-    colorway = palette.get("colorway")
-    if not colorway:
-        return
-    themed = settings.colors_from_theme()
-    if themed or not settings.graph_colorway():
-        fig.update_layout(colorway=colorway)
-        _apply_colorway(fig, colorway)
-    if themed or not settings.graph_fill_color():
-        for trace in fig.data:
-            # px.area fills through its stackgroup (`fill` stays None)
-            filled = getattr(trace, "fill", None) in ("tozeroy", "tonexty")
-            if filled or getattr(trace, "stackgroup", None):
-                trace.line.color = colorway[0]
-                trace.fillcolor = _with_alpha(colorway[0], 0.5)
-
-
-def _with_alpha(color: str, alpha: float) -> str:
-    """`#33d17a` -> `rgba(51, 209, 122, 0.5)` ; any other notation is kept as it is."""
-    match = re.fullmatch(r"#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})", color.strip())
-    if not match:
-        return color
-    digits = match[1]
-    if len(digits) == 3:
-        digits = "".join(digit * 2 for digit in digits)
-    red, green, blue = (int(digits[i : i + 2], 16) for i in (0, 2, 4))
-    return f"rgba({red}, {green}, {blue}, {alpha})"
-
-
-def _apply_fill_color(fig, color: str | None, graph_type: str) -> None:
-    """The configured color of a filled graph (`area`) : its line, and its fill at
-    half opacity. The palette is for bars ; without a color plotly's default stays."""
-    if not color or graph_type != "area":
-        return
-    for trace in fig.data:
-        trace.line.color = color
-        trace.fillcolor = _with_alpha(color, 0.5)
+    return chart, ({"note": ". ".join(notes)} if notes else {})
 
 
 # Chart styling defaults and card options, set by the UI apps from their odoo

@@ -4,7 +4,7 @@ import polars as pl
 import pytest
 
 from kpiten_core import links, tiles
-from kpiten_core.gtable import gt_table
+from kpiten_core.render.gtable import gt_table
 
 PALETTE = {
     "surface_hex": "#000",
