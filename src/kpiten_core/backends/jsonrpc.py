@@ -146,19 +146,20 @@ class JsonrpcBackend:
     def get_panel_tiles(self, panel_id: int, user_id: int) -> list[dict]:
         """All tiles of a panel, whatever the dataset model, with layout info."""
         line = self.env["kt.dataset.line"]
-        lines = line.search_read(
-            [("panel_id", "=", panel_id)],
-            fields=[
-                "id",
-                "dataset_id",
-                "definition",
-                "name",
-                "kind",
-                "col_span",
-                "tile_height",
-                "drill_definition",
-            ],
-        )
+        names = [
+            "id",
+            "dataset_id",
+            "definition",
+            "name",
+            "kind",
+            "col_span",
+            "tile_height",
+            "drill_definition",
+        ]
+        # a kpiten module older than the field : every table is a table
+        if "table_view" in line.fields_get(["table_view"]):
+            names.append("table_view")
+        lines = line.search_read([("panel_id", "=", panel_id)], fields=names)
         if not lines:
             return []
         dataset_ids = [l["dataset_id"][0] for l in lines]
@@ -178,6 +179,7 @@ class JsonrpcBackend:
                 "col_span": rec["col_span"],
                 "tile_height": rec["tile_height"],
                 "drill": rec["drill_definition"] or None,
+                "table_view": rec.get("table_view") or "table",
             }
             for rec in lines
         ]
