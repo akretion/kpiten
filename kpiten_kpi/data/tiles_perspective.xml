@@ -3,10 +3,10 @@
          `perspective: {...}` (an SQL comment) is the config of the viewer ; without the plugin the
          tile is an ordinary table -->
     <record id="sale_perspective_explorer_table" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_sales_lines" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Sales explorer (Perspective)</field>
-        <field name="panel_id" ref="panel_sale" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">90</field>
         <field name="col_span">6</field>
         <field name="tile_height">460</field>

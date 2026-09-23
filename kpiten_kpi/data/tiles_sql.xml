@@ -2,10 +2,10 @@
     <!-- a `data` tile written in SQL (kpiten_core.sqltile) : the table `d` holds the rows
          the user may read, filtered by the panel period and dimensions -->
     <record id="purchase_top_vendors_sql_table" model="kt.dataset.line">
-        <field name="dataset_id" ref="kpiten_purchases" />
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">data</field>
         <field name="name">Top vendors (SQL)</field>
-        <field name="panel_id" ref="panel_purchase" />
+        <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
         <field name="sequence">4</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
