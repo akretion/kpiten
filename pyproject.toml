@@ -8,14 +8,14 @@ dependencies = [
   "quarto-cli>=1.6",
 ]
 description = "KpiTen plugin : the panel on screen as a PDF report (Quarto + Typst)"
-name = "kpiten-quarto"
+name = "quarto-kpiten"
 readme = "README.md"
 requires-python = ">=3.12"
 version = "0.1.0"
 
 # found by kpiten-core (pluggy) : kpiten_core.plugins.plugin_manager
 [project.entry-points."kpiten_core"]
-quarto = "kpiten_quarto"
+quarto = "quarto_kpiten"
 
 [build-system]
 build-backend = "uv_build"
