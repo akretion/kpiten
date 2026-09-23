@@ -96,6 +96,25 @@ def test_edit_mode_is_for_kpiten_managers_only(page: Page) -> None:
     page.locator("#edit_mode").wait_for(state="visible", timeout=30_000)
 
 
+def test_edit_mode_moves_a_tile_among_the_tiles(page: Page) -> None:
+    """▶ swaps a tile with its neighbour on screen (not with a card), ◀ puts it back ;
+    the grid of the tiles comes after the one of the cards, both are in edit mode."""
+    open_dashboard(page, MANAGER, MANAGER_PASSWORD)
+    page.locator("#edit_mode").check()
+    items = page.locator(".tile-grid--edit:not(.card-grid) .tile-edit-item")
+    items.first.wait_for(timeout=60_000)
+
+    def order():
+        return items.evaluate_all("els => els.map(e => e.dataset.tileId)")
+
+    before = order()
+    items.first.locator('.tile-act[data-action="right"]').click()
+    expect(items.first).not_to_have_attribute("data-tile-id", before[0])
+    assert order()[:2] == [before[1], before[0]]
+    items.nth(1).locator('.tile-act[data-action="left"]').click()
+    expect(items.first).to_have_attribute("data-tile-id", before[0])
+
+
 def test_comparison_switch_of_kt_config(page: Page) -> None:
     """The cards show their change since the previous period unless kt.config says no."""
     from kpiten_core.backend import Backend

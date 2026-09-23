@@ -95,8 +95,8 @@ def dim_input_id(column: str) -> str:
 
 EDIT_MODE_JS = """
 (function () {
-  const grid = document.querySelector(".tile-grid--edit");
-  if (!grid) { return; }
+  // every grid in edit mode : the row of the cards, and the one of the other tiles
+  document.querySelectorAll(".tile-grid--edit").forEach(function (grid) {
   // toolbar actions -> Shiny input (server applies the change and re-renders)
   grid.addEventListener("click", function (e) {
     const btn = e.target.closest(".tile-act");
@@ -125,6 +125,7 @@ EDIT_MODE_JS = """
     const ids = Array.from(grid.querySelectorAll(".tile-edit-item"))
         .map(function (i) { return i.dataset.tileId; });
     Shiny.setInputValue("tile_order", ids, {priority: "event"});
+  });
   });
 })();
 """
@@ -823,7 +824,9 @@ def server(input, output, session):
             backend.update_tile_layout(tile_id, col_span, tile_height)
 
         else:  # left / right : swap with a neighbour, save the new sequence
-            ids = [line["id"] for line in cur_lines]
+            # the neighbour on screen : a card among the cards, a tile among the tiles
+            card = line["kind"] == "card"
+            ids = [l["id"] for l in cur_lines if (l["kind"] == "card") == card]
             pos = ids.index(tile_id)
             if action == "left" and pos > 0:
                 ids[pos - 1], ids[pos] = ids[pos], ids[pos - 1]
