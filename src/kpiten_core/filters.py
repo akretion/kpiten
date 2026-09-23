@@ -11,7 +11,7 @@ import datetime
 
 import polars as pl
 
-from kpiten_core import config, date_filter, dimension
+from kpiten_core import config, date_filter, dimension, i18n
 
 DATE_OPTIONS = {
     "": "full range",
@@ -187,7 +187,7 @@ def dimension_choices(store: dict[str, pl.DataFrame], column: str) -> list[str]:
 
 
 def describe_filters(
-    filter_config: dict, date_value, dim_values: dict[str, list]
+    filter_config: dict, date_value, dim_values: dict[str, list], tr=i18n.english
 ) -> str:
     """Human readable description of the active panel filters.
 
@@ -198,7 +198,14 @@ def describe_filters(
     date_field = ", ".join(date_fields(filter_config))
     if date_field and date_value:
         start, end = date_value
-        lines.append(f"Period {start:%Y-%m-%d} → {end:%Y-%m-%d} ({date_field})")
+        lines.append(
+            tr(
+                "Period {start} → {end} ({field})",
+                start=f"{start:%Y-%m-%d}",
+                end=f"{end:%Y-%m-%d}",
+                field=date_field,
+            )
+        )
     for dim in filter_config.get("dimensions", []):
         selected = dim_values.get(dim["name"])
         label = dim.get("label") or dim["name"]

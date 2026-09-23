@@ -13,10 +13,11 @@ from uuid import uuid4
 class Session:
     VALIDITY_TIME = timedelta(days=1)
 
-    def __init__(self, user_id: int, db: str | None = None):
+    def __init__(self, user_id: int, db: str | None = None, lang: str | None = None):
         self.token = str(uuid4())
         self.user_id = user_id  # res.users id in `db`
         self.db = db
+        self.lang = lang  # res.users.lang at the login : the language of the fronts
         self.until = datetime.now()
         self.refresh()
 
@@ -33,10 +34,12 @@ class SessionHandler:
     sessions: dict[str, Session] = {}
 
     @classmethod
-    def new_session(cls, user_id: int, db: str | None = None) -> str:
+    def new_session(
+        cls, user_id: int, db: str | None = None, lang: str | None = None
+    ) -> str:
         """Open a session for a user (one per SSO login), return its token."""
         cls.purge()
-        session = Session(user_id, db=db)
+        session = Session(user_id, db=db, lang=lang)
         cls.sessions[session.token] = session
         return session.token
 
