@@ -109,6 +109,14 @@ class Backend:
         """Whether the user may use the edit mode (a KpiTen manager in Odoo)."""
         raise NotImplementedError
 
+    def get_user_theme(self, user_id: int) -> str | None:
+        """The theme the user chose in an app (kept in Odoo), None when none."""
+        raise NotImplementedError
+
+    def set_user_theme(self, user_id: int, theme: str | None) -> None:
+        """Keep in Odoo the theme the user chose ; None forgets it."""
+        raise NotImplementedError
+
     def delete_tile(self, line_id: int) -> None:
         raise NotImplementedError
 

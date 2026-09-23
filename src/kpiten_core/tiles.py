@@ -515,6 +515,22 @@ def _apply_colorway(fig, colorway: list | None) -> None:
         trace.marker.color = [colorway[i % len(colorway)] for i in range(n)]
 
 
+def apply_theme_colors(fig, palette: dict) -> None:
+    """The colors of the theme on a graph, where `kt.config` sets none : its colorway
+    on the bars, its first color on a filled graph (area)."""
+    colorway = palette.get("colorway")
+    if not colorway:
+        return
+    if not settings.graph_colorway():
+        fig.update_layout(colorway=colorway)
+        _apply_colorway(fig, colorway)
+    if not settings.graph_fill_color():
+        for trace in fig.data:
+            if getattr(trace, "fill", None) in ("tozeroy", "tonexty"):
+                trace.line.color = colorway[0]
+                trace.fillcolor = _with_alpha(colorway[0], 0.5)
+
+
 def _with_alpha(color: str, alpha: float) -> str:
     """`#33d17a` -> `rgba(51, 209, 122, 0.5)` ; any other notation is kept as it is."""
     match = re.fullmatch(r"#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})", color.strip())
