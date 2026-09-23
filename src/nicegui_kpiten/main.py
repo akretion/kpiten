@@ -274,6 +274,13 @@ def tile_view(
             )
         if result.kind == "graph":
             core_tiles.apply_theme_colors(result.figure, palette)
+            # the graph is drawn on the tile, in the text color of the theme (as Shiny)
+            result.figure.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color=palette["text"], size=11),
+                margin=dict(l=10, r=10, t=30, b=20),
+            )
             ui.plotly(result.figure).classes("w-full")
         else:
             assert result.df is not None
