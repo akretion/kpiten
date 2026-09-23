@@ -11,6 +11,7 @@ Themes and their palette live in `themes.py` (default = the one of `kt.config`) 
 theme can be picked in the UI bar, and is then kept in Odoo for the user.
 """
 
+import asyncio
 import datetime
 import json
 import logging
@@ -36,7 +37,7 @@ from kpiten_core.backend import Backend
 
 from . import data as data_layer
 from . import filterstate
-from . import themes
+from . import sites, themes
 from .sessions import SESSION_COOKIE, SessionHandler
 
 STATIC_DIR = pathlib.Path(__file__).parent / "static"
@@ -915,6 +916,9 @@ def server(input, output, session):
     # ---- the exports of the panel the plugins offer (kpiten_core.hookspecs)
     exports = core_plugins.panel_exports()
 
+    # ... and the sites they build (kpiten-evidence), served to this user only
+    site_defs = core_plugins.panel_sites()
+
     @render.ui
     def plugin_exports():
         return ui.TagList(
@@ -926,8 +930,81 @@ def server(input, output, session):
                     title=export.get("tooltip") or export["label"],
                 )
                 for export in exports
-            )
+            ),
+            *(
+                ui.input_action_button(
+                    f"site_{site['key']}",
+                    ui.HTML(site.get("icon") or site["label"]),
+                    class_="btn-kpiten",
+                    title=site.get("tooltip") or site["label"],
+                )
+                for site in site_defs
+            ),
         )
+
+    def site_link(site: sites.Site, label: str) -> None:
+        ui.notification_show(
+            ui.HTML(
+                f'<a href="{site.base_path}/" target="_blank" rel="noopener">'
+                f"Open the {label} report</a> (a new tab)"
+            ),
+            duration=None,
+        )
+
+    def site_build(site_def: dict):
+        """A click builds the site of the panel (in a thread : the other users go on)
+        and gives its link ; the same panel with the same filters is reused 15 min."""
+        key = site_def["key"]
+
+        @reactive.effect
+        @reactive.event(input[f"site_{key}"], ignore_init=True)
+        async def _build():
+            with reactive.isolate():
+                panel_id = int(req(input.panel()))
+                backend = backend_rv()
+                user_id = current_user_id()
+                filters = filters_text()
+                cache = (key, backend.db, user_id, panel_id, filters)
+                done = sites.recent(cache)
+                if done is not None:
+                    site_link(done, site_def["label"])
+                    return
+                panel = {"id": panel_id, "name": panels().get(str(panel_id))}
+                context = {
+                    "filters": filters,
+                    "user": backend.env["res.users"].browse(user_id).name,
+                    "db": backend.db,
+                    "palette": current_theme().palette,
+                    "date": datetime.date.today(),
+                }
+                results = panel_results()
+            site = sites.new(user_id, backend.db, cache)
+            note = ui.notification_show(
+                f"Building the {site_def['label']} report of {panel['name']}...",
+                duration=None,
+            )
+            try:
+                await asyncio.to_thread(
+                    core_plugins.build_panel_site,
+                    key,
+                    panel,
+                    results,
+                    context,
+                    site.folder,
+                    site.base_path,
+                )
+            except Exception as err:
+                logger.exception("site %s of panel %s failed", key, panel_id)
+                sites.discard(site)
+                ui.notification_show(f"The report failed : {err}", type="error")
+                return
+            finally:
+                ui.notification_remove(note)
+            sites.register(site)
+            site_link(site, site_def["label"])
+
+    for site_def in site_defs:
+        site_build(site_def)
 
     def export_download(export: dict):
         """The download of an export : the plugin makes the file of the panel."""

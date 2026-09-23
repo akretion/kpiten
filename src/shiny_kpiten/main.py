@@ -10,11 +10,12 @@
 import json
 import logging
 
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, Response
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 
 from kpiten_core.backend import Backend
 
+from . import sites
 from .app import app as shiny_app
 from .sessions import SESSION_COOKIE, SessionHandler
 
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 this_app = FastAPI()
+sites.clean()
 
 
 @this_app.post("/")
@@ -68,6 +70,35 @@ def check(session: str):
         max_age=int(sso.VALIDITY_TIME.total_seconds()),
     )
     return response
+
+
+# ---- the sites the plugins built for a user (sites.py), to that user only. Declared
+# before the mount of the dashboard : under /dashboard, the path of the session cookie
+@this_app.get(sites.PREFIX + "/{token}")
+def site_root(token: str):
+    return RedirectResponse(f"{sites.PREFIX}/{token}/")
+
+
+@this_app.get(sites.PREFIX + "/{token}/{path:path}")
+def site_file(token: str, path: str, request: Request):
+    from kpiten_core import env
+
+    site = sites.get(token)
+    sso = SessionHandler.get(request.cookies.get(SESSION_COOKIE))
+    allowed = site is not None and (
+        sso.user_id == site.user_id and sso.db == site.db
+        if sso is not None
+        else env.allow_rpc_user  # dev mode, no SSO
+    )
+    if not allowed:
+        return HTMLResponse(status_code=404, content="<h1>Not found</h1>")
+    root = site.root.resolve()
+    target = (root / path).resolve()
+    if target.is_dir():
+        target = target / "index.html"
+    if not target.is_relative_to(root) or not target.is_file():
+        return HTMLResponse(status_code=404, content="<h1>Not found</h1>")
+    return FileResponse(target)
 
 
 this_app.mount("/dashboard", shiny_app)
