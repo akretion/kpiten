@@ -203,7 +203,7 @@ def app_ui(req):  # noqa: ANN001
                 "refresh_data", "\u27f3", class_="btn-kpiten", title=REFRESH_TOOLTIP
             ),
             ui.output_ui("ods_button"),
-            # the exports of the panel the plugins offer (kpiten-quarto : a PDF)
+            # the exports of the panel the plugins offer (quarto-kpiten : a PDF)
             ui.output_ui("plugin_exports"),
             ui.tags.span(
                 ui.input_switch("edit_mode", "Edit", False), title=EDIT_TOOLTIP
@@ -327,7 +327,7 @@ def tile_html(
         f"<h3>{line['name'] or result.kind}"
         f'<span class="kind-badge">{result.kind}</span></h3>'
     ]
-    # a plugin may draw the tile (kpiten_core.hookspecs), e.g. kpiten-perspective
+    # a plugin may draw the tile (kpiten_core.hookspecs), e.g. perspective-kpiten
     plugged = core_plugins.render_tile(line, result, p)
     if plugged:
         parts.append(plugged)
