@@ -1,4 +1,4 @@
-<odoo noupdate="1">
+<odoo>
     <record model="kt.panel" id="panel_sale">
         <field name="name">Sales</field>
         <field
