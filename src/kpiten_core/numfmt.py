@@ -37,6 +37,34 @@ def format_quantity(value) -> str:
     return format_number(value, config.quantity_digits(value))
 
 
+FORMATS = ("number", "integer", "currency", "percent")
+
+
+def with_currency(text: str) -> str:
+    """`text` with the symbol of the company currency (`kt.config`), before or after
+    it as Odoo does ; unchanged without a symbol."""
+    currency = config.CONFIG.get("currency") or {}
+    symbol = currency.get("symbol")
+    if not symbol:
+        return text
+    if currency.get("position") == "before":
+        return f"{symbol}{text}"
+    return f"{text} {symbol}"
+
+
+def format_value(value, fmt: str = "number", decimals: int = 0) -> str:
+    """A cell of a table in a format of `[table]` : number, integer, currency (the
+    company's) or percent (a ratio : 0.12 -> 12 %)."""
+    if value is None:
+        return ""
+    if fmt == "integer":
+        return format_number(value, 0)
+    if fmt == "percent":
+        return f"{format_number(value * 100, decimals)} %"
+    text = format_number(value, decimals)
+    return with_currency(text) if fmt == "currency" else text
+
+
 # numbers that are not quantities : ids and calendar parts stay as they are
 NOT_A_QUANTITY_RE = re.compile(r"(?i)(^|[\s._-])(id|year|quarter|month|week|day)s?$")
 
