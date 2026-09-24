@@ -120,7 +120,7 @@ def run(db: str, full: bool = False) -> dict[str, int]:
             with env.db_scope(db):
                 backend = Backend.create(db=db)
                 counts = loaders.sync_store(
-                    backend, backend.env.user.id, progress, full=full
+                    backend, backend.current_user_id(), progress, full=full
                 )
         except BaseException as err:
             status.update(state="failed", error=f"{type(err).__name__}: {err}")

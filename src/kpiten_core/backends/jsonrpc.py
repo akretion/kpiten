@@ -5,23 +5,17 @@ future json-2 backend (Odoo >= 19 External API) can implement the same
 methods.
 """
 
-import json
 import logging
 
 import odoorpc
 
 from kpiten_core import env
+from kpiten_core.backends.common import TILE_FIELDS, parse_filter_config, tile_dict
 
 logger = logging.getLogger(__name__)
 
 # (database, model) -> id of the Odoo action that lists records by ids
 _RECORDS_ACTIONS: dict[tuple[str, str], int] = {}
-
-
-def _parse_filter_config(raw):
-    if not raw:
-        return {}
-    return json.loads(raw)
 
 
 class JsonrpcBackend:
@@ -58,6 +52,15 @@ class JsonrpcBackend:
             logger.exception("check_uuid failed")
             return None
 
+    # ---- the users ----------------------------------------------------
+    def current_user_id(self) -> int:
+        """The Odoo user of the backend (ODOO_LOGIN) : the dashboards of the dev
+        mode and the sync run as them."""
+        return self.env.user.id
+
+    def get_user_name(self, user_id: int) -> str:
+        return self.env["res.users"].browse(user_id).name
+
     # ---- kpiten config ------------------------------------------------
     def get_panels(self) -> list[dict]:
         """Fetch kt.panel records."""
@@ -72,7 +75,7 @@ class JsonrpcBackend:
             [("id", "=", panel_id)],
             fields=["id", "name", "filter_config"],
         )[0]
-        rec["filter_config"] = _parse_filter_config(rec["filter_config"])
+        rec["filter_config"] = parse_filter_config(rec["filter_config"])
         return rec
 
     def get_chart_config(self) -> dict:
@@ -112,33 +115,8 @@ class JsonrpcBackend:
         domain = [("dataset_id", "=", dataset_id)]
         if panel_id:
             domain.append(("panel_id", "=", panel_id))
-        line = self.env["kt.dataset.line"]
-        records = line.search_read(
-            domain,
-            fields=[
-                "id",
-                "dataset_id",
-                "definition",
-                "name",
-                "kind",
-                "col_span",
-                "tile_height",
-                "drill_definition",
-            ],
-        )
-        return [
-            {
-                "id": rec["id"],
-                "dataset_id": rec["dataset_id"],
-                "content": rec["definition"],
-                "name": rec["name"],
-                "kind": rec["kind"],
-                "col_span": rec["col_span"],
-                "tile_height": rec["tile_height"],
-                "drill": rec["drill_definition"] or None,
-            }
-            for rec in records
-        ]
+        records = self.env["kt.dataset.line"].search_read(domain, fields=TILE_FIELDS)
+        return [tile_dict(rec) for rec in records]
 
     def get_conf_id(self, model: str) -> int | None:
         return self.env["kt.dataset.line"].get_conf_id(model)
@@ -146,16 +124,7 @@ class JsonrpcBackend:
     def get_panel_tiles(self, panel_id: int, user_id: int) -> list[dict]:
         """All tiles of a panel, whatever the dataset model, with layout info."""
         line = self.env["kt.dataset.line"]
-        names = [
-            "id",
-            "dataset_id",
-            "definition",
-            "name",
-            "kind",
-            "col_span",
-            "tile_height",
-            "drill_definition",
-        ]
+        names = list(TILE_FIELDS)
         # a kpiten module older than the field : every table is a table
         if "table_view" in line.fields_get(["table_view"]):
             names.append("table_view")
@@ -168,21 +137,7 @@ class JsonrpcBackend:
         for ds in datasets:
             ir_model = self.env["ir.model"].browse(ds["model_id"][0])
             models[ds["id"]] = ir_model.model
-        return [
-            {
-                "id": rec["id"],
-                "dataset_id": rec["dataset_id"][0],
-                "model": models[rec["dataset_id"][0]],
-                "content": rec["definition"],
-                "name": rec["name"],
-                "kind": rec["kind"],
-                "col_span": rec["col_span"],
-                "tile_height": rec["tile_height"],
-                "drill": rec["drill_definition"] or None,
-                "table_view": rec.get("table_view") or "table",
-            }
-            for rec in lines
-        ]
+        return [tile_dict(rec, models[rec["dataset_id"][0]]) for rec in lines]
 
     # ---- create / delete tiles ----------------------------------------
     def create_tile(
