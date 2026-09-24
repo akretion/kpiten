@@ -197,6 +197,84 @@ aggregation = "count"
 </field>
     </record>
 
+    <!-- graph : `series` splits each bar by a column (one color per value), `stacked` piles them -->
+    <record id="graph_series_stacked" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
+        <field name="kind">graph</field>
+        <field name="name">Graph series stacked</field>
+        <field name="panel_id" ref="panel_essential" />
+        <field name="sequence">12</field>
+        <field name="col_span">2</field>
+        <field name="definition">version = 2
+type = "bar"
+by = "user_id"
+series = "state"
+stacked = true
+measure = "amount_untaxed"
+aggregation = "sum"
+</field>
+    </record>
+
+    <!-- graph : a `line` per salesperson over the months -->
+    <record id="graph_line_series" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
+        <field name="kind">graph</field>
+        <field name="name">Graph line per series</field>
+        <field name="panel_id" ref="panel_essential" />
+        <field name="sequence">12</field>
+        <field name="col_span">2</field>
+        <field name="definition">version = 2
+type = "line"
+where = "state = 'sale'"
+by = "date_order"
+grain = "month"
+series = "user_id"
+measure = "amount_untaxed"
+aggregation = "sum"
+</field>
+    </record>
+
+    <!-- graph : a `pie`, the `limit` biggest slices and the rest in « Others » -->
+    <record id="graph_pie" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
+        <field name="kind">graph</field>
+        <field name="name">Graph pie</field>
+        <field name="panel_id" ref="panel_essential" />
+        <field name="sequence">12</field>
+        <field name="col_span">2</field>
+        <field name="definition">version = 2
+type = "pie"
+where = "state = 'sale'"
+by = "partner_id"
+measure = "amount_untaxed"
+aggregation = "sum"
+limit = 8
+others = true
+</field>
+    </record>
+
+    <!-- graph : horizontal bars (`orientation`) for long labels ; `[plotly]` says what kpiten does not -->
+    <record id="graph_horizontal" model="kt.dataset.line">
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
+        <field name="kind">graph</field>
+        <field name="name">Graph horizontal</field>
+        <field name="panel_id" ref="panel_essential" />
+        <field name="sequence">12</field>
+        <field name="col_span">2</field>
+        <field name="definition">version = 2
+type = "bar"
+orientation = "h"
+where = "state = 'sale'"
+by = "partner_id"
+measure = "amount_untaxed"
+aggregation = "sum"
+limit = 10
+
+[plotly.layout]  # given as is to plotly update_layout
+bargap = 0.4
+</field>
+    </record>
+
     <!-- pivot : `rows` × `columns` (here a derived `.year`) ; the header of the rows is the label of the field in Odoo ; `[table]` : format, totals, heatmap, note -->
     <record id="pivot" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />

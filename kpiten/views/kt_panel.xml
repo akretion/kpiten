@@ -4,6 +4,21 @@
         <field name="arch" type="xml">
             <form>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button
+                            name="action_view_lines"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-th-large"
+                            invisible="not id"
+                        >
+                            <field
+                                name="line_count"
+                                widget="statinfo"
+                                string="Tiles"
+                            />
+                        </button>
+                    </div>
                     <group name="main">
                         <group name="left">
                             <field name="name" />
@@ -21,7 +36,7 @@
                     />
                     <notebook>
                         <page string="Tiles">
-                            <field name="config_line_ids">
+                            <field name="line_ids">
                                 <list>
                                     <field name="sequence" widget="handle" />
                                     <field name="name" />
