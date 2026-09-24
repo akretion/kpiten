@@ -11,11 +11,9 @@ try:
 except ImportError:  # Odoo 16 runs on older Pythons
     import tomli as tomllib
 
-try:
-    from kpiten_core.validate import validate_display, validate_toml
-except (
-    ImportError
-):  # kpiten_core needs Python 3.12 : not on the older series, no validation
+try:  # kpiten-spec : the syntax of the tiles, standard library only (Python 3.8+)
+    from kpiten_spec.validate import validate_display, validate_toml
+except ImportError:  # not installed : no validation of the tiles
     validate_display = validate_toml = None
 
 SERIES = release.version_info[0]
