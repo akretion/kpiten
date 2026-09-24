@@ -190,7 +190,12 @@ def app_ui(req):  # noqa: ANN001
             {"class": "kpiten-dashboard"},
             ui.head_content(FAVICON),
             ui.h3(tr("Not connected")),
-            ui.p(tr("Open the dashboard from Odoo : menu KpiTen → Dashboard.")),
+            ui.p(
+                tr(
+                    "Open the dashboard from Odoo : menu KpiTen → {front}.",
+                    front="Shiny",
+                )
+            ),
             title=f"{tr('Not connected')} · {TAB_TITLE}",
         )
     tr = i18n.translator(user_lang(sso))
@@ -497,9 +502,7 @@ def tile_html(
         # scrolls, the page does not grow
         drawing = result.meta.get("table")
         rows = (drawing or {}).get("limit") or core_config.table_rows()
-        parts.append(
-            themes.gt_df(theme, result.df.head(rows), drawing).as_raw_html()
-        )
+        parts.append(themes.gt_df(theme, result.df.head(rows), drawing).as_raw_html())
         # out of what the tile holds (`total_rows` when the core already cut it off)
         total = result.meta.get("total_rows", result.df.height)
         if total > rows:
