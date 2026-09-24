@@ -5,7 +5,7 @@
             <form>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button
+<!--                         <button
                             name="action_view_lines"
                             type="object"
                             class="oe_stat_button"
@@ -17,7 +17,7 @@
                                 widget="statinfo"
                                 string="Tiles"
                             />
-                        </button>
+                        </button> -->
                     </div>
                     <group name="main">
                         <group name="left">
