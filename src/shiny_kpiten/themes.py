@@ -155,8 +155,13 @@ class Theme:
   align-self: center;
 }}
 .kpiten-logo {{ height: 80px; width: 80px; align-self: center }}
-.framework-side {{ margin-left: auto; align-self: center }}
-.app-footer {{ display: flex; justify-content: flex-end; margin-top: 28px }}
+.app-footer {{
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 20px;
+  margin-top: 28px;
+}}
 .framework-logo {{
   width: 76px;
   height: auto;
