@@ -1,7 +1,6 @@
 """Per-user isolation : sessions and row/column restrictions of the store."""
 
 import datetime
-from types import SimpleNamespace
 
 import polars as pl
 
@@ -67,7 +66,7 @@ class FakeStorage:
 class FakeBackend:
     """A user who may read sale orders 1 and 3, no purchase, a broken table."""
 
-    env = SimpleNamespace(db="testdb")
+    db = "testdb"
 
     def get_user_lang(self, user_id):
         return "en_US"

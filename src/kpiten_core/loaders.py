@@ -147,7 +147,7 @@ def _stream_blocks(
     a block is emitted as soon as the pages move on to the next one. At most
     one block (PARTITION_SIZE ids) is held at a time.
     """
-    uri = _pg_uri(backend.env.db)
+    uri = _pg_uri(backend.db)
     chunks: list[pl.DataFrame] = []
     current = None
     total = 0
@@ -307,7 +307,7 @@ def sync_store(
     Returns the rows written per model (deletions not counted).
     """
     counts: dict[str, int] = {}
-    uri = _pg_uri(backend.env.db)
+    uri = _pg_uri(backend.db)
     for model in backend.get_dataset_models():
         since = (
             None
@@ -346,7 +346,7 @@ def accessible_ids(backend: "Backend", table: str, user_id: int) -> pl.Series:
     query = backend.get_access_query(table, user_id)
     if not query:  # no read access to the model at all
         return pl.Series("id", [], dtype=pl.Int64)
-    return _read_sql_df(_pg_uri(backend.env.db), query)["id"]
+    return _read_sql_df(_pg_uri(backend.db), query)["id"]
 
 
 def restrict_rows(frame: "pl.DataFrame | pl.LazyFrame", ids: pl.Series):
@@ -380,7 +380,7 @@ def user_store(backend: "Backend", user_id: int) -> dict[str, pl.LazyFrame]:
     """
     lang = backend.get_user_lang(user_id)
     store: dict[str, pl.LazyFrame] = {}
-    with env.db_scope(backend.env.db):
+    with env.db_scope(backend.db):
         for table in DFStorage.list_table_names():
             try:
                 allowed = backend.get_allowed_fields(table, user_id)

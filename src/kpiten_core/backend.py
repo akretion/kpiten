@@ -1,11 +1,13 @@
 """Backend abstraction to talk to Odoo.
 
-Two implementations are planned :
-- `jsonrpc` : current JSON-RPC / XML-RPC channel (odoorpc), Odoo <= 18.
-- `json2`   : Odoo >= 19 External JSON-2 API (not implemented yet).
+Two implementations, chosen by `ODOO_API` (the environment, `jsonrpc` by default) :
+- `jsonrpc` : the JSON-RPC / XML-RPC channel (odoorpc), Odoo 14 to 18.
+- `json2`   : the External JSON-2 API (an API key : `ODOO_API_KEY`), Odoo 19 and after.
 """
 
 from typing import Any
+
+from kpiten_core import env
 
 from kpiten_core.backends.jsonrpc import JsonrpcBackend
 from kpiten_core.backends.json2 import Json2Backend
@@ -24,8 +26,16 @@ class Backend:
         raise NotImplementedError("use Backend.create(protocol) instead")
 
     @classmethod
-    def create(cls, protocol: str = "jsonrpc", db: str | None = None) -> Any:
-        return BACKENDS[protocol](db=db)
+    def create(cls, protocol: str | None = None, db: str | None = None) -> Any:
+        return BACKENDS[protocol or env.get("ODOO_API") or "jsonrpc"](db=db)
+
+    # ---- the users ----------------------------------------------------
+    def current_user_id(self) -> int:
+        """The Odoo user of the backend (ODOO_LOGIN) : the dev mode, the sync."""
+        raise NotImplementedError
+
+    def get_user_name(self, user_id: int) -> str:
+        raise NotImplementedError
 
     # ---- generic data access ------------------------------------------
     def get_dataset_models(self) -> list[str]:

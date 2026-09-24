@@ -2,7 +2,6 @@
 and the service that starts it for the dashboards."""
 
 import json
-from types import SimpleNamespace
 
 import polars as pl
 import pytest
@@ -26,7 +25,10 @@ def _pages(*id_lists):
 class FakeOdoo:
     """`get_sql_query` returns a tag, `_iter_sql_pages` (patched) pages by tag."""
 
-    env = SimpleNamespace(db="testdb", user=SimpleNamespace(id=2))
+    db = "testdb"
+
+    def current_user_id(self):
+        return 2
 
     def get_dataset_models(self):
         return ["sale.order"]
