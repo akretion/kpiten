@@ -366,7 +366,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
         ui.label("No kpiten.panel found in Odoo").classes("text-xl")
         return
     panels_map = {str(p["id"]): p["name"] for p in panels}
-    user_id = sso.user_id if sso else backend.env.user.id
+    user_id = sso.user_id if sso else backend.current_user_id()
     # only a KpiTen manager of Odoo edits the tiles (the apps read Odoo with one
     # rpc account : nothing else stops a user from sending an edit)
     can_edit = backend.can_edit_tiles(user_id)
@@ -769,7 +769,7 @@ def create_server():
             return JSONResponse(status_code=403, content={"error": "Not connected"})
         try:
             backend = Backend.create(db=sso.db if sso else None)
-            user_id = sso.user_id if sso else backend.env.user.id
+            user_id = sso.user_id if sso else backend.current_user_id()
             if not backend.can_edit_tiles(user_id):
                 return JSONResponse(
                     status_code=403, content={"error": "Only a KpiTen manager can edit"}
