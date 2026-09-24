@@ -33,6 +33,10 @@ class Backend:
         """`model.method(**kwargs)` on `ids`, whatever the protocol."""
         raise NotImplementedError
 
+    def get_field_labels(self, model: str, lang: str | None = None) -> dict[str, str]:
+        """{field: its label in Odoo}, in `lang`."""
+        raise NotImplementedError
+
     # ---- the users ----------------------------------------------------
     def current_user_id(self) -> int:
         """The Odoo user of the backend (ODOO_LOGIN) : the dev mode, the sync."""
