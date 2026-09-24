@@ -57,7 +57,7 @@ TILES_DUMP = (
 PLOTLY_JS = "https://cdn.plot.ly/plotly-2.35.2.min.js"
 # the KpiTen icon (the one of the Odoo menu), in the tab ; relative like the logo :
 # it works at the app root and under /dashboard
-FAVICON = ui.tags.link(rel="icon", type="image/png", href="static/favicon.png")
+FAVICON = ui.tags.link(rel="icon", type="image/png", href="static/kpiten.png")
 
 REFRESH_TOOLTIP = "Refresh data : sync with Odoo now, to see its latest changes"
 ODS_TOOLTIP = "Download the rows of an Odoo model as a spreadsheet"
@@ -193,7 +193,8 @@ def app_ui(req):  # noqa: ANN001
             title=f"{tr('Not connected')} · {TAB_TITLE}",
         )
     tr = i18n.translator(user_lang(sso))
-    logo = "static/logo.png"  # relative : works at app root and under /dashboard
+    # the hexagon of Shiny ; relative : works at app root and under /dashboard
+    logo = "static/shiny.png"
     return ui.page_fluid(
         {"class": "kpiten-dashboard", "lang": tr.lang},
         # loaded once, before any tile : a figure that loaded it itself could run
