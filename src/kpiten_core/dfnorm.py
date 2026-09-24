@@ -16,7 +16,6 @@ from typing import Any
 
 import polars as pl
 
-from kpiten_core import env
 
 logger = logging.getLogger(__name__)
 
@@ -187,19 +186,3 @@ class Df:
             for name, spec in (self.fields or {}).items()
             if isinstance(spec, dict) and spec.get("type") == "many2one"
         }
-
-    @classmethod
-    def from_raw(
-        cls,
-        table: str,
-        raw_vals: list[dict],
-        metadata: dict | None = None,
-        decimal_truncate: int | None = None,
-    ) -> "Df":
-        """Build the Df helper from a list of raw record dicts (id -> value)."""
-        df = pl.DataFrame(raw_vals, strict=False, infer_schema_length=None)
-        return cls(
-            df,
-            fields=metadata,
-            decimal_truncate=decimal_truncate or env.decimal_truncate,
-        )

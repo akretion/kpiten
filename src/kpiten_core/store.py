@@ -29,7 +29,6 @@ from typing import TypedDict
 import polars as pl
 
 from kpiten_core import env
-from kpiten_core.dfnorm import Df
 
 logger = logging.getLogger(__name__)
 
@@ -281,27 +280,6 @@ class DFStorage:
             pathlib.Path(cls._legacy_path(table)).unlink(missing_ok=True)
 
     @classmethod
-    def store_raw(
-        cls, table: str, raw_vals: list[dict], metadata: dict, df: pl.DataFrame
-    ):
-        """Store a whole in-memory dataframe as blocks + json metadata.
-
-        For a table already in memory (tests, scripts). A big table is
-        streamed with `write_block` / `commit_full` instead.
-        """
-        started = _now_utc()
-        blocks = cls.split_blocks(df)
-        for block, part in blocks:
-            cls.write_block(table, block, part)
-        cls.commit_full(
-            table,
-            metadata,
-            {block for block, _ in blocks},
-            ColumnOrder().update(df).order(),
-            started,
-        )
-
-    @classmethod
     def write_meta(cls, table: str, metadata: dict):
         pathlib.Path(cls._df_dir() + "/").mkdir(exist_ok=True, parents=True)
         pathlib.Path(cls._meta_path(table)).write_text(json.dumps(metadata))
@@ -331,16 +309,6 @@ class DFStorage:
         if cls.is_partitioned(table) and cls._blocks(table):
             return True
         return pathlib.Path(cls._legacy_path(table)).exists()
-
-    @classmethod
-    def append_records(cls, table: str, raw_vals: list[dict]) -> int:
-        """Upsert raw records in the stored table (delta-sync).
-
-        Normalizes `raw_vals` (Df) then delegates the actual upsert to
-        `merge_df`.
-        """
-        new_df = Df.from_raw(table, raw_vals, cls.read_meta(table)).get_df()
-        return cls.merge_df(table, new_df)
 
     @classmethod
     def _require_blocks(cls, table: str):
@@ -484,23 +452,6 @@ class DFStorage:
                 ]
             )
         return lf
-
-    @classmethod
-    def retrieve_df(
-        cls,
-        table: str,
-        allowed_fields: list[str] | None = None,
-        lang: str | None = None,
-    ) -> DF_META | None:
-        """Read a whole stored dataframe in memory (see `scan_df`).
-
-        Prefer `scan_df` for anything that serves users : this loads the full
-        table.
-        """
-        return {
-            "table": table,
-            "df": cls.scan_df(table, allowed_fields, lang).collect(),
-        }
 
     @staticmethod
     def _column_ok(col: str, allowed: list[str]) -> bool:

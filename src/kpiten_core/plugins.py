@@ -3,9 +3,6 @@
 A plugin is a python package (or module) that extends kpiten-core
 behavior. Plugins can either:
 
-- register dataframe-prep hooks (per table) through
-  `kpiten_core.hooks.register_df` (i.e. custom transformations applied
-  right after extraction), or
 - implement any function of the `Backend` API and monkeypatch /
   subclass in place.
 

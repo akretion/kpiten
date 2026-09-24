@@ -13,12 +13,6 @@ VALUES_DATES = [
 ]
 
 
-def test_bounds_last_year():
-    b = date_filter.last_year_bounds(datetime.date(2025, 6, 1))
-    assert b["LY_first_day"] == datetime.date(2024, 1, 1)
-    assert b["LY_last_day"] == datetime.date(2024, 12, 31)
-
-
 def test_predicate_on_column():
     predicates = date_filter.process_dt_predicate(
         (datetime.date(2025, 2, 1), datetime.date(2025, 12, 31)), "date_order"

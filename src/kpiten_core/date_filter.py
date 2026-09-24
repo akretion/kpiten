@@ -8,14 +8,6 @@ import polars as pl
 from kpiten_core import config
 
 
-def last_year_bounds(today: datetime.date) -> dict[str, datetime.date]:
-    ly = today.year - 1
-    return {
-        "LY_first_day": datetime.date(ly, 1, 1),
-        "LY_last_day": datetime.date(ly, 12, 31),
-    }
-
-
 def month_bounds(year: int, month: int) -> tuple[datetime.date, datetime.date]:
     """First and last day of a calendar month."""
     first = datetime.date(year, month, 1)
