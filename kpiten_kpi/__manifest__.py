@@ -2,7 +2,7 @@
     "name": "KpiTen KPI",
     "version": "18.0.1.0.0",
     "category": "Sales",
-    "summary": "The KPI (tiles) of the Sales, Purchase and Product panels",
+    "summary": "The KPI (tiles) of the Sales and Purchase panels",
     "description": """
 The tiles of the panels of kpiten_commercial_data : cards, graphs, tables, some in SQL,
 one drawn by the plugin perspective-kpiten. Loaded as data (not demo data), and not

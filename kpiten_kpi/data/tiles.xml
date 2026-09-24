@@ -96,8 +96,8 @@ aggregation = "sum"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">card</field>
         <field name="name">Best Category</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_product" />
-        <field name="sequence">2</field>
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="sequence">25</field>
         <field name="definition">where = "state not in ('draft', 'sent', 'cancel')"
 best = "product_id.categ_id"
 measure = "price_subtotal"
@@ -111,8 +111,8 @@ detail_label = "sold"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">card</field>
         <field name="name">Best Seller</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_product" />
-        <field name="sequence">1</field>
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="sequence">24</field>
         <field name="definition">where = "state not in ('draft', 'sent', 'cancel')"
 best = "product_id"
 measure = "price_subtotal"
@@ -289,8 +289,8 @@ days_to_receive = "effective_date - date_approve"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
         <field name="name">Best Sellers by Revenue</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_product" />
-        <field name="sequence">3</field>
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="sequence">30</field>
         <field name="col_span">3</field>
         <field name="tile_height">340</field>
         <field name="definition">graph_type = "bar"
@@ -308,8 +308,8 @@ aggregation = "sum"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
         <field name="name">Best Sellers by Units Sold</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_product" />
-        <field name="sequence">4</field>
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="sequence">31</field>
         <field name="col_span">3</field>
         <field name="tile_height">340</field>
         <field name="definition">graph_type = "bar"
@@ -328,8 +328,8 @@ aggregation = "sum"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Best Selling Products</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_product" />
-        <field name="sequence">5</field>
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="sequence">32</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">-- d : the rows the user may read, already filtered by the panel period and dimensions
@@ -364,8 +364,8 @@ ORDER BY "order_id.date_order" DESC, "id" DESC</field>
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Best Selling Categories</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_product" />
-        <field name="sequence">6</field>
+        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="sequence">33</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">d_next = d
