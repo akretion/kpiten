@@ -5,6 +5,7 @@ Only the Python side lives here : one place to look when a new series comes.
 """
 
 from odoo import models, release
+from odoo.tools.safe_eval import safe_eval
 
 try:
     import tomllib  # Python 3.11+
@@ -12,10 +13,12 @@ except ImportError:  # Odoo 16 runs on older Pythons
     import tomli as tomllib
 
 try:  # kpiten-spec : the syntax of the tiles, standard library only (Python 3.8+)
+    from kpiten_spec import edit as spec_edit
+    from kpiten_spec import spec
     from kpiten_spec.spec import is_sql
     from kpiten_spec.validate import validate_display, validate_toml
-except ImportError:  # not installed : no validation of the tiles
-    is_sql = validate_display = validate_toml = None
+except ImportError:  # not installed : no validation of the tiles, no tile builder
+    spec = spec_edit = is_sql = validate_display = validate_toml = None
 
 SERIES = release.version_info[0]
 
@@ -62,6 +65,18 @@ def set_param(env, key: str, value) -> None:
         params.set_param(key, value)
 
 
+def set_modifier(node, attribute: str, field: str, operator: str, value) -> None:
+    """`attribute` (invisible, required) of a view `node` when `field operator value`
+    (`kind != 'graph'`) : an expression from Odoo 17, `attrs` (a domain) before."""
+    if SERIES >= 17:  # a python expression : `=` of a domain is `==`
+        python = "==" if operator == "=" else operator
+        node.set(attribute, f"{field} {python} {value!r}")
+        return
+    attrs = safe_eval(node.get("attrs") or "{}")
+    attrs[attribute] = [(field, operator, value)]
+    node.set("attrs", repr(attrs))
+
+
 def groups_field(env) -> str:
     """The groups of a user : `groups_id` until Odoo 18, `group_ids` after."""
     return "group_ids" if "group_ids" in env["res.users"]._fields else "groups_id"
@@ -100,7 +115,10 @@ __all__ = [
     "groups_field",
     "ids_sql",
     "readable_fields",
+    "set_modifier",
     "set_param",
+    "spec",
+    "spec_edit",
     "sql_constraints",
     "tomllib",
     "validate_toml",

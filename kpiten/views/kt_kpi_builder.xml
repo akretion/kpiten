@@ -1,0 +1,56 @@
+<odoo>
+
+    <!-- the tile builder : the fields of the keys of each kind are added in
+         `spec_fields` from the schema of kpiten-spec (kt.kpi.builder._get_view) -->
+    <record id="kt_kpi_builder_form" model="ir.ui.view">
+        <field name="model">kt.kpi.builder</field>
+        <field name="arch" type="xml">
+            <form>
+                <field name="kpi_id" invisible="1" />
+                <field name="table" invisible="1" />
+                <field name="before" invisible="1" />
+                <group col="3">
+                    <group colspan="2">
+                        <field name="name" readonly="kpi_id" />
+                        <field name="dataset_id" readonly="kpi_id" />
+                    </group>
+                    <group>
+                        <field name="kind" widget="radio" readonly="kpi_id" />
+                        <field name="panel_id" readonly="kpi_id" />
+                    </group>
+                </group>
+                <div name="spec_fields" />
+                <field
+                    name="validation_msg"
+                    readonly="1"
+                    nolabel="1"
+                    class="text-danger"
+                    invisible="not validation_msg"
+                />
+                <details>
+                    <summary
+                        class="fw-bold"
+                        title="What is written : only the keys changed, the comments and the sections ([labels], [plotly]...) kept"
+                    >Definition</summary>
+                    <field
+                        name="definition"
+                        widget="ace"
+                        options="{'mode': 'python'}"
+                        readonly="1"
+                        nolabel="1"
+                    />
+                </details>
+                <footer>
+                    <button
+                        name="action_apply"
+                        type="object"
+                        string="Apply"
+                        class="btn-primary"
+                        icon="fa-check"
+                    />
+                    <button special="cancel" string="Cancel" class="btn-secondary" />
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

@@ -158,6 +158,16 @@ days_to_order = "date_approve - create_date"</pre>
                         class="btn-secondary"
                         title="Save the KPI and draw it again, as the Shiny dashboard does"
                     />
+                    <button
+                        name="action_open_builder"
+                        type="object"
+                        string="Builder"
+                        icon="fa-magic"
+                        class="btn-secondary ms-2"
+                        invisible="kind not in ('card', 'graph', 'pivot')"
+                        groups="kpiten.group_kpiten_manager"
+                        title="Change the definition in a form : its keys, their choices and their help"
+                    />
                 </div>
                 <field name="preview_html" nolabel="1" readonly="1" />
             </form>

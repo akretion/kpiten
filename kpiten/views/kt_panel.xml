@@ -3,7 +3,18 @@
         <field name="model">kt.panel</field>
         <field name="arch" type="xml">
             <form>
-                <header />
+                <header>
+                    <button
+                        name="action_new_tile"
+                        type="object"
+                        string="New tile"
+                        icon="fa-magic"
+                        class="btn-primary"
+                        invisible="not id"
+                        groups="kpiten.group_kpiten_manager"
+                        title="Create a card, a graph or a pivot of this panel with the tile builder"
+                    />
+                </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button

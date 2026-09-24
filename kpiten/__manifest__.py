@@ -20,6 +20,7 @@
         "security/ir.model.access.csv",
         "views/kpiten.xml",
         "data/fronts.xml",
+        "views/kt_kpi_builder.xml",
         "views/kt_kpi.xml",
         "views/kt_dataset.xml",
         "views/kt_panel.xml",
