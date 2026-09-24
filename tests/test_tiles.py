@@ -624,3 +624,57 @@ def test_graph_keeps_the_biggest_bars_and_folds_the_rest_only_on_request(monkeyp
     folded, note = bars({"others": True})
     assert folded == {"a": 60.0, "b": 50.0, "c": 40.0, "Others": 60.0}
     assert note == "Top 3 of 6 (rest in Others)"
+
+
+def test_the_table_of_a_pivot_totals_formats_heatmap():
+    """`[table]` : a « Total » column and row (on every row), the cells in currency,
+    the heatmap on the cells only ; drawn by great_tables."""
+    from kpiten_core.render.gtable import gt_table
+    from kpiten_core.validate import validate
+
+    definition = {
+        "version": 2,
+        "rows": "name",
+        "columns": "date_order",
+        "measure": "amount_untaxed",
+        "limit": 2,
+        "table": {
+            "format": "number",
+            "decimals": 1,
+            "totals": True,
+            "row_totals": True,
+            "heatmap": True,
+            "note": "Confirmed orders",
+        },
+    }
+    res = tiles.exec_tile(
+        {"kind": "pivot", "name": "p", "content": serial.dumps(definition)},
+        "sale.order",
+        STORE,
+        NO_PREDICATES,
+    )
+    drawing = res.meta["table"]
+    assert "Total" in res.df.columns
+    values = [c for c in res.df.columns[1:] if c != "Total"]
+    assert drawing["values"] == values  # the heatmap : not the « Total » column
+    assert drawing["limit"] == 2
+    total = drawing["totals"]
+    assert total["Name"] == "Total"
+    assert total["Total"] == pytest.approx(res.df["Total"].sum())  # every row
+
+    palette = {
+        "surface_hex": "#101010",
+        "text": "#eeeeee",
+        "thead": "#202020",
+        "border_hex": "#303030",
+        "row_line": "#303030",
+        "accent": "#ffaa00",
+    }
+    html = gt_table(res.df.head(drawing["limit"]), palette, drawing).as_raw_html()
+    assert "Confirmed orders" in html and ">Total<" in html
+    assert "," in html  # one decimal, with the decimal mark
+
+    definition["aggregation"] = "mean"
+    assert validate(definition, "pivot") == [
+        "Totals need the aggregation 'sum' or 'count'"
+    ]

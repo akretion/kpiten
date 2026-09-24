@@ -217,10 +217,12 @@ def exec_tile(
             )
             return TileResult("graph", label, chart=chart, meta=meta)
         if kind == "pivot":
-            df = pivot_case(
+            df, drawing = pivot_case(
                 line["content"], table, store, full_predicates, field_labels
             )
             df, meta = cap_rows(df)
+            if drawing:
+                meta["table"] = drawing
             return TileResult("pivot", label, df=df, meta=meta)
         if kind == "union":
             df = union_case(line, store, full_predicates)
@@ -281,14 +283,8 @@ def format_card_value(value, aggregation: str, card: dict) -> str:
     decimals = card.get("decimals", 0)
     text = numfmt.format_number(value, decimals)
     unit = card.get("unit")
-    if unit == "currency":  # the currency of the company (kt.config), see CHART_CONFIG
-        currency = CHART_CONFIG.get("currency") or {}
-        symbol = currency.get("symbol")
-        if not symbol:
-            return text
-        if currency.get("position") == "before":
-            return f"{symbol}{text}"
-        return f"{text} {symbol}"
+    if unit == "currency":  # the currency of the company (kt.config)
+        return numfmt.with_currency(text)
     return f"{text} {unit}" if unit else text
 
 
@@ -624,7 +620,34 @@ def pivot_case(content, table, store, full_predicates, field_labels=None):
     shown = labels.column_label(index, pivot_json.get("labels"), fields)
     if shown != index and shown not in pivoted.columns:
         pivoted = pivoted.rename({index: shown})
-    return pivoted
+    return _pivot_table(pivoted, pivot_json)
+
+
+TOTAL = "Total"
+
+
+def _pivot_table(df: pl.DataFrame, pivot_json: dict) -> tuple[pl.DataFrame, dict]:
+    """The `[table]` of a pivot : its « Total » column added to the rows, and what the
+    front draws (`meta["table"]`, see `render.gtable`) : the formats, the « Total »
+    row computed on every row (the front shows the first ones only), the heatmap..."""
+    table_json = pivot_json.get("table")
+    if not table_json and not pivot_json.get("limit"):
+        return df, {}
+    table_json = dict(table_json or {})
+    values = [c for c in df.columns[1:] if df.schema[c].is_numeric()]
+    if table_json.pop("row_totals", False) and values and TOTAL not in df.columns:
+        df = df.with_columns(pl.sum_horizontal(values).alias(TOTAL))
+    drawing = {key: value for key, value in table_json.items() if key != "totals"}
+    drawing["values"] = values  # the heatmap : the cells, not the totals
+    if table_json.get("totals") and df.width > 1:
+        row = {df.columns[0]: TOTAL}
+        row.update(
+            {c: df[c].sum() for c in df.columns[1:] if df.schema[c].is_numeric()}
+        )
+        drawing["totals"] = row
+    if pivot_json.get("limit"):
+        drawing["limit"] = pivot_json["limit"]
+    return df, drawing
 
 
 def union_case(transform: dict[str, Any], store, full_predicates):

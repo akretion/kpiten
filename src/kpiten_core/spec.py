@@ -135,6 +135,36 @@ GRAPH = Kind(
     ),
 )
 
+FORMATS = ("number", "integer", "currency", "percent")
+CELL_FORMAT = (
+    Key("format", choices=FORMATS, default="number", help="how the cells are written"),
+    Key("decimals", int, default=0),
+)
+TABLE = Table(
+    "table",
+    keys=CELL_FORMAT
+    + (
+        Key("totals", bool, default=False, help="a « Total » row (sum or count)"),
+        Key("row_totals", bool, default=False, help="a « Total » column, at the right"),
+        Key("heatmap", bool, default=False, help="cells colored by their value"),
+        Key("note", help="a line under the table"),
+        Key("stub", bool, default=True, help="the first column as row headers"),
+        Table("columns", values=dict, help="per column : format, decimals"),
+        Table("options", values=object, help="given as is to great_tables tab_options"),
+    ),
+    help="how the table is drawn (great_tables)",
+)
+
+
+def _totals_need_a_sum(data: dict) -> Optional[str]:
+    table = data.get("table") if isinstance(data.get("table"), dict) else {}
+    if (table.get("totals") or table.get("row_totals")) and data.get(
+        "aggregation", "sum"
+    ) not in ("sum", "count"):
+        return "Totals need the aggregation 'sum' or 'count'"
+    return None
+
+
 PIVOT = Kind(
     "pivot",
     (
@@ -145,9 +175,12 @@ PIVOT = Kind(
         Key("measure", column=True, required=True),
         Key("aggregation", choices=AGGREGATIONS, default="sum"),
         Key("grain", choices=GRAINS, help="the dates of the rows grouped by month"),
+        Key("limit", int, help="the rows shown (else the setting table_rows)"),
         COMPUTED,
         LABELS,
+        TABLE,
     ),
+    rules=(_totals_need_a_sum,),
 )
 
 KINDS = {kind.name: kind for kind in (CARD, GRAPH, PIVOT)}
@@ -220,6 +253,12 @@ def _check_table(table: Table, value, section: str, columns, messages) -> None:
                 )
         return
     _check_entries(table.keys, value, where, columns, messages)
+    if table.name == "table" and isinstance(value.get("columns"), dict):
+        for name, cell in value["columns"].items():
+            if isinstance(cell, dict):
+                _check_entries(
+                    CELL_FORMAT, cell, f"{where}.columns.{name}", (), messages
+                )
 
 
 # ---- version 1 -> version 2 -------------------------------------------------
