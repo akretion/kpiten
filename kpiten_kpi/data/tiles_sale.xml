@@ -10,7 +10,7 @@
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Quotations</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">20</field>
         <field name="definition">version = 2
 where = "state in ('draft', 'sent')"
@@ -22,7 +22,7 @@ compare = true
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Orders</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">21</field>
         <field name="definition">version = 2
 where = "state = 'sale'"
@@ -34,7 +34,7 @@ compare = true
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Revenue</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">22</field>
         <field name="definition">version = 2
 where = "state = 'sale'"
@@ -49,7 +49,7 @@ compare = true
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Average Order</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">23</field>
         <field name="definition">version = 2
 where = "state = 'sale'"
@@ -67,7 +67,7 @@ compare = true
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
         <field name="name">Monthly sales</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">1</field>
         <field name="col_span">3</field>
         <field name="tile_height">340</field>
@@ -90,7 +90,7 @@ aggregation = "sum"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Sales Orders</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -126,7 +126,7 @@ d_next = d_next.select([
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Quotations</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -163,7 +163,7 @@ d_next = d_next.select([
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Top Products</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -202,7 +202,7 @@ d_next = d_next.select([
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Salespeople</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -233,7 +233,7 @@ d_next = d_next.select([
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Customers</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -271,7 +271,7 @@ d_next = d_next.select([
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Top Categories</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -305,7 +305,7 @@ d_next = d_next.select([
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Sales Teams</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -324,7 +324,7 @@ d_next = d_next.rename({"team_id": "Sales Team"})</field>
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Sources</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -343,7 +343,7 @@ d_next = d_next.rename({"source_id": "Source"})</field>
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Mediums</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -362,7 +362,7 @@ d_next = d_next.rename({"medium_id": "Medium"})</field>
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Countries</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">5</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
