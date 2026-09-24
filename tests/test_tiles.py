@@ -678,3 +678,42 @@ def test_the_table_of_a_pivot_totals_formats_heatmap():
     assert validate(definition, "pivot") == [
         "Totals need the aggregation 'sum' or 'count'"
     ]
+
+
+def graph(definition: dict):
+    content = serial.dumps({"version": 2, "measure": "amount_untaxed", **definition})
+    return tiles.exec_tile(
+        {"kind": "graph", "name": "g", "content": content},
+        "sale.order",
+        STORE,
+        NO_PREDICATES,
+    ).chart
+
+
+def test_graph_series_stacked_limit_horizontal_pie_and_plotly():
+    from kpiten_core.render.plotly import finish, figure
+
+    # series : one row per (x, series), x ranked by its total, `limit` kept
+    chart = graph({"by": "name", "series": "state", "stacked": True, "limit": 1})
+    assert chart.points.to_dicts() == [
+        {"name": "Bob", "state": "sale", "amount_untaxed": 60.0}
+    ]
+    fig = figure(chart)
+    assert fig.layout.barmode == "stack"
+
+    chart = graph({"by": "name", "series": "state"})
+    assert [t.name for t in figure(chart).data] == ["draft", "sale"]
+    assert figure(chart).layout.barmode == "group"
+
+    chart = graph({"by": "name", "orientation": "h"})
+    assert figure(chart).data[0].orientation == "h"
+
+    chart = graph({"type": "pie", "by": "name"})
+    assert figure(chart).data[0].type == "pie"
+
+    chart = graph({"by": "name", "plotly": {"layout": {"showlegend": False}}})
+    fig = figure(chart)
+    finish(fig, chart)
+    assert fig.layout.showlegend is False
+    chart.plotly = {"layout": {"no_such_option": 1}}  # refused by plotly : left out
+    finish(fig, chart)

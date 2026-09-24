@@ -24,7 +24,7 @@ DATE_DIFF_RE = re.compile(r"^\s*([\w.]+)\s*-\s*([\w.]+)\s*$")
 
 CARD_AGGREGATIONS = ("count", "sum", "mean", "median", "min", "max")
 AGGREGATIONS = ("sum", "count", "mean")
-GRAPH_TYPES = ("bar", "point", "area")
+GRAPH_TYPES = ("bar", "line", "area", "point", "pie")
 GRAINS = ("month",)
 
 
@@ -118,6 +118,15 @@ CARD = Kind(
     rules=(_requires_measure,),
 )
 
+
+def _graph_rules(data: dict) -> Optional[str]:
+    if data.get("type") == "pie" and data.get("series"):
+        return "A pie has no 'series'"
+    if isinstance(data.get("limit"), int) and data["limit"] < 1:
+        return "Key 'limit' in graph must be 1 or more"
+    return None
+
+
 GRAPH = Kind(
     "graph",
     (
@@ -130,9 +139,22 @@ GRAPH = Kind(
         Key("measure", column=True, required=True, help="the y axis"),
         Key("aggregation", choices=AGGREGATIONS, default="sum"),
         Key("others", bool, default=False, help="the rest in one « Others » bar"),
+        Key("limit", int, help="the biggest bars kept (else TILE_MAX_CATEGORIES)"),
+        Key("series", column=True, help="one color per value of this column"),
+        Key("stacked", bool, default=False, help="the series one on the other"),
+        Key("orientation", choices=("v", "h"), default="v", help="h : horizontal"),
         COMPUTED,
         LABELS,
+        Table(
+            "plotly",
+            keys=(
+                Table("layout", values=object, help="given to update_layout"),
+                Table("traces", values=object, help="given to update_traces"),
+            ),
+            help="given as is to plotly : what kpiten does not say",
+        ),
     ),
+    rules=(_graph_rules,),
 )
 
 FORMATS = ("number", "integer", "currency", "percent")

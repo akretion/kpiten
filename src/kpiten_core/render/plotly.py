@@ -1,5 +1,6 @@
 """A graph tile as a plotly figure, in the colors of `kt.config` or of the theme."""
 
+import logging
 import re
 
 import plotly.express as px
@@ -7,14 +8,16 @@ import plotly.express as px
 from kpiten_core import config as settings
 from kpiten_core.charts import Chart
 
-DRAW = {"bar": px.bar, "point": px.scatter, "area": px.area}
+logger = logging.getLogger(__name__)
+
+DRAW = {"bar": px.bar, "line": px.line, "point": px.scatter, "area": px.area}
 
 
 def figure(chart: Chart):
-    """The plotly figure of a graph, with the layout and the colors of `kt.config`."""
-    fig = DRAW.get(chart.kind, px.bar)(
-        chart.points, x=chart.x, y=chart.y, labels=chart.labels
-    )
+    """The plotly figure of a graph, with the layout and the colors of `kt.config`.
+    The front styles it for its theme, then calls `finish` (the `[plotly]` of the
+    tile has the last word)."""
+    fig = _draw(chart)
     graph = settings.CONFIG.get("graph") or {}
     layout = {
         **graph.get("layout", {}),
@@ -22,9 +25,66 @@ def figure(chart: Chart):
         "margin": dict(l=20, r=20, t=40, b=20),
     }
     fig.update_layout(**layout)
-    _apply_colorway(fig, graph.get("layout", {}).get("colorway"))
-    _apply_fill_color(fig, graph.get("fill_color"), chart.kind)
+    colorway = graph.get("layout", {}).get("colorway")
+    if chart.series:  # a color per series
+        _color_series(fig, colorway)
+    else:  # a color per bar
+        _apply_colorway(fig, colorway)
+        _apply_fill_color(fig, graph.get("fill_color"), chart.kind)
     return fig
+
+
+def _color_series(fig, colorway: list | None) -> None:
+    """One color of `colorway` per trace (a series) : plotly express fixes its own
+    colors on each trace, the `colorway` of the layout alone would not show."""
+    if not colorway:
+        return
+    for i, trace in enumerate(fig.data):
+        color = colorway[i % len(colorway)]
+        if trace.type in ("bar", "scatter"):
+            trace.marker.color = color
+        if trace.type == "scatter":
+            trace.line.color = color
+            if getattr(trace, "fill", None) or getattr(trace, "stackgroup", None):
+                trace.fillcolor = _with_alpha(color, 0.5)
+
+
+def _draw(chart: Chart):
+    """The traces of a graph : its kind, its series, stacked or not, its orientation."""
+    if chart.kind == "pie":
+        return px.pie(chart.points, names=chart.x, values=chart.y, labels=chart.labels)
+    horizontal = chart.orientation == "h" and chart.kind == "bar"
+    options = dict(labels=chart.labels, color=chart.series)
+    if horizontal:  # the categories on y, the biggest on top
+        options.update(x=chart.y, y=chart.x, orientation="h")
+    else:
+        options.update(x=chart.x, y=chart.y)
+    if chart.series:  # sorted : a series keeps its color from one run to the next
+        values = chart.points[chart.series].drop_nulls().unique().sort().to_list()
+        options["category_orders"] = {chart.series: values}
+    if chart.kind == "bar" and chart.series:
+        options["barmode"] = "stack" if chart.stacked else "group"
+    fig = DRAW.get(chart.kind, px.bar)(chart.points, **options)
+    if horizontal:
+        fig.update_yaxes(autorange="reversed")
+    if chart.kind in ("line", "area") and chart.series and not chart.stacked:
+        if chart.kind == "area":  # px.area stacks : each series from zero
+            fig.update_traces(stackgroup=None, fill="tozeroy")
+    return fig
+
+
+def finish(fig, chart: Chart) -> None:
+    """The `[plotly]` of the tile on its figure, after the styling of the front :
+    `layout` to `update_layout`, `traces` to `update_traces`. What plotly refuses is
+    left out (logged)."""
+    for key, update in (("layout", fig.update_layout), ("traces", fig.update_traces)):
+        options = (chart.plotly or {}).get(key)
+        if not options:
+            continue
+        try:
+            update(**options)
+        except (ValueError, TypeError):
+            logger.warning("[plotly.%s] ignored : %s", key, options)
 
 
 def _apply_colorway(fig, colorway: list | None) -> None:
@@ -54,9 +114,12 @@ def apply_theme_colors(fig, palette: dict) -> None:
         return
     themed = settings.colors_from_theme()
     if themed or not settings.graph_colorway():
-        fig.update_layout(colorway=colorway)
-        _apply_colorway(fig, colorway)
-    if themed or not settings.graph_fill_color():
+        fig.update_layout(colorway=colorway, piecolorway=colorway)
+        if len(fig.data) == 1:
+            _apply_colorway(fig, colorway)
+        else:  # series : one color each, from the colorway
+            _color_series(fig, colorway)
+    if (themed or not settings.graph_fill_color()) and len(fig.data) == 1:
         for trace in fig.data:
             # px.area fills through its stackgroup (`fill` stays None)
             filled = getattr(trace, "fill", None) in ("tozeroy", "tonexty")
