@@ -412,20 +412,37 @@ def test_the_link_is_not_there_when_the_feature_is_off(page: Page) -> None:
         assert page.locator(".records-link").count() == 0
 
 
-def test_the_kpiten_logo_is_in_the_header_with_its_slogan_on_hover(page: Page) -> None:
+def test_the_kpiten_logo_ends_the_side_bar_with_its_slogan_on_hover(page: Page) -> None:
     open_dashboard(page)
-    logo = page.locator("img.kpiten-logo")
-    expect(logo).to_have_attribute("title", "Le capitaine de vos data")
-    reply = page.request.get(urljoin(page.url, logo.get_attribute("src")))
-    assert reply.ok and reply.headers["content-type"].startswith("image/")
+    logo = page.locator(".kpiten-sidebar svg[aria-label]")
+    expect(logo).to_have_attribute("aria-label", "KpiTen, le capitaine de vos data")
+    expect(logo.locator("xpath=..")).to_have_attribute(
+        "title", "Le capitaine de vos data"
+    )
 
 
-def test_the_logo_with_its_name_ends_the_page_on_the_right(page: Page) -> None:
+def test_the_reference_to_shiny_ends_the_page_on_the_right(page: Page) -> None:
     open_dashboard(page)
     page.wait_for_load_state("networkidle")
-    footer = page.locator(".app-footer svg")
-    footer.scroll_into_view_if_needed()
-    box, last_tile = footer.bounding_box(), page.locator(TILES).last.bounding_box()
+    credit = page.locator(".app-footer a.framework-credit")
+    credit.scroll_into_view_if_needed()
+    box, last_tile = credit.bounding_box(), page.locator(TILES).last.bounding_box()
     assert box["x"] + box["width"] > page.viewport_size["width"] * 0.85  # on the right
     assert box["y"] >= last_tile["y"] + last_tile["height"]  # after every tile
-    assert footer.get_attribute("aria-label") == "KpiTen, le capitaine de vos data"
+    assert credit.get_attribute("href") == "https://shiny.posit.co/py"
+
+
+def test_every_tile_of_the_essentials_panel_is_drawn(page: Page) -> None:
+    """kpiten_kpi_essential : one tile per kind and option, none in error (the
+    reference of the syntax, see its module)."""
+    open_dashboard(page, MANAGER, MANAGER_PASSWORD)
+    if not page.locator("#panel option", has_text="Essentials").count():
+        pytest.skip("kpiten_kpi_essential is not installed")
+    page.select_option("#panel", label="Essentials")
+    expect(page).to_have_title(re.compile("^Essentials"))
+    page.locator(TILES).first.wait_for(timeout=90_000)
+    page.wait_for_load_state("networkidle")
+    assert page.locator(f"{TILES}, {CARDS}").count() >= 17
+    # a tile in error shows its message in red (app.tile_error_html)
+    errors = page.locator(".tile p[style*='ff6e6f']").all_inner_texts()
+    assert not errors, errors
