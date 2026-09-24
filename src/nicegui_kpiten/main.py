@@ -287,10 +287,10 @@ def tile_view(
         else:
             assert result.df is not None
             # setHTML drops the `style` of the links : their color comes from here
-            rows = core_config.table_rows()
-            ui.html(gt_table(result.df.head(rows), palette).as_raw_html()).style(
-                f"--link-color: {palette['accent']}"
-            )
+            drawing = result.meta.get("table")  # the `[table]` of the tile
+            rows = (drawing or {}).get("limit") or core_config.table_rows()
+            html = gt_table(result.df.head(rows), palette, drawing).as_raw_html()
+            ui.html(html).style(f"--link-color: {palette['accent']}")
         note = result.note
         if result.df is not None:
             # the rows of `kt.config` shown, out of what the tile holds (`total_rows`
