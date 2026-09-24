@@ -691,12 +691,21 @@ def pivot_case(content, table, store, full_predicates, field_labels=None):
     pivoted = cells.pivot(
         index=index, on=column, values=measure, aggregate_function="first"
     )
+    # the biggest rows first : sorted on their total, whether it is shown or not
+    values = [c for c in pivoted.columns[1:] if pivoted.schema[c].is_numeric()]
+    if values:
+        pivoted = pivoted.sort(
+            pl.sum_horizontal(values), descending=True, nulls_last=True
+        )
     # the header of the rows : the only column name a pivot shows
     fields = _fields(pivot_json, table, field_labels)
     shown = labels.column_label(index, pivot_json.get("labels"), fields)
     if shown != index and shown not in pivoted.columns:
         pivoted = pivoted.rename({index: shown})
-    return _table(pivoted, pivot_json)
+    df, drawing = _table(pivoted, pivot_json)
+    if drawing.get("totals"):  # like in Odoo : the « Total » row above the rows
+        drawing["totals_first"] = True
+    return df, drawing
 
 
 TOTAL = "Total"

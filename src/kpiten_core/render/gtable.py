@@ -30,11 +30,12 @@ def gt_table(df: pl.DataFrame, palette: dict, drawing: dict | None = None) -> GT
         decimal = [c for c, t in df.schema.items() if isinstance(t, pl.Decimal)]
         if decimal:
             df = df.with_columns(pl.col(decimal).cast(pl.Float64))
-    rows = df.height  # the rows of data : the « Total » row comes after them
+    rows = df.height  # the rows of data, without the « Total » row
     linked = links.link_columns(df)  # on the data : « Total » is not a link
-    if drawing.get("totals"):
+    if drawing.get("totals"):  # after the rows, or above them (`totals_first`)
         total = pl.DataFrame([drawing["totals"]], schema=df.schema, strict=False)
-        df = pl.concat([df, total], how="vertical_relaxed")
+        parts = [total, df] if drawing.get("totals_first") else [df, total]
+        df = pl.concat(parts, how="vertical_relaxed")
     stub = df.columns[0] if drawing and drawing.get("stub", True) else None
     table = (
         GT(df, rowname_col=stub)
@@ -91,15 +92,18 @@ def _formats(table: GT, df: pl.DataFrame, drawing: dict, numbers: list[str]) -> 
 def _drawing(table: GT, df: pl.DataFrame, palette: dict, drawing: dict, rows: int):
     """The heatmap, the « Total » row in bold, the note and the options of `[table]`."""
     values = [c for c in drawing.get("values", []) if c in df.columns]
+    # the index of the first row of data and of the « Total » row
+    first = 1 if drawing.get("totals") and drawing.get("totals_first") else 0
     if drawing.get("heatmap") and values and rows:
         table = table.data_color(
             columns=values,
-            rows=list(range(rows)),
+            rows=list(range(first, first + rows)),
             palette=[palette["surface_hex"], palette["accent"]],
         )
     if drawing.get("totals"):
         table = table.tab_style(
-            style=style.text(weight="bold"), locations=loc.body(rows=[rows])
+            style=style.text(weight="bold"),
+            locations=loc.body(rows=[0 if first else rows]),
         )
     if drawing.get("note"):
         table = table.tab_source_note(drawing["note"])
