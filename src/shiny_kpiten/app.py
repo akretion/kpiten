@@ -257,10 +257,12 @@ def app_ui(req):  # noqa: ANN001
             # the one of KpiTen with its name
             ui.div(
                 ui.tags.a(
-                    ui.tags.img(src=logo, class_="framework-logo"),
+                    ui.span(tr("Built with")),
+                    ui.tags.img(src=logo, alt="Shiny", class_="framework-logo"),
                     href="https://shiny.posit.co",
                     title=tr("Made with Shiny"),
                     target="_blank",
+                    class_="framework-credit",
                 ),
                 ui.div(ui.HTML(brand.lockup_svg(64)), title=brand.tooltip()),
                 class_="app-footer",
