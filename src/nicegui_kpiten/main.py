@@ -16,7 +16,7 @@ import logging
 import pathlib
 
 from kpiten_core.render.gtable import DRILL_CSS, gt_table
-from kpiten_core.render.plotly import apply_theme_colors
+from kpiten_core.render.plotly import apply_theme_colors, finish
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 from nicegui import app, ui, run
@@ -283,6 +283,7 @@ def tile_view(
                 font=dict(color=palette["text"], size=11),
                 margin=dict(l=10, r=10, t=30, b=20),
             )
+            finish(result.figure, result.chart)  # the [plotly] of the tile : last
             ui.plotly(result.figure).classes("w-full")
         else:
             assert result.df is not None
