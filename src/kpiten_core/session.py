@@ -56,10 +56,6 @@ class SessionHandler:
         return session
 
     @classmethod
-    def check_session(cls, token: str | None) -> bool:
-        return cls.get(token) is not None
-
-    @classmethod
     def purge(cls):
         """Forget the expired sessions."""
         for token in [t for t, s in cls.sessions.items() if s.expired]:

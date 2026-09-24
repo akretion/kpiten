@@ -1,13 +1,12 @@
 """The sync : block streaming extraction, its process (lock, status, exit codes)
 and the service that starts it for the dashboards."""
 
-import json
-
 import polars as pl
 import pytest
 
 from kpiten_core import env, loaders, service, sync
 from kpiten_core.store import DFStorage
+from storage import read_df
 
 
 @pytest.fixture
@@ -63,13 +62,11 @@ def test_sync_streams_blocks_then_applies_deltas_and_deletions(data, monkeypatch
     assert counts == {"sale.order": 24}
     assert seen[0][:2] == ("sale.order", "full") and seen[-1][2] == 24
     assert DFStorage.is_partitioned("sale.order")
-    assert DFStorage.retrieve_df("sale.order")["df"]["id"].to_list() == list(
-        range(1, 25)
-    )
+    assert read_df("sale.order")["id"].to_list() == list(range(1, 25))
 
     counts = loaders.sync_store(FakeOdoo(), 2)  # second run : delta
     assert counts == {"sale.order": 2}
-    out = DFStorage.retrieve_df("sale.order")["df"]
+    out = read_df("sale.order")
     assert 3 not in out["id"].to_list() and 30 in out["id"].to_list()
     assert out["id"].to_list() == sorted(out["id"].to_list())
 
@@ -83,7 +80,7 @@ def test_sync_migrates_a_legacy_single_file_with_a_full_extraction(data, monkeyp
     _patch_pages(monkeypatch, full=_pages([1, 2]), delta=_pages([9]))
     # a legacy table has no blocks to apply a delta to : full, whatever last_sync says
     assert loaders.sync_store(FakeOdoo(), 2) == {"sale.order": 2}
-    assert DFStorage.retrieve_df("sale.order")["df"]["v"].to_list() == ["v1", "v2"]
+    assert read_df("sale.order")["v"].to_list() == ["v1", "v2"]
 
 
 def test_last_sync_is_the_start_of_the_extraction(data, monkeypatch):

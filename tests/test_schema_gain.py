@@ -12,6 +12,7 @@ import pytest
 
 from kpiten_core import env
 from kpiten_core.store import DFStorage
+from storage import read_df, store_df
 
 
 def _setup():
@@ -19,19 +20,19 @@ def _setup():
     env.data_path = tmp
     env.current_db = "testdb"
     # one existing row, no extra column yet
-    DFStorage.store_raw(
+    store_df(
         "sale.order",
-        [{"id": 1, "state": "done"}],
-        {},
         pl.DataFrame({"id": [1], "state": ["done"]}),
     )
     return tmp
 
 
-def test_append_records_adds_new_column():
+def test_merge_df_adds_new_column():
     _setup()
-    DFStorage.append_records("sale.order", [{"id": 2, "state": "draft", "priority": 5}])
-    out = DFStorage.retrieve_df("sale.order")["df"]
+    DFStorage.merge_df(
+        "sale.order", pl.DataFrame({"id": [2], "state": ["draft"], "priority": [5]})
+    )
+    out = read_df("sale.order")
     assert "priority" in out.columns
     # old row keeps its NULL for the new column, new row has the value
     by_id = out.select(["id", "priority"]).sort("id").to_dicts()
@@ -39,10 +40,10 @@ def test_append_records_adds_new_column():
     assert by_id[1] == {"id": 2, "priority": 5}
 
 
-def test_append_records_no_new_column_leaves_schema():
+def test_merge_df_no_new_column_leaves_schema():
     _setup()
-    DFStorage.append_records("sale.order", [{"id": 2, "state": "draft"}])
-    out = DFStorage.retrieve_df("sale.order")["df"]
+    DFStorage.merge_df("sale.order", pl.DataFrame({"id": [2], "state": ["draft"]}))
+    out = read_df("sale.order")
     assert out.columns == ["id", "state"]
 
 
@@ -58,7 +59,7 @@ def test_scan_df_is_lazy_and_applies_acl_and_lang():
             "secret": ["a", "b"],
         }
     )
-    DFStorage.store_raw("product", [], {}, df)
+    store_df("product", df)
     lazy = DFStorage.scan_df("product", allowed_fields=["id", "name"], lang="fr_FR")
     assert isinstance(lazy, pl.LazyFrame)
     assert lazy.collect().to_dict(as_series=False) == {
@@ -83,7 +84,7 @@ def test_table_is_stored_in_id_blocks_and_a_delta_rewrites_only_its_blocks(monke
     tmp = _setup()
     monkeypatch.setattr(env, "partition_size", 10)
     df = pl.DataFrame({"id": [1, 5, 12, 25, 26], "v": list("abcde")})
-    DFStorage.store_raw("t", [], {}, df)
+    store_df("t", df)
     before = _blocks(tmp, "t")
     assert list(before) == ["000000.parquet", "000001.parquet", "000002.parquet"]
 
@@ -93,7 +94,7 @@ def test_table_is_stored_in_id_blocks_and_a_delta_rewrites_only_its_blocks(monke
     assert after["000000.parquet"] == before["000000.parquet"]
     assert after["000001.parquet"] == before["000001.parquet"]
     assert after["000002.parquet"] != before["000002.parquet"]
-    out = DFStorage.retrieve_df("t")["df"]
+    out = read_df("t")
     assert out["id"].to_list() == [1, 5, 12, 25, 26, 27]  # blocks in id order
     assert out["v"].to_list() == ["a", "b", "c", "d", "E", "f"]
 
@@ -104,7 +105,7 @@ def test_table_is_stored_in_id_blocks_and_a_delta_rewrites_only_its_blocks(monke
     assert after["000001.parquet"] != before["000001.parquet"]
     assert after["000000.parquet"] == before["000000.parquet"]
     assert set(after) == set(before)
-    assert DFStorage.retrieve_df("t")["df"]["id"].to_list() == [1, 5, 25, 26, 27]
+    assert read_df("t")["id"].to_list() == [1, 5, 25, 26, 27]
 
 
 def test_blocks_with_drifting_schemas_are_read_as_one_table(monkeypatch):
@@ -138,7 +139,7 @@ def test_blocks_with_drifting_schemas_are_read_as_one_table(monkeypatch):
     DFStorage.commit_full(
         "t", {}, {0, 1}, ["id", "amount", "note", "extra"], "2026-01-01 00:00:00"
     )
-    out = DFStorage.retrieve_df("t")["df"]
+    out = read_df("t")
     assert out.columns == ["id", "amount", "note", "extra"]
     assert out["amount"].to_list() == [pytest.approx(1.5), pytest.approx(2.25)]
     assert out["note"].to_list() == [None, "x"]
@@ -148,9 +149,9 @@ def test_blocks_with_drifting_schemas_are_read_as_one_table(monkeypatch):
 def test_delta_keeps_the_wider_decimal_scale():
     _setup()
     dec = lambda v, scale: pl.Series([v], dtype=pl.Decimal(10, scale))
-    DFStorage.store_raw("t", [], {}, pl.DataFrame({"id": [1], "amount": dec(1.5, 1)}))
+    store_df("t", pl.DataFrame({"id": [1], "amount": dec(1.5, 1)}))
     DFStorage.merge_df("t", pl.DataFrame({"id": [2], "amount": dec(2.125, 3)}))
-    out = DFStorage.retrieve_df("t")["df"]
+    out = read_df("t")
     assert str(out["amount"][1]) == "2.125"  # not rounded to the stored scale
 
 
@@ -160,15 +161,15 @@ def test_legacy_single_file_is_read_until_a_full_sync_migrates_it(monkeypatch):
     legacy = pl.DataFrame({"id": [1, 2], "v": ["a", "b"]})
     legacy.write_parquet(f"{tmp}/testdb/old.parquet")
     assert "old" in DFStorage.list_table_names()
-    assert DFStorage.retrieve_df("old")["df"]["v"].to_list() == ["a", "b"]
+    assert read_df("old")["v"].to_list() == ["a", "b"]
     with pytest.raises(Exception, match="full sync"):
         DFStorage.merge_df("old", legacy)
 
     # blocks being written are not readable before the extraction is sealed
     DFStorage.write_block("old", 0, pl.DataFrame({"id": [1], "v": ["A"]}))
-    assert DFStorage.retrieve_df("old")["df"]["v"].to_list() == ["a", "b"]
+    assert read_df("old")["v"].to_list() == ["a", "b"]
     DFStorage.commit_full("old", {}, {0}, ["id", "v"], "2026-01-01 00:00:00")
-    assert DFStorage.retrieve_df("old")["df"]["v"].to_list() == ["A"]
+    assert read_df("old")["v"].to_list() == ["A"]
     assert not os.path.exists(f"{tmp}/testdb/old.parquet")
     assert DFStorage.last_sync("old") == "2026-01-01 00:00:00"
 
@@ -178,10 +179,10 @@ def test_full_extraction_seal_empties_stale_blocks_instead_of_removing_them(
 ):
     tmp = _setup()
     monkeypatch.setattr(env, "partition_size", 10)
-    DFStorage.store_raw("t", [], {}, pl.DataFrame({"id": [1, 11], "v": ["a", "b"]}))
-    DFStorage.store_raw("t", [], {}, pl.DataFrame({"id": [1], "v": ["a"]}))
+    store_df("t", pl.DataFrame({"id": [1, 11], "v": ["a", "b"]}))
+    store_df("t", pl.DataFrame({"id": [1], "v": ["a"]}))
     assert sorted(os.listdir(f"{tmp}/testdb/t")) == ["000000.parquet", "000001.parquet"]
-    assert DFStorage.retrieve_df("t")["df"]["id"].to_list() == [1]
+    assert read_df("t")["id"].to_list() == [1]
 
 
 def test_column_order_is_the_one_of_the_whole_table(monkeypatch):

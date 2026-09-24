@@ -24,7 +24,7 @@ def test_sessions_are_independent():
 def test_session_expiry():
     token = SessionHandler.new_session(1, db="db_a")
     SessionHandler.get(token).until = datetime.datetime.now() - datetime.timedelta(1)
-    assert not SessionHandler.check_session(token)
+    assert SessionHandler.get(token) is None
     assert token not in SessionHandler.sessions
     # using a session renews it
     fresh = SessionHandler.new_session(1, db="db_a")
