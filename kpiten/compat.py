@@ -12,11 +12,11 @@ except ImportError:  # Odoo 16 runs on older Pythons
     import tomli as tomllib
 
 try:
-    from kpiten_core.validate import validate_toml
+    from kpiten_core.validate import validate_display, validate_toml
 except (
     ImportError
 ):  # kpiten_core needs Python 3.12 : not on the older series, no validation
-    validate_toml = None
+    validate_display = validate_toml = None
 
 SERIES = release.version_info[0]
 
