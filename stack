@@ -5,20 +5,20 @@
 #   nicegui :5001   (src/nicegui-kpiten)
 #   marimo  :5002   (src/marimo-kpiten)
 #
-# Usage : scripts/kpiten-stack {start|stop|restart|status} [odoo|shiny|nicegui|marimo|all] [odoo-bin args]
+# Usage : ./stack {start|stop|restart|status} [odoo|shiny|nicegui|marimo|all] [odoo-bin args]
 #   the extra args are passed to odoo-bin (only when the target is odoo), e.g. update a module :
-#   scripts/kpiten-stack restart odoo -d big -u kpiten
+#   ./stack restart odoo -d dash -u kpiten
 #
 # A service is found by the port it listens on (never by a name pattern), and
 # logs go to data/logs/{odoo,shiny,nicegui,marimo}.log (appended ; rotated at start past KPITEN_LOG_MAX bytes), and shiny
 # dumps the html of its tiles there (kpiten_tiles.html). Environment :
-#   KPITEN_DB_FILTER  Odoo db filter, default '^(big|dash)$'
+#   KPITEN_DB_FILTER  Odoo db filter, default '^dash$'
 #   KPITEN_LOG_MAX    size in bytes above which a log is rotated at start (log.1 .. log.3), default 5242880
 #   PGPASSWORD        Postgres password of the odoo user (odoo.conf has none) : set it in .env
 #   ALLOW_RPC_USER=1  passed through : dashboards usable without SSO (dev only)
 set -u
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # .env of bi/ (see .env.example) : PGPASSWORD, and any variable above
 if [ -f "$ROOT/.env" ]; then
@@ -27,7 +27,7 @@ if [ -f "$ROOT/.env" ]; then
     set +a
 fi
 
-DB_FILTER="${KPITEN_DB_FILTER:-^(big|dash)$}"
+DB_FILTER="${KPITEN_DB_FILTER:-^dash$}"
 SERVICES=(odoo shiny nicegui marimo)
 
 port_of() {

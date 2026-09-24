@@ -73,27 +73,27 @@ add-sales:
 
 ## Odoo multi-bases : PAS de -d (qui restreint Odoo à une seule base). Les bases
 ## visibles sont celles de odoo.conf (dbfilter), ou de DBFILTER ; la base se
-## choisit à la connexion.   make run  |  make run DBFILTER='^(big|dash)$$'
+## choisit à la connexion.   make run  |  make run DBFILTER='^dash$$'
 run:
 	$(ODOO) $(if $(DBFILTER),--db-filter '$(DBFILTER)')
 
 ## Les trois services (Odoo :8069, Shiny :5000, NiceGUI :5001), détachés du
-## terminal, via scripts/kpiten-stack ; logs dans data/logs/.
+## terminal, via ./stack ; logs dans data/logs/.
 ##   make up | down | restart | status        tous
 ##   make restart SVC=shiny                    un seul : odoo | shiny | nicegui | marimo
 ##   make logs [SVC=shiny]                     suit les logs (Ctrl-C pour quitter)
 SVC ?= all
 up:
-	scripts/kpiten-stack start $(SVC)
+	./stack start $(SVC)
 
 down:
-	scripts/kpiten-stack stop $(SVC)
+	./stack stop $(SVC)
 
 restart:
-	scripts/kpiten-stack restart $(SVC)
+	./stack restart $(SVC)
 
 status:
-	scripts/kpiten-stack status $(SVC)
+	./stack status $(SVC)
 
 logs:
 	tail -n 30 -F data/logs/$(if $(filter all,$(SVC)),*,$(SVC)).log
@@ -103,7 +103,7 @@ logs:
 sample-fixtures:
 	$(ODOO_SHELL) -d $(DB) < src/kpiten-core/tests/data/make_fixtures.py
 
-## Odoo sur une seule base :  make run-db DB=big
+## Odoo sur une seule base :  make run-db DB=dash
 run-db:
 	$(ODOO) -d $(DB)
 
@@ -112,7 +112,7 @@ shell:
 
 ## Synchronise les parquets de DB depuis Postgres (process à part : à mettre en
 ## cron / timer systemd ; les dashboards ne font que lire).
-##   make sync DB=big            incrémental
-##   make sync DB=big FULL=1     reconstruit toutes les tables
+##   make sync DB=dash            incrémental
+##   make sync DB=dash FULL=1     reconstruit toutes les tables
 sync:
 	cd src/kpiten-core && .venv/bin/python -m kpiten_core.sync --db $(DB) $(if $(FULL),--full)
