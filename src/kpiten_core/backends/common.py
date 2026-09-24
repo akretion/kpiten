@@ -2,7 +2,12 @@
 
 import json
 
-# the fields of `kt.dataset.line` a front reads
+# the model of the tiles ; `kt.dataset.line` before the kpiten module 1.5.0 (a base
+# not updated yet : the backends ask which one it has)
+KPI_MODEL = "kt.kpi"
+LEGACY_KPI_MODEL = "kt.dataset.line"
+
+# the fields of `kt.kpi` a front reads
 TILE_FIELDS = [
     "id",
     "dataset_id",
@@ -19,7 +24,7 @@ OPTIONAL_TILE_FIELDS = ["table_view", "display"]
 
 def tile_fields(fields_get) -> list[str]:
     """`TILE_FIELDS` and the optional ones the module has (`fields_get(names)` : the
-    `fields_get` of `kt.dataset.line`)."""
+    `fields_get` of `kt.kpi`)."""
     known = fields_get(OPTIONAL_TILE_FIELDS)
     return TILE_FIELDS + [name for name in OPTIONAL_TILE_FIELDS if name in known]
 
@@ -31,7 +36,7 @@ def parse_filter_config(raw):
 
 
 def tile_dict(rec: dict, model: str | None = None) -> dict:
-    """A `kt.dataset.line` as read by Odoo -> the tile of a front."""
+    """A `kt.kpi` as read by Odoo -> the tile of a front."""
     dataset = rec["dataset_id"]
     tile = {
         "id": rec["id"],

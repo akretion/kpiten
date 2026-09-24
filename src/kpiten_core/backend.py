@@ -100,7 +100,7 @@ class Backend:
         raise NotImplementedError
 
     def get_panel_lines(self, model: str, panel_id: int | None = None) -> list[dict]:
-        """Fetch kt.dataset.line records for a model / panel."""
+        """Fetch the tiles (`kt.kpi`) of a model / panel."""
         raise NotImplementedError
 
     def get_panel_tiles(self, panel_id: int, user_id: int) -> list[dict]:
