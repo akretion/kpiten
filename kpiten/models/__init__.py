@@ -8,6 +8,5 @@ from . import (
     kt_panel,
     kt_config,
     kt_sql,
-    kt_card_wizard,
     kt_kpi_builder,
 )
