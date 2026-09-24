@@ -160,8 +160,30 @@ class Kt(models.AbstractModel):
             ("name", "not like", "%_ids"),
             ("ttype", "not in", ("many2many", "one2many", "properties", "properties_definition", "binary")),
             ("model", "=", "sale.order")]).mapped("name"))
+
+        (`_get_usable_fields` applies it, then removes these fields)
         """
         return {}
+
+    @api.model
+    def _get_usable_fields(self, model: str) -> list:
+        """The names of the fields of `model` a tile may name : the search of the
+        docstring of `_get_useless_fields` (stored, not `*_ids`, not a type of
+        `EXCLUDED_FIELD_TYPES`), without the useless fields of the model."""
+        useless = set(self._get_useless_fields().get(model, ()))
+        names = (
+            self.env["ir.model.fields"]
+            .search(
+                [
+                    ("store", "=", True),
+                    ("name", "not like", "%_ids"),
+                    ("ttype", "not in", EXCLUDED_FIELD_TYPES),
+                    ("model", "=", model),
+                ]
+            )
+            .mapped("name")
+        )
+        return [name for name in names if name not in useless]
 
     @api.model
     def get_record_vals(

@@ -218,12 +218,12 @@ class KtKpiBuilder(models.TransientModel):
         self.env["kt.kpi.builder.column"].create(vals)
 
     def _extracted_columns(self, table) -> set:
-        """The columns the store has for `table` : the fields kpiten extracts (not the
-        types of `EXCLUDED_FIELD_TYPES`, nor the useless fields, nor the computed fields
-        not stored : `kt._get_model_direct_fields`), and the relational paths."""
+        """The columns a key may name in `table` : the usable fields (the exclusions of
+        `kt._get_useless_fields`, see `kt._get_usable_fields`) and the relational
+        paths."""
         kt = self.env["kt"]
         return (
-            kt._get_model_direct_fields(table)
+            set(kt._get_usable_fields(table))
             | kt._get_relational_paths_for_model(table)
             | {"id"}
         )
