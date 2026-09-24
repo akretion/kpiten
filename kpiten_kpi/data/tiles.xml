@@ -8,7 +8,9 @@
         <field name="sequence">1</field>
         <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="col_span">1</field>
-        <field name="definition">where = "state not in ('draft', 'sent')"</field>
+        <field name="definition">version = 2
+where = "state not in ('draft', 'sent')"
+</field>
     </record>
 
     <record id="vendor_sum_graph" model="kt.dataset.line">
@@ -18,12 +20,10 @@
         <field name="sequence">2</field>
         <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="col_span">2</field>
-        <field name="definition">graph_type = "bar"
-[x]
-name = "user_id"
-aggregation = "none"
-[y]
-name = "amount_untaxed"
+        <field name="definition">version = 2
+type = "bar"
+by = "user_id"
+measure = "amount_untaxed"
 aggregation = "sum"
 </field>
     </record>
@@ -35,8 +35,9 @@ aggregation = "sum"
         <field name="sequence">4</field>
         <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="col_span">2</field>
-        <field name="definition">index = "user_id"
-column = "date_order.year"
+        <field name="definition">version = 2
+rows = "user_id"
+columns = "date_order.year"
 measure = "amount_untaxed"
 aggregation = "sum"
 </field>
@@ -66,12 +67,10 @@ amount_untaxed = "amount_untaxed"
         <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">7</field>
         <field name="col_span">2</field>
-        <field name="definition">graph_type = "bar"
-[x]
-name = "product_id"
-aggregation = "none"
-[y]
-name = "product_uom_qty"
+        <field name="definition">version = 2
+type = "bar"
+by = "product_id"
+measure = "product_uom_qty"
 aggregation = "sum"
 </field>
     </record>
@@ -82,12 +81,10 @@ aggregation = "sum"
         <field name="name">Qty sold per salesperson</field>
         <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">8</field>
-        <field name="definition">graph_type = "area"
-[x]
-name = "salesman_id"
-aggregation = "none"
-[y]
-name = "product_uom_qty"
+        <field name="definition">version = 2
+type = "area"
+by = "salesman_id"
+measure = "product_uom_qty"
 aggregation = "sum"
 </field>
     </record>
@@ -98,11 +95,14 @@ aggregation = "sum"
         <field name="name">Best Category</field>
         <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">25</field>
-        <field name="definition">where = "state not in ('draft', 'sent', 'cancel')"
-best = "product_id.categ_id"
+        <field name="definition">version = 2
+where = "state not in ('draft', 'sent', 'cancel')"
 measure = "price_subtotal"
-detail = "product_uom_qty"
-detail_label = "sold"
+by = "product_id.categ_id"
+
+[detail]
+measure = "product_uom_qty"
+label = "sold"
 </field>
     </record>
 
@@ -113,11 +113,14 @@ detail_label = "sold"
         <field name="name">Best Seller</field>
         <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
         <field name="sequence">24</field>
-        <field name="definition">where = "state not in ('draft', 'sent', 'cancel')"
-best = "product_id"
+        <field name="definition">version = 2
+where = "state not in ('draft', 'sent', 'cancel')"
 measure = "price_subtotal"
-detail = "product_uom_qty"
-detail_label = "sold"
+by = "product_id"
+
+[detail]
+measure = "product_uom_qty"
+label = "sold"
 </field>
     </record>
 
@@ -128,12 +131,10 @@ detail_label = "sold"
         <field name="name">Qty purchased</field>
         <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
         <field name="sequence">1</field>
-        <field name="definition">graph_type = "bar"
-[x]
-name = "product_id"
-aggregation = "none"
-[y]
-name = "product_qty"
+        <field name="definition">version = 2
+type = "bar"
+by = "product_id"
+measure = "product_qty"
 aggregation = "sum"
 </field>
     </record>
@@ -145,12 +146,10 @@ aggregation = "sum"
         <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
         <field name="sequence">2</field>
         <field name="col_span">2</field>
-        <field name="definition">graph_type = "bar"
-[x]
-name = "partner_id.commercial_partner_id"
-aggregation = "none"
-[y]
-name = "amount_untaxed"
+        <field name="definition">version = 2
+type = "bar"
+by = "partner_id.commercial_partner_id"
+measure = "amount_untaxed"
 aggregation = "sum"
 </field>
     </record>
@@ -162,11 +161,12 @@ aggregation = "sum"
         <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
         <field name="sequence">3</field>
         <field name="col_span">2</field>
-        <field name="definition">index = "date_order"
-column = "date_order.year"
+        <field name="definition">version = 2
+rows = "date_order"
+columns = "date_order.year"
 measure = "amount_untaxed"
 aggregation = "sum"
-monthly = true
+grain = "month"
 </field>
     </record>
 
@@ -178,7 +178,8 @@ monthly = true
         <field name="name">RFQs to send</field>
         <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
         <field name="sequence">10</field>
-        <field name="definition">where = "state = 'draft'"
+        <field name="definition">version = 2
+where = "state = 'draft'"
 ignore_period = true
 </field>
     </record>
@@ -228,9 +229,10 @@ ignore_period = true
         <field name="name">Purchased last 7 days</field>
         <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
         <field name="sequence">14</field>
-        <field name="definition">where = "state in ('purchase', 'done') and date_approve &gt;= '{today-7}'"
-aggregation = "sum"
+        <field name="definition">version = 2
+where = "state in ('purchase', 'done') and date_approve &gt;= '{today-7}'"
 measure = "amount_untaxed"
+aggregation = "sum"
 ignore_period = true
 </field>
     </record>
@@ -241,9 +243,10 @@ ignore_period = true
         <field name="name">Avg order value</field>
         <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
         <field name="sequence">15</field>
-        <field name="definition">where = "state in ('purchase', 'done')"
-aggregation = "mean"
+        <field name="definition">version = 2
+where = "state in ('purchase', 'done')"
 measure = "amount_untaxed"
+aggregation = "mean"
 decimals = 0
 compare = true
 </field>
@@ -255,13 +258,16 @@ compare = true
         <field name="name">Days to order</field>
         <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
         <field name="sequence">16</field>
-        <field name="definition">where = "state in ('purchase', 'done')"
-aggregation = "mean"
+        <field name="definition">version = 2
+where = "state in ('purchase', 'done')"
 measure = "days_to_order"
+aggregation = "mean"
 unit = "days"
-compare = true
+
+[compare]
 good = "down"  # fewer days is better
-[derive]
+
+[computed]
 days_to_order = "date_approve - create_date"
 </field>
     </record>
@@ -272,13 +278,16 @@ days_to_order = "date_approve - create_date"
         <field name="name">Days to receive</field>
         <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
         <field name="sequence">17</field>
-        <field name="definition">where = "state in ('purchase', 'done')"
-aggregation = "mean"
+        <field name="definition">version = 2
+where = "state in ('purchase', 'done')"
 measure = "days_to_receive"
+aggregation = "mean"
 unit = "days"
-compare = true
+
+[compare]
 good = "down"  # fewer days is better
-[derive]
+
+[computed]
 days_to_receive = "effective_date - date_approve"
 </field>
     </record>
@@ -293,13 +302,11 @@ days_to_receive = "effective_date - date_approve"
         <field name="sequence">30</field>
         <field name="col_span">3</field>
         <field name="tile_height">340</field>
-        <field name="definition">graph_type = "bar"
+        <field name="definition">version = 2
+type = "bar"
 where = "state not in ('draft', 'sent', 'cancel')"
-[x]
-name = "product_id"
-aggregation = "none"
-[y]
-name = "price_subtotal"
+by = "product_id"
+measure = "price_subtotal"
 aggregation = "sum"
 </field>
     </record>
@@ -312,13 +319,11 @@ aggregation = "sum"
         <field name="sequence">31</field>
         <field name="col_span">3</field>
         <field name="tile_height">340</field>
-        <field name="definition">graph_type = "bar"
+        <field name="definition">version = 2
+type = "bar"
 where = "state not in ('draft', 'sent', 'cancel')"
-[x]
-name = "product_id"
-aggregation = "none"
-[y]
-name = "product_uom_qty"
+by = "product_id"
+measure = "product_uom_qty"
 aggregation = "sum"
 </field>
     </record>
