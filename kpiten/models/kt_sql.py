@@ -1,8 +1,8 @@
 """SQL generation for direct Postgres extraction of a dataset model.
 
-The kpiten app can build its parquet snapshot straight from Postgres (via
-connectorx / polars) instead of going through the Odoo ORM. This module turns
-a dataset model into the equivalent SELECT of `kt.get_record_vals` :
+The kpiten app builds its parquet snapshot straight from Postgres (via
+connectorx / polars), not through the Odoo ORM. This module turns a dataset
+model into its SELECT :
 
 - direct stored fields of the model, many2one included as their bare foreign
   key id (no join, no display name : kpiten-core resolves it in bulk, see
@@ -163,7 +163,7 @@ def _table_columns(cr, table: str) -> dict[str, str]:
 
 
 def build_select(env, model: str, domain: list = None, order: str = "") -> str:
-    """Build the SELECT equivalent of `kt.get_record_vals(model, domain, order)`.
+    """Build the SELECT of `model` (the rows of `domain`, sorted by `order`).
 
     Many2one fields are emitted as their bare foreign key id (a plain column
     of the model's own table, no join needed) ; kpiten-core resolves the

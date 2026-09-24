@@ -25,16 +25,8 @@ FIRST_LINE_RE = re.compile(r"^\w+ = \w+\s*$")
 # (see kpiten_core.tiles.DERIVED_DT_SUFFIX).
 DERIVED_DT_SUFFIX = {"year", "quarter", "month", "week", "day"}
 
+
 # TODO remove
-EXCLUDED_TYPES = [
-    "many2many",
-    "one2many",
-    "properties",
-    "properties_definition",
-    "binary",
-]
-
-
 class KtDataset(models.Model):
     _name = "kt.dataset"
     _description = "Data source for kpiten"
@@ -183,21 +175,6 @@ class KtDataset(models.Model):
         return res
 
     # TODO remove: replace by get_fields()
-    @api.model
-    def get_stored_fields(self, user_id, model_name, m2o=False):
-        res = (
-            self.env["ir.model.fields"]
-            .with_user(user_id)
-            .search([("model", "=", model_name)])
-            .filtered(lambda s: s.store)
-        )
-        if m2o:
-            res = res.filtered(lambda s: s.ttype == "many2one")
-        else:
-            res = res.filtered(lambda s: s.ttype not in EXCLUDED_TYPES)
-        useless_fields = self.env["kt"]._get_useless_fields(model_name)
-        res = res.filtered(lambda s: s.name not in useless_fields)
-        return res
 
 
 class KtKpi(models.Model):
