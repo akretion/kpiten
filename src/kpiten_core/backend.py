@@ -29,6 +29,10 @@ class Backend:
     def create(cls, protocol: str | None = None, db: str | None = None) -> Any:
         return BACKENDS[protocol or env.get("ODOO_API") or "jsonrpc"](db=db)
 
+    def call(self, model: str, method: str, /, ids: list[int] | None = None, **kwargs):
+        """`model.method(**kwargs)` on `ids`, whatever the protocol."""
+        raise NotImplementedError
+
     # ---- the users ----------------------------------------------------
     def current_user_id(self) -> int:
         """The Odoo user of the backend (ODOO_LOGIN) : the dev mode, the sync."""
