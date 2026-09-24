@@ -1,4 +1,6 @@
-from odoo import api, fields, models
+from odoo import _, api, fields, models
+
+from ..compat import LIST
 
 
 class KtPanel(models.Model):
@@ -30,12 +32,12 @@ class KtPanel(models.Model):
     def action_view_lines(self):
         """The tiles (`kt.dataset.line`) of this dataset, in a list."""
         self.ensure_one()
-        # return {
-        #     "type": "ir.actions.act_window",
-        #     "name": _("Tiles of %s") % self.display_name,
-        #     "res_model": "kt.dataset.line",
-        #     "view_mode": f"{LIST},form",
-        #     "domain": [("dataset_id", "=", self.id)],
-        #     # the archived tiles are listed too, `active` tells them apart
-        #     "context": {"default_dataset_id": self.id, "active_test": False},
-        # }
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Tiles of %s") % self.display_name,
+            "res_model": "kt.dataset.line",
+            "view_mode": f"{LIST},form",
+            "domain": [("panel_id", "=", self.id)],
+            # the archived tiles are listed too, `active` tells them apart
+            "context": {"default_panel_id": self.id, "active_test": False},
+        }

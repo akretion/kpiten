@@ -93,6 +93,13 @@
                             invisible="kind != 'data'"
                         />
                         <field
+                            name="display"
+                            widget="ace"
+                            options="{'mode': 'python'}"
+                            invisible="kind != 'data'"
+                            placeholder="[labels]&#10;amount_untaxed = &quot;HT&quot;&#10;[table]&#10;format = &quot;currency&quot;&#10;totals = true"
+                        />
+                        <field
                             name="validation_msg"
                             string="Validation"
                             readonly="1"

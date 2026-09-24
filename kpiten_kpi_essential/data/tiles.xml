@@ -333,7 +333,7 @@ amount_untaxed = "amount_untaxed"
 </field>
     </record>
 
-    <!-- data : SQL on `d` ; a « [label](url) » cell is a link, a `__` column is hidden -->
+    <!-- data : SQL on `d` ; a « [label](url) » cell is a link, a `__` column is hidden ; a header of TOML comments ([labels], [table]) -->
     <record id="data_sql" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
@@ -343,6 +343,14 @@ amount_untaxed = "amount_untaxed"
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">-- d : the rows the user may read, already filtered by the panel period and dimensions
+-- the header below (TOML in comments) : the names shown and how the table is drawn
+-- [labels]
+-- Units = "Quantité"
+-- [table]
+-- totals = true  # a « Total » row
+-- heatmap = true
+-- [table.columns]
+-- Revenue = { format = "currency" }
 SELECT
     '[' || "product_id" || '](' || :odoo_url || '/odoo/product.product/'
         || CAST("product_id_" AS VARCHAR) || ')' AS "Product",
@@ -357,7 +365,7 @@ ORDER BY "Revenue" DESC, "product_id"
 LIMIT 10</field>
     </record>
 
-    <!-- data : polars, when SQL is not enough ; line 1 must stay `d_next = d` -->
+    <!-- data : polars, when SQL is not enough ; line 1 must stay `d_next = d` ; its `display` field : [labels], [table] -->
     <record id="data_polars" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
@@ -373,5 +381,17 @@ d_next = d_next.group_by("partner_id").agg([pl.len().alias("Orders"), pl.col("am
 # the last sort key only breaks ties : a stable order
 d_next = d_next.sort(["Revenue", "partner_id"], descending=[True, False]).head(10)
 d_next = d_next.rename({"partner_id": "Customer"})</field>
+        <field name="display">[labels]  # the names shown : a polars tile says it here (a SQL one may too)
+Customer = "Client"
+Orders = "Commandes"
+
+[table]
+format = "currency"
+totals = true
+note = "The ten best customers, confirmed orders"
+
+[table.columns]
+Orders = { format = "integer" }
+</field>
     </record>
 </odoo>

@@ -3,6 +3,7 @@ import logging
 from odoo import _, api, exceptions, fields, models
 
 from ..compat import LIST, sql_constraints, tomllib
+from ..compat import validate_display as kt_validate_display
 from ..compat import validate_toml as kt_validate_toml
 
 logger = logging.getLogger(__name__)
@@ -205,6 +206,11 @@ class KpitenConfigLine(models.Model):
         'a column of the tile named `__product_id_` is `key["product_id_"]`. '
         "Same syntax as the definition.",
     )
+    display = fields.Text(
+        help="Data tile only : TOML, the names shown for its columns ([labels]) and how "
+        "its table is drawn ([table] : format, totals, heatmap...). A SQL tile may also "
+        "say it in comments at its top (-- [table] ...) ; this field wins.",
+    )
     name = fields.Char()
     group_ids = fields.Many2many(comodel_name="res.groups")
     sequence = fields.Integer()
@@ -297,7 +303,7 @@ class KpitenConfigLine(models.Model):
                 _("Tile definition must be valid TOML :\n%s") % err
             )
 
-    @api.depends("definition", "kind", "dataset_id")
+    @api.depends("definition", "display", "kind", "dataset_id")
     def _compute_validation_msg(self):
         for rec in self:
             messages = self._structural_messages(rec)
@@ -305,8 +311,13 @@ class KpitenConfigLine(models.Model):
 
     @api.model
     def _structural_messages(self, rec) -> list:
-        """Run the kpiten-core structural validation on a line definition."""
-        if kt_validate_toml is None or rec.kind == "data" or not rec.definition:
+        """Run the kpiten-core structural validation on a line definition (a data
+        tile : its display)."""
+        if rec.kind == "data":
+            if kt_validate_display is None or not rec.definition:
+                return []
+            return kt_validate_display(rec.definition, rec.display)
+        if kt_validate_toml is None or not rec.definition:
             return []
         fields = self._valid_columns(rec)
         try:
@@ -343,14 +354,27 @@ class KpitenConfigLine(models.Model):
         )
         return bool(field)
 
+    def _check_display(self, display: str) -> None:
+        """The display of a data tile must be valid TOML."""
+        try:
+            tomllib.loads(display)
+        except tomllib.TOMLDecodeError as err:
+            raise exceptions.ValidationError(
+                _("Display must be valid TOML :\n%s") % err
+            )
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get("definition") and vals.get("kind", "data") != "data":
                 self._check_definition(vals["definition"], vals["kind"])
+            if vals.get("display"):
+                self._check_display(vals["display"])
         return super().create(vals_list)
 
     def write(self, vals):
+        if vals.get("display"):
+            self._check_display(vals["display"])
         if vals.get("definition"):
             for line in self:
                 kind = vals.get("kind") or line.kind
