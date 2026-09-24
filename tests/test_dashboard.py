@@ -92,9 +92,16 @@ def test_the_page_speaks_the_language_of_the_user_in_odoo(page: Page) -> None:
     expect(page.locator("label[for=panel]")).to_have_text("Tableau")
     expect(page.locator(".kind-badge").first).not_to_have_text("graph")
 
+    # the admin : in the language of their Odoo user (English, unless set otherwise)
+    from kpiten_core.backend import Backend
+
+    backend = Backend.create(db=DB)
+    ids = backend.call("res.users", "search", domain=[("login", "=", MANAGER)])
+    lang = backend.call("res.users", "read", ids=ids, fields=["lang"])[0]["lang"]
     page.context.clear_cookies()
-    open_dashboard(page, MANAGER, MANAGER_PASSWORD)  # the admin, in English
-    expect(page.locator("label[for=panel]")).to_have_text("Panel")
+    open_dashboard(page, MANAGER, MANAGER_PASSWORD)
+    label = "Tableau" if (lang or "").startswith("fr") else "Panel"
+    expect(page.locator("label[for=panel]")).to_have_text(label)
 
 
 def test_edit_mode_is_for_kpiten_managers_only(page: Page) -> None:
