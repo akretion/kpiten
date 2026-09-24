@@ -5,6 +5,7 @@ from html import escape
 from markupsafe import Markup
 
 from odoo import _, api, exceptions, fields, models
+from odoo.http import request
 
 from ..compat import LIST, sql_constraints, tomllib
 from ..compat import is_sql as kt_is_sql
@@ -12,6 +13,14 @@ from ..compat import validate_display as kt_validate_display
 from ..compat import validate_toml as kt_validate_toml
 
 logger = logging.getLogger(__name__)
+
+
+def _from_web_client() -> bool:
+    """Whether the current request comes from the web client of Odoo (`/web/...`), not
+    from an RPC (`/jsonrpc`, `/json/2`, `/xmlrpc`) or a script (no request)."""
+    httprequest = getattr(request, "httprequest", None)
+    return bool(httprequest) and httprequest.path.startswith("/web/")
+
 
 # the drill-down of a data tile (see kpiten_core.tiles.split_keys) : the hidden columns
 # of the table ("__product_id_"), the keys the drill reads (key["product_id_"] in
@@ -314,6 +323,11 @@ class KtKpi(models.Model):
             "Save the KPI to see its preview."
         )
         if not saved:
+            return
+        if not _from_web_client():
+            # read by a script or a front (all the fields, odoorpc `browse`...) : no
+            # session asked to Shiny, which may be the one waiting for this answer
+            saved.preview_html = False
             return
         try:
             session, url = self.env["kt"]._kpiten_session("shiny")
