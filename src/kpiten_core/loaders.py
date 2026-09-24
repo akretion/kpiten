@@ -277,18 +277,6 @@ def last_sync(backend: "Backend", user_id: int) -> str | None:
     return stamp if tz else f"{stamp} UTC"
 
 
-def build_store(
-    backend: "Backend", extraction_uid: int, progress: ProgressFn | None = None
-) -> dict[str, int]:
-    """Full extract of every declared dataset (kt.dataset), via connectorx.
-
-    Returns the number of rows stored per model."""
-    return {
-        model: _extract_full_model(backend, model, extraction_uid, progress)
-        for model in backend.get_dataset_models()
-    }
-
-
 def sync_store(
     backend: "Backend",
     extraction_uid: int,
