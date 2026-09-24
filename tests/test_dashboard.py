@@ -1,7 +1,7 @@
 """End-to-end smoke tests of the Shiny dashboard, against the running stack.
 
 Odoo (:8069) and Shiny (:5000) must be up (`make up`) with a demo database
-(`big` by default), else the tests are skipped. A demo user (Marie) goes
+(`dash` by default), else the tests are skipped. A demo user (Marie) goes
 through the SSO of Odoo, like a user does from the KpiTen menu.
 """
 
@@ -18,7 +18,7 @@ from shiny_kpiten import themes
 
 ODOO = os.environ.get("E2E_ODOO_URL", "http://localhost:8069")
 SHINY = os.environ.get("E2E_SHINY_URL", "http://localhost:5000")
-DB = os.environ.get("E2E_DB", "big")
+DB = os.environ.get("E2E_DB", "dash")
 LOGIN = os.environ.get("E2E_LOGIN", "marie.stourne")
 PASSWORD = os.environ.get("E2E_PASSWORD", "marie")
 # a KpiTen manager (the admin of Odoo is one)
