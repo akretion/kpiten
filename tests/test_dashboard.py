@@ -1,8 +1,10 @@
 """End-to-end smoke tests of the Shiny dashboard, against the running stack.
 
 Odoo (:8069) and Shiny (:5000) must be up (`make up`) with a demo database
-(`dash` by default), else the tests are skipped. A demo user (Marie) goes
-through the SSO of Odoo, like a user does from the KpiTen menu.
+(`dash` by default, `E2E_DB`), else the tests are skipped. A demo user (Marie) goes
+through the SSO of Odoo, like a user does from the KpiTen menu : the base needs the
+salespeople of erp_commercial_data (`marie.stourne`...), and Odoo must serve it
+(`KPITEN_DB_FILTER='^(dash|claude18)$' ./stack restart odoo`, then `E2E_DB=claude18`).
 """
 
 import contextlib
@@ -39,8 +41,15 @@ def _rpc(session: requests.Session, path: str, **params) -> dict:
     return reply.json()
 
 
+# the logins refused : asked once only, Odoo locks the address after a few failures
+# ("Too many login failures") and every test after would be refused too
+REFUSED: dict[str, str] = {}
+
+
 def sso_url(login: str = LOGIN, password: str = PASSWORD) -> str:
     """The URL Odoo gives to open the dashboard for `login` (skips without a stack)."""
+    if login in REFUSED:
+        pytest.skip(REFUSED[login])
     session = requests.Session()
     try:
         auth = _rpc(
@@ -51,7 +60,12 @@ def sso_url(login: str = LOGIN, password: str = PASSWORD) -> str:
             password=password,
         )
         if not auth.get("result", {}).get("uid"):
-            pytest.skip(f"{login} cannot log in to {DB} on {ODOO}")
+            error = auth.get("error", {}).get("data", {}).get("message", "")
+            REFUSED[login] = (
+                f"{login} cannot log in to {DB} on {ODOO} : {error} (the tests need "
+                "the users of erp_commercial_data, E2E_DB : a base that has them)"
+            )
+            pytest.skip(REFUSED[login])
         reply = _rpc(
             session,
             "/web/dataset/call_kw/kt/action_redirect_to_kpiten",
