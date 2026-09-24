@@ -183,6 +183,7 @@ def test_validate_card():
         "Computed column 'x' must be '<date> - <date>'"
     ]
 
+
 def test_graph():
     content = serial.dumps(
         {
@@ -721,3 +722,47 @@ def test_graph_series_stacked_limit_horizontal_pie_and_plotly():
     assert fig.layout.showlegend is False
     chart.plotly = {"layout": {"no_such_option": 1}}  # refused by plotly : left out
     finish(fig, chart)
+
+
+def test_the_display_of_a_data_tile_its_field_and_the_header_of_its_sql():
+    """`[labels]` and `[table]` of a data tile : from the header of its SQL (after the
+    comments that are not TOML), from its `display` field, which wins."""
+    from kpiten_core import spec
+    from kpiten_core.validate import validate_display
+
+    sql = (
+        "-- d : the rows the user may read\n"
+        "-- [labels]\n"
+        '-- amount_untaxed = "HT"\n'
+        "-- [table]\n"
+        '-- format = "currency"\n'
+        "-- totals = true\n"
+        "-- the orders, by customer : a plain comment ends the header\n"
+        'SELECT "name", SUM("amount_untaxed") AS "amount_untaxed" FROM d\n'
+        'GROUP BY "name" ORDER BY "name"'
+    )
+    assert spec.display(sql) == {
+        "labels": {"amount_untaxed": "HT"},
+        "table": {"format": "currency", "totals": True},
+    }
+    line = {"kind": "data", "name": "t", "content": sql, "display": "limit = 1\n"}
+    res = tiles.exec_tile(
+        line, "sale.order", STORE, NO_PREDICATES, field_labels=lambda m: {"name": "Réf"}
+    )
+    assert res.df.columns == ["Réf", "HT"]  # the Odoo label, the [labels] one
+    drawing = res.meta["table"]
+    assert (drawing["format"], drawing["limit"], drawing["stub"]) == (
+        "currency",
+        1,
+        False,
+    )
+    assert drawing["totals"] == {"Réf": "Total", "HT": 100.0}
+
+    # the field wins over the header ; its errors are said
+    assert spec.display(sql, '[table]\nformat = "integer"\n')["table"] == {
+        "format": "integer",
+        "totals": True,
+    }
+    assert validate_display(sql, '[table]\nformat = "roman"\n') != []
+    assert validate_display(sql, "limit = ") != []
+    assert validate_display("d_next = d", None) == []

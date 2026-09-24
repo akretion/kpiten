@@ -103,3 +103,15 @@ def _union(check: _Check, data: dict) -> None:
             check.check_column(source, msect)
             if not isinstance(target, str):
                 check.msg(f"Mapping '{source}' in {msect} must be a string")
+
+
+def validate_display(
+    definition: str, field: Optional[str] = None, fields: Optional[set[str]] = None
+) -> list[str]:
+    """The messages of the display of a `data` tile : its `display` field and the
+    header of its SQL (`spec.display`), `[labels]` and `[table]`."""
+    try:
+        display = spec.display(definition or "", field)
+    except tomllib.TOMLDecodeError as err:
+        return [f"Display is not valid TOML : {err}"]
+    return spec.validate(display, "data", fields) if display else []

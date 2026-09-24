@@ -16,7 +16,7 @@ import logging
 import requests
 
 from kpiten_core import env
-from kpiten_core.backends.common import TILE_FIELDS, parse_filter_config, tile_dict
+from kpiten_core.backends.common import parse_filter_config, tile_dict, tile_fields
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,7 @@ class Json2Backend:
             {"Authorization": f"bearer {key}", "X-Odoo-Database": self.db}
         )
         self._user_id: int | None = None
+        self._fields: list[str] | None = None  # the tile fields the module has
         if not self.call(
             "ir.model", "search_count", domain=[("model", "=", "kt.panel")]
         ):
@@ -160,9 +161,21 @@ class Json2Backend:
         if panel_id:
             domain.append(("panel_id", "=", panel_id))
         records = self.call(
-            "kt.dataset.line", "search_read", domain=domain, fields=TILE_FIELDS
+            "kt.dataset.line", "search_read", domain=domain, fields=self._tile_fields()
         )
         return [tile_dict(rec) for rec in records]
+
+    def _tile_fields(self) -> list[str]:
+        if self._fields is None:
+            self._fields = tile_fields(
+                lambda names: self.call(
+                    "kt.dataset.line",
+                    "fields_get",
+                    allfields=names,
+                    attributes=["type"],
+                )
+            )
+        return self._fields
 
     def get_conf_id(self, model: str) -> int | None:
         return self.call("kt.dataset.line", "get_conf_id", model=model)
@@ -173,7 +186,7 @@ class Json2Backend:
             "kt.dataset.line",
             "search_read",
             domain=[("panel_id", "=", panel_id)],
-            fields=TILE_FIELDS + ["table_view"],
+            fields=self._tile_fields(),
         )
         if not lines:
             return []

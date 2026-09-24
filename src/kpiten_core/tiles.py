@@ -234,6 +234,9 @@ def exec_tile(
             df, keys = split_keys(df)
             if keys:
                 meta["keys"] = keys
+            df, drawing = _data_display(line, df, table, field_labels)
+            if drawing:
+                meta["table"] = drawing
             return TileResult("data", label, df=df, meta=meta)
     except TileError:
         raise
@@ -693,20 +696,49 @@ def pivot_case(content, table, store, full_predicates, field_labels=None):
     shown = labels.column_label(index, pivot_json.get("labels"), fields)
     if shown != index and shown not in pivoted.columns:
         pivoted = pivoted.rename({index: shown})
-    return _pivot_table(pivoted, pivot_json)
+    return _table(pivoted, pivot_json)
 
 
 TOTAL = "Total"
 
 
-def _pivot_table(df: pl.DataFrame, pivot_json: dict) -> tuple[pl.DataFrame, dict]:
-    """The `[table]` of a pivot : its « Total » column added to the rows, and what the
-    front draws (`meta["table"]`, see `render.gtable`) : the formats, the « Total »
-    row computed on every row (the front shows the first ones only), the heatmap..."""
-    table_json = pivot_json.get("table")
-    if not table_json and not pivot_json.get("limit"):
+def _data_display(line: dict, df: pl.DataFrame, table: str, field_labels):
+    """The `[labels]` and the `[table]` of a data tile (its `display` field, the header
+    of its SQL : `spec.display`). The visible columns named after a field take its
+    label in Odoo ; the others (`Revenue`, an alias of the SQL) stay as they are."""
+    try:
+        display = spec.display(line["content"], line.get("display"))
+    except Exception as err:
+        raise TileError(f"display : {err}") from err
+    tile_labels = display.get("labels") or {}
+    fields = field_labels(table) if field_labels is not None else {}
+    renamed = {}
+    for column in df.columns:
+        if column in tile_labels or (column in fields and column != "id"):
+            shown = labels.column_label(column, tile_labels, fields)
+            if shown != column and shown not in df.columns:
+                renamed[column] = shown
+    if renamed:
+        df = df.rename(renamed)
+        table_json = display.get("table") or {}
+        if table_json.get("columns"):  # written with the names of the columns
+            table_json["columns"] = {
+                renamed.get(k, k): v for k, v in table_json["columns"].items()
+            }
+    return _table(df, display, stub=False)
+
+
+def _table(
+    df: pl.DataFrame, tile_json: dict, stub: bool = True
+) -> tuple[pl.DataFrame, dict]:
+    """The `[table]` of a pivot or a data tile : its « Total » column added to the rows,
+    and what the front draws (`meta["table"]`, see `render.gtable`) : the formats, the
+    « Total » row computed on every row (the front shows the first ones only), the
+    heatmap... `stub` : the first column as row headers, by default."""
+    table_json = tile_json.get("table")
+    if not table_json and not tile_json.get("limit"):
         return df, {}
-    table_json = dict(table_json or {})
+    table_json = {"stub": stub, **(table_json or {})}
     values = [c for c in df.columns[1:] if df.schema[c].is_numeric()]
     if table_json.pop("row_totals", False) and values and TOTAL not in df.columns:
         df = df.with_columns(pl.sum_horizontal(values).alias(TOTAL))
@@ -718,8 +750,8 @@ def _pivot_table(df: pl.DataFrame, pivot_json: dict) -> tuple[pl.DataFrame, dict
             {c: df[c].sum() for c in df.columns[1:] if df.schema[c].is_numeric()}
         )
         drawing["totals"] = row
-    if pivot_json.get("limit"):
-        drawing["limit"] = pivot_json["limit"]
+    if tile_json.get("limit"):
+        drawing["limit"] = tile_json["limit"]
     return df, drawing
 
 

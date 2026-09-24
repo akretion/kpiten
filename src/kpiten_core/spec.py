@@ -207,12 +207,71 @@ PIVOT = Kind(
 
 KINDS = {kind.name: kind for kind in (CARD, GRAPH, PIVOT)}
 
+# the display of a `data` tile : its definition is SQL or polars, the names shown and the
+# table come from its `display` field (TOML) and the header of its SQL (see `display`)
+DATA = Kind(
+    "data",
+    (
+        VERSION_KEY,
+        Key("limit", int, help="the rows shown (else the setting table_rows)"),
+        LABELS,
+        TABLE,
+    ),
+    rules=(_totals_need_a_sum,),
+)
+
+# the first line of the header of a SQL tile, and the lines of TOML under it
+HEADER_START_RE = re.compile(r"^--\s*\[(labels|table)\b")
+TOML_LINE_RE = re.compile(r'^(\[[^\]]+\]|[\w."-]+\s*=.*|#.*|)$')
+
+
+def sql_header(sql: str) -> str:
+    """The TOML at the top of a SQL tile : from a `-- [labels]` / `-- [table]` line,
+    the comment lines that are TOML (the `-- ` taken off) ; the comments before it
+    stay comments, the header ends at the first other line."""
+    lines, started = [], False
+    for line in sql.splitlines():
+        text = line.strip()
+        if not text.startswith("--"):
+            if started or text:
+                break
+            continue
+        if not started and not HEADER_START_RE.match(text):
+            continue
+        body = text[2:].strip()
+        if not TOML_LINE_RE.match(body):
+            break
+        started = True
+        lines.append(body)
+    return "\n".join(lines)
+
+
+def _merge(base: dict, over: dict) -> dict:
+    merged = dict(base)
+    for key, value in over.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            value = _merge(merged[key], value)
+        merged[key] = value
+    return merged
+
+
+def display(definition: str, field: str | None = None) -> dict:
+    """The display of a `data` tile : the header of its SQL, then its `display` field
+    (TOML), which wins. Raises `tomllib.TOMLDecodeError` on a malformed one."""
+    from kpiten_core import sqltile  # a SQL definition : not a polars snippet
+
+    header = sql_header(definition) if sqltile.is_sql(definition) else ""
+    result = tomllib.loads(header) if header else {}
+    if field and field.strip():
+        result = _merge(result, tomllib.loads(field))
+    return result
+
 
 # ---- validation -------------------------------------------------------------
 def validate(data: dict, kind: str, fields: Optional[set[str]] = None) -> list[str]:
     """The messages of a version 2 definition (none : valid). `fields` : the columns
     of the dataset, to check the column keys (not checked without it)."""
-    schema = KINDS.get(kind)
+    schema = DATA if kind == "data" else KINDS.get(kind)
     if schema is None:
         return [f"Kind '{kind}' has no version {VERSION} syntax"]
     if data.get("version", VERSION) != VERSION:
