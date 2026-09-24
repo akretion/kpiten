@@ -21,6 +21,7 @@ requires = ["uv_build>=0.11.3,<0.12.0"]
 
 [tool.uv.sources]
 kpiten-core = { path = "../kpiten-core", editable = true }
+kpiten-spec = { path = "../kpiten-spec", editable = true }
 
 [dependency-groups]
 dev = [
