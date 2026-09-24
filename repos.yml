@@ -59,6 +59,15 @@
     - git add . && git commit -m "upgrade to 20.0"
 
 # Applications Python (uv sync dans chaque dossier)
+# the syntax of the KPI (schema, validation), standard library only : Odoo validates
+# the tiles with it, without kpiten-core
+./src/kpiten-spec:
+  remotes:
+    akretion: git@github.com:akretion/kpiten.git
+  merges:
+    - akretion kpiten-spec
+  target: akretion kpiten-spec
+
 ./src/kpiten-core:
   remotes:
     akretion: git@github.com:akretion/kpiten.git

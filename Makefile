@@ -1,5 +1,5 @@
 DB      ?= kpiten
-MODULES ?= erp_commercial_data,kpiten_kpi_essential,kpiten_preview
+MODULES ?= erp_commercial_data,kpiten_kpi_essential
 
 # mot de passe Postgres de l'utilisateur odoo : PGPASSWORD dans .env (voir
 # .env.example), ni dans odoo.conf ni dans le dépôt ; lu par libpq pour odoo-bin,
@@ -42,8 +42,9 @@ venv:
 	@for r in src/oca-server-tools src/kpiten-addons; do \
 	  [ -f $$r/requirements.txt ] && uv pip install --python $(PY) -r $$r/requirements.txt || true; \
 	done
-	# le module Odoo kpiten importe kpiten_core
-	uv pip install --python $(PY) -e src/kpiten-core
+	# le module Odoo kpiten valide les tuiles avec kpiten_spec (bibliothèque standard
+	# seulement) ; Odoo ne dépend pas de kpiten-core (l'aperçu d'un KPI : Shiny)
+	uv pip install --python $(PY) -e src/kpiten-spec
 
 ## Environnements des applications (un uv.lock par projet), puis les plugins dans le
 ## venv de shiny-kpiten : après son `uv sync`, qui retire ce que son uv.lock n'a pas.
