@@ -127,23 +127,15 @@ def test_edit_mode_moves_a_tile_among_the_tiles(page: Page) -> None:
 
 def test_comparison_switch_of_kt_config(page: Page) -> None:
     """The cards show their change since the previous period unless kt.config says no."""
-    from kpiten_core.backend import Backend
-
-    config = Backend.create(db=DB).env["kt.config"]
-    ids = config.search([], limit=1)
-    initial = config.read(ids, ["show_card_comparison"])[0]["show_card_comparison"]
-    try:
-        config.write(ids, {"show_card_comparison": True})
+    with kt_config(show_card_comparison=True):
         open_dashboard(page)
         page.locator(DELTAS).first.wait_for(timeout=30_000)
 
-        config.write(ids, {"show_card_comparison": False})
+    with kt_config(show_card_comparison=False):
         open_dashboard(page)
         page.wait_for_load_state("networkidle")
         assert page.locator(CARDS).count() > 0  # the cards are drawn...
         assert page.locator(DELTAS).count() == 0  # ...without the comparison
-    finally:  # the setting is left as it was found
-        config.write(ids, {"show_card_comparison": initial})
 
 
 def test_table_link_opens_the_odoo_record_in_a_new_tab(page: Page) -> None:
@@ -247,11 +239,11 @@ def no_user_theme():
     chosen in the dashboard is kept in Odoo)."""
     from kpiten_core.backend import Backend
 
-    odoo = Backend.create(db=DB).env
-    user_id = odoo["res.users"].search([("login", "=", LOGIN)])[0]
-    odoo["kt.config"].set_user_theme(user_id, False)
+    backend = Backend.create(db=DB)
+    user_id = backend.call("res.users", "search", domain=[("login", "=", LOGIN)])[0]
+    backend.set_user_theme(user_id, None)
     yield
-    odoo["kt.config"].set_user_theme(user_id, False)
+    backend.set_user_theme(user_id, None)
 
 
 @pytest.mark.parametrize("key", list(themes.THEMES))
@@ -309,15 +301,15 @@ def kt_config(**values):
     """Set fields of kt.config for a test, and put them back as they were found."""
     from kpiten_core.backend import Backend
 
-    config = Backend.create(db=DB).env["kt.config"]
-    ids = config.search([], limit=1)
-    initial = config.read(ids, list(values))[0]
+    backend = Backend.create(db=DB)
+    ids = backend.call("kt.config", "search", domain=[], limit=1)
+    initial = backend.call("kt.config", "read", ids=ids, fields=list(values))[0]
     initial.pop("id", None)
     try:
-        config.write(ids, values)
+        backend.call("kt.config", "write", ids=ids, vals=values)
         yield
     finally:
-        config.write(ids, initial)
+        backend.call("kt.config", "write", ids=ids, vals=initial)
 
 
 def test_the_default_theme_of_kt_config(page: Page, no_user_theme) -> None:
@@ -336,7 +328,9 @@ def test_the_rows_of_a_table_follow_kt_config(page: Page) -> None:
             "tables => tables.map(t => t.querySelectorAll('tbody tr').length)"
         )
         assert rows and max(rows) <= 5
-        page.get_by_text(re.compile(r"5 premières lignes sur")).first.wait_for(timeout=30_000)
+        page.get_by_text(re.compile(r"5 premières lignes sur")).first.wait_for(
+            timeout=30_000
+        )
 
 
 def test_the_number_format_of_kt_config(page: Page) -> None:
