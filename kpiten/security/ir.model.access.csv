@@ -8,7 +8,6 @@ access_kt_panel_manager,access_kt_panel_manager,kpiten.model_kt_panel,kpiten.gro
 access_kt,access_kt,kpiten.model_kt,base.group_user,1,1,1,1
 access_kt_config,access_kt_config,kpiten.model_kt_config,base.group_user,1,0,0,0
 access_kt_config_manager,access_kt_config_manager,kpiten.model_kt_config,kpiten.group_kpiten_manager,1,1,1,0
-access_kt_card_wizard,access_kt_card_wizard,kpiten.model_kt_card_wizard,kpiten.group_kpiten_manager,1,1,1,1
 access_kt_user_theme,access_kt_user_theme,kpiten.model_kt_user_theme,base.group_user,1,0,0,0
 access_kt_user_theme_manager,access_kt_user_theme_manager,kpiten.model_kt_user_theme,kpiten.group_kpiten_manager,1,1,1,1
 access_kt_kpi_builder,access_kt_kpi_builder,kpiten.model_kt_kpi_builder,kpiten.group_kpiten_manager,1,1,1,1

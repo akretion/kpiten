@@ -14,9 +14,6 @@ a dataset model into the equivalent SELECT of `kt.get_record_vals` :
 `build_select` returns a bare SELECT statement (used by the app through
 connectorx), `create_sql_view` wraps it in a `CREATE OR REPLACE VIEW` for the
 persistent-view mode.
-
-The domain/order helpers are shared with `kt_card_wizard` so both produce the
-same SQL.
 """
 
 from __future__ import annotations
@@ -100,7 +97,7 @@ def _leaf_sql(model, field, op, value, m2o_fields, m2o_suffix="_", table=None) -
         raise ValidationError(_("Unsupported domain operator '%s'." % op))
     # A many2one domain leaf targets the foreign key : the real column in the
     # Odoo table (no suffix) or the de-normalized `<field>_` id used by the
-    # parquet / card-wizard convention.
+    # parquet convention.
     column = f"{field}{m2o_suffix}" if field in m2o_fields else field
     if table:
         # qualified : the joined tables have write_date, create_date, name...
