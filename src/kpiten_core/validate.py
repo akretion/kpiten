@@ -1,7 +1,8 @@
 """Structural validation of KPI tile definitions (framework agnostic).
 
 Each tile `definition` is TOML describing a `kind` (card / graph / pivot /
-union). This module checks the loaded dict against the expected structure
+union). A definition with `version = 2` is checked by `spec` (the declarative schema
+of the version 2) ; the rules below are the ones of the version 1. This module checks the loaded dict against the expected structure
 derived from `tiles.py` (keys, types, enums, required fields) and returns a
 list of human readable messages instead of raising.
 
@@ -13,6 +14,8 @@ structure is validated.
 import re
 import tomllib
 from typing import Any, Optional
+
+from kpiten_core import spec
 
 AGGREGATIONS = {"sum", "count", "mean", "none"}
 CARD_AGGREGATIONS = {"count", "sum", "mean", "median", "min", "max"}
@@ -30,6 +33,12 @@ def validate(
     `definition` is the parsed TOML (dict). `fields` is an optional set of
     valid column names used to check that referenced columns exist.
     """
+    if definition.get("version") is not None:
+        if kind == "union":
+            return ["The union has no version 2 syntax yet : remove 'version'"]
+        if definition["version"] != spec.VERSION:
+            return [f"Unknown version {definition['version']!r} (2, or none for 1)"]
+        return spec.validate(definition, kind, fields)
     fields = fields or set()
     check = _Check(fields)
     if kind == "card":
