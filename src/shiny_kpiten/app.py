@@ -173,7 +173,7 @@ def user_lang(sso) -> str | None:  # noqa: ANN001
         return sso.lang
     try:
         backend = Backend.create()
-        return backend.get_user_lang(backend.env.user.id)
+        return backend.get_user_lang(backend.current_user_id())
     except Exception:
         logger.exception("the language of the rpc user is unknown")
         return None
@@ -424,7 +424,11 @@ def records_link_html(records: dict | None, tr=i18n.english) -> str:
     label = (
         tr("Open these {count} records in Odoo", count=count)
         if count == total
-        else tr("Open the first {count} of {total} records in Odoo", count=count, total=total)
+        else tr(
+            "Open the first {count} of {total} records in Odoo",
+            count=count,
+            total=total,
+        )
     )
     title = tr("The same list of records, in Odoo (with your rights)")
     return (
@@ -554,12 +558,12 @@ def server(input, output, session):
     tr = i18n.translator(
         sso.lang
         if sso
-        else initial_backend.get_user_lang(initial_backend.env.user.id)
+        else initial_backend.get_user_lang(initial_backend.current_user_id())
     )
 
     def current_user_id() -> int:
         """Odoo user of this session (dev mode : the rpc login user)."""
-        return sso.user_id if sso else backend_rv().env.user.id
+        return sso.user_id if sso else backend_rv().current_user_id()
 
     @reactive.calc
     def can_edit() -> bool:
@@ -1043,7 +1047,9 @@ def server(input, output, session):
             palette = current_theme().palette
             note = result.note_in(tr)
             note = (
-                f'<div style="font-size: 11px; opacity: .65">{note}</div>' if note else ""
+                f'<div style="font-size: 11px; opacity: .65">{note}</div>'
+                if note
+                else ""
             )
             body = themes.gt_df(current_theme(), result.df).as_raw_html()
             ui.modal_show(
@@ -1115,7 +1121,7 @@ def server(input, output, session):
                 user_id = current_user_id()
                 context = {
                     "filters": filters_text(),
-                    "user": backend.env["res.users"].browse(user_id).name,
+                    "user": backend.get_user_name(user_id),
                     "db": backend.db,
                     "palette": current_theme().palette,
                     "date": datetime.date.today(),
