@@ -7,7 +7,9 @@ def migrate(cr, version):
     row = cr.fetchone()
     if not row:
         return
-    cr.execute("SELECT count(*) FROM kt_kpi WHERE panel_id = %s", row)  # renamed by 1.5.0 (pre)
+    cr.execute(
+        "SELECT count(*) FROM kt_kpi WHERE panel_id = %s", row
+    )  # renamed by 1.5.0 (pre)
     if cr.fetchone()[0]:
         return
     cr.execute("DELETE FROM kt_panel WHERE id = %s", row)

@@ -527,7 +527,9 @@ class Kt(models.AbstractModel):
         from .res_company import SERVICE_KEY
 
         for front in FRONTS:
-            menu = self.env.ref(f"kpiten.menu_{front}_redirect", raise_if_not_found=False)
+            menu = self.env.ref(
+                f"kpiten.menu_{front}_redirect", raise_if_not_found=False
+            )
             if menu:
                 shown = bool(get_param(self.env, SERVICE_KEY % front))
                 menu.sudo().with_context(active_test=False).active = shown
