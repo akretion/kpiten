@@ -3,6 +3,7 @@
         <field name="model">kt.panel</field>
         <field name="arch" type="xml">
             <form>
+                <header />
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button
