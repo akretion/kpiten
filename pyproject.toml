@@ -24,3 +24,4 @@ dev = ["black>=26.5.1"]
 
 [tool.uv.sources]
 kpiten-core = { path = "../kpiten-core", editable = true }
+kpiten-spec = { path = "../kpiten-spec", editable = true }

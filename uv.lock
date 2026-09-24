@@ -788,6 +788,7 @@ source = { editable = "../kpiten-core" }
 dependencies = [
     { name = "connectorx" },
     { name = "dotenv" },
+    { name = "kpiten-spec" },
     { name = "odoorpc" },
     { name = "pluggy" },
     { name = "polars" },
@@ -808,6 +809,7 @@ requires-dist = [
     { name = "connectorx", specifier = ">=0.3.2" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "great-tables", marker = "extra == 'render'", specifier = ">=0.21.0" },
+    { name = "kpiten-spec", editable = "../kpiten-spec" },
     { name = "odoorpc", specifier = ">=0.10.1" },
     { name = "plotly", extras = ["express"], marker = "extra == 'render'", specifier = ">=6.7.0" },
     { name = "pluggy", specifier = ">=1.6.0" },
@@ -825,6 +827,17 @@ dev = [
     { name = "kpiten-core", extras = ["render"] },
     { name = "pytest", specifier = ">=8" },
 ]
+
+[[package]]
+name = "kpiten-spec"
+version = "0.1.0"
+source = { editable = "../kpiten-spec" }
+
+[package.metadata]
+requires-dist = [{ name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=1.1" }]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=7" }]
 
 [[package]]
 name = "markdown2"
