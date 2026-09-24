@@ -213,17 +213,6 @@ def app_ui(req):  # noqa: ANN001
         ui.layout_sidebar(
             # the side bar : what the page shows (panel, filters) and how (theme)
             ui.sidebar(
-                # the logo of KpiTen, and its slogan on hover
-                ui.div(
-                    ui.tags.img(
-                        src="static/kpiten.png",
-                        alt=brand.NAME,
-                        class_="kpiten-logo",
-                        title=brand.tooltip(),
-                    ),
-                    ui.span(brand.NAME),
-                    class_="kpiten-brand",
-                ),
                 ui.input_select("panel", tr("Panel"), choices=[], width="100%"),
                 ui.output_ui("filters"),
                 ui.output_ui("theme_select"),
@@ -232,6 +221,7 @@ def app_ui(req):  # noqa: ANN001
                     ui.input_switch("edit_mode", tr("Edit"), False),
                     title=tr(EDIT_TOOLTIP),
                 ),
+                ui.div(ui.HTML(brand.lockup_svg(64)), title=brand.tooltip()),
                 ui.output_ui("edit_lock"),
                 id="sidebar",
                 open="desktop",
@@ -259,13 +249,14 @@ def app_ui(req):  # noqa: ANN001
             ui.div(
                 ui.tags.a(
                     ui.span(tr("Built with")),
-                    ui.tags.img(src=logo, alt="Shiny", class_="framework-logo"),
-                    href="https://shiny.posit.co",
+                    ui.tags.img(
+                        src=logo, alt="Shiny for python", class_="framework-logo"
+                    ),
+                    href="https://shiny.posit.co/py",
                     title=tr("Made with Shiny"),
                     target="_blank",
                     class_="framework-credit",
                 ),
-                ui.div(ui.HTML(brand.lockup_svg(64)), title=brand.tooltip()),
                 class_="app-footer",
             ),
             border=False,
