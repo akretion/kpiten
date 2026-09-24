@@ -30,7 +30,7 @@ class KtDataset(models.Model):
     name = fields.Char(compute="_compute_name", readonly=False)
     state = fields.Selection(selection=[("draft", "Draft"), ("validated", "Validated")])
     line_ids = fields.One2many(
-        comodel_name="kt.dataset.line",
+        comodel_name="kt.kpi",
         inverse_name="dataset_id",
         context={"active_test": False},
     )
@@ -85,12 +85,12 @@ class KtDataset(models.Model):
             rec.line_count = len(rec.line_ids)
 
     def action_view_lines(self):
-        """The tiles (`kt.dataset.line`) of this dataset, in a list."""
+        """The tiles (`kt.kpi`) of this dataset, in a list."""
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
             "name": _("Tiles of %s") % self.display_name,
-            "res_model": "kt.dataset.line",
+            "res_model": "kt.kpi",
             "view_mode": f"{LIST},form",
             "domain": [("dataset_id", "=", self.id)],
             # the archived tiles are listed too, `active` tells them apart
@@ -189,7 +189,7 @@ class KtDataset(models.Model):
 
 
 class KpitenConfigLine(models.Model):
-    _name = "kt.dataset.line"
+    _name = "kt.kpi"
     _description = "Configuration lines for kpiten"
     _order = "sequence"
 

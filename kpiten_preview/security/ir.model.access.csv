@@ -1,3 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_kt_dataset_line_preview,access_kt_dataset_line_preview,model_kt_dataset_line_preview,base.group_user,1,1,1,1
+access_kt_kpi_preview,access_kt_kpi_preview,model_kt_kpi_preview,base.group_user,1,1,1,1
 access_kt_dataset_column,access_kt_dataset_column,model_kt_dataset_column,base.group_user,1,1,1,1

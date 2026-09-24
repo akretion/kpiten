@@ -1,8 +1,8 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_kt_dataset,access_kt_dataset,kpiten.model_kt_dataset,base.group_user,1,0,0,0
 access_kt_dataset_manager,access_kt_dataset_manager,kpiten.model_kt_dataset,kpiten.group_kpiten_manager,1,1,1,1
-access_kt_dataset_line,access_kt_dataset_line,kpiten.model_kt_dataset_line,base.group_user,1,0,0,0
-access_kt_dataset_line_manager,access_kt_dataset_line_manager,kpiten.model_kt_dataset_line,kpiten.group_kpiten_manager,1,1,1,1
+access_kt_kpi,access_kt_kpi,kpiten.model_kt_kpi,base.group_user,1,0,0,0
+access_kt_kpi_manager,access_kt_kpi_manager,kpiten.model_kt_kpi,kpiten.group_kpiten_manager,1,1,1,1
 access_kt_panel,access_kt_panel,kpiten.model_kt_panel,base.group_user,1,0,0,0
 access_kt_panel_manager,access_kt_panel_manager,kpiten.model_kt_panel,kpiten.group_kpiten_manager,1,1,1,1
 access_kt,access_kt,kpiten.model_kt,base.group_user,1,1,1,1

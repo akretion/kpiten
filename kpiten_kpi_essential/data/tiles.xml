@@ -2,7 +2,7 @@
     <!-- one tile per kind and option of the syntax (version 2, the union in version 1) : see the comment of each -->
 
     <!-- card : a count (the default aggregation) of the rows `where` keeps -->
-    <record id="card_count" model="kt.dataset.line">
+    <record id="card_count" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Count</field>
@@ -14,7 +14,7 @@ where = "state = 'sale'"
     </record>
 
     <!-- card : a sum, in the currency of the company, compared with the previous period -->
-    <record id="card_sum" model="kt.dataset.line">
+    <record id="card_sum" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Sum</field>
@@ -30,7 +30,7 @@ compare = true
     </record>
 
     <!-- card : a mean (no decimal unless `decimals` asks for some) -->
-    <record id="card_mean" model="kt.dataset.line">
+    <record id="card_mean" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Mean</field>
@@ -46,7 +46,7 @@ decimals = 0
     </record>
 
     <!-- card : the other aggregations (median, min, max) are written the same -->
-    <record id="card_median" model="kt.dataset.line">
+    <record id="card_median" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Median</field>
@@ -61,7 +61,7 @@ unit = "currency"
     </record>
 
     <!-- card : a column computed from two dates (`[computed]`), where fewer is better (`[compare] good`) -->
-    <record id="card_derive" model="kt.dataset.line">
+    <record id="card_derive" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Derived column</field>
@@ -82,7 +82,7 @@ days_to_order = "date_approve - create_date"
     </record>
 
     <!-- card : the period of the panel does not apply (what is waiting now) -->
-    <record id="card_ignore_period" model="kt.dataset.line">
+    <record id="card_ignore_period" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Ignore period</field>
@@ -95,7 +95,7 @@ ignore_period = true
     </record>
 
     <!-- card : `from` reads another table of the store than the one of its dataset -->
-    <record id="card_from" model="kt.dataset.line">
+    <record id="card_from" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">From another table</field>
@@ -108,7 +108,7 @@ from = "purchase.order"
     </record>
 
     <!-- card : the best group (`by`) by `measure`, with a line under it (`[detail]`) -->
-    <record id="card_best" model="kt.dataset.line">
+    <record id="card_best" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">card</field>
         <field name="name">Best</field>
@@ -126,7 +126,7 @@ label = "sold"
     </record>
 
     <!-- graph : bars, one per value of `by`, `measure` summed ; `[labels]` renames a column -->
-    <record id="graph_bar" model="kt.dataset.line">
+    <record id="graph_bar" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
         <field name="name">Graph bar</field>
@@ -146,7 +146,7 @@ amount_untaxed = "HT"
     </record>
 
     <!-- graph : past the limit of bars, the rest is one « others » bar -->
-    <record id="graph_bar_others" model="kt.dataset.line">
+    <record id="graph_bar_others" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
         <field name="name">Graph bar with others</field>
@@ -164,7 +164,7 @@ others = true
     </record>
 
     <!-- graph : an area over the months (`grain` groups the dates by month) -->
-    <record id="graph_area_monthly" model="kt.dataset.line">
+    <record id="graph_area_monthly" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
         <field name="name">Graph area monthly</field>
@@ -182,7 +182,7 @@ aggregation = "sum"
     </record>
 
     <!-- graph : points (a scatter), `measure` counted -->
-    <record id="graph_point" model="kt.dataset.line">
+    <record id="graph_point" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
         <field name="name">Graph point</field>
@@ -198,7 +198,7 @@ aggregation = "count"
     </record>
 
     <!-- graph : `series` splits each bar by a column (one color per value), `stacked` piles them -->
-    <record id="graph_series_stacked" model="kt.dataset.line">
+    <record id="graph_series_stacked" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
         <field name="name">Graph series stacked</field>
@@ -216,7 +216,7 @@ aggregation = "sum"
     </record>
 
     <!-- graph : a `line` per salesperson over the months -->
-    <record id="graph_line_series" model="kt.dataset.line">
+    <record id="graph_line_series" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
         <field name="name">Graph line per series</field>
@@ -235,7 +235,7 @@ aggregation = "sum"
     </record>
 
     <!-- graph : a `pie`, the `limit` biggest slices and the rest in « Others » -->
-    <record id="graph_pie" model="kt.dataset.line">
+    <record id="graph_pie" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
         <field name="name">Graph pie</field>
@@ -254,7 +254,7 @@ others = true
     </record>
 
     <!-- graph : horizontal bars (`orientation`) for long labels ; `[plotly]` says what kpiten does not -->
-    <record id="graph_horizontal" model="kt.dataset.line">
+    <record id="graph_horizontal" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
         <field name="name">Graph horizontal</field>
@@ -276,7 +276,7 @@ bargap = 0.4
     </record>
 
     <!-- pivot : `rows` × `columns` (here a derived `.year`) ; the header of the rows is the label of the field in Odoo ; `[table]` : format, totals, heatmap, note -->
-    <record id="pivot" model="kt.dataset.line">
+    <record id="pivot" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">pivot</field>
         <field name="name">Pivot</field>
@@ -299,7 +299,7 @@ note = "Untaxed amounts, every order"
     </record>
 
     <!-- pivot : the dates of the rows grouped by month (`grain`) -->
-    <record id="pivot_monthly" model="kt.dataset.line">
+    <record id="pivot_monthly" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">pivot</field>
         <field name="name">Pivot monthly</field>
@@ -316,7 +316,7 @@ grain = "month"
     </record>
 
     <!-- union (version 1) : the rows of two models, their columns mapped to the same names -->
-    <record id="union" model="kt.dataset.line">
+    <record id="union" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">union</field>
         <field name="name">Union</field>
@@ -334,7 +334,7 @@ amount_untaxed = "amount_untaxed"
     </record>
 
     <!-- data : SQL on `d` ; a « [label](url) » cell is a link, a `__` column is hidden ; a header of TOML comments ([labels], [table]) -->
-    <record id="data_sql" model="kt.dataset.line">
+    <record id="data_sql" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Data in SQL</field>
@@ -366,7 +366,7 @@ LIMIT 10</field>
     </record>
 
     <!-- data : polars, when SQL is not enough ; line 1 must stay `d_next = d` ; its `display` field : [labels], [table] -->
-    <record id="data_polars" model="kt.dataset.line">
+    <record id="data_polars" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Data in polars</field>

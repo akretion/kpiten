@@ -17,7 +17,7 @@ class KtPanel(models.Model):
     filter_config = fields.Text(default="{}")
     active = fields.Boolean(default=True)
     line_ids = fields.One2many(
-        comodel_name="kt.dataset.line", inverse_name="panel_id"
+        comodel_name="kt.kpi", inverse_name="panel_id"
     )
     line_count = fields.Integer(
         compute="_compute_line_count",
@@ -30,12 +30,12 @@ class KtPanel(models.Model):
             rec.line_count = len(rec.line_ids)
 
     def action_view_lines(self):
-        """The tiles (`kt.dataset.line`) of this dataset, in a list."""
+        """The tiles (`kt.kpi`) of this dataset, in a list."""
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
             "name": _("Tiles of %s") % self.display_name,
-            "res_model": "kt.dataset.line",
+            "res_model": "kt.kpi",
             "view_mode": f"{LIST},form",
             "domain": [("panel_id", "=", self.id)],
             # the archived tiles are listed too, `active` tells them apart
