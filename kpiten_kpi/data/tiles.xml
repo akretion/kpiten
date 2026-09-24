@@ -8,8 +8,7 @@
         <field name="sequence">1</field>
         <field name="panel_id" ref="panel_sale" />
         <field name="col_span">1</field>
-        <field name="definition">version = 2
-where = "state not in ('draft', 'sent')"
+        <field name="definition">where = "state not in ('draft', 'sent')"
 </field>
     </record>
 
@@ -20,8 +19,7 @@ where = "state not in ('draft', 'sent')"
         <field name="sequence">2</field>
         <field name="panel_id" ref="panel_sale" />
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-type = "bar"
+        <field name="definition">type = "bar"
 by = "user_id"
 measure = "amount_untaxed"
 aggregation = "sum"
@@ -35,8 +33,7 @@ aggregation = "sum"
         <field name="sequence">4</field>
         <field name="panel_id" ref="panel_sale" />
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-rows = "user_id"
+        <field name="definition">rows = "user_id"
 columns = "date_order.year"
 measure = "amount_untaxed"
 aggregation = "sum"
@@ -67,8 +64,7 @@ amount_untaxed = "amount_untaxed"
         <field name="panel_id" ref="panel_sale" />
         <field name="sequence">7</field>
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-type = "bar"
+        <field name="definition">type = "bar"
 by = "product_id"
 measure = "product_uom_qty"
 aggregation = "sum"
@@ -81,8 +77,7 @@ aggregation = "sum"
         <field name="name">Qty sold per salesperson</field>
         <field name="panel_id" ref="panel_sale" />
         <field name="sequence">8</field>
-        <field name="definition">version = 2
-type = "area"
+        <field name="definition">type = "area"
 by = "salesman_id"
 measure = "product_uom_qty"
 aggregation = "sum"
@@ -95,8 +90,7 @@ aggregation = "sum"
         <field name="name">Best Category</field>
         <field name="panel_id" ref="panel_sale" />
         <field name="sequence">25</field>
-        <field name="definition">version = 2
-where = "state not in ('draft', 'sent', 'cancel')"
+        <field name="definition">where = "state not in ('draft', 'sent', 'cancel')"
 measure = "price_subtotal"
 by = "product_id.categ_id.complete_name"
 
@@ -113,8 +107,7 @@ label = "sold"
         <field name="name">Best Seller</field>
         <field name="panel_id" ref="panel_sale" />
         <field name="sequence">24</field>
-        <field name="definition">version = 2
-where = "state not in ('draft', 'sent', 'cancel')"
+        <field name="definition">where = "state not in ('draft', 'sent', 'cancel')"
 measure = "price_subtotal"
 by = "product_id"
 
@@ -131,8 +124,7 @@ label = "sold"
         <field name="name">Qty purchased</field>
         <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">1</field>
-        <field name="definition">version = 2
-type = "bar"
+        <field name="definition">type = "bar"
 by = "product_id"
 measure = "product_qty"
 aggregation = "sum"
@@ -146,8 +138,7 @@ aggregation = "sum"
         <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">2</field>
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-type = "bar"
+        <field name="definition">type = "bar"
 by = "partner_id.commercial_partner_id"
 measure = "amount_untaxed"
 aggregation = "sum"
@@ -161,8 +152,7 @@ aggregation = "sum"
         <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">3</field>
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-rows = "date_order"
+        <field name="definition">rows = "date_order"
 columns = "date_order.year"
 measure = "amount_untaxed"
 aggregation = "sum"
@@ -178,8 +168,7 @@ grain = "month"
         <field name="name">RFQs to send</field>
         <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">10</field>
-        <field name="definition">version = 2
-where = "state = 'draft'"
+        <field name="definition">where = "state = 'draft'"
 ignore_period = true
 </field>
     </record>
@@ -229,8 +218,7 @@ ignore_period = true
         <field name="name">Purchased last 7 days</field>
         <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">14</field>
-        <field name="definition">version = 2
-where = "state in ('purchase', 'done') and date_approve &gt;= '{today-7}'"
+        <field name="definition">where = "state in ('purchase', 'done') and date_approve &gt;= '{today-7}'"
 measure = "amount_untaxed"
 aggregation = "sum"
 ignore_period = true
@@ -243,8 +231,7 @@ ignore_period = true
         <field name="name">Avg order value</field>
         <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">15</field>
-        <field name="definition">version = 2
-where = "state in ('purchase', 'done')"
+        <field name="definition">where = "state in ('purchase', 'done')"
 measure = "amount_untaxed"
 aggregation = "mean"
 decimals = 0
@@ -258,8 +245,7 @@ compare = true
         <field name="name">Days to order</field>
         <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">16</field>
-        <field name="definition">version = 2
-where = "state in ('purchase', 'done')"
+        <field name="definition">where = "state in ('purchase', 'done')"
 measure = "days_to_order"
 aggregation = "mean"
 unit = "days"
@@ -278,8 +264,7 @@ days_to_order = "date_approve - create_date"
         <field name="name">Days to receive</field>
         <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">17</field>
-        <field name="definition">version = 2
-where = "state in ('purchase', 'done')"
+        <field name="definition">where = "state in ('purchase', 'done')"
 measure = "days_to_receive"
 aggregation = "mean"
 unit = "days"
@@ -302,8 +287,7 @@ days_to_receive = "effective_date - date_approve"
         <field name="sequence">30</field>
         <field name="col_span">3</field>
         <field name="tile_height">340</field>
-        <field name="definition">version = 2
-type = "bar"
+        <field name="definition">type = "bar"
 where = "state not in ('draft', 'sent', 'cancel')"
 by = "product_id"
 measure = "price_subtotal"
@@ -319,8 +303,7 @@ aggregation = "sum"
         <field name="sequence">31</field>
         <field name="col_span">3</field>
         <field name="tile_height">340</field>
-        <field name="definition">version = 2
-type = "bar"
+        <field name="definition">type = "bar"
 where = "state not in ('draft', 'sent', 'cancel')"
 by = "product_id"
 measure = "product_uom_qty"

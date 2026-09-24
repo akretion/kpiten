@@ -1,12 +1,25 @@
 import logging
+import re
+from html import escape
+
+from markupsafe import Markup
 
 from odoo import _, api, exceptions, fields, models
 
 from ..compat import LIST, sql_constraints, tomllib
+from ..compat import is_sql as kt_is_sql
 from ..compat import validate_display as kt_validate_display
 from ..compat import validate_toml as kt_validate_toml
 
 logger = logging.getLogger(__name__)
+
+# the drill-down of a data tile (see kpiten_core.tiles.split_keys) : the hidden columns
+# of the table ("__product_id_"), the keys the drill reads (key["product_id_"] in
+# polars, :product_id_ in SQL) and the line 1 of a polars snippet (d_next = d)
+HIDDEN_RE = re.compile(r"""["']__(\w+)["']""")
+POLARS_KEY_RE = re.compile(r"""\bkey\[\s*["'](\w+)["']\s*\]""")
+SQL_KEY_RE = re.compile(r"(?<![:\w]):([A-Za-z_]\w*)")
+FIRST_LINE_RE = re.compile(r"^\w+ = \w+\s*$")
 
 # Suffixes of date columns added dynamically by kpiten-core
 # (see kpiten_core.tiles.DERIVED_DT_SUFFIX).
@@ -188,7 +201,7 @@ class KtDataset(models.Model):
         return res
 
 
-class KpitenConfigLine(models.Model):
+class KtKpi(models.Model):
     _name = "kt.kpi"
     _description = "Configuration lines for kpiten"
     _order = "sequence"
@@ -197,20 +210,25 @@ class KpitenConfigLine(models.Model):
     definition = fields.Text(
         required=True,
         help="TOML settings of a card, graph, pivot or union tile ; for a Data "
-        "tile, a polars snippet (see the syntax help under the fields).",
+        "tile, a polars snippet (see the syntax help under the fields). "
+        'The tile reads the table of its dataset ; `from = "sale.order.line"` '
+        "reads another one (e.g. the lines of the orders).",
     )
     drill_definition = fields.Text(
-        help="Data tile only : polars snippet run when a row of the table is clicked, "
-        "to show the rows behind it. It runs on the same rows as the tile (rights, "
-        "period and filters kept) with `key`, the hidden columns of the clicked row : "
-        'a column of the tile named `__product_id_` is `key["product_id_"]`. '
-        "Same syntax as the definition.",
+        help="Data tile only : run when a row of the table is clicked, to show the "
+        "rows behind it. It runs on the same rows as the tile (`d` : rights, period "
+        "and filters kept) with the hidden columns of the clicked row : a column of "
+        'the tile named `__product_id_` is `key["product_id_"]` in polars, '
+        '`:product_id_` in SQL. The other tables : `tables["sale.order"]` in '
+        'polars, `FROM "sale.order"` in SQL. Same syntax as the definition : SQL, '
+        'or polars with sql("...") inside.',
     )
     display = fields.Text(
         help="Data tile only : TOML, the names shown for its columns ([labels]) and how "
         "its table is drawn ([table] : format, totals, heatmap...). A SQL tile may also "
         "say it in comments at its top (-- [table] ...) ; this field wins.",
     )
+    model_id = fields.Many2one(comodel_name="ir.model", related="dataset_id.model_id")
     name = fields.Char()
     group_ids = fields.Many2many(comodel_name="res.groups")
     sequence = fields.Integer()
@@ -303,11 +321,83 @@ class KpitenConfigLine(models.Model):
                 _("Tile definition must be valid TOML :\n%s") % err
             )
 
-    @api.depends("definition", "display", "kind", "dataset_id")
+    preview_html = fields.Html(
+        string="Preview",
+        compute="_compute_preview_html",
+        sanitize=False,
+        help="The KPI as the Shiny dashboard draws it : with the rights of the user, "
+        "on the synced data, over the default period. Reloaded when the KPI is saved, "
+        "or by the Preview button.",
+    )
+
+    def _compute_preview_html(self):
+        """An iframe of the tile drawn by Shiny (`/dashboard/tile/<id>`), in a session
+        of the current user."""
+        saved = self.filtered("id")
+        (self - saved).preview_html = Markup('<p class="text-muted">%s</p>') % _(
+            "Save the KPI to see its preview."
+        )
+        if not saved:
+            return
+        try:
+            session, url = self.env["kt"]._kpiten_session("shiny")
+        except exceptions.UserError as err:
+            saved.preview_html = Markup('<p class="text-muted">%s</p>') % str(err)
+            return
+        for rec in saved:
+            # the date of the last save : a new url, the iframe reloads
+            version = int(rec.write_date.timestamp()) if rec.write_date else 0
+            src = f"{url}/dashboard/tile/{rec.id}?session={session}&v={version}"
+            height = (rec.tile_height or 320) + 40
+            rec.preview_html = Markup(
+                f'<iframe src="{escape(src)}" loading="lazy" '
+                f'style="width: 100%; height: {height}px; border: 0"></iframe>'
+            )
+
+    def action_preview(self):
+        """Save and reload the preview (the form saves the KPI before a button)."""
+        return True
+
+    @api.depends("definition", "display", "drill_definition", "kind", "dataset_id")
     def _compute_validation_msg(self):
         for rec in self:
-            messages = self._structural_messages(rec)
+            messages = self._structural_messages(rec) + self._drill_messages(rec)
             rec.validation_msg = "\n".join(messages) if messages else False
+
+    @api.model
+    def _drill_messages(self, rec) -> list:
+        """What would make the drill-down of a data tile inert or fail : no hidden
+        column in the table (nothing to click), a key the table does not give, a
+        polars snippet whose line 1 is not `out = in`."""
+        if rec.kind != "data" or not rec.drill_definition or kt_is_sql is None:
+            return []
+        drill = rec.drill_definition
+        hidden = set(HIDDEN_RE.findall(rec.definition or ""))
+        if not hidden:
+            return [
+                _(
+                    "Drill-down : the table has no hidden column (a name starting "
+                    'with __, e.g. AS "__product_id_") : no row can be clicked.'
+                )
+            ]
+        messages = []
+        if kt_is_sql(drill):
+            used = set(SQL_KEY_RE.findall(drill)) - {"odoo_url"}
+        else:
+            used = set(POLARS_KEY_RE.findall(drill))
+            if not FIRST_LINE_RE.match(drill.partition("\n")[0]):
+                messages.append(
+                    _("Drill-down : line 1 must be `out = in` (d_next = d).")
+                )
+        for name in sorted(used - hidden):
+            messages.append(
+                _(
+                    "Drill-down : the key '%(name)s' is not a hidden column of the "
+                    "table (__%(name)s) ; there are : %(hidden)s."
+                )
+                % {"name": name, "hidden": ", ".join(sorted(hidden))}
+            )
+        return messages
 
     @api.model
     def _structural_messages(self, rec) -> list:
@@ -319,19 +409,30 @@ class KpitenConfigLine(models.Model):
             return kt_validate_display(rec.definition, rec.display)
         if kt_validate_toml is None or not rec.definition:
             return []
-        fields = self._valid_columns(rec)
         try:
-            return kt_validate_toml(rec.definition, rec.kind, fields)
+            table = tomllib.loads(rec.definition).get("from")
         except tomllib.TOMLDecodeError:
             return [_("Definition is not valid TOML.")]
+        model = rec.dataset_id.model_id.model
+        messages = []
+        if table == model:
+            messages.append(
+                _("'from' is the model of the dataset : remove it (not needed).")
+            )
+        elif isinstance(table, str) and table not in self.env:
+            messages.append(_("'from' : unknown model '%s'.") % table)
+        elif isinstance(table, str):  # the columns are the ones of the table read
+            model = table
+        fields = self._valid_columns(rec, model)
+        return messages + kt_validate_toml(rec.definition, rec.kind, fields)
 
-    def _valid_columns(self, rec) -> set:
-        """Set of valid column names for the dataset model.
+    def _valid_columns(self, rec, model=None) -> set:
+        """Set of valid column names for `model` (by default the dataset one).
 
         Stored fields + dotted relational paths (as produced by the
         extraction) plus the derived date columns (`<date>.year`, ...).
         """
-        model = rec.dataset_id.model_id.model
+        model = model or rec.dataset_id.model_id.model
         if not model:
             return set()
         columns = self.env["kt"].get_allowed_fields(model, self.env.user.id)

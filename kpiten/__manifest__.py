@@ -1,7 +1,7 @@
 {
     "name": "KpiTen",
     "summary": "Store kpiten KPI configuration",
-    "version": "18.0.1.6.0",
+    "version": "18.0.1.7.0",
     "development_status": "Alpha",
     "installable": True,
     "application": True,
@@ -20,6 +20,7 @@
         "security/ir.model.access.csv",
         "views/kpiten.xml",
         "data/fronts.xml",
+        "views/kt_kpi.xml",
         "views/kt_dataset.xml",
         "views/kt_panel.xml",
         "views/kt_config.xml",
