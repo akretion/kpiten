@@ -171,12 +171,7 @@ class Theme:
   text-decoration: none;
 }}
 .framework-credit span {{ opacity: .75 }}
-.framework-logo {{
-  width: 76px;
-  height: auto;
-  border-radius: 6px;
-  vertical-align: middle;
-}}
+.framework-logo {{ width: 40px; height: 40px; vertical-align: middle }}
 .tile-grid {{
   display: grid;
   grid-template-columns: repeat(6, 1fr);  /* see GRID_SPAN in app.py */
