@@ -6,7 +6,7 @@
         <field name="kind">card</field>
         <field name="name">Sales Orders count</field>
         <field name="sequence">1</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="col_span">1</field>
         <field name="definition">version = 2
 where = "state not in ('draft', 'sent')"
@@ -18,7 +18,7 @@ where = "state not in ('draft', 'sent')"
         <field name="kind">graph</field>
         <field name="name">Best vendors</field>
         <field name="sequence">2</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="col_span">2</field>
         <field name="definition">version = 2
 type = "bar"
@@ -33,7 +33,7 @@ aggregation = "sum"
         <field name="kind">pivot</field>
         <field name="name">Monthly sales by salesperson</field>
         <field name="sequence">4</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="col_span">2</field>
         <field name="definition">version = 2
 rows = "user_id"
@@ -47,7 +47,7 @@ aggregation = "sum"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">union</field>
         <field name="name">Union sales et purchases</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">6</field>
         <field name="definition">union_model = "purchase.order"
 [mapping."sale.order"]
@@ -64,7 +64,7 @@ amount_untaxed = "amount_untaxed"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
         <field name="name">Best products (qty)</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">7</field>
         <field name="col_span">2</field>
         <field name="definition">version = 2
@@ -79,7 +79,7 @@ aggregation = "sum"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
         <field name="name">Qty sold per salesperson</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">8</field>
         <field name="definition">version = 2
 type = "area"
@@ -93,7 +93,7 @@ aggregation = "sum"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">card</field>
         <field name="name">Best Category</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">25</field>
         <field name="definition">version = 2
 where = "state not in ('draft', 'sent', 'cancel')"
@@ -111,7 +111,7 @@ label = "sold"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">card</field>
         <field name="name">Best Seller</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">24</field>
         <field name="definition">version = 2
 where = "state not in ('draft', 'sent', 'cancel')"
@@ -129,7 +129,7 @@ label = "sold"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases_lines" />
         <field name="kind">graph</field>
         <field name="name">Qty purchased</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
+        <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">1</field>
         <field name="definition">version = 2
 type = "bar"
@@ -143,7 +143,7 @@ aggregation = "sum"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">graph</field>
         <field name="name">Spend by vendor</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
+        <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">2</field>
         <field name="col_span">2</field>
         <field name="definition">version = 2
@@ -158,7 +158,7 @@ aggregation = "sum"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">pivot</field>
         <field name="name">Monthly spend</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
+        <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">3</field>
         <field name="col_span">2</field>
         <field name="definition">version = 2
@@ -176,7 +176,7 @@ grain = "month"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">RFQs to send</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
+        <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">10</field>
         <field name="definition">version = 2
 where = "state = 'draft'"
@@ -188,7 +188,7 @@ ignore_period = true
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">RFQs waiting</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
+        <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">11</field>
         <field
             name="definition"
@@ -201,7 +201,7 @@ ignore_period = true
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Late RFQs</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
+        <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">12</field>
         <field
             name="definition"
@@ -214,7 +214,7 @@ ignore_period = true
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Late receipts</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
+        <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">13</field>
         <field
             name="definition"
@@ -227,7 +227,7 @@ ignore_period = true
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Purchased last 7 days</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
+        <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">14</field>
         <field name="definition">version = 2
 where = "state in ('purchase', 'done') and date_approve &gt;= '{today-7}'"
@@ -241,7 +241,7 @@ ignore_period = true
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Avg order value</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
+        <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">15</field>
         <field name="definition">version = 2
 where = "state in ('purchase', 'done')"
@@ -256,7 +256,7 @@ compare = true
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Days to order</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
+        <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">16</field>
         <field name="definition">version = 2
 where = "state in ('purchase', 'done')"
@@ -276,7 +276,7 @@ days_to_order = "date_approve - create_date"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Days to receive</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_purchase" />
+        <field name="panel_id" ref="panel_purchase" />
         <field name="sequence">17</field>
         <field name="definition">version = 2
 where = "state in ('purchase', 'done')"
@@ -298,7 +298,7 @@ days_to_receive = "effective_date - date_approve"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
         <field name="name">Best Sellers by Revenue</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">30</field>
         <field name="col_span">3</field>
         <field name="tile_height">340</field>
@@ -315,7 +315,7 @@ aggregation = "sum"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
         <field name="name">Best Sellers by Units Sold</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">31</field>
         <field name="col_span">3</field>
         <field name="tile_height">340</field>
@@ -333,7 +333,7 @@ aggregation = "sum"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Best Selling Products</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">32</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
@@ -369,7 +369,7 @@ ORDER BY "order_id.date_order" DESC, "id" DESC</field>
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Best Selling Categories</field>
-        <field name="panel_id" ref="kpiten_commercial_data.panel_sale" />
+        <field name="panel_id" ref="panel_sale" />
         <field name="sequence">33</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
