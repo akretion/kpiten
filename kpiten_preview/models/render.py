@@ -37,7 +37,7 @@ class KtPreviewRender(models.AbstractModel):
                 'style="width: 100%; height: 420px; border: 0"></iframe>'
             )
         else:
-            from kpiten_core.gtable import gt_table
+            from kpiten_core.render.gtable import gt_table
 
             body = gt_table(result.df, PALETTE).as_raw_html()
         if result.note:

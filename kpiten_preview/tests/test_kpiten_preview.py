@@ -41,8 +41,7 @@ class TestKpitenPreview(TransactionCase):
     def test_a_graph(self):
         line = self._line(
             "graph",
-            'graph_type = "bar"\n[x]\nname = "name"\naggregation = "none"\n'
-            '[y]\nname = "id"\naggregation = "count"\n',
+            'type = "bar"\nby = "name"\nmeasure = "id"\naggregation = "count"\n',
         )
         self.assertIn("<iframe", self._html(line))
 

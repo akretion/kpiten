@@ -107,10 +107,9 @@
                     <details>
                         <summary class="fw-bold">Syntax of a "Graph" tile</summary>
                         <div class="p-2">
-                            <p>TOML, version 2. <code>by</code> and <code>measure</code> are required, the rest is optional
-                                (a definition without <code>version</code> is read in the version 1 syntax) :</p>
-                            <pre>version = 2
-type = "bar"                  # bar | point | area
+                            <p>TOML. <code>by</code> and <code>measure</code> are required, the rest is optional :</p>
+                            <pre>version = 2                   # optional : the syntax version 2
+type = "bar"                  # bar | line | area | point | pie
 from = "sale.order"           # another dataset than the tile's
 where = "state = 'sale'"      # SQL on the rows (table `self`) ; {today}, {today-30}
 by = "date_order"             # the x axis : a column (dotted path and date parts allowed)
@@ -118,6 +117,16 @@ grain = "month"               # a date axis grouped by month
 measure = "amount_untaxed"    # the y axis
 aggregation = "sum"           # sum | count | mean
 others = true                 # the bars past the limit are folded into "Others"
+limit = 10                    # the biggest bars kept
+series = "user_id"            # one color per value of a column
+stacked = true                # the series one on the other
+orientation = "h"             # horizontal bars
+
+[labels]                      # the names shown (else the labels of the fields)
+amount_untaxed = "HT"
+
+[plotly.layout]               # given as is to plotly (update_layout ; also traces)
+bargap = 0.4
 
 [computed]                    # columns computed from two dates, in whole days
 days_to_order = "date_approve - create_date"</pre>
