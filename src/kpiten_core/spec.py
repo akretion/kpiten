@@ -4,8 +4,8 @@ One declarative schema per kind (`CARD`, `GRAPH`, `PIVOT`) : each key with its t
 its allowed values, its default and a help text. The same schema checks a definition
 (`validate`), and will give the tooltips and the form of a tile builder.
 
-A definition without `version = 2` is a version 1 one : `load` converts it (`upgrade`),
-so the tiles only read version 2. The union stays in version 1 (other changes await it).
+`version = 2` is optional : the version 1 is no longer read (`kpiten_core.migrate`
+converts it). The union keeps its own syntax (other changes await it).
 
 Standard library only : Odoo imports this module (Python 3.10, `tomli` then).
 """
@@ -215,6 +215,8 @@ def validate(data: dict, kind: str, fields: Optional[set[str]] = None) -> list[s
     schema = KINDS.get(kind)
     if schema is None:
         return [f"Kind '{kind}' has no version {VERSION} syntax"]
+    if data.get("version", VERSION) != VERSION:
+        return [f"Unknown version {data['version']!r} (2, or none)"]
     messages = []
     computed = data.get("computed") if isinstance(data.get("computed"), dict) else {}
     columns = (set(fields) | set(computed)) if fields else set()
@@ -283,81 +285,7 @@ def _check_table(table: Table, value, section: str, columns, messages) -> None:
                 )
 
 
-# ---- version 1 -> version 2 -------------------------------------------------
-def upgrade(data: dict, kind: str) -> dict:
-    """A version 1 definition in version 2 (the union : unchanged). Raises
-    `ValueError` for what version 2 cannot say."""
-    if kind == "card":
-        return _upgrade_card(data)
-    if kind == "graph":
-        return _upgrade_graph(data)
-    if kind == "pivot":
-        return _upgrade_pivot(data)
-    return data
-
-
-def _copy(data: dict, *names: str) -> dict:
-    return {name: data[name] for name in names if name in data}
-
-
-def _upgrade_card(data: dict) -> dict:
-    new = {"version": VERSION}
-    new.update(_copy(data, "where", "from", "measure", "aggregation"))
-    if data.get("best"):
-        new["by"] = data["best"]
-    new.update(_copy(data, "unit", "decimals", "ignore_period"))
-    if data.get("compare"):
-        good = data.get("good", "up")
-        new["compare"] = True if good == "up" else {"good": good}
-    if data.get("detail"):
-        new["detail"] = {"measure": data["detail"]}
-        if data.get("detail_label"):
-            new["detail"]["label"] = data["detail_label"]
-    if data.get("derive"):
-        new["computed"] = dict(data["derive"])
-    return new
-
-
-def _upgrade_graph(data: dict) -> dict:
-    x, y = data.get("x") or {}, data.get("y") or {}
-    if x.get("aggregation", "none") != "none":
-        raise ValueError("graph : an aggregation on x has no version 2 syntax")
-    new = {"version": VERSION, "type": data.get("graph_type", "bar")}
-    new.update(_copy(data, "where", "from"))
-    if "name" in x:
-        new["by"] = x["name"]
-    if data.get("monthly"):
-        new["grain"] = "month"
-    if "name" in y:
-        new["measure"] = y["name"]
-    new["aggregation"] = y.get("aggregation", "sum")
-    if data.get("others"):
-        new["others"] = True
-    return new
-
-
-def _upgrade_pivot(data: dict) -> dict:
-    new = {"version": VERSION}
-    new.update(_copy(data, "from"))
-    if "index" in data:
-        new["rows"] = data["index"]
-    if "column" in data:
-        new["columns"] = data["column"]
-    new.update(_copy(data, "measure", "aggregation"))
-    if data.get("monthly"):
-        new["grain"] = "month"
-    return new
-
-
 # ---- loading ----------------------------------------------------------------
-def is_v2(data: dict) -> bool:
-    return data.get("version") == VERSION
-
-
 def load(text: str, kind: str) -> dict:
-    """The definition of a tile, in version 2 whatever it is written in (a union :
-    as written)."""
-    data = tomllib.loads(text)
-    if kind == "union" or is_v2(data):
-        return data
-    return upgrade(data, kind)
+    """The definition of a tile (TOML)."""
+    return tomllib.loads(text)

@@ -1,8 +1,9 @@
-"""The syntax version 2 (`spec`) : the version 1 converted, the schema checks."""
+"""The syntax version 2 (`spec`) : the schema checks, the version 1 converted once
+(`migrate`)."""
 
 import pytest
 
-from kpiten_core import serial, spec
+from kpiten_core import migrate, spec
 from kpiten_core.validate import validate
 
 FIELDS = {"state", "amount_untaxed", "partner_id", "date_order", "product_id"}
@@ -19,7 +20,7 @@ def test_a_card_v1_in_v2():
         "good": "down",
         "derive": {"days": "date_order - date_order"},
     }
-    assert spec.upgrade(v1, "card") == {
+    assert migrate.upgrade(v1, "card") == {
         "version": 2,
         "where": "state = 'sale'",
         "measure": "amount_untaxed",
@@ -37,7 +38,7 @@ def test_a_graph_and_a_pivot_v1_in_v2():
         "x": {"name": "date_order", "aggregation": "none"},
         "y": {"name": "amount_untaxed", "aggregation": "sum"},
     }
-    assert spec.upgrade(graph, "graph") == {
+    assert migrate.upgrade(graph, "graph") == {
         "version": 2,
         "type": "area",
         "by": "date_order",
@@ -50,7 +51,7 @@ def test_a_graph_and_a_pivot_v1_in_v2():
         "column": "date_order.year",
         "measure": "amount_untaxed",
     }
-    assert spec.upgrade(pivot, "pivot") == {
+    assert migrate.upgrade(pivot, "pivot") == {
         "version": 2,
         "rows": "partner_id",
         "columns": "date_order.year",
@@ -58,11 +59,13 @@ def test_a_graph_and_a_pivot_v1_in_v2():
     }
 
 
-def test_a_v1_definition_is_read_as_v2_the_union_as_written():
+def test_a_v1_definition_is_refused_and_found_by_the_migration():
     text = 'index = "partner_id"\ncolumn = "state"\nmeasure = "amount_untaxed"\n'
-    assert spec.load(text, "pivot")["rows"] == "partner_id"
-    union = 'union_model = "purchase.order"\n'
-    assert spec.load(union, "union") == {"union_model": "purchase.order"}
+    assert validate(spec.load(text, "pivot"), "pivot") != []
+    assert "rows = " in migrate.to_v2(text, "pivot")
+    v2 = 'rows = "partner_id"\ncolumns = "state"\nmeasure = "amount_untaxed"\n'
+    assert validate(spec.load(v2, "pivot"), "pivot") == []  # `version` is optional
+    assert migrate.to_v2(v2, "pivot") is None
 
 
 @pytest.mark.parametrize(
@@ -84,9 +87,9 @@ def test_the_schema_says_what_is_wrong(definition, kind, message):
     assert any(message in m for m in messages), messages
 
 
-def test_every_v1_definition_converted_is_a_valid_v2_one():
+def test_every_definition_of_the_data_files_is_valid():
     """The tiles of kpiten_kpi_essential and kpiten_kpi (the xml of kpiten-addons,
-    next to this repository) : no message once converted."""
+    next to this repository)."""
     import pathlib
     import xml.etree.ElementTree as ET
 
@@ -101,9 +104,6 @@ def test_every_v1_definition_converted_is_a_valid_v2_one():
             kind, text = fields.get("kind"), fields.get("definition")
             if kind not in spec.KINDS or not text:
                 continue
-            v2 = spec.load(text, kind)
-            # the round trip through TOML : what a migration writes
-            v2 = serial.loads(serial.dumps(v2))
-            assert spec.validate(v2, kind) == [], (path.name, record.get("id"))
+            assert validate(spec.load(text, kind), kind) == [], record.get("id")
             checked += 1
     assert checked > 20
