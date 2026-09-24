@@ -383,7 +383,12 @@ def _bound_dates(source: pl.LazyFrame, column: str) -> tuple[pl.LazyFrame, str |
 
 
 def _bound_categories(
-    source: pl.DataFrame, x: str, y: str, aggregation: str, others: bool = False
+    source: pl.DataFrame,
+    x: str,
+    y: str,
+    aggregation: str,
+    others: bool = False,
+    limit: int | None = None,
 ) -> tuple[pl.DataFrame, str | None]:
     """Keep the `tile_max_categories` biggest bars of a sorted (desc) graph
     source. With `others` the rest is folded in one more bar, when that is
@@ -391,7 +396,7 @@ def _bound_categories(
     harmful for a ranking, where that bar (all the small ones together) is by
     far the biggest and flattens the others. Returns (df, note)."""
     total = source.height
-    limit = env.tile_max_categories
+    limit = limit or env.tile_max_categories
     if total <= limit:
         return source, None
     top, rest = source.head(limit), source.tail(total - limit)
@@ -469,8 +474,10 @@ def graph_case(content, table, store, full_predicates, field_labels=None):
 
     `by` is the x axis, `measure` aggregated by `aggregation` the y axis. Optional
     keys : `where` (SQL over the rows, like a card's), `grain = "month"` (a date
-    x axis is grouped by month) and `others` (the bars past the limit are
-    folded in an "Others" bar instead of being dropped).
+    x axis is grouped by month), `others` (the bars past the limit are
+    folded in an "Others" bar instead of being dropped), `limit` (the bars kept),
+    `series` (one color per value of a column), `stacked`, `orientation` and
+    `[plotly]` (given to plotly by `render.plotly.finish`).
     """
     graph_json = spec.load(content, "graph")
     cx = {"name": graph_json["by"], "aggregation": "none"}
@@ -492,6 +499,18 @@ def graph_case(content, table, store, full_predicates, field_labels=None):
     if temporal:
         source, note = _bound_dates(source, cx["name"])
         notes.append(note)
+    series = graph_json.get("series")
+    if series and series not in source.collect_schema():
+        raise TileError(f"graph 'series' : unknown column '{series}'")
+    limit = graph_json.get("limit") or env.tile_max_categories
+    if series:  # one row per (x, series) : the bars of a group, the lines...
+        chart_source, note = _series_points(
+            source, cx["name"], cy["name"], cy["aggregation"], series, temporal, limit
+        )
+        notes.append(note)
+        return _chart(
+            graph_json, table, field_labels, chart_source, cx, cy, temporal, notes
+        )
     source = _agg(source, cy["name"], cx["name"], cx["aggregation"])
     source = _agg(source, cx["name"], cy["name"], cy["aggregation"])
     source = _collect(source)  # one row per bar / point from here on
@@ -513,19 +532,73 @@ def graph_case(content, table, store, full_predicates, field_labels=None):
             cy["name"],
             cy["aggregation"],
             bool(graph_json.get("others")),
+            limit,
         )
         notes.append(note)
+    return _chart(graph_json, table, field_labels, source, cx, cy, temporal, notes)
 
+
+def _chart(graph_json, table, field_labels, points, cx, cy, temporal, notes):
+    """The `Chart` of a graph and its meta (the notes)."""
+    series = graph_json.get("series")
     fields = _fields(graph_json, table, field_labels)
     shown = {
         col: labels.column_label(col, graph_json.get("labels"), fields)
-        for col in (cx["name"], cy["name"])
+        for col in (cx["name"], cy["name"], series)
+        if col
     }
     kind = graph_json.get("type", "bar")
-    kind = kind if kind in KINDS else "bar"
-    chart = Chart(kind, cx["name"], cy["name"], source, shown, temporal)
+    chart = Chart(
+        kind if kind in KINDS else "bar",
+        cx["name"],
+        cy["name"],
+        points,
+        shown,
+        temporal,
+        series=series,
+        stacked=bool(graph_json.get("stacked")),
+        orientation=graph_json.get("orientation", "v"),
+        plotly=graph_json.get("plotly") or {},
+    )
     notes = [n for n in notes if n]
     return chart, ({"notes": notes} if notes else {})
+
+
+def _series_points(source, x, y, aggregation, series, temporal, limit):
+    """One row per (x, series value), `aggregation` of y. A date x keeps its order ;
+    else the x values are ranked by their total over the series, the `limit` biggest
+    kept. Returns (points, note)."""
+    # the same aggregations as `_agg` (count : the values, not the rows)
+    agg = {"sum": pl.Expr.sum, "mean": pl.Expr.mean, "count": pl.Expr.count}[
+        aggregation
+    ]
+    points = _collect(
+        source.filter(pl.col(x).is_not_null())
+        .group_by([x, series])
+        .agg(agg(pl.col(y)).alias(y))
+    )
+    if temporal:
+        return points.sort([x, series]), None
+    ranks = (
+        points.group_by(x)
+        .agg(pl.col(y).sum().alias("__total"))
+        .sort(["__total", x], descending=[True, False])
+        .with_row_index("__rank")
+    )
+    total = ranks.height
+    ranks = ranks.head(limit)
+    points = (
+        points.join(ranks.select([x, "__rank"]), on=x)
+        .sort(["__rank", series])
+        .drop("__rank")
+    )
+    if total <= limit:
+        return points, None
+    note = (
+        "Top {limit} of {total}",
+        {"limit": _fmt_int(limit), "total": _fmt_int(total)},
+    )
+    return points, note
 
 
 # Chart styling defaults and card options, set by the UI apps from their odoo
