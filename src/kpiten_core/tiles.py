@@ -16,7 +16,7 @@ import polars as pl
 
 from kpiten_core import config as settings
 from kpiten_core.charts import KINDS, Chart
-from kpiten_core import env, i18n, links, numfmt, serial, sandbox, spec, sqltile
+from kpiten_core import env, i18n, labels, links, numfmt, serial, sandbox, spec, sqltile
 from kpiten_core.month import apply_monthly, is_date
 from kpiten_core.validate import CARD_AGGREGATIONS, DERIVE_RE
 
@@ -180,6 +180,7 @@ def exec_tile(
     full_predicates: list[pl.Expr],
     previous_predicates: list[pl.Expr] | None = None,
     previous_label: str | None = None,
+    field_labels: labels.FieldLabels | None = None,
 ) -> TileResult:
     """Exec one tile from a kt.dataset.line record dict.
 
@@ -188,6 +189,8 @@ def exec_tile(
     is looked up in `store`. A card with `compare = true` also gets its value
     for the period before (`previous_predicates`, see
     `filters.make_previous_predicates`) as `TileResult.comparison`.
+    `field_labels` gives the labels of the fields of a model in the language of the
+    user (`labels.field_labels_of`) : the names shown by default.
     """
     kind = line.get("kind")
     label = line.get("name") or kind
@@ -209,10 +212,14 @@ def exec_tile(
                 meta["subtitle"] = subtitle
             return TileResult("card", label, value=value, display=display, meta=meta)
         if kind == "graph":
-            chart, meta = graph_case(line["content"], table, store, full_predicates)
+            chart, meta = graph_case(
+                line["content"], table, store, full_predicates, field_labels
+            )
             return TileResult("graph", label, chart=chart, meta=meta)
         if kind == "pivot":
-            df = pivot_case(line["content"], table, store, full_predicates)
+            df = pivot_case(
+                line["content"], table, store, full_predicates, field_labels
+            )
             df, meta = cap_rows(df)
             return TileResult("pivot", label, df=df, meta=meta)
         if kind == "union":
@@ -452,7 +459,14 @@ def card_comparison(
     }
 
 
-def graph_case(content, table, store, full_predicates):
+def _fields(graph_or_pivot: dict, table: str, field_labels) -> dict[str, str]:
+    """The labels of the fields of the table the tile reads (none without them)."""
+    if field_labels is None:
+        return {}
+    return field_labels(graph_or_pivot.get("from", table))
+
+
+def graph_case(content, table, store, full_predicates, field_labels=None):
     """The data of a graph tile (`charts.Chart` : drawn by the front). Returns
     `(chart, meta)` ;
     `meta["notes"]` says how the data was reduced to stay drawable.
@@ -506,12 +520,14 @@ def graph_case(content, table, store, full_predicates):
         )
         notes.append(note)
 
-    labels = {
-        col: col.replace("_", " ").capitalize() for col in (cx["name"], cy["name"])
+    fields = _fields(graph_json, table, field_labels)
+    shown = {
+        col: labels.column_label(col, graph_json.get("labels"), fields)
+        for col in (cx["name"], cy["name"])
     }
     kind = graph_json.get("type", "bar")
     kind = kind if kind in KINDS else "bar"
-    chart = Chart(kind, cx["name"], cy["name"], source, labels, temporal)
+    chart = Chart(kind, cx["name"], cy["name"], source, shown, temporal)
     notes = [n for n in notes if n]
     return chart, ({"notes": notes} if notes else {})
 
@@ -565,7 +581,7 @@ def _resolve_derived_date_columns(df, *names):
 PIVOT_AGGREGATIONS = {"sum": pl.Expr.sum, "mean": pl.Expr.mean, "count": pl.Expr.len}
 
 
-def pivot_case(content, table, store, full_predicates):
+def pivot_case(content, table, store, full_predicates, field_labels=None):
     pivot_json = spec.load(content, "pivot")
     index = pivot_json["rows"]
     column = pivot_json["columns"]
@@ -600,9 +616,15 @@ def pivot_case(content, table, store, full_predicates):
         ),
         ordered=True,
     )
-    return cells.pivot(
+    pivoted = cells.pivot(
         index=index, on=column, values=measure, aggregate_function="first"
     )
+    # the header of the rows : the only column name a pivot shows
+    fields = _fields(pivot_json, table, field_labels)
+    shown = labels.column_label(index, pivot_json.get("labels"), fields)
+    if shown != index and shown not in pivoted.columns:
+        pivoted = pivoted.rename({index: shown})
+    return pivoted
 
 
 def union_case(transform: dict[str, Any], store, full_predicates):

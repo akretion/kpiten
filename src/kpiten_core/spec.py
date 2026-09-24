@@ -81,6 +81,11 @@ COMPUTED = Table(
     values=str,
     help="computed columns : name = '<date> - <date>' (whole days)",
 )
+LABELS = Table(
+    "labels",
+    values=str,
+    help="the name shown for a column : amount_untaxed = 'HT'",
+)
 
 CARD = Kind(
     "card",
@@ -126,6 +131,7 @@ GRAPH = Kind(
         Key("aggregation", choices=AGGREGATIONS, default="sum"),
         Key("others", bool, default=False, help="the rest in one « Others » bar"),
         COMPUTED,
+        LABELS,
     ),
 )
 
@@ -140,6 +146,7 @@ PIVOT = Kind(
         Key("aggregation", choices=AGGREGATIONS, default="sum"),
         Key("grain", choices=GRAINS, help="the dates of the rows grouped by month"),
         COMPUTED,
+        LABELS,
     ),
 )
 

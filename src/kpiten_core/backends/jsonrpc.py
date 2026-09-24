@@ -193,6 +193,19 @@ class JsonrpcBackend:
         datasets = dataset.search_read([], fields=["model_id"])
         return [self.env["ir.model"].browse(ds["model_id"][0]).model for ds in datasets]
 
+    def get_field_labels(self, model: str, lang: str | None = None) -> dict[str, str]:
+        """{field: its label in Odoo}, in `lang` (the one of the backend's user
+        without it)."""
+        context = {"lang": lang} if lang else {}
+        rows = self.call(
+            "ir.model.fields",
+            "search_read",
+            domain=[("model", "=", model)],
+            fields=["name", "field_description"],
+            context=context,
+        )
+        return {row["name"]: row["field_description"] for row in rows}
+
     def get_fields_metadata(self, model: str) -> dict:
         return self.env["kt"].get_fields_metadata(model)
 

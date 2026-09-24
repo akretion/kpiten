@@ -237,6 +237,19 @@ class Json2Backend:
         ids = self.call("kt.dataset", "search", domain=[])
         return list(self._model_names(ids).values()) if ids else []
 
+    def get_field_labels(self, model: str, lang: str | None = None) -> dict[str, str]:
+        """{field: its label in Odoo}, in `lang` (the one of the backend's user
+        without it)."""
+        context = {"lang": lang} if lang else {}
+        rows = self.call(
+            "ir.model.fields",
+            "search_read",
+            domain=[("model", "=", model)],
+            fields=["name", "field_description"],
+            context=context,
+        )
+        return {row["name"]: row["field_description"] for row in rows}
+
     def get_fields_metadata(self, model: str) -> dict:
         return self.call("kt", "get_fields_metadata", model=model)
 

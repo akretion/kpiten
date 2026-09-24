@@ -223,8 +223,46 @@ def test_pivot_column():
         "2025-02-01",
         "2025-03-01",
         "2025-04-01",
-        "name",
+        "Name",  # the header of the rows : tidied without the labels of Odoo
     ]
+
+
+def test_the_names_shown_labels_then_odoo_then_tidied():
+    """`[labels]` of the tile, else the label of the field in Odoo, else tidied."""
+    graph = serial.dumps(
+        {
+            "version": 2,
+            "by": "name",
+            "measure": "amount_untaxed",
+            "labels": {"amount_untaxed": "HT"},
+        }
+    )
+    odoo = {"name": "Référence", "amount_untaxed": "Montant HT"}
+    res = tiles.exec_tile(
+        {"kind": "graph", "name": "g", "content": graph},
+        "sale.order",
+        STORE,
+        NO_PREDICATES,
+        field_labels=lambda model: odoo,
+    )
+    assert res.chart.labels == {"name": "Référence", "amount_untaxed": "HT"}
+    res = tiles.exec_tile(
+        {"kind": "graph", "name": "g", "content": graph}, "sale.order", STORE, []
+    )
+    assert res.chart.labels == {"name": "Name", "amount_untaxed": "HT"}
+    pivot = serial.dumps(
+        {
+            "version": 2,
+            "rows": "name",
+            "columns": "date_order",
+            "measure": "amount_untaxed",
+            "labels": {"name": "Commande"},
+        }
+    )
+    res = tiles.exec_tile(
+        {"kind": "pivot", "name": "p", "content": pivot}, "sale.order", STORE, []
+    )
+    assert "Commande" in res.df.columns
 
 
 def test_data_kind():
