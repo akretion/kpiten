@@ -26,6 +26,7 @@ FR = {
     "Database": "Base",
     "Edit": "Modifier",
     "Made with Shiny": "Fait avec Shiny",
+    "Connected to {db} as {name}": "Connecté à {db} en tant que {name}",
     "Built with": "Réalisé avec",
     "Edit this panel : move, resize or delete its tiles (drag and drop, or the "
     "buttons on each tile). The changes are saved in Odoo.": (
