@@ -73,6 +73,20 @@ def check(session: str):
     return response
 
 
+@this_app.get("/dashboard/tile/{tile_id}")
+def tile(tile_id: int, session: str):
+    """One tile alone : the iframe of a KPI in its form in Odoo (see `tile_page`)."""
+    sso = SessionHandler.get(session)
+    if sso is None:
+        return HTMLResponse(
+            status_code=403,
+            content="<h1>Auth failed</h1><p>No session registered for this token.</p>",
+        )
+    from .tile_page import tile_page
+
+    return HTMLResponse(tile_page(tile_id, sso))
+
+
 this_app.mount("/dashboard", shiny_app)
 
 if __name__ == "__main__":
