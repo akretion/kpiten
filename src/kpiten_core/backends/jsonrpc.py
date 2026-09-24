@@ -10,7 +10,7 @@ import logging
 import odoorpc
 
 from kpiten_core import env
-from kpiten_core.backends.common import TILE_FIELDS, parse_filter_config, tile_dict
+from kpiten_core.backends.common import parse_filter_config, tile_dict, tile_fields
 
 logger = logging.getLogger(__name__)
 
@@ -121,20 +121,25 @@ class JsonrpcBackend:
         domain = [("dataset_id", "=", dataset_id)]
         if panel_id:
             domain.append(("panel_id", "=", panel_id))
-        records = self.env["kt.dataset.line"].search_read(domain, fields=TILE_FIELDS)
+        records = self.env["kt.dataset.line"].search_read(
+            domain, fields=self._tile_fields()
+        )
         return [tile_dict(rec) for rec in records]
+
+    def _tile_fields(self) -> list[str]:
+        """The tile fields the module has (an older one : not `display`...)."""
+        if getattr(self, "_fields", None) is None:
+            self._fields = tile_fields(self.env["kt.dataset.line"].fields_get)
+        return self._fields
 
     def get_conf_id(self, model: str) -> int | None:
         return self.env["kt.dataset.line"].get_conf_id(model)
 
     def get_panel_tiles(self, panel_id: int, user_id: int) -> list[dict]:
         """All tiles of a panel, whatever the dataset model, with layout info."""
-        line = self.env["kt.dataset.line"]
-        names = list(TILE_FIELDS)
-        # a kpiten module older than the field : every table is a table
-        if "table_view" in line.fields_get(["table_view"]):
-            names.append("table_view")
-        lines = line.search_read([("panel_id", "=", panel_id)], fields=names)
+        lines = self.env["kt.dataset.line"].search_read(
+            [("panel_id", "=", panel_id)], fields=self._tile_fields()
+        )
         if not lines:
             return []
         dataset_ids = [l["dataset_id"][0] for l in lines]

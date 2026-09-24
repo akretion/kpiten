@@ -26,7 +26,12 @@ def gt_table(df: pl.DataFrame, palette: dict, drawing: dict | None = None) -> GT
     `drawing` is the `[table]` of the tile (`TileResult.meta["table"]`, see
     `tiles._pivot_table`) : formats, « Total » row, heatmap, note, options."""
     drawing = drawing or {}
+    if drawing:  # a SQL sum is a Decimal : great_tables colors floats only (heatmap)
+        decimal = [c for c, t in df.schema.items() if isinstance(t, pl.Decimal)]
+        if decimal:
+            df = df.with_columns(pl.col(decimal).cast(pl.Float64))
     rows = df.height  # the rows of data : the « Total » row comes after them
+    linked = links.link_columns(df)  # on the data : « Total » is not a link
     if drawing.get("totals"):
         total = pl.DataFrame([drawing["totals"]], schema=df.schema, strict=False)
         df = pl.concat([df, total], how="vertical_relaxed")
@@ -59,7 +64,6 @@ def gt_table(df: pl.DataFrame, palette: dict, drawing: dict | None = None) -> GT
                     lambda value, show=show: "" if value is None else show(value),
                     columns=columns,
                 ).cols_align("right", columns=columns)
-    linked = links.link_columns(df)
     if linked:
         table = table.fmt(
             lambda value: links.link_html(value, palette.get("accent")), columns=linked
