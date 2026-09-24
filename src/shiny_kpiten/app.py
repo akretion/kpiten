@@ -250,22 +250,20 @@ def app_ui(req):  # noqa: ANN001
                 # the exports of the panel the plugins offer (quarto-kpiten : a PDF)
                 ui.output_ui("plugin_exports"),
                 ui.output_ui("data_freshness"),
-                # the logo of the framework, on the right
+                class_="top-bar",
+            ),
+            ui.div(ui.output_ui("tiles")),
+            # at the end of the page, on the right : the logo of the framework, then
+            # the one of KpiTen with its name
+            ui.div(
                 ui.tags.a(
                     ui.tags.img(src=logo, class_="framework-logo"),
                     href="https://shiny.posit.co",
                     title=tr("Made with Shiny"),
                     target="_blank",
-                    class_="framework-side",
                 ),
-                class_="top-bar",
-            ),
-            ui.div(ui.output_ui("tiles")),
-            # the logo with its name at the end of the page, on the right
-            ui.div(
-                ui.HTML(brand.lockup_svg(64)),
+                ui.div(ui.HTML(brand.lockup_svg(64)), title=brand.tooltip()),
                 class_="app-footer",
-                title=brand.tooltip(),
             ),
             border=False,
             fillable=False,
