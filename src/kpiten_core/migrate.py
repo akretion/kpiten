@@ -20,7 +20,7 @@ from xml.sax.saxutils import escape, unescape
 from kpiten_core import serial, spec
 
 RECORD_RE = re.compile(
-    r'(<record id="[^"]+" model="kt\.dataset\.line">)(.*?)(</record>)', re.S
+    r'(<record id="[^"]+" model="kt\.(?:kpi|dataset\.line)">)(.*?)(</record>)', re.S
 )
 KIND_RE = re.compile(r'<field name="kind">(\w+)</field>')
 DEFINITION_RE = re.compile(r'(<field name="definition">)(.*?)(</field>)', re.S)
@@ -166,7 +166,7 @@ def migrate_db(db: str) -> int:
 
     backend = Backend.create(db=db)
     tiles = backend.call(
-        "kt.dataset.line",
+        backend.kpi_model,
         "search_read",
         domain=[("kind", "in", list(spec.KINDS))],
         fields=["name", "kind", "definition"],
@@ -177,7 +177,7 @@ def migrate_db(db: str) -> int:
         if new is None:
             continue
         backend.call(
-            "kt.dataset.line", "write", ids=[tile["id"]], vals={"definition": new}
+            backend.kpi_model, "write", ids=[tile["id"]], vals={"definition": new}
         )
         print(f"  {tile['kind']} {tile['name']!r}")
         count += 1

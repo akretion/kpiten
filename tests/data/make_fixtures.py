@@ -33,7 +33,7 @@ for model in MODELS:
     frame.write_parquet(DATA / f"{model}.parquet")
 
 tiles = []
-for line in env["kt.dataset.line"].search(
+for line in env["kt.kpi"].search(
     [("dataset_id.model_id.model", "in", MODELS), ("panel_id", "!=", False)]
 ):
     config = json.loads(line.panel_id.filter_config or "{}")

@@ -1,4 +1,4 @@
-"""Exec the KPI tile definitions stored in `kt.dataset.line` records.
+"""Exec the KPI tile definitions stored in `kt.kpi` records.
 
 Framework agnostic: returns plain objects (`TileResult`), no UI
 dependency, usable from any dashboarding framework (shiny, nicegui...).
@@ -182,7 +182,7 @@ def exec_tile(
     previous_label: str | None = None,
     field_labels: labels.FieldLabels | None = None,
 ) -> TileResult:
-    """Exec one tile from a kt.dataset.line record dict.
+    """Exec one tile from a kt.kpi record dict.
 
     `line` structure is what `Backend.get_panel_lines` yields.
     `table` is the technical model name of the tile's dataset ; its df

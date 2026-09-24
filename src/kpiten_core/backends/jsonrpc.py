@@ -10,7 +10,13 @@ import logging
 import odoorpc
 
 from kpiten_core import env
-from kpiten_core.backends.common import parse_filter_config, tile_dict, tile_fields
+from kpiten_core.backends.common import (
+    KPI_MODEL,
+    LEGACY_KPI_MODEL,
+    parse_filter_config,
+    tile_dict,
+    tile_fields,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +35,9 @@ class JsonrpcBackend:
         self.env = self.odoo.env
         if not self.env["ir.model"].search([("model", "=", "kt.panel")]):
             raise Exception(f"Kpiten module not installed in '{self.env.db}' db")
+        # the model of the tiles : `kt.dataset.line` in a base not updated to 1.5.0
+        known = self.env["ir.model"].search([("model", "=", KPI_MODEL)])
+        self.kpi_model = KPI_MODEL if known else LEGACY_KPI_MODEL
 
     def call(self, model: str, method: str, /, ids: list[int] | None = None, **kwargs):
         """`model.method(**kwargs)` on `ids` (none : an `@api.model` method), the
@@ -110,7 +119,7 @@ class JsonrpcBackend:
             logger.exception("set_user_theme(%s, %s) failed", user_id, theme)
 
     def get_panel_lines(self, model: str, panel_id: int | None = None) -> list[dict]:
-        """Fetch kt.dataset.line records for a model, optionally a panel."""
+        """Fetch the tiles (`kt.kpi`) of a model, optionally a panel."""
         model_id = self.env["ir.model"].search([("model", "=", model)])
         if not model_id:
             raise Exception(f"No kt.dataset for model '{model}'")
@@ -121,7 +130,7 @@ class JsonrpcBackend:
         domain = [("dataset_id", "=", dataset_id)]
         if panel_id:
             domain.append(("panel_id", "=", panel_id))
-        records = self.env["kt.dataset.line"].search_read(
+        records = self.env[self.kpi_model].search_read(
             domain, fields=self._tile_fields()
         )
         return [tile_dict(rec) for rec in records]
@@ -129,15 +138,15 @@ class JsonrpcBackend:
     def _tile_fields(self) -> list[str]:
         """The tile fields the module has (an older one : not `display`...)."""
         if getattr(self, "_fields", None) is None:
-            self._fields = tile_fields(self.env["kt.dataset.line"].fields_get)
+            self._fields = tile_fields(self.env[self.kpi_model].fields_get)
         return self._fields
 
     def get_conf_id(self, model: str) -> int | None:
-        return self.env["kt.dataset.line"].get_conf_id(model)
+        return self.env[self.kpi_model].get_conf_id(model)
 
     def get_panel_tiles(self, panel_id: int, user_id: int) -> list[dict]:
         """All tiles of a panel, whatever the dataset model, with layout info."""
-        lines = self.env["kt.dataset.line"].search_read(
+        lines = self.env[self.kpi_model].search_read(
             [("panel_id", "=", panel_id)], fields=self._tile_fields()
         )
         if not lines:
@@ -160,7 +169,7 @@ class JsonrpcBackend:
         user_id: int | None = None,
         panel_id: int | None = None,
     ) -> bool:
-        return self.env["kt.dataset.line"].create_tile(
+        return self.env[self.kpi_model].create_tile(
             model, definition, kind, name, user_id, panel_id
         )
 
@@ -179,15 +188,15 @@ class JsonrpcBackend:
             return False
 
     def delete_tile(self, line_id: int) -> None:
-        self.env["kt.dataset.line"].browse(line_id).unlink()
+        self.env[self.kpi_model].browse(line_id).unlink()
 
     def update_tile_layout(self, line_id: int, col_span: int, tile_height: int) -> None:
-        self.env["kt.dataset.line"].browse(line_id).write(
+        self.env[self.kpi_model].browse(line_id).write(
             {"col_span": col_span, "tile_height": tile_height}
         )
 
     def update_tile_order(self, line_ids: list[int]) -> None:
-        line = self.env["kt.dataset.line"]
+        line = self.env[self.kpi_model]
         for sequence, line_id in enumerate(line_ids):
             line.browse(line_id).write({"sequence": sequence})
 

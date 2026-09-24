@@ -31,7 +31,7 @@ def kpiten_render_tile(line: dict, result, palette: dict) -> str | None:
     """The html of the body of a tile, in place of the front's own drawing ; None to
     leave the tile to the front (or to another plugin).
 
-    `line` is the tile (`kt.dataset.line` : its `content`, `name`, `kind`...),
+    `line` is the tile (`kt.kpi` : its `content`, `name`, `kind`...),
     `result` its `tiles.TileResult` (the rows the user may read, already computed),
     `palette` the colors of the theme (`themes.PALETTES`)."""
 
