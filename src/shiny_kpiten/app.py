@@ -31,6 +31,7 @@ from shiny.types import SilentException
 from kpiten_core import brand, comparison, i18n, links
 from kpiten_core import config as core_config
 from kpiten_core import ods as core_ods
+from kpiten_core import labels as core_labels
 from kpiten_core import plugins as core_plugins
 from kpiten_core.render.gtable import DRILL_CSS
 from kpiten_core.render.plotly import _with_alpha, apply_theme_colors
@@ -546,12 +547,14 @@ def server(input, output, session):
     initial_backend = Backend.create(db=sso.db if sso else None)
     backend_rv = reactive.Value(initial_backend)
     env.current_db = initial_backend.db
-    # the texts of the page, in the language of the user in Odoo
-    tr = i18n.translator(
+    # the texts of the page, in the language of the user in Odoo (the labels of
+    # the fields too : the names of the columns of the tiles)
+    odoo_lang = (
         sso.lang
         if sso
         else initial_backend.get_user_lang(initial_backend.current_user_id())
     )
+    tr = i18n.translator(odoo_lang)
 
     def current_user_id() -> int:
         """Odoo user of this session (dev mode : the rpc login user)."""
@@ -1063,6 +1066,7 @@ def server(input, output, session):
         store_data = store()
         predicate_list = predicates()
         previous_predicates, previous_label = previous()
+        field_labels = core_labels.field_labels_of(backend_rv(), odoo_lang)
         logger.info("predicates : %s", [str(p) for p in predicate_list])
         results = []
         for line in lines():
@@ -1074,6 +1078,7 @@ def server(input, output, session):
                     predicate_list,
                     previous_predicates,
                     previous_label,
+                    field_labels,
                 )
                 results.append((line, result, None))
             except Exception as err:
