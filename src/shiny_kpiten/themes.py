@@ -166,13 +166,13 @@ class Theme:
 .framework-credit {{
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   color: inherit;
-  font-size: 13px;
+  font-size: 20px;
   text-decoration: none;
 }}
 .framework-credit span {{ opacity: .75 }}
-.framework-logo {{ width: 40px; height: 40px; vertical-align: middle }}
+.framework-logo {{ width: 60px; height: 60px; vertical-align: middle }}
 .tile-grid {{
   display: grid;
   grid-template-columns: repeat(6, 1fr);  /* see GRID_SPAN in app.py */
