@@ -26,6 +26,11 @@ FR = {
     "Database": "Base",
     "Edit": "Modifier",
     "Made with Shiny": "Fait avec Shiny",
+    "Put the KPI on a panel to see it.": "Placez le KPI sur un tableau pour le voir.",
+    "This KPI is not visible to you.": "Ce KPI ne vous est pas visible.",
+    "No data yet : open the dashboard once to sync it.": (
+        "Pas encore de données : ouvrez une fois le tableau de bord pour les synchroniser."
+    ),
     "Connected to {db} as {name}": "Connecté à {db} en tant que {name}",
     "Built with": "Réalisé avec",
     "Edit this panel : move, resize or delete its tiles (drag and drop, or the "
