@@ -49,6 +49,17 @@ def test_a_file_an_unknown_table_or_a_second_query_is_refused(sql):
         sqltile.run(sql, {"d": ORDERS})
 
 
+def test_a_polars_snippet_runs_sql_checked_like_a_sql_tile():
+    mixed = """d_next = d
+d_next = sql('SELECT "partner_id", "amount_untaxed" FROM d WHERE "state" <> \\'draft\\'')
+d_next = sql('SELECT "partner_id" AS "Vendor", SUM("amount_untaxed") AS "Untaxed" '
+             'FROM t GROUP BY "partner_id"', t=d_next)
+d_next = d_next.sort("Untaxed", descending=True)"""
+    assert run(mixed).to_dicts() == run(POLARS).to_dicts()
+    with pytest.raises(ValueError, match="reads no file"):
+        run("d_next = d\nd_next = sql(\"SELECT * FROM read_parquet('/tmp/x')\")")
+
+
 def test_only_a_select_runs():
     with pytest.raises(ValueError, match="only a SELECT"):
         sqltile.check("DELETE FROM d", {"d"})

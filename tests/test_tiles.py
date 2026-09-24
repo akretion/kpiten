@@ -282,7 +282,8 @@ def test_data_kind():
 
 def test_sandbox_does_not_read_files_through_sql(tmp_path):
     """Polars SQL reads files (`FROM read_parquet(...)`) : a snippet could read the
-    parquets of every user, whatever the rights of the one who runs it."""
+    parquets of every user, whatever the rights of the one who runs it. The snippet
+    has `sql(...)` instead (`tiles.dataframe_case`), checked like a SQL tile."""
     secret = tmp_path / "secret.parquet"
     pl.DataFrame({"x": [1]}).write_parquet(secret)
     code = f"d_next = d.sql(\"SELECT * FROM read_parquet('{secret}')\")"
