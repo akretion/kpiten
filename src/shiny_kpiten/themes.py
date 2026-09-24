@@ -70,6 +70,17 @@ class Theme:
   color: {page["text"]} !important;
   border-right: 1px solid {page["border"]} !important;
 }}
+/* the side bar stays in view while the tiles scroll (its own scroll bar if it is
+   taller than the window) ; on a phone bslib folds it over the page */
+@media (min-width: 576px) {{
+  .kpiten-sidebar {{
+    position: sticky !important;  /* bslib sets `relative`, loaded after */
+    top: 24px;  /* the padding of the page */
+    align-self: start;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+  }}
+}}
 .kpiten-sidebar label, .kpiten-sidebar .form-check-label, .kpiten-brand {{
   color: {page["text"]} !important;
 }}
