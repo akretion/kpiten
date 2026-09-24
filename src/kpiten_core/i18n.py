@@ -17,8 +17,8 @@ DEFAULT = "en"
 FR = {
     # the page
     "Not connected": "Non connecté",
-    "Open the dashboard from Odoo : menu KpiTen → Dashboard.": (
-        "Ouvrez le tableau de bord depuis Odoo : menu KpiTen → Tableau de bord."
+    "Open the dashboard from Odoo : menu KpiTen → {front}.": (
+        "Ouvrez le tableau de bord depuis Odoo : menu KpiTen → {front}."
     ),
     "Panel": "Tableau",
     "Period": "Période",
