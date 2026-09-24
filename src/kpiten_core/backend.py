@@ -95,10 +95,6 @@ class Backend:
         raise NotImplementedError
 
     # ---- kpiten config ------------------------------------------------
-    def get_panels_settings(self) -> list[dict]:
-        """Fetch kt.panel records."""
-        raise NotImplementedError
-
     def get_panel_lines(self, model: str, panel_id: int | None = None) -> list[dict]:
         """Fetch the tiles (`kt.kpi`) of a model / panel."""
         raise NotImplementedError
