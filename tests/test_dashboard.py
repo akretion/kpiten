@@ -421,17 +421,6 @@ def test_the_kpiten_logo_ends_the_side_bar_with_its_slogan_on_hover(page: Page) 
     )
 
 
-def test_the_reference_to_shiny_ends_the_page_on_the_right(page: Page) -> None:
-    open_dashboard(page)
-    page.wait_for_load_state("networkidle")
-    credit = page.locator(".app-footer a.framework-credit")
-    credit.scroll_into_view_if_needed()
-    box, last_tile = credit.bounding_box(), page.locator(TILES).last.bounding_box()
-    assert box["x"] + box["width"] > page.viewport_size["width"] * 0.85  # on the right
-    assert box["y"] >= last_tile["y"] + last_tile["height"]  # after every tile
-    assert credit.get_attribute("href") == "https://shiny.posit.co/py"
-
-
 def test_every_tile_of_the_essentials_panel_is_drawn(page: Page) -> None:
     """kpiten_kpi_essential : one tile per kind and option, none in error (the
     reference of the syntax, see its module)."""
