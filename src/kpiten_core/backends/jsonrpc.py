@@ -30,6 +30,12 @@ class JsonrpcBackend:
         if not self.env["ir.model"].search([("model", "=", "kt.panel")]):
             raise Exception(f"Kpiten module not installed in '{self.env.db}' db")
 
+    def call(self, model: str, method: str, /, ids: list[int] | None = None, **kwargs):
+        """`model.method(**kwargs)` on `ids` (none : an `@api.model` method), the
+        same call as the json2 backend."""
+        args = [list(ids)] if ids else []
+        return self.odoo.execute_kw(model, method, args, kwargs)
+
     # ---- databases ----------------------------------------------------
     def list_databases(self) -> list[str]:
         """Database names served by this odoo instance."""
