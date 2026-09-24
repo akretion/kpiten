@@ -1,5 +1,6 @@
 from . import (
     res_company,
+    ir_config_parameter,
     kt_dataset,
     ir_model_fields,
     res_users_log,
