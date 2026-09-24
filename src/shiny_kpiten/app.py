@@ -214,6 +214,8 @@ def app_ui(req):  # noqa: ANN001
         ui.layout_sidebar(
             # the side bar : what the page shows (panel, filters) and how (theme)
             ui.sidebar(
+                # who is looking : the user of Odoo (the rights of the tiles are theirs)
+                ui.output_ui("user_name"),
                 ui.input_select("panel", tr("Panel"), choices=[], width="100%"),
                 ui.output_ui("filters"),
                 ui.output_ui("theme_select"),
@@ -630,6 +632,22 @@ def server(input, output, session):
             data_version.set(data_version() + 1)
             layout_version.set(layout_version() + 1)
             ui.notification_show(tr("Database switched to {db}", db=db))
+
+    @render.ui
+    def user_name():
+        """The name of the user in Odoo, at the top of the side bar."""
+        backend = backend_rv()
+        try:
+            name = backend.get_user_name(current_user_id())
+        except Exception:
+            logger.exception("the name of the user is unknown")
+            return None
+        return ui.div(
+            ui.HTML(svg("user")),
+            ui.span(name),
+            class_="kpiten-user",
+            title=tr("Connected to {db} as {name}", db=backend.db, name=name),
+        )
 
     @render.ui
     def db_select():

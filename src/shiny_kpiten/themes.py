@@ -85,6 +85,20 @@ class Theme:
   color: {page["text"]} !important;
 }}
 .kpiten-sidebar .filter-bar {{ display: block }}
+.kpiten-user {{
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  gap: 8px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}}
+.kpiten-user svg {{ fill: currentColor; flex: none; opacity: .8 }}
+.kpiten-user span {{ min-width: 0; overflow: hidden; text-overflow: ellipsis }}
 .kpiten-sidebar .shiny-input-container {{ width: 100% !important; margin-bottom: 12px }}
 .kpiten-sidebar .collapse-toggle {{ color: {page["text"]} }}
 .kpiten-brand {{
