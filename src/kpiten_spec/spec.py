@@ -33,7 +33,8 @@ GRAINS = ("month",)
 
 @dataclass(frozen=True)
 class Key:
-    """A key of a definition. `column` : its value names a column of the dataset."""
+    """A key of a definition. `column` : its value names a column of the dataset ;
+    `table` : a table of the store (a model, `from`)."""
 
     name: str
     type: type = str
@@ -41,6 +42,7 @@ class Key:
     default: Any = None
     required: bool = False
     column: bool = False
+    table: bool = False
     help: str = ""
 
 
@@ -78,7 +80,9 @@ def _requires_measure(data: dict) -> Optional[str]:
 # the keys of every kind
 VERSION_KEY = Key("version", int, help="2 : this syntax")
 WHERE = Key("where", help="SQL condition on the rows, e.g. state = 'sale'")
-FROM = Key("from", help="another table of the store than the one of the dataset")
+FROM = Key(
+    "from", table=True, help="another table of the store than the one of the dataset"
+)
 COMPUTED = Table(
     "computed",
     values=str,
