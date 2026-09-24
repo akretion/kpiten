@@ -98,7 +98,7 @@ aggregation = "sum"
         <field name="definition">version = 2
 where = "state not in ('draft', 'sent', 'cancel')"
 measure = "price_subtotal"
-by = "product_id.categ_id"
+by = "product_id.categ_id.complete_name"
 
 [detail]
 measure = "product_uom_qty"
