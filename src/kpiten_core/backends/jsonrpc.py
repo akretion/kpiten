@@ -187,18 +187,26 @@ class JsonrpcBackend:
             logger.exception("can_edit_tiles(%s) failed", user_id)
             return False
 
+    # the tiles are changed by a bare call, never through `browse` : odoorpc reads every
+    # field of a record it browses, the preview of a KPI among them, which asks this
+    # very app for a session (`kt._kpiten_session`) while it waits for Odoo : 30 s lost
+    # a tile, the app stuck meanwhile
     def delete_tile(self, line_id: int) -> None:
-        self.env[self.kpi_model].browse(line_id).unlink()
+        self.call(self.kpi_model, "unlink", ids=[line_id])
 
     def update_tile_layout(self, line_id: int, col_span: int, tile_height: int) -> None:
-        self.env[self.kpi_model].browse(line_id).write(
-            {"col_span": col_span, "tile_height": tile_height}
+        self.call(
+            self.kpi_model,
+            "write",
+            ids=[line_id],
+            vals={"col_span": col_span, "tile_height": tile_height},
         )
 
     def update_tile_order(self, line_ids: list[int]) -> None:
-        line = self.env[self.kpi_model]
         for sequence, line_id in enumerate(line_ids):
-            line.browse(line_id).write({"sequence": sequence})
+            self.call(
+                self.kpi_model, "write", ids=[line_id], vals={"sequence": sequence}
+            )
 
     # ---- data access --------------------------------------------------
     def get_dataset_models(self) -> list[str]:
