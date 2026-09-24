@@ -422,7 +422,11 @@ class ErpDemoWorld(models.Model):
         lists, the categories of the products, the channels, the customers and the
         vendors of the demo company."""
         self.ensure_one()
+        # activated only, a language has no translation of the modules already
+        # installed (the labels of the fields, that the tiles show) : load them
         self.env["res.lang"]._activate_lang("fr_FR")
+        installed = self.env["ir.module.module"].search([("state", "=", "installed")])
+        installed._update_translations(["fr_FR"])
         self._demo_currencies()
         for product in PRODUCTS:
             self._create_product(*product)
