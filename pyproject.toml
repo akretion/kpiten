@@ -1,0 +1,22 @@
+[project]
+name = "kpiten-spec"
+version = "0.1.0"
+description = "The syntax of the KPI of KpiTen (Odoo) : its schema and the validation of a definition"
+readme = "README.md"
+authors = [
+  {name = "David Beal", email = "david.beal@akretion.com"},
+]
+# Odoo 14 runs on Python 3.8 : the validation of the tiles in Odoo works there too
+requires-python = ">=3.8"
+dependencies = [
+  "tomli>=1.1; python_version < '3.11'",
+]
+
+[build-system]
+build-backend = "uv_build"
+requires = ["uv_build>=0.11.3,<0.12.0"]
+
+[dependency-groups]
+dev = [
+  "pytest>=7",
+]
