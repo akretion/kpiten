@@ -22,16 +22,11 @@ import polars as pl
 import sqlglot
 from sqlglot import exp
 
+from kpiten_spec.spec import is_sql  # noqa: F401 (the tiles ask it here)
+
 # the functions that read a file (or a url) as a table
 READERS = (exp.ReadCSV, exp.ReadParquet)
 READER_NAME = re.compile(r"^(read|scan)_", re.IGNORECASE)
-_FIRST_WORD = re.compile(r"^\s*(?:--[^\n]*\n\s*)*(\w+)", re.IGNORECASE)
-
-
-def is_sql(content: str | None) -> bool:
-    """Whether a definition is SQL (its first word is SELECT or WITH)."""
-    match = _FIRST_WORD.match(content or "")
-    return bool(match) and match[1].upper() in ("SELECT", "WITH")
 
 
 def check(sql: str, tables) -> exp.Expression:
