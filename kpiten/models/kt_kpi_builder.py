@@ -180,7 +180,10 @@ class KtKpiBuilder(models.TransientModel):
             computed = {}
         for table, _label in self._table_selection():
             described = {f.name: f for f in IrField.search([("model", "=", table)])}
+            useless = self.env["kt"]._get_useless_fields(table)
             for name in sorted(Kpi._valid_columns(Kpi, table)):
+                if name.partition(".")[0] in useless:
+                    continue  # a many2many, the chatter... (see kt._get_useless_fields)
                 root, _dot, part = name.partition(".")
                 field = described.get(root)
                 caption = field.field_description if field else root
