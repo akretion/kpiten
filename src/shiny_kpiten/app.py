@@ -34,7 +34,7 @@ from kpiten_core import ods as core_ods
 from kpiten_core import labels as core_labels
 from kpiten_core import plugins as core_plugins
 from kpiten_core.render.gtable import DRILL_CSS
-from kpiten_core.render.plotly import _with_alpha, apply_theme_colors
+from kpiten_core.render.plotly import _with_alpha, apply_theme_colors, finish
 from kpiten_core import themes as core_themes
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
@@ -484,6 +484,7 @@ def tile_html(
             font=dict(color=p["text"], size=11),
             margin=dict(l=10, r=10, t=30, b=20),
         )
+        finish(result.figure, result.chart)  # the [plotly] of the tile : last
         parts.append(result.figure.to_html(include_plotlyjs=False, full_html=False))
     elif grid and result.df is not None:
         # sorted and filtered by the user : the server renders `grid_<id>`
