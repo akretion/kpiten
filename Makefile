@@ -1,5 +1,5 @@
 DB      ?= kpiten
-MODULES ?= erp_commercial_data,kpiten_kpi,kpiten_shiny,kpiten_marimo,kpiten_nicegui,kpiten_preview
+MODULES ?= erp_commercial_data,kpiten_kpi,kpiten_shiny,kpiten_marimo,kpiten_preview
 
 # mot de passe Postgres de l'utilisateur odoo : PGPASSWORD dans .env (voir
 # .env.example), ni dans odoo.conf ni dans le dépôt ; lu par libpq pour odoo-bin,
@@ -57,9 +57,10 @@ apps:
 	done
 
 ## Crée la base DB et installe MODULES :  make db DB=kpiten
+## Sans les démos d'Odoo : leurs factures empêcheraient le plan comptable français
 db:
 	createdb -U odoo -h localhost $(DB)
-	$(ODOO) -d $(DB) -i $(MODULES) --stop-after-init
+	$(ODOO) -d $(DB) -i $(MODULES) --without-demo=all --stop-after-init
 
 ## Met à jour MODULES sur DB
 update:

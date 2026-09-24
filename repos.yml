@@ -45,6 +45,19 @@
 #     - python3 scripts/downgrade.py 16.0
 #     - git add . && git commit -m "downgrade to 16.0"
 
+# Une série plus récente : scripts/upgrade.py (droits en ir.access pour la 20).
+# La branche 20.0 est toujours reconstruite depuis odoo-multiversion (18), jamais
+# modifiée à la main : le Python des différences passe par kpiten/compat.py.
+./src/kpiten-addons-20:
+  remotes:
+    akretion: git@github.com:akretion/kpiten.git
+  merges:
+    - akretion odoo-multiversion
+  target: akretion 20.0
+  shell_command_after:
+    - python3 scripts/upgrade.py 20.0
+    - git add . && git commit -m "upgrade to 20.0"
+
 # Applications Python (uv sync dans chaque dossier)
 ./src/kpiten-core:
   remotes:
