@@ -520,6 +520,19 @@ class Kt(models.AbstractModel):
         return user.has_group("kpiten.group_kpiten_manager")
 
     @api.model
+    def _sync_front_menus(self):
+        """The menu of a front is shown when its address is set (the system parameter
+        `kpiten_<front>_service`), hidden otherwise."""
+        from .ir_config_parameter import FRONTS
+        from .res_company import SERVICE_KEY
+
+        for front in FRONTS:
+            menu = self.env.ref(f"kpiten.menu_{front}_redirect", raise_if_not_found=False)
+            if menu:
+                shown = bool(get_param(self.env, SERVICE_KEY % front))
+                menu.sudo().with_context(active_test=False).active = shown
+
+    @api.model
     def action_redirect_to_kpiten(self, *args, application=None):
         """Redirect to one of the dashboard apps ('shiny' or 'nicegui').
 
