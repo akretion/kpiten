@@ -322,9 +322,9 @@ class Theme:
 """
 
 
-def gt_df(theme: "Theme", df: "polars.DataFrame") -> GT:
-    """great_tables table adapted to the theme"""
-    return gt_table(df, theme.palette)
+def gt_df(theme: "Theme", df: "polars.DataFrame", drawing: dict | None = None) -> GT:
+    """great_tables table adapted to the theme (`drawing` : the `[table]` of a tile)"""
+    return gt_table(df, theme.palette, drawing)
 
 
 THEMES: dict[str, Theme] = {
