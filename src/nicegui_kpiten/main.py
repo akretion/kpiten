@@ -356,7 +356,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
     sso = SessionHandler.get(request.cookies.get(SESSION_COOKIE))
     if sso is None and not env.allow_rpc_user:
         ui.label("Not connected").classes("text-xl")
-        ui.label("Open the dashboard from Odoo : menu KpiTen → Dashboard.")
+        ui.label("Open the dashboard from Odoo : menu KpiTen → NiceGUI.")
         return
     backend = Backend.create(db=sso.db if sso else db)
     env.current_db = backend.db
