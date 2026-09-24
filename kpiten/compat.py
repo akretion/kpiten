@@ -37,9 +37,9 @@ def ids_sql(records) -> str:
     `Query.select()` is a `(sql, params)` pair before Odoo 18, an SQL object after.
     """
     query = records._search([])
-    if not hasattr(query, "get_sql"):  # 18 : Query.select() alone
-        sql = query.select()
-        return records.env.cr.mogrify(sql.code, sql.params).decode()
+    if not hasattr(query, "get_sql"):  # 18+ : Query.select() alone
+        # the SQL object is given whole : its `code` / `params` are gone in 20
+        return records.env.cr.mogrify(query.select()).decode()
     query.order = None  # only the ids are kept : no need to sort them
     sql, params = query.select()
     return records.env.cr.mogrify(sql, params).decode()
