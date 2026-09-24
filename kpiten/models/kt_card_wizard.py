@@ -7,7 +7,7 @@ from . import kt_sql
 
 
 class KtCardWizard(models.TransientModel):
-    """Assist creating a `card` tile saved as a kt.dataset.line record.
+    """Assist creating a `card` tile saved as a kt.kpi record.
 
     The card counts the records matching a condition. Instead of typing raw
     SQL, the user builds an Odoo domain in the form (field / operator / value)
@@ -110,7 +110,7 @@ class KtCardWizard(models.TransientModel):
             raise ValidationError(_("No dataset model selected."))
         definition = self._build_definition()
         name = self.name or self._default_name()
-        self.env["kt.dataset.line"].create_tile(
+        self.env["kt.kpi"].create_tile(
             model,
             definition,
             "card",

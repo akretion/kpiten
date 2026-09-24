@@ -6,7 +6,7 @@
         gives the change against the period before ("since last period"). On the demo data
         they give the same figures as Odoo's dashboard for any period. -->
 
-    <record id="sale_quotations_card" model="kt.dataset.line">
+    <record id="sale_quotations_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Quotations</field>
@@ -18,7 +18,7 @@ compare = true
 </field>
     </record>
 
-    <record id="sale_orders_card" model="kt.dataset.line">
+    <record id="sale_orders_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Orders</field>
@@ -30,7 +30,7 @@ compare = true
 </field>
     </record>
 
-    <record id="sale_revenue_card" model="kt.dataset.line">
+    <record id="sale_revenue_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Revenue</field>
@@ -45,7 +45,7 @@ compare = true
 </field>
     </record>
 
-    <record id="sale_avg_order_card" model="kt.dataset.line">
+    <record id="sale_avg_order_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Average Order</field>
@@ -63,7 +63,7 @@ compare = true
 
     <!-- the "Monthly sales" chart of the same dashboard : revenue of the
         confirmed orders per month, as a filled line, full width -->
-    <record id="sale_monthly_sales_graph" model="kt.dataset.line">
+    <record id="sale_monthly_sales_graph" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
         <field name="name">Monthly sales</field>
@@ -86,7 +86,7 @@ aggregation = "sum"
         order of sale.order), with the panel period. The customer is a link to
         the order in Odoo : a cell "[label](url)" is drawn as a link, `odoo_url`
         is the base url of Odoo given to the snippet -->
-    <record id="sale_top_orders_table" model="kt.dataset.line">
+    <record id="sale_top_orders_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Sales Orders</field>
@@ -122,7 +122,7 @@ d_next = d_next.select([
     <!-- "Top Quotations" of the same dashboard : the ten quotations (draft or
         sent) with the biggest untaxed amount, then the default order of
         sale.order, with the panel period -->
-    <record id="sale_top_quotations_table" model="kt.dataset.line">
+    <record id="sale_top_quotations_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Quotations</field>
@@ -159,7 +159,7 @@ d_next = d_next.select([
         lines : the period filter reaches them through `order_id.date_order`
         (see models/kt.py and the panel filter_config). The product is a link to
         its form in Odoo (see the Top Sales Orders table) -->
-    <record id="sale_top_products_table" model="kt.dataset.line">
+    <record id="sale_top_products_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Top Products</field>
@@ -198,7 +198,7 @@ d_next = d_next.select([
 
     <!-- "Top Salespeople" of the same dashboard : per salesperson, the number of
         confirmed orders and their revenue, the ten best, with the panel period -->
-    <record id="sale_top_salespeople_table" model="kt.dataset.line">
+    <record id="sale_top_salespeople_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Salespeople</field>
@@ -229,7 +229,7 @@ d_next = d_next.select([
     </record>
 
     <!-- "Top Customers" of the same dashboard : per customer, the confirmed orders and their revenue, the ten best. The customer is a link to its form in Odoo -->
-    <record id="sale_top_customers_table" model="kt.dataset.line">
+    <record id="sale_top_customers_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Customers</field>
@@ -267,7 +267,7 @@ d_next = d_next.select([
     </record>
 
     <!-- "Top Categories" : per product category, the orders it is in and its revenue, on the order lines. The category is shown with its path, as Odoo does -->
-    <record id="sale_top_categories_table" model="kt.dataset.line">
+    <record id="sale_top_categories_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Top Categories</field>
@@ -301,7 +301,7 @@ d_next = d_next.select([
     </record>
 
     <!-- "Top Sales Teams" : per sales team, the confirmed orders and their revenue -->
-    <record id="sale_top_sales_teams_table" model="kt.dataset.line">
+    <record id="sale_top_sales_teams_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Sales Teams</field>
@@ -320,7 +320,7 @@ d_next = d_next.rename({"team_id": "Sales Team"})</field>
     </record>
 
     <!-- "Top Sources" : per campaign source, the confirmed orders and their revenue (empty while no order has a source) -->
-    <record id="sale_top_sources_table" model="kt.dataset.line">
+    <record id="sale_top_sources_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Sources</field>
@@ -339,7 +339,7 @@ d_next = d_next.rename({"source_id": "Source"})</field>
     </record>
 
     <!-- "Top Mediums" : per campaign medium, the confirmed orders and their revenue (empty while no order has a medium) -->
-    <record id="sale_top_mediums_table" model="kt.dataset.line">
+    <record id="sale_top_mediums_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Mediums</field>
@@ -358,7 +358,7 @@ d_next = d_next.rename({"medium_id": "Medium"})</field>
     </record>
 
     <!-- "Top Countries" : per customer country, the confirmed orders and their revenue (empty while no customer has a country) -->
-    <record id="sale_top_countries_table" model="kt.dataset.line">
+    <record id="sale_top_countries_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Countries</field>

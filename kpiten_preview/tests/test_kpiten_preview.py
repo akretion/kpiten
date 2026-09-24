@@ -10,7 +10,7 @@ class TestKpitenPreview(TransactionCase):
         self.env["res.partner"].create([{"name": f"Preview {i}"} for i in range(30)])
 
     def _line(self, kind, definition):
-        return self.env["kt.dataset.line"].create(
+        return self.env["kt.kpi"].create(
             {
                 "dataset_id": self.dataset.id,
                 "kind": kind,
@@ -20,7 +20,7 @@ class TestKpitenPreview(TransactionCase):
         )
 
     def _html(self, line, size=50):
-        wizard = self.env["kt.dataset.line.preview"].create(
+        wizard = self.env["kt.kpi.preview"].create(
             {"line_id": line.id, "size": size}
         )
         return wizard.preview_html
@@ -52,9 +52,9 @@ class TestKpitenPreview(TransactionCase):
     def test_the_button_opens_the_preview(self):
         line = self._line("card", 'aggregation = "count"\n')
         action = line.action_preview()
-        self.assertEqual(action["res_model"], "kt.dataset.line.preview")
+        self.assertEqual(action["res_model"], "kt.kpi.preview")
         self.assertTrue(
-            self.env["kt.dataset.line.preview"].browse(action["res_id"]).preview_html
+            self.env["kt.kpi.preview"].browse(action["res_id"]).preview_html
         )
 
     def test_the_columns_of_a_dataset(self):

@@ -60,7 +60,7 @@ class ConversionError(Exception):
 
 def model_names(module):
     """The `model_<name>` xml ids of the models this module declares, and their
-    names (`model_kt_dataset_line` -> `kt.dataset.line`)."""
+    names (`model_kt_kpi` -> `kt.kpi`)."""
     names = {}
     for path in module.rglob("*.py"):
         for name in MODEL_NAME.findall(path.read_text()):

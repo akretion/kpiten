@@ -6,10 +6,10 @@ DEFAULT_SIZE = 200
 
 
 class KtDatasetLinePreview(models.TransientModel):
-    _name = "kt.dataset.line.preview"
+    _name = "kt.kpi.preview"
     _description = "Preview of a KpiTen tile"
 
-    line_id = fields.Many2one("kt.dataset.line", required=True, ondelete="cascade")
+    line_id = fields.Many2one("kt.kpi", required=True, ondelete="cascade")
     size = fields.Integer(
         default=DEFAULT_SIZE,
         help="Records of the dataset the tile is computed on (a sample, spread over "

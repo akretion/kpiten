@@ -1,7 +1,7 @@
 <odoo>
     <!-- KPI configs used for functional tests of the shiny dashboard -->
 
-    <record id="sale_count_card" model="kt.dataset.line">
+    <record id="sale_count_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Sales Orders count</field>
@@ -13,7 +13,7 @@ where = "state not in ('draft', 'sent')"
 </field>
     </record>
 
-    <record id="vendor_sum_graph" model="kt.dataset.line">
+    <record id="vendor_sum_graph" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
         <field name="name">Best vendors</field>
@@ -28,7 +28,7 @@ aggregation = "sum"
 </field>
     </record>
 
-    <record id="monthly_sales_pivot" model="kt.dataset.line">
+    <record id="monthly_sales_pivot" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">pivot</field>
         <field name="name">Monthly sales by salesperson</field>
@@ -43,7 +43,7 @@ aggregation = "sum"
 </field>
     </record>
 
-    <record id="sale_purchases_union" model="kt.dataset.line">
+    <record id="sale_purchases_union" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">union</field>
         <field name="name">Union sales et purchases</field>
@@ -60,7 +60,7 @@ amount_untaxed = "amount_untaxed"
     </record>
 
     <!-- sale.order.line tiles -->
-    <record id="top_products_graph" model="kt.dataset.line">
+    <record id="top_products_graph" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
         <field name="name">Best products (qty)</field>
@@ -75,7 +75,7 @@ aggregation = "sum"
 </field>
     </record>
 
-    <record id="salesperson_qty_graph" model="kt.dataset.line">
+    <record id="salesperson_qty_graph" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
         <field name="name">Qty sold per salesperson</field>
@@ -89,7 +89,7 @@ aggregation = "sum"
 </field>
     </record>
 
-    <record id="product_best_category_card" model="kt.dataset.line">
+    <record id="product_best_category_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">card</field>
         <field name="name">Best Category</field>
@@ -107,7 +107,7 @@ label = "sold"
     </record>
 
     <!-- the two scorecards : the name of the best, its units sold under it -->
-    <record id="product_best_seller_card" model="kt.dataset.line">
+    <record id="product_best_seller_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">card</field>
         <field name="name">Best Seller</field>
@@ -125,7 +125,7 @@ label = "sold"
     </record>
 
     <!-- purchases tiles -->
-    <record id="vendor_purchased_graph" model="kt.dataset.line">
+    <record id="vendor_purchased_graph" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases_lines" />
         <field name="kind">graph</field>
         <field name="name">Qty purchased</field>
@@ -139,7 +139,7 @@ aggregation = "sum"
 </field>
     </record>
 
-    <record id="purchase_amount_spend_graph" model="kt.dataset.line">
+    <record id="purchase_amount_spend_graph" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">graph</field>
         <field name="name">Spend by vendor</field>
@@ -154,7 +154,7 @@ aggregation = "sum"
 </field>
     </record>
 
-    <record id="purchase_orders_pivot" model="kt.dataset.line">
+    <record id="purchase_orders_pivot" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">pivot</field>
         <field name="name">Monthly spend</field>
@@ -172,7 +172,7 @@ grain = "month"
 
     <!-- purchase KPI cards, like the Odoo purchase dashboard : {today} and
         {today-N} in a `where` are replaced by the date (N days back) -->
-    <record id="purchase_rfq_to_send_card" model="kt.dataset.line">
+    <record id="purchase_rfq_to_send_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">RFQs to send</field>
@@ -184,7 +184,7 @@ ignore_period = true
 </field>
     </record>
 
-    <record id="purchase_rfq_waiting_card" model="kt.dataset.line">
+    <record id="purchase_rfq_waiting_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">RFQs waiting</field>
@@ -197,7 +197,7 @@ ignore_period = true
 </field>
     </record>
 
-    <record id="purchase_rfq_late_card" model="kt.dataset.line">
+    <record id="purchase_rfq_late_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Late RFQs</field>
@@ -210,7 +210,7 @@ ignore_period = true
 </field>
     </record>
 
-    <record id="purchase_receipt_late_card" model="kt.dataset.line">
+    <record id="purchase_receipt_late_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Late receipts</field>
@@ -223,7 +223,7 @@ ignore_period = true
 </field>
     </record>
 
-    <record id="purchase_last_7_days_card" model="kt.dataset.line">
+    <record id="purchase_last_7_days_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Purchased last 7 days</field>
@@ -237,7 +237,7 @@ ignore_period = true
 </field>
     </record>
 
-    <record id="purchase_avg_order_value_card" model="kt.dataset.line">
+    <record id="purchase_avg_order_value_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Avg order value</field>
@@ -252,7 +252,7 @@ compare = true
 </field>
     </record>
 
-    <record id="purchase_days_to_order_card" model="kt.dataset.line">
+    <record id="purchase_days_to_order_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Days to order</field>
@@ -272,7 +272,7 @@ days_to_order = "date_approve - create_date"
 </field>
     </record>
 
-    <record id="purchase_days_to_receive_card" model="kt.dataset.line">
+    <record id="purchase_days_to_receive_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Days to receive</field>
@@ -294,7 +294,7 @@ days_to_receive = "effective_date - date_approve"
 
 
     <!-- Best Sellers by Revenue / by Units Sold : a bar per product, biggest first -->
-    <record id="product_best_sellers_revenue_graph" model="kt.dataset.line">
+    <record id="product_best_sellers_revenue_graph" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
         <field name="name">Best Sellers by Revenue</field>
@@ -311,7 +311,7 @@ aggregation = "sum"
 </field>
     </record>
 
-    <record id="product_best_sellers_units_graph" model="kt.dataset.line">
+    <record id="product_best_sellers_units_graph" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
         <field name="name">Best Sellers by Units Sold</field>
@@ -329,7 +329,7 @@ aggregation = "sum"
     </record>
 
     <!-- Best Selling Products (a link to each product), written in SQL (kpiten_core.sqltile) / Best Selling Categories -->
-    <record id="product_best_selling_products_table" model="kt.dataset.line">
+    <record id="product_best_selling_products_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Best Selling Products</field>
@@ -365,7 +365,7 @@ WHERE "state" NOT IN ('draft', 'sent', 'cancel') AND "product_id_" = :product_id
 ORDER BY "order_id.date_order" DESC, "id" DESC</field>
     </record>
 
-<!--     <record id="product_best_selling_categories_table_" model="kt.dataset.line">
+<!--     <record id="product_best_selling_categories_table_" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Best Selling Categories</field>
