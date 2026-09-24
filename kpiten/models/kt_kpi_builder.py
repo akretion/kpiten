@@ -180,7 +180,13 @@ class KtKpiBuilder(models.TransientModel):
             computed = {}
         for table, _label in self._table_selection():
             described = {f.name: f for f in IrField.search([("model", "=", table)])}
+            extracted = self._extracted_columns(table)
             for name in sorted(Kpi._valid_columns(Kpi, table)):
+                base, _dot, suffix = name.rpartition(".")
+                if name not in extracted and not (
+                    base in extracted and suffix in DERIVED_DT_SUFFIX
+                ):
+                    continue  # not in the store : a many2many, a binary...
                 root, _dot, part = name.partition(".")
                 field = described.get(root)
                 caption = field.field_description if field else root
@@ -210,6 +216,17 @@ class KtKpiBuilder(models.TransientModel):
                     }
                 )
         self.env["kt.kpi.builder.column"].create(vals)
+
+    def _extracted_columns(self, table) -> set:
+        """The columns the store has for `table` : the fields kpiten extracts (not the
+        types of `EXCLUDED_FIELD_TYPES`, nor the useless fields, nor the computed fields
+        not stored : `kt._get_model_direct_fields`), and the relational paths."""
+        kt = self.env["kt"]
+        return (
+            kt._get_model_direct_fields(table)
+            | kt._get_relational_paths_for_model(table)
+            | {"id"}
+        )
 
     def _column(self, table, name):
         column = self.column_ids.filtered(

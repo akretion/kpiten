@@ -14,8 +14,3 @@ class kpiten(Controller):
             return Response(status=200)
         else:
             return Response(status=500)
-
-    # NOTE : data and metadata are no longer POSTed here ; the external app
-    #        reads them through the jsonrpc channel (see model `kpiten`).
-    #        A future /kpiten/<model> stub may route to Odoo >= 19 External
-    #        JSON-2 API backend without keeping this payload protocol.

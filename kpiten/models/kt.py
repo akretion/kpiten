@@ -377,7 +377,7 @@ class Kt(models.AbstractModel):
             # Exclure les types non exploitables
             if field.type in EXCLUDED_FIELD_TYPES:
                 continue
-            if field.name in self._get_useless_fields():
+            if field.name in self._get_useless_fields().get(model, ()):
                 continue
             if field.compute and not field.store:
                 continue
