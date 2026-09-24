@@ -161,6 +161,7 @@ class Theme:
   align-items: center;
   gap: 20px;
   margin-top: 28px;
+  color: {page["text"]};  /* the main area of bslib has its own, dark */
 }}
 .framework-credit {{
   display: flex;
