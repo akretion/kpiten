@@ -197,7 +197,7 @@ aggregation = "count"
 </field>
     </record>
 
-    <!-- pivot : `rows` × `columns` (here a derived `.year`) ; the header of the rows is the label of the field in Odoo -->
+    <!-- pivot : `rows` × `columns` (here a derived `.year`) ; the header of the rows is the label of the field in Odoo ; `[table]` : format, totals, heatmap, note -->
     <record id="pivot" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">pivot</field>
@@ -210,6 +210,13 @@ rows = "user_id"
 columns = "date_order.year"
 measure = "amount_untaxed"
 aggregation = "sum"
+
+[table]  # how the table is drawn (great_tables)
+format = "currency"
+totals = true  # a « Total » row
+row_totals = true  # a « Total » column
+heatmap = true  # the cells colored by their value
+note = "Untaxed amounts, every order"
 </field>
     </record>
 
