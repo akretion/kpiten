@@ -125,7 +125,7 @@ label = "sold"
 </field>
     </record>
 
-    <!-- graph : bars, one per value of `by`, `measure` summed -->
+    <!-- graph : bars, one per value of `by`, `measure` summed ; `[labels]` renames a column -->
     <record id="graph_bar" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
@@ -139,6 +139,9 @@ where = "state = 'sale'"
 by = "partner_id"
 measure = "amount_untaxed"
 aggregation = "sum"
+
+[labels]  # the names shown ; without it, the labels of the fields in Odoo
+amount_untaxed = "HT"
 </field>
     </record>
 
@@ -194,7 +197,7 @@ aggregation = "count"
 </field>
     </record>
 
-    <!-- pivot : `rows` × `columns` (here a derived `.year`) -->
+    <!-- pivot : `rows` × `columns` (here a derived `.year`) ; the header of the rows is the label of the field in Odoo -->
     <record id="pivot" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">pivot</field>
