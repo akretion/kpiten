@@ -16,7 +16,7 @@ import polars as pl
 
 from kpiten_core import config as settings
 from kpiten_core.charts import KINDS, Chart
-from kpiten_core import env, i18n, links, numfmt, serial, sandbox, sqltile
+from kpiten_core import env, i18n, links, numfmt, serial, sandbox, spec, sqltile
 from kpiten_core.month import apply_monthly, is_date
 from kpiten_core.validate import CARD_AGGREGATIONS, DERIVE_RE
 
@@ -267,11 +267,11 @@ def derive_columns(df, derive: dict[str, str]):
 
 def format_card_value(value, aggregation: str, card: dict) -> str:
     """Card text : thousands separated by a narrow space, `decimals`
-    (default 0 for count/sum, 1 otherwise) and an optional `unit` (`unit = "currency"`
+    (default 0) and an optional `unit` (`unit = "currency"`
     is the symbol of the company currency, before or after the number as Odoo does)."""
     if value is None:
         return "–"
-    decimals = card.get("decimals", 0 if aggregation in ("count", "sum") else 1)
+    decimals = card.get("decimals", 0)
     text = numfmt.format_number(value, decimals)
     unit = card.get("unit")
     if unit == "currency":  # the currency of the company (kt.config), see CHART_CONFIG
@@ -304,18 +304,19 @@ def card_case(content, table, store, full_predicates):
 
 
 def _best_case(card_json, df):
-    """The `best` card : the name of the group (`best` column) with the biggest
-    sum of `measure`, and under it the sum of `detail` for that group
-    (`detail_label` after it). Returns `(name, display, subtitle)`."""
+    """The `by` card : the name of the group (`by` column) with the biggest
+    sum of `measure`, and under it the sum of `[detail] measure` for that group
+    (its `label` after it). Returns `(name, display, subtitle)`."""
+    detail_json = card_json.get("detail") or {}
     best, measure, detail = (
-        card_json["best"],
+        card_json["by"],
         card_json.get("measure"),
-        card_json.get("detail"),
+        detail_json.get("measure"),
     )
     schema = df.collect_schema()
     for column in (best, measure, detail):
         if column and column not in schema:
-            raise TileError(f"card 'best' : unknown column '{column}'")
+            raise TileError(f"card 'by' : unknown column '{column}'")
     aggregates = [pl.col(measure).sum().alias("__rank")]
     if detail:
         aggregates.append(pl.col(detail).sum().alias("__detail"))
@@ -332,14 +333,14 @@ def _best_case(card_json, df):
     subtitle = None
     if detail:
         units = numfmt.format_number(float(top["__detail"][0]))
-        subtitle = f"{units} {card_json.get('detail_label', '')}".strip()
+        subtitle = f"{units} {detail_json.get('label', '')}".strip()
     return name, str(name), subtitle
 
 
 def card_value(content, table, store, full_predicates):
     """A card's `(value, display, subtitle)` : one number (see `card_case`), or
-    with `best` the name of the best group and a line under it."""
-    card_json = serial.loads(content)
+    with `by` the name of the best group and a line under it."""
+    card_json = spec.load(content, "card")
     aggregation = card_json.get("aggregation", "count")
     if aggregation not in CARD_AGGREGATIONS:
         raise TileError(f"unknown card aggregation '{aggregation}'")
@@ -349,12 +350,12 @@ def card_value(content, table, store, full_predicates):
     if card_json.get("ignore_period"):
         full_predicates = _without_period(df, full_predicates)
     df = filter_df(df, full_predicates)
-    df = derive_columns(df, card_json.get("derive") or {})
+    df = derive_columns(df, card_json.get("computed") or {})
     if card_json.get("where"):
         where = sqltile.check_where(expand_today(card_json["where"]))
         df = df.sql(f"SELECT * FROM self WHERE {where}")
 
-    if card_json.get("best"):
+    if card_json.get("by"):
         return _best_case(card_json, df)
 
     if aggregation == "count":
@@ -407,15 +408,15 @@ def card_comparison(
 ) -> dict | None:
     """The card against the period before, like the baseline of an Odoo scorecard.
 
-    Only for a card with `compare = true`, a period to go back from and no
+    Only for a card with `compare` (`true`, or `[compare]`), a period to go back from and no
     `ignore_period`, and unless `kt.config` turns the comparison off
     (`comparison_enabled`). Returns `{direction, tone, text, description, previous, period}` :
     `direction` up / down / neutral, `tone` good / bad / neutral (the color : up is
-    good unless the card says `good = "down"`), `text` the change as a percentage of the
+    good unless the card says `[compare] good = "down"`), `text` the change as a percentage of the
     previous value (`|value - previous| / previous`, `n/a` when that is 0),
     `previous` the previous value as the card shows it.
     """
-    card_json = serial.loads(content)
+    card_json = spec.load(content, "card")
     if (
         not comparison_enabled()
         or not card_json.get("compare")
@@ -435,7 +436,8 @@ def card_comparison(
         text = "n/a"
     else:
         text = f"{abs(change) / abs(previous) * 100:.1f}%"
-    good = card_json.get("good", "up")
+    compare = card_json["compare"]
+    good = compare.get("good", "up") if isinstance(compare, dict) else "up"
     tone = (
         "neutral" if direction == "neutral" else "good" if direction == good else "bad"
     )
@@ -455,22 +457,27 @@ def graph_case(content, table, store, full_predicates):
     `(chart, meta)` ;
     `meta["notes"]` says how the data was reduced to stay drawable.
 
-    Optional keys : `where` (SQL over the rows, like a card's), `monthly` (a date
+    `by` is the x axis, `measure` aggregated by `aggregation` the y axis. Optional
+    keys : `where` (SQL over the rows, like a card's), `grain = "month"` (a date
     x axis is grouped by month) and `others` (the bars past the limit are
     folded in an "Others" bar instead of being dropped).
     """
-    graph_json = serial.loads(content)
-    cx = graph_json["x"]
-    cy = graph_json["y"]
+    graph_json = spec.load(content, "graph")
+    cx = {"name": graph_json["by"], "aggregation": "none"}
+    cy = {
+        "name": graph_json["measure"],
+        "aggregation": graph_json.get("aggregation", "sum"),
+    }
     df = _resolve_table(store, graph_json.get("from", table))
     notes = []
 
     source = filter_df(df, full_predicates)
+    source = derive_columns(source, graph_json.get("computed") or {})
     if graph_json.get("where"):
         where = sqltile.check_where(expand_today(graph_json["where"]))
         source = source.sql(f"SELECT * FROM self WHERE {where}")
     temporal = is_date(source, cx["name"])
-    if temporal and graph_json.get("monthly"):
+    if temporal and graph_json.get("grain") == "month":
         source = apply_monthly(source, cx["name"])
     if temporal:
         source, note = _bound_dates(source, cx["name"])
@@ -502,7 +509,8 @@ def graph_case(content, table, store, full_predicates):
     labels = {
         col: col.replace("_", " ").capitalize() for col in (cx["name"], cy["name"])
     }
-    kind = graph_json["graph_type"] if graph_json["graph_type"] in KINDS else "bar"
+    kind = graph_json.get("type", "bar")
+    kind = kind if kind in KINDS else "bar"
     chart = Chart(kind, cx["name"], cy["name"], source, labels, temporal)
     notes = [n for n in notes if n]
     return chart, ({"notes": notes} if notes else {})
@@ -558,15 +566,16 @@ PIVOT_AGGREGATIONS = {"sum": pl.Expr.sum, "mean": pl.Expr.mean, "count": pl.Expr
 
 
 def pivot_case(content, table, store, full_predicates):
-    pivot_json = serial.loads(content)
-    index = pivot_json["index"]
-    column = pivot_json["column"]
+    pivot_json = spec.load(content, "pivot")
+    index = pivot_json["rows"]
+    column = pivot_json["columns"]
     measure = pivot_json["measure"]
     aggregation = pivot_json.get("aggregation", "sum")
-    monthly = pivot_json.get("monthly", False)
+    monthly = pivot_json.get("grain") == "month"
 
     df = _resolve_table(store, pivot_json.get("from", table))
     df = filter_df(df, full_predicates)
+    df = derive_columns(df, pivot_json.get("computed") or {})
     df = _resolve_derived_date_columns(df, index, column)
     if monthly and column and is_date(df, column):
         df = apply_monthly(df, column)

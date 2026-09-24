@@ -94,7 +94,7 @@ def test_card_mean_derived_days():
         }
     )
     assert res.value == pytest.approx(7 / 3)  # null (draft) is ignored
-    assert res.text == "2,3 days"
+    assert res.text == "2 days"  # no decimal unless `decimals` asks for some
 
 
 def test_card_where_on_derived_column():
