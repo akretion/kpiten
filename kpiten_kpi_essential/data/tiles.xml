@@ -8,9 +8,7 @@
         <field name="name">Count</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">1</field>
-        <field name="definition">version = 2
-where = "state = 'sale'"
-</field>
+        <field name="definition">where = "state = 'sale'"</field>
     </record>
 
     <!-- card : a sum, in the currency of the company, compared with the previous period -->
@@ -20,8 +18,7 @@ where = "state = 'sale'"
         <field name="name">Sum</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">2</field>
-        <field name="definition">version = 2
-where = "state = 'sale'"
+        <field name="definition">where = "state = 'sale'"
 measure = "amount_untaxed"
 aggregation = "sum"
 unit = "currency"
@@ -36,8 +33,7 @@ compare = true
         <field name="name">Mean</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">3</field>
-        <field name="definition">version = 2
-where = "state = 'sale'"
+        <field name="definition">where = "state = 'sale'"
 measure = "amount_untaxed"
 aggregation = "mean"
 unit = "currency"
@@ -52,8 +48,7 @@ decimals = 0
         <field name="name">Median</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">4</field>
-        <field name="definition">version = 2
-where = "state = 'sale'"
+        <field name="definition">where = "state = 'sale'"
 measure = "amount_untaxed"
 aggregation = "median"
 unit = "currency"
@@ -67,8 +62,7 @@ unit = "currency"
         <field name="name">Derived column</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">5</field>
-        <field name="definition">version = 2
-where = "state in ('purchase', 'done')"
+        <field name="definition">where = "state in ('purchase', 'done')"
 measure = "days_to_order"
 aggregation = "mean"
 unit = "days"
@@ -88,21 +82,20 @@ days_to_order = "date_approve - create_date"
         <field name="name">Ignore period</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">6</field>
-        <field name="definition">version = 2
-where = "state = 'draft'"
+        <field name="definition">where = "state = 'draft'"
 ignore_period = true
 </field>
     </record>
 
-    <!-- card : `from` reads another table of the store than the one of its dataset -->
+    <!-- card : `from` reads another table of the store than the one of its dataset
+         (a sale tile counting the draft purchases) -->
     <record id="card_from" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
-        <field name="name">From another table</field>
+        <field name="name">Draft purchases (from)</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">7</field>
-        <field name="definition">version = 2
-where = "state = 'draft'"
+        <field name="definition">where = "state = 'draft'"
 from = "purchase.order"
 </field>
     </record>
@@ -114,8 +107,7 @@ from = "purchase.order"
         <field name="name">Best</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">8</field>
-        <field name="definition">version = 2
-where = "state not in ('draft', 'sent', 'cancel')"
+        <field name="definition">where = "state not in ('draft', 'sent', 'cancel')"
 measure = "price_subtotal"
 by = "product_id"
 
@@ -133,8 +125,7 @@ label = "sold"
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">9</field>
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-type = "bar"
+        <field name="definition">type = "bar"
 where = "state = 'sale'"
 by = "partner_id"
 measure = "amount_untaxed"
@@ -153,8 +144,7 @@ amount_untaxed = "HT"
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">10</field>
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-type = "bar"
+        <field name="definition">type = "bar"
 where = "state = 'sale'"
 by = "partner_id"
 measure = "amount_untaxed"
@@ -171,8 +161,7 @@ others = true
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">11</field>
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-type = "area"
+        <field name="definition">type = "area"
 where = "state = 'sale'"
 by = "date_order"
 grain = "month"
@@ -189,8 +178,7 @@ aggregation = "sum"
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">12</field>
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-type = "point"
+        <field name="definition">type = "point"
 by = "salesman_id"
 measure = "id"
 aggregation = "count"
@@ -205,8 +193,7 @@ aggregation = "count"
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">12</field>
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-type = "bar"
+        <field name="definition">type = "bar"
 by = "user_id"
 series = "state"
 stacked = true
@@ -223,8 +210,7 @@ aggregation = "sum"
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">12</field>
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-type = "line"
+        <field name="definition">type = "line"
 where = "state = 'sale'"
 by = "date_order"
 grain = "month"
@@ -242,8 +228,7 @@ aggregation = "sum"
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">12</field>
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-type = "pie"
+        <field name="definition">type = "pie"
 where = "state = 'sale'"
 by = "partner_id"
 measure = "amount_untaxed"
@@ -261,8 +246,7 @@ others = true
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">12</field>
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-type = "bar"
+        <field name="definition">type = "bar"
 orientation = "h"
 where = "state = 'sale'"
 by = "partner_id"
@@ -275,6 +259,23 @@ bargap = 0.4
 </field>
     </record>
 
+    <!-- graph : `from` the lines of the orders, the products being on the lines only -->
+    <record id="graph_from_lines" model="kt.kpi">
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
+        <field name="kind">graph</field>
+        <field name="name">Products of the orders (from)</field>
+        <field name="panel_id" ref="panel_essential" />
+        <field name="sequence">12</field>
+        <field name="definition">type = "bar"
+from = "sale.order.line"  # the products are on the lines of the orders
+where = "state = 'sale'"
+by = "product_id"
+measure = "price_subtotal"
+aggregation = "sum"
+limit = 10
+</field>
+    </record>
+
     <!-- pivot : `rows` × `columns` (here a derived `.year`) ; the header of the rows is the label of the field in Odoo ; `[table]` : format, totals, heatmap, note -->
     <record id="pivot" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
@@ -283,8 +284,7 @@ bargap = 0.4
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">13</field>
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-rows = "user_id"
+        <field name="definition">rows = "user_id"
 columns = "date_order.year"
 measure = "amount_untaxed"
 aggregation = "sum"
@@ -306,8 +306,7 @@ note = "Untaxed amounts, every order"
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">14</field>
         <field name="col_span">2</field>
-        <field name="definition">version = 2
-rows = "date_order"
+        <field name="definition">rows = "date_order"
 columns = "date_order.year"
 measure = "amount_untaxed"
 aggregation = "sum"
@@ -343,14 +342,6 @@ amount_untaxed = "amount_untaxed"
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">-- d : the rows the user may read, already filtered by the panel period and dimensions
--- the header below (TOML in comments) : the names shown and how the table is drawn
--- [labels]
--- Units = "Quantité"
--- [table]
--- totals = true  # a « Total » row
--- heatmap = true
--- [table.columns]
--- Revenue = { format = "currency" }
 SELECT
     '[' || "product_id" || '](' || :odoo_url || '/odoo/product.product/'
         || CAST("product_id_" AS VARCHAR) || ')' AS "Product",
@@ -363,6 +354,20 @@ GROUP BY "product_id", "product_id_"
 -- the product breaks the ties : a stable order
 ORDER BY "Revenue" DESC, "product_id"
 LIMIT 10</field>
+        <field name="drill_definition">-- the lines of the clicked product : its hidden column __product_id_ is :product_id_
+SELECT "order_id.date_order" AS "Date", "order_id" AS "Order", "order_partner_id" AS "Customer",
+    "product_uom_qty" AS "Quantity", "price_subtotal" AS "Revenue"
+FROM d
+WHERE "product_id_" = :product_id_ AND "state" NOT IN ('draft', 'sent', 'cancel')
+ORDER BY "Date" DESC</field>
+        <field name="display"># the header below (TOML in comments) : the names shown and how the table is drawn
+[labels]
+Units = "Quantité"
+[table]
+totals = true  # a « Total » row
+heatmap = true
+[table.columns]
+Revenue = { format = "currency" }</field>
     </record>
 
     <!-- data : polars, when SQL is not enough ; line 1 must stay `d_next = d` ; its `display` field : [labels], [table] -->
@@ -392,6 +397,39 @@ note = "The ten best customers, confirmed orders"
 
 [table.columns]
 Orders = { format = "integer" }
+</field>
+    </record>
+
+    <!-- data : SQL inside a polars snippet (`sql(...)`, checked like a SQL tile), then polars -->
+    <record id="data_sql_polars" model="kt.kpi">
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
+        <field name="kind">data</field>
+        <field name="name">Data in SQL and polars</field>
+        <field name="panel_id" ref="panel_essential" />
+        <field name="sequence">18</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+        <field name="definition">d_next = d
+# SQL : the rows and the groups ; `d` is the table of the rows of the tile
+d_next = sql("""
+    SELECT "partner_id" AS "Customer", COUNT(*) AS "Orders", SUM("amount_untaxed") AS "Revenue"
+    FROM d
+    WHERE "state" NOT IN ('draft', 'sent', 'cancel') AND "partner_id" IS NOT NULL
+    GROUP BY "partner_id"
+""")
+# polars : the rest (a table of the snippet in SQL again : sql("... FROM t", t=d_next))
+d_next = d_next.with_columns(
+    (pl.col("Revenue") / pl.col("Orders")).alias("Average"),
+    (pl.col("Revenue") / pl.col("Revenue").sum()).alias("Share"),
+)
+d_next = d_next.sort(["Revenue", "Customer"], descending=[True, False]).head(10)</field>
+        <field name="display">[table]
+format = "currency"
+note = "The ten best customers : their average order and their share of the revenue"
+
+[table.columns]
+Orders = { format = "integer" }
+Share = { format = "percent", decimals = 1 }
 </field>
     </record>
 </odoo>

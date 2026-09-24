@@ -16,9 +16,7 @@ class KtPanel(models.Model):
     # e.g. {"date": {"field": "date_order"}, "dimensions": [{"name": "user_id", "label": "Salesperson"}]}
     filter_config = fields.Text(default="{}")
     active = fields.Boolean(default=True)
-    line_ids = fields.One2many(
-        comodel_name="kt.kpi", inverse_name="panel_id"
-    )
+    line_ids = fields.One2many(comodel_name="kt.kpi", inverse_name="panel_id")
     line_count = fields.Integer(
         compute="_compute_line_count",
         help="Number of tiles of this panel, the archived ones included.",

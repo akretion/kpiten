@@ -12,9 +12,10 @@ except ImportError:  # Odoo 16 runs on older Pythons
     import tomli as tomllib
 
 try:  # kpiten-spec : the syntax of the tiles, standard library only (Python 3.8+)
+    from kpiten_spec.spec import is_sql
     from kpiten_spec.validate import validate_display, validate_toml
 except ImportError:  # not installed : no validation of the tiles
-    validate_display = validate_toml = None
+    is_sql = validate_display = validate_toml = None
 
 SERIES = release.version_info[0]
 

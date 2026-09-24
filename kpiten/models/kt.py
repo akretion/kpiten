@@ -538,6 +538,40 @@ class Kt(models.AbstractModel):
                 menu.sudo().with_context(active_test=False).active = shown
 
     @api.model
+    def _kpiten_session(self, application: str = "shiny") -> tuple[str, str]:
+        """A session of the current user in a front : `(session, external_url)`.
+
+        The front checks the uuid of the user (`kt.check_uuid`) and answers a session
+        token ; `external_url` is the address of the front for the browser. Raises
+        `UserError` when the front refuses or cannot be reached.
+        """
+        log = (
+            self.env["res.users.log"]
+            .with_user(SUPERUSER_ID)
+            .search([("create_uid", "=", self.env.user.id)], order="id desc", limit=1)
+        )
+        if not log._uuid_is_valid():  # older than a week : issue a new one
+            log._renew_uuid()
+            # the app checks it in its own transaction, right below : commit first
+            self.env.cr.commit()
+        urls = self.env["res.company"]._get_kpiten_services(application)
+        try:
+            resp = requests.post(
+                f"{urls['internal_url']}/",
+                json={"user_uuid": log.uuid, "db": self.env.cr.dbname},
+                timeout=30,
+            )
+            answer = resp.json()
+        except Exception as err:
+            raise exceptions.UserError(
+                _("%s is not reachable : %s") % (application, err)
+            )
+        if not answer.get("session"):
+            raise exceptions.UserError(answer.get("error") or "No error was specified")
+        logger.info("kpiten %s session : %s", application, answer["session"])
+        return answer["session"], urls["external_url"]
+
+    @api.model
     def action_redirect_to_kpiten(self, *args, application=None):
         """Redirect to one of the dashboard apps ('shiny' or 'nicegui').
 
@@ -550,41 +584,20 @@ class Kt(models.AbstractModel):
             (arg for arg in reversed(args) if isinstance(arg, str)), "shiny"
         )
         logger.info("action_redirect_to_kpiten : application=%s", application)
-        log = (
-            self.env["res.users.log"]
-            .with_user(SUPERUSER_ID)
-            .search([("create_uid", "=", self.env.user.id)], order="id desc", limit=1)
-        )
-        if not log._uuid_is_valid():  # older than a week : issue a new one
-            log._renew_uuid()
-            # the app checks it in its own transaction, right below : commit first
-            self.env.cr.commit()
-        uuid = log.uuid
-        urls = self.env["res.company"]._get_kpiten_services(application)
-        route = "dashboard"
-        internal_url, external_url = urls["internal_url"], urls["external_url"]
         try:
-            resp = requests.post(
-                f"{internal_url}/",
-                json={"user_uuid": uuid, "db": self.env.cr.dbname},
-            )
-        except Exception as err:
-            raise exceptions.ValidationError(err)
-        if not resp.json().get("session"):
-            error = resp.json().get("error") or "No error was specified"
+            session, external_url = self._kpiten_session(application)
+        except exceptions.UserError as err:
             return {
                 "type": "ir.actions.client",
                 "tag": "display_notification",
                 "params": {
                     "title": f"Failed to open KPIten ({application} app)",
-                    "message": f"Here is the full error : \n{error}",
+                    "message": f"Here is the full error : \n{err}",
                     "type": "warning",  # 'info', 'success', 'warning', 'danger'
                     "sticky": False,  # True keeps it until manually closed
                 },
             }
-        session = resp.json()["session"]
-        logger.info("kpiten %s session : %s", application, session)
-        resp.raise_for_status()
+        route = "dashboard"
         return {
             "type": "ir.actions.act_url",
             "url": f"{external_url}/{route}/auth?session={session}",

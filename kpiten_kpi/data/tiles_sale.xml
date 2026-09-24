@@ -12,8 +12,7 @@
         <field name="name">Quotations</field>
         <field name="panel_id" ref="panel_sale" />
         <field name="sequence">20</field>
-        <field name="definition">version = 2
-where = "state in ('draft', 'sent')"
+        <field name="definition">where = "state in ('draft', 'sent')"
 compare = true
 </field>
     </record>
@@ -24,8 +23,7 @@ compare = true
         <field name="name">Orders</field>
         <field name="panel_id" ref="panel_sale" />
         <field name="sequence">21</field>
-        <field name="definition">version = 2
-where = "state = 'sale'"
+        <field name="definition">where = "state = 'sale'"
 compare = true
 </field>
     </record>
@@ -36,8 +34,7 @@ compare = true
         <field name="name">Revenue</field>
         <field name="panel_id" ref="panel_sale" />
         <field name="sequence">22</field>
-        <field name="definition">version = 2
-where = "state = 'sale'"
+        <field name="definition">where = "state = 'sale'"
 measure = "amount_untaxed"
 aggregation = "sum"
 unit = "currency"
@@ -51,8 +48,7 @@ compare = true
         <field name="name">Average Order</field>
         <field name="panel_id" ref="panel_sale" />
         <field name="sequence">23</field>
-        <field name="definition">version = 2
-where = "state = 'sale'"
+        <field name="definition">where = "state = 'sale'"
 measure = "amount_untaxed"
 aggregation = "mean"
 unit = "currency"
@@ -71,8 +67,7 @@ compare = true
         <field name="sequence">1</field>
         <field name="col_span">3</field>
         <field name="tile_height">340</field>
-        <field name="definition">version = 2
-type = "area"
+        <field name="definition">type = "area"
 where = "state not in ('draft', 'cancel', 'sent')"
 by = "date_order"
 grain = "month"

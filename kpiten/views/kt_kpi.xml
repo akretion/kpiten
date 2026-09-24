@@ -1,0 +1,217 @@
+<odoo>
+
+    <record id="kt_kpi_form" model="ir.ui.view">
+        <field name="model">kt.kpi</field>
+        <field name="arch" type="xml">
+            <form>
+                <group>
+                    <group colspan="2">
+                        <h2><field name="name" /></h2>
+                        <field name="model_id" />
+                        <field
+                            name="definition"
+                            widget="ace"
+                            options="{'mode': 'python'}"
+                        />
+                        <field
+                            name="display"
+                            widget="ace"
+                            options="{'mode': 'python'}"
+                            invisible="kind != 'data'"
+                            placeholder="[labels]&#10;amount_untaxed = &quot;HT&quot;&#10;[table]&#10;format = &quot;currency&quot;&#10;totals = true"
+                        />
+                        <field
+                            name="validation_msg"
+                            string="Validation"
+                            readonly="1"
+                            colspan="2"
+                            decoration-danger="validation_msg"
+                            invisible="not validation_msg"
+                            placeholder="Definition validated"
+                        />
+                    </group>
+                </group>
+                <!-- the drill-down : collapsed, most tiles have none -->
+                <div class="mb-3" invisible="kind != 'data'">
+                    <details>
+                        <summary
+                            class="fw-bold"
+                            title="Run when a row of the table is clicked : the rows behind it"
+                        >Drill-down
+                            <i
+                                class="fa fa-check-circle text-success ms-1"
+                                title="This tile has a drill-down"
+                                invisible="not drill_definition"
+                            />
+                        </summary>
+                        <field
+                            name="drill_definition"
+                            widget="ace"
+                            options="{'mode': 'python'}"
+                            nolabel="1"
+                        />
+                    </details>
+                </div>
+                <div class="mb-3" invisible="kind != 'graph'">
+                    <details>
+                        <summary class="fw-bold">Syntax of a "Graph" tile</summary>
+                        <div class="p-2">
+                            <p>TOML. <code>by</code> and <code>measure</code> are required, the rest is optional :</p>
+                            <pre>
+type = "bar"                  # bar | line | area | point | pie
+from = "sale.order.line"      # another table than the dataset's (here : its lines)
+where = "state = 'sale'"      # SQL on the rows (table `self`) ; {today}, {today-30}
+by = "date_order"             # the x axis : a column (dotted path and date parts allowed)
+grain = "month"               # a date axis grouped by month
+measure = "amount_untaxed"    # the y axis
+aggregation = "sum"           # sum | count | mean
+others = true                 # the bars past the limit are folded into "Others"
+limit = 10                    # the biggest bars kept
+series = "user_id"            # one color per value of a column
+stacked = true                # the series one on the other
+orientation = "h"             # horizontal bars
+
+[labels]                      # the names shown (else the labels of the fields)
+amount_untaxed = "HT"
+
+[plotly.layout]               # given as is to plotly (update_layout ; also traces)
+bargap = 0.4
+
+[computed]                    # columns computed from two dates, in whole days
+days_to_order = "date_approve - create_date"</pre>
+                            <ul>
+                                <li>A date <code>by</code> is chronological, any other is sorted by the measure, largest first.</li>
+                                <li>The tile keeps the first 50 bars (<code>TILE_MAX_CATEGORIES</code>) or the last 1000
+                                    points (<code>TILE_MAX_POINTS</code>) and says so under the graph.</li>
+                                <li>The period and the dimension filters of the panel apply, like the user's rights.</li>
+                            </ul>
+                        </div>
+                    </details>
+                </div>
+                <div class="mb-3" invisible="kind != 'data'">
+                    <details>
+                        <summary class="fw-bold">Polars syntax of a "Data" tile</summary>
+                        <div class="p-2">
+                            <p>A restricted Python snippet on
+                                <a
+                                    href="https://docs.pola.rs/api/python/stable/reference/"
+                                    target="_blank"
+                                >polars</a>. Line 1 is <code>output = input</code> (usually
+                                <code>d_next = d</code>) and must stay first ; the output must end up a table.</p>
+                            <ul>
+                                <li><code>d</code> : the rows the user may read, already filtered by the panel period
+                                    and dimensions. <code>pl</code> : polars. <code>odoo_url</code> : the base url of Odoo.</li>
+                                <li><b>Columns</b> : a many2one gives its name in <code>partner_id</code> and its id in
+                                    <code>partner_id_</code> ; relational paths declared for the dataset
+                                    (<code>partner_id.country_id</code>) ; date parts
+                                    <code>date_order.year</code> (<code>.quarter .month .week .day</code>).</li>
+                                <li><b>Links</b> : a cell <code>[label](url)</code> is drawn as a link when the url is an Odoo one,
+                                    see the "Top" tiles (<code>pl.concat_str</code> with <code>odoo_url</code>).</li>
+                                <li>Only the first 500 rows are shown : <code>sort</code> and <code>head</code>.</li>
+                                <li><b>SQL and polars</b> : <code>sql("SELECT ... FROM d")</code> runs SQL on the rows of the
+                                    tile, <code>sql("SELECT ... FROM t", t=d_next)</code> on a table of the snippet ;
+                                    then polars goes on (see the "Data in SQL and polars" tile). Checked like a SQL tile :
+                                    one SELECT, no file read.</li>
+                            </ul>
+                            <p><b>Allowed</b> (the lists of <code>kpiten_core/sandbox.py</code>) :
+                                <code>pl.col lit when sum mean count min max first last len all any int_range date_range
+                                    struct list array concat concat_str sum_horizontal mean_horizontal select</code> and the
+                                types ; table methods <code>filter with_columns select group_by agg sort rename cast join
+                                    unique pivot limit head tail slice drop drop_nulls fill_null explode unnest sample
+                                    with_row_index</code>... ; <code>sql(...)</code> (above) ; expression methods (aggregations, conditions, text, dates,
+                                maths, windows) ; a few builtins.</p>
+                            <p><b>Forbidden</b> : <code>import</code>, <code>lambda</code>, <code>def</code>,
+                                <code>class</code>, loops, <code>try</code>, <code>with</code>, names starting with
+                                <code>_</code>, calls outside the lists (<code>open</code>, <code>eval</code>...) and
+                                Python run per row (<code>map_elements</code>, <code>apply</code>...).</p>
+                        </div>
+                    </details>
+                </div>
+                <!-- 3 columns : the groups are the direct children of a col="3" group -->
+                <group col="3">
+                    <group>
+                        <field name="kind" widget="radio" />
+                    </group>
+                    <group>
+                        <field name="panel_id" />
+                        <field name="col_span" />
+                        <field name="tile_height" />
+                        <field
+                            name="table_view"
+                            invisible="kind not in ('data', 'pivot', 'union')"
+                        />
+                    </group>
+                    <group>
+                        <field name="active" widget="boolean_toggle" />
+                        <field name="user_id" />
+                        <field name="group_ids" widget="many2many_tags" />
+                    </group>
+                </group>
+                <!-- the KPI as the Shiny dashboard draws it : reloaded when saved, or by
+                     the button (which saves first) -->
+                <div class="mt-3" invisible="not id">
+                    <button
+                        name="action_preview"
+                        type="object"
+                        string="Preview"
+                        icon="fa-refresh"
+                        class="btn-secondary"
+                        title="Save the KPI and draw it again, as the Shiny dashboard does"
+                    />
+                </div>
+                <field name="preview_html" nolabel="1" readonly="1" />
+            </form>
+        </field>
+    </record>
+
+    <record id="kt_kpi_list" model="ir.ui.view">
+        <field name="model">kt.kpi</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="not active" decoration-danger="validation_msg">
+                <field name="sequence" widget="handle" />
+                <field name="name" />
+                <field name="kind" />
+                <field name="dataset_id" optional="hide" />
+                <field name="panel_id" />
+                <field name="col_span" optional="show" />
+                <field name="tile_height" optional="show" />
+                <field name="table_view" optional="hide" />
+                <field name="group_ids" widget="many2many_tags" optional="hide" />
+                <field name="user_id" optional="hide" />
+                <field name="validation_msg" optional="hide" />
+                <field name="xml_id" optional="hide" />
+                <field name="active" widget="boolean_toggle" />
+            </list>
+        </field>
+    </record>
+
+    <record id="kt_kpi_search" model="ir.ui.view">
+        <field name="model">kt.kpi</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name" />
+                <field name="panel_id" />
+                <field name="dataset_id" />
+                <filter
+                    name="archived"
+                    string="Archived"
+                    domain="[('active', '=', False)]"
+                />
+                <filter
+                    name="invalid"
+                    string="Invalid definition"
+                    domain="[('validation_msg', '!=', False)]"
+                />
+                <group>
+                    <filter name="by_kind" string="Kind" context="{'group_by': 'kind'}" />
+                    <filter
+                        name="by_panel"
+                        string="Panel"
+                        context="{'group_by': 'panel_id'}"
+                    />
+                </group>
+            </search>
+        </field>
+    </record>
+
+</odoo>

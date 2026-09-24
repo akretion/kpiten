@@ -139,7 +139,8 @@ class TestKtConfig(TransactionCase):
         config.set_user_theme(user.id, "prune")
         config.set_user_theme(user.id, "peche")  # the line is updated, not doubled
         self.assertEqual(config.get_user_theme(user.id), "peche")
-        self.assertEqual(self.config.user_theme_ids.user_id, user)
+        lines = self.config.user_theme_ids.filtered(lambda line: line.user_id == user)
+        self.assertEqual(len(lines), 1)  # one line of the user (others may have theirs)
         config.set_user_theme(user.id, False)
         self.assertFalse(config.get_user_theme(user.id))
 
