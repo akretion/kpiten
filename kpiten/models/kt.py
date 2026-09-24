@@ -50,6 +50,9 @@ class Kt(models.AbstractModel):
             "product.product": {
                 "default_code",
                 "categ_id",
+                # the name of the category with its parents (All / Bricolage / Bois) :
+                # `categ_id` alone is its id
+                "categ_id.complete_name",
                 "product_tmpl_id.type",
             },
             "res.partner": {
