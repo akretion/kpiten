@@ -162,6 +162,15 @@ class Theme:
   gap: 20px;
   margin-top: 28px;
 }}
+.framework-credit {{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  font-size: 13px;
+  text-decoration: none;
+}}
+.framework-credit span {{ opacity: .75 }}
 .framework-logo {{
   width: 76px;
   height: auto;
