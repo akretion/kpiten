@@ -195,9 +195,8 @@ class KtDataset(models.Model):
             res = res.filtered(lambda s: s.ttype == "many2one")
         else:
             res = res.filtered(lambda s: s.ttype not in EXCLUDED_TYPES)
-        useless_fields = self.env["kt"].get_useless_fields().get(model_name)
-        if useless_fields:
-            res = res.filtered(lambda s: s.name not in useless_fields)
+        useless_fields = self.env["kt"]._get_useless_fields(model_name)
+        res = res.filtered(lambda s: s.name not in useless_fields)
         return res
 
 

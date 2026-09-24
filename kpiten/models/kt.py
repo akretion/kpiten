@@ -149,41 +149,36 @@ class Kt(models.AbstractModel):
             return ""
         return ids_sql(records)
 
-    def _get_useless_fields(self):
-        """return Dict of list
-         - keys are models
-         - list element are fields
-
-        to get a raw list of fields:
-            ",".join(env["ir.model.fields"].search([
-            ("stored", "=", True),
-            ("name", "not like", "%_ids"),
-            ("ttype", "not in", ("many2many", "one2many", "properties", "properties_definition", "binary")),
-            ("model", "=", "sale.order")]).mapped("name"))
-
-        (`_get_usable_fields` applies it, then removes these fields)
-        """
-        return {}
-
     @api.model
-    def _get_usable_fields(self, model: str) -> list:
-        """The names of the fields of `model` a tile may name : the search of the
-        docstring of `_get_useless_fields` (stored, not `*_ids`, not a type of
-        `EXCLUDED_FIELD_TYPES`), without the useless fields of the model."""
-        useless = set(self._get_useless_fields().get(model, ()))
-        names = (
+    def _get_useless_fields(self, model: str) -> set:
+        """The fields of `model` kpiten does not use (not extracted, not offered to a
+        tile) : not stored, a list (`*_ids`), a type of `EXCLUDED_FIELD_TYPES`, the
+        chatter and the activities (a field towards a `mail.*` model, `mail.message`,
+        `mail.activity`..., a field of the mail mixins).
+
+        A module adds its own with `super()._get_useless_fields(model) | {...}`.
+        """
+        useless = set(
             self.env["ir.model.fields"]
             .search(
                 [
-                    ("store", "=", True),
-                    ("name", "not like", "%_ids"),
-                    ("ttype", "not in", EXCLUDED_FIELD_TYPES),
                     ("model", "=", model),
+                    "|",
+                    "|",
+                    "|",
+                    ("store", "=", False),
+                    ("name", "=like", "%_ids"),
+                    ("ttype", "in", EXCLUDED_FIELD_TYPES),
+                    ("relation", "=like", "mail.%"),
                 ]
             )
             .mapped("name")
         )
-        return [name for name in names if name not in useless]
+        fields = self.env[model]._fields
+        for mixin in MAIL_MIXINS:
+            if mixin in self.env:  # the mail module installed
+                useless |= set(self.env[mixin]._fields) & set(fields)
+        return useless - {"id", "display_name"}
 
     @api.model
     def get_record_vals(
@@ -391,6 +386,7 @@ class Kt(models.AbstractModel):
         exploitable (scalars + many2one), excluding heavy types.
         """
         model_obj = self.env[model]
+        useless = self._get_useless_fields(model)
         result = set()
         for fname, field in model_obj._fields.items():
             # Exclure les champs privés Odoo (_log_access, etc.)
@@ -399,7 +395,7 @@ class Kt(models.AbstractModel):
             # Exclure les types non exploitables
             if field.type in EXCLUDED_FIELD_TYPES:
                 continue
-            if field.name in self._get_useless_fields().get(model, ()):
+            if field.name in useless:
                 continue
             if field.compute and not field.store:
                 continue
@@ -626,6 +622,9 @@ class Kt(models.AbstractModel):
             "target": "new",
         }
 
+
+# the mixins of the chatter and of the activities : their fields are not used
+MAIL_MIXINS = ("mail.thread", "mail.activity.mixin")
 
 # Fields to systematically exclude
 EXCLUDED_FIELD_TYPES = [
