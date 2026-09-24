@@ -1,5 +1,5 @@
 <odoo>
-    <!-- one tile per kind and option of the syntax : see the comment of each -->
+    <!-- one tile per kind and option of the syntax (version 2, the union in version 1) : see the comment of each -->
 
     <!-- card : a count (the default aggregation) of the rows `where` keeps -->
     <record id="card_count" model="kt.dataset.line">
@@ -8,7 +8,8 @@
         <field name="name">Count</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">1</field>
-        <field name="definition">where = "state = 'sale'"
+        <field name="definition">version = 2
+where = "state = 'sale'"
 </field>
     </record>
 
@@ -19,24 +20,26 @@
         <field name="name">Sum</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">2</field>
-        <field name="definition">where = "state = 'sale'"
-aggregation = "sum"
+        <field name="definition">version = 2
+where = "state = 'sale'"
 measure = "amount_untaxed"
+aggregation = "sum"
 unit = "currency"
 compare = true
 </field>
     </record>
 
-    <!-- card : a mean, rounded (`decimals`) -->
+    <!-- card : a mean (no decimal unless `decimals` asks for some) -->
     <record id="card_mean" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Mean</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">3</field>
-        <field name="definition">where = "state = 'sale'"
-aggregation = "mean"
+        <field name="definition">version = 2
+where = "state = 'sale'"
 measure = "amount_untaxed"
+aggregation = "mean"
 unit = "currency"
 decimals = 0
 </field>
@@ -49,27 +52,31 @@ decimals = 0
         <field name="name">Median</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">4</field>
-        <field name="definition">where = "state = 'sale'"
-aggregation = "median"
+        <field name="definition">version = 2
+where = "state = 'sale'"
 measure = "amount_untaxed"
+aggregation = "median"
 unit = "currency"
 </field>
     </record>
 
-    <!-- card : a column derived from two dates, where fewer is better (`good`) -->
+    <!-- card : a column computed from two dates (`[computed]`), where fewer is better (`[compare] good`) -->
     <record id="card_derive" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Derived column</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">5</field>
-        <field name="definition">where = "state in ('purchase', 'done')"
-aggregation = "mean"
+        <field name="definition">version = 2
+where = "state in ('purchase', 'done')"
 measure = "days_to_order"
+aggregation = "mean"
 unit = "days"
-compare = true
+
+[compare]
 good = "down"
-[derive]
+
+[computed]
 days_to_order = "date_approve - create_date"
 </field>
     </record>
@@ -81,7 +88,8 @@ days_to_order = "date_approve - create_date"
         <field name="name">Ignore period</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">6</field>
-        <field name="definition">where = "state = 'draft'"
+        <field name="definition">version = 2
+where = "state = 'draft'"
 ignore_period = true
 </field>
     </record>
@@ -93,27 +101,31 @@ ignore_period = true
         <field name="name">From another table</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">7</field>
-        <field name="definition">from = "purchase.order"
+        <field name="definition">version = 2
 where = "state = 'draft'"
+from = "purchase.order"
 </field>
     </record>
 
-    <!-- card : the best group (`best`) by `measure`, with a `detail` -->
+    <!-- card : the best group (`by`) by `measure`, with a line under it (`[detail]`) -->
     <record id="card_best" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">card</field>
         <field name="name">Best</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">8</field>
-        <field name="definition">where = "state not in ('draft', 'sent', 'cancel')"
-best = "product_id"
+        <field name="definition">version = 2
+where = "state not in ('draft', 'sent', 'cancel')"
 measure = "price_subtotal"
-detail = "product_uom_qty"
-detail_label = "sold"
+by = "product_id"
+
+[detail]
+measure = "product_uom_qty"
+label = "sold"
 </field>
     </record>
 
-    <!-- graph : bars, one per value of x, y summed -->
+    <!-- graph : bars, one per value of `by`, `measure` summed -->
     <record id="graph_bar" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
@@ -121,13 +133,11 @@ detail_label = "sold"
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">9</field>
         <field name="col_span">2</field>
-        <field name="definition">graph_type = "bar"
+        <field name="definition">version = 2
+type = "bar"
 where = "state = 'sale'"
-[x]
-name = "partner_id"
-aggregation = "none"
-[y]
-name = "amount_untaxed"
+by = "partner_id"
+measure = "amount_untaxed"
 aggregation = "sum"
 </field>
     </record>
@@ -140,19 +150,17 @@ aggregation = "sum"
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">10</field>
         <field name="col_span">2</field>
-        <field name="definition">graph_type = "bar"
+        <field name="definition">version = 2
+type = "bar"
 where = "state = 'sale'"
-others = true
-[x]
-name = "partner_id"
-aggregation = "none"
-[y]
-name = "amount_untaxed"
+by = "partner_id"
+measure = "amount_untaxed"
 aggregation = "sum"
+others = true
 </field>
     </record>
 
-    <!-- graph : an area over the months (`monthly` groups the dates by month) -->
+    <!-- graph : an area over the months (`grain` groups the dates by month) -->
     <record id="graph_area_monthly" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
@@ -160,19 +168,17 @@ aggregation = "sum"
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">11</field>
         <field name="col_span">2</field>
-        <field name="definition">graph_type = "area"
+        <field name="definition">version = 2
+type = "area"
 where = "state = 'sale'"
-monthly = true
-[x]
-name = "date_order"
-aggregation = "none"
-[y]
-name = "amount_untaxed"
+by = "date_order"
+grain = "month"
+measure = "amount_untaxed"
 aggregation = "sum"
 </field>
     </record>
 
-    <!-- graph : points (a scatter), y counted -->
+    <!-- graph : points (a scatter), `measure` counted -->
     <record id="graph_point" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
@@ -180,17 +186,15 @@ aggregation = "sum"
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">12</field>
         <field name="col_span">2</field>
-        <field name="definition">graph_type = "point"
-[x]
-name = "salesman_id"
-aggregation = "none"
-[y]
-name = "id"
+        <field name="definition">version = 2
+type = "point"
+by = "salesman_id"
+measure = "id"
 aggregation = "count"
 </field>
     </record>
 
-    <!-- pivot : rows (`index`) × columns (`column`, here a derived `.year`) -->
+    <!-- pivot : `rows` × `columns` (here a derived `.year`) -->
     <record id="pivot" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">pivot</field>
@@ -198,14 +202,15 @@ aggregation = "count"
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">13</field>
         <field name="col_span">2</field>
-        <field name="definition">index = "user_id"
-column = "date_order.year"
+        <field name="definition">version = 2
+rows = "user_id"
+columns = "date_order.year"
 measure = "amount_untaxed"
 aggregation = "sum"
 </field>
     </record>
 
-    <!-- pivot : the dates of the index grouped by month -->
+    <!-- pivot : the dates of the rows grouped by month (`grain`) -->
     <record id="pivot_monthly" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">pivot</field>
@@ -213,15 +218,16 @@ aggregation = "sum"
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">14</field>
         <field name="col_span">2</field>
-        <field name="definition">index = "date_order"
-column = "date_order.year"
+        <field name="definition">version = 2
+rows = "date_order"
+columns = "date_order.year"
 measure = "amount_untaxed"
 aggregation = "sum"
-monthly = true
+grain = "month"
 </field>
     </record>
 
-    <!-- union : the rows of two models, their columns mapped to the same names -->
+    <!-- union (version 1) : the rows of two models, their columns mapped to the same names -->
     <record id="union" model="kt.dataset.line">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">union</field>
