@@ -110,7 +110,8 @@ class SsoMiddleware:
             if scope["type"] == "websocket":
                 return await send({"type": "websocket.close", "code": 4403})
             response = HTMLResponse(
-                "<h1>Not connected</h1><p>Open the dashboard from Odoo.</p>",
+                "<h1>Not connected</h1>"
+                "<p>Open the dashboard from Odoo : menu KpiTen → Marimo.</p>",
                 status_code=403,
             )
             return await response(scope, receive, send)
