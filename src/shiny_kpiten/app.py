@@ -490,9 +490,13 @@ def tile_html(
         parts.append(str(ui.output_data_frame(f"grid_{line['id']}")))
     else:
         assert result.df is not None
-        # the rows of `kt.config` shown : the tile scrolls, the page does not grow
-        rows = core_config.table_rows()
-        parts.append(themes.gt_df(theme, result.df.head(rows)).as_raw_html())
+        # the rows of `kt.config` shown (or the `limit` of the tile) : the tile
+        # scrolls, the page does not grow
+        drawing = result.meta.get("table")
+        rows = (drawing or {}).get("limit") or core_config.table_rows()
+        parts.append(
+            themes.gt_df(theme, result.df.head(rows), drawing).as_raw_html()
+        )
         # out of what the tile holds (`total_rows` when the core already cut it off)
         total = result.meta.get("total_rows", result.df.height)
         if total > rows:
