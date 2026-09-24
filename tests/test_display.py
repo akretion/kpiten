@@ -74,7 +74,7 @@ def test_currency_unit_follows_the_company(monkeypatch):
 
 
 def test_comparison_tone_follows_the_card():
-    """`good = "down"` : a fall is green, the arrow still says it fell."""
+    """`[compare] good = "down"` : a fall is green, the arrow still says it fell."""
 
     def compare(definition, now, before):
         rows = pl.DataFrame({"tag": ["x"] * before})
@@ -84,9 +84,9 @@ def test_comparison_tone_follows_the_card():
 
     up = compare("compare = true\n", 12, 10)
     assert (up["direction"], up["tone"]) == ("up", "good")
-    late = compare('compare = true\ngood = "down"\n', 12, 10)
+    late = compare('[compare]\ngood = "down"\n', 12, 10)
     assert (late["direction"], late["tone"]) == ("up", "bad")
-    fall = compare('compare = true\ngood = "down"\n', 8, 10)
+    fall = compare('[compare]\ngood = "down"\n', 8, 10)
     assert (fall["direction"], fall["tone"]) == ("down", "good")
     assert color(fall) == color(up)  # same green
     assert color(late) != color(up)
@@ -128,8 +128,9 @@ def test_odoo_relative_periods(monkeypatch):
 def test_validate_good_key():
     from kpiten_core import validate_toml
 
-    assert validate_toml('compare = true\ngood = "down"', "card") == []
-    assert validate_toml('good = "sideways"', "card") != []
+    assert validate_toml('[compare]\ngood = "down"', "card") == []
+    assert validate_toml('[compare]\ngood = "sideways"', "card") != []
+    assert validate_toml('good = "down"', "card") != []  # version 1 : refused
 
 
 def test_period_options_follow_the_data():

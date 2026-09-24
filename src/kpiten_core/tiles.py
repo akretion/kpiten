@@ -18,7 +18,7 @@ from kpiten_core import config as settings
 from kpiten_core.charts import KINDS, Chart
 from kpiten_core import env, i18n, labels, links, numfmt, serial, sandbox, spec, sqltile
 from kpiten_core.month import apply_monthly, is_date
-from kpiten_core.validate import CARD_AGGREGATIONS, DERIVE_RE
+from kpiten_core.spec import CARD_AGGREGATIONS, DATE_DIFF_RE as DERIVE_RE
 
 logger = logging.getLogger(__name__)
 

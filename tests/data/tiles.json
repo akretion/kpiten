@@ -3,7 +3,7 @@
   "name": "Qty purchased",
   "kind": "graph",
   "model": "purchase.order.line",
-  "definition": "graph_type = \"bar\"\n[x]\nname = \"product_id.name\"\naggregation = \"none\"\n[y]\nname = \"product_qty\"\naggregation = \"sum\"\n",
+  "definition": "version = 2\ntype = \"bar\"\nby = \"product_id.name\"\nmeasure = \"product_qty\"\naggregation = \"sum\"\n",
   "drill": null,
   "panel": "Purchase",
   "filter_config": {
@@ -22,7 +22,7 @@
   "name": "Best Seller",
   "kind": "card",
   "model": "sale.order.line",
-  "definition": "where = \"state not in ('draft', 'sent', 'cancel')\"\nbest = \"product_id\"\nmeasure = \"price_subtotal\"\ndetail = \"product_uom_qty\"\ndetail_label = \"sold\"\n",
+  "definition": "version = 2\nwhere = \"state not in ('draft', 'sent', 'cancel')\"\nmeasure = \"price_subtotal\"\nby = \"product_id\"\n\n[detail]\nmeasure = \"product_uom_qty\"\nlabel = \"sold\"\n",
   "drill": null,
   "panel": "Product",
   "filter_config": {
@@ -71,7 +71,7 @@
   "name": "Monthly sales",
   "kind": "graph",
   "model": "sale.order",
-  "definition": "graph_type = \"area\"\nwhere = \"state not in ('draft', 'cancel', 'sent')\"\nmonthly = true\n[x]\nname = \"date_order\"\naggregation = \"none\"\n[y]\nname = \"amount_untaxed\"\naggregation = \"sum\"\n",
+  "definition": "version = 2\ntype = \"area\"\nwhere = \"state not in ('draft', 'cancel', 'sent')\"\nby = \"date_order\"\ngrain = \"month\"\nmeasure = \"amount_untaxed\"\naggregation = \"sum\"\n",
   "drill": null,
   "panel": "Sales",
   "filter_config": {
@@ -97,7 +97,7 @@
   "name": "Best vendors",
   "kind": "graph",
   "model": "sale.order",
-  "definition": "graph_type = \"bar\"\n[x]\nname = \"user_id.name\"\naggregation = \"none\"\n[y]\nname = \"amount_untaxed\"\naggregation = \"sum\"\n",
+  "definition": "version = 2\ntype = \"bar\"\nby = \"user_id.name\"\nmeasure = \"amount_untaxed\"\naggregation = \"sum\"\n",
   "drill": null,
   "panel": "Sales",
   "filter_config": {
@@ -123,7 +123,7 @@
   "name": "Best Category",
   "kind": "card",
   "model": "sale.order.line",
-  "definition": "where = \"state not in ('draft', 'sent', 'cancel')\"\nbest = \"product_id.categ_id.complete_name\"\nmeasure = \"price_subtotal\"\ndetail = \"product_uom_qty\"\ndetail_label = \"sold\"\n",
+  "definition": "version = 2\nwhere = \"state not in ('draft', 'sent', 'cancel')\"\nmeasure = \"price_subtotal\"\nby = \"product_id.categ_id.complete_name\"\n\n[detail]\nmeasure = \"product_uom_qty\"\nlabel = \"sold\"\n",
   "drill": null,
   "panel": "Product",
   "filter_config": {
@@ -146,7 +146,7 @@
   "name": "Spend by vendor",
   "kind": "graph",
   "model": "purchase.order",
-  "definition": "graph_type = \"bar\"\n[x]\nname = \"partner_id.commercial_partner_id.name\"\naggregation = \"none\"\n[y]\nname = \"amount_untaxed\"\naggregation = \"sum\"\n",
+  "definition": "version = 2\ntype = \"bar\"\nby = \"partner_id.commercial_partner_id.name\"\nmeasure = \"amount_untaxed\"\naggregation = \"sum\"\n",
   "drill": null,
   "panel": "Purchase",
   "filter_config": {
@@ -165,7 +165,7 @@
   "name": "Monthly spend",
   "kind": "pivot",
   "model": "purchase.order",
-  "definition": "index = \"date_order\"\ncolumn = \"date_order.year\"\nmeasure = \"amount_untaxed\"\naggregation = \"sum\"\nmonthly = true\n",
+  "definition": "version = 2\nrows = \"date_order\"\ncolumns = \"date_order.year\"\nmeasure = \"amount_untaxed\"\naggregation = \"sum\"\ngrain = \"month\"\n",
   "drill": null,
   "panel": "Purchase",
   "filter_config": {
@@ -184,7 +184,7 @@
   "name": "Best Sellers by Revenue",
   "kind": "graph",
   "model": "sale.order.line",
-  "definition": "graph_type = \"bar\"\nwhere = \"state not in ('draft', 'sent', 'cancel')\"\n[x]\nname = \"product_id\"\naggregation = \"none\"\n[y]\nname = \"price_subtotal\"\naggregation = \"sum\"\n",
+  "definition": "version = 2\ntype = \"bar\"\nwhere = \"state not in ('draft', 'sent', 'cancel')\"\nby = \"product_id\"\nmeasure = \"price_subtotal\"\naggregation = \"sum\"\n",
   "drill": null,
   "panel": "Product",
   "filter_config": {
@@ -207,7 +207,7 @@
   "name": "Monthly sales by salesperson",
   "kind": "pivot",
   "model": "sale.order",
-  "definition": "index = \"user_id.name\"\ncolumn = \"date_order.year\"\nmeasure = \"amount_untaxed\"\naggregation = \"sum\"\n",
+  "definition": "version = 2\nrows = \"user_id.name\"\ncolumns = \"date_order.year\"\nmeasure = \"amount_untaxed\"\naggregation = \"sum\"\n",
   "drill": null,
   "panel": "Sales",
   "filter_config": {
@@ -233,7 +233,7 @@
   "name": "Best Sellers by Units Sold",
   "kind": "graph",
   "model": "sale.order.line",
-  "definition": "graph_type = \"bar\"\nwhere = \"state not in ('draft', 'sent', 'cancel')\"\n[x]\nname = \"product_id\"\naggregation = \"none\"\n[y]\nname = \"product_uom_qty\"\naggregation = \"sum\"\n",
+  "definition": "version = 2\ntype = \"bar\"\nwhere = \"state not in ('draft', 'sent', 'cancel')\"\nby = \"product_id\"\nmeasure = \"product_uom_qty\"\naggregation = \"sum\"\n",
   "drill": null,
   "panel": "Product",
   "filter_config": {
@@ -588,7 +588,7 @@
   "name": "Best products (qty)",
   "kind": "graph",
   "model": "sale.order.line",
-  "definition": "graph_type = \"bar\"\n[x]\nname = \"product_id.name\"\naggregation = \"none\"\n[y]\nname = \"product_uom_qty\"\naggregation = \"sum\"\n",
+  "definition": "version = 2\ntype = \"bar\"\nby = \"product_id.name\"\nmeasure = \"product_uom_qty\"\naggregation = \"sum\"\n",
   "drill": null,
   "panel": "Sales",
   "filter_config": {
@@ -614,7 +614,7 @@
   "name": "Qty sold per salesperson",
   "kind": "graph",
   "model": "sale.order.line",
-  "definition": "graph_type = \"area\"\n[x]\nname = \"salesman_id.name\"\naggregation = \"none\"\n[y]\nname = \"product_uom_qty\"\naggregation = \"sum\"\n",
+  "definition": "version = 2\ntype = \"area\"\nby = \"salesman_id.name\"\nmeasure = \"product_uom_qty\"\naggregation = \"sum\"\n",
   "drill": null,
   "panel": "Sales",
   "filter_config": {
@@ -754,7 +754,7 @@
   "name": "Days to order",
   "kind": "card",
   "model": "purchase.order",
-  "definition": "where = \"state in ('purchase', 'done')\"\naggregation = \"mean\"\nmeasure = \"days_to_order\"\nunit = \"days\"\ncompare = true\ngood = \"down\"  # fewer days is better\n[derive]\ndays_to_order = \"date_approve - create_date\"\n",
+  "definition": "version = 2\nwhere = \"state in ('purchase', 'done')\"\nmeasure = \"days_to_order\"\naggregation = \"mean\"\nunit = \"days\"\n\n[compare]\ngood = \"down\"  # fewer days is better\n\n[computed]\ndays_to_order = \"date_approve - create_date\"\n",
   "drill": null,
   "panel": "Purchase",
   "filter_config": {
@@ -773,7 +773,7 @@
   "name": "Days to receive",
   "kind": "card",
   "model": "purchase.order",
-  "definition": "where = \"state in ('purchase', 'done')\"\naggregation = \"mean\"\nmeasure = \"days_to_receive\"\nunit = \"days\"\ncompare = true\ngood = \"down\"  # fewer days is better\n[derive]\ndays_to_receive = \"effective_date - date_approve\"\n",
+  "definition": "version = 2\nwhere = \"state in ('purchase', 'done')\"\nmeasure = \"days_to_receive\"\naggregation = \"mean\"\nunit = \"days\"\n\n[compare]\ngood = \"down\"  # fewer days is better\n\n[computed]\ndays_to_receive = \"effective_date - date_approve\"\n",
   "drill": null,
   "panel": "Purchase",
   "filter_config": {

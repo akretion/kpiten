@@ -90,7 +90,7 @@ def test_card_mean_derived_days():
             "aggregation": "mean",
             "measure": "days_to_order",
             "unit": "days",
-            "derive": {"days_to_order": "date_approve - create_date"},
+            "computed": {"days_to_order": "date_approve - create_date"},
         }
     )
     assert res.value == pytest.approx(7 / 3)  # null (draft) is ignored
@@ -101,7 +101,7 @@ def test_card_where_on_derived_column():
     res = card(
         {
             "where": "days_to_order > 1",  # delays are 2, 4, null, 1
-            "derive": {"days_to_order": "date_approve - create_date"},
+            "computed": {"days_to_order": "date_approve - create_date"},
         }
     )
     assert res.value == 2
@@ -166,31 +166,31 @@ def test_card_errors():
     with pytest.raises(tiles.TileError, match="unknown card aggregation"):
         card({"aggregation": "variance", "measure": "amount_untaxed"})
     with pytest.raises(tiles.TileError, match="unknown column"):
-        card({"derive": {"x": "nope - create_date"}})
+        card({"computed": {"x": "nope - create_date"}})
 
 
 def test_validate_card():
     from kpiten_core import validate_toml
 
-    ok = 'aggregation = "mean"\nmeasure = "days"\n[derive]\ndays = "b - a"\n'
+    ok = 'aggregation = "mean"\nmeasure = "days"\n[computed]\ndays = "b - a"\n'
     assert validate_toml(ok, "card") == []
     assert validate_toml('where = "state = 1"', "card") == []
     bad = validate_toml('aggregation = "sum"\nunit = 3\nfoo = 1', "card")
     assert "Unknown key 'foo' in card" in bad
-    assert "Key 'unit' in card must be str" in bad
-    assert "Aggregation 'sum' in card needs a 'measure'" in bad
-    assert validate_toml('[derive]\nx = "a + b"', "card") == [
-        "Derived column 'x' must be '<date> - <date>'"
+    assert "Key 'unit' in card must be a str" in bad
+    assert "Aggregation 'sum' needs a 'measure'" in bad
+    assert validate_toml('[computed]\nx = "a + b"', "card") == [
+        "Computed column 'x' must be '<date> - <date>'"
     ]
-
 
 def test_graph():
     content = serial.dumps(
         {
-            "graph_type": "bar",
+            "type": "bar",
             "from": "sale.order",
-            "x": {"name": "name", "aggregation": "none"},
-            "y": {"name": "amount_untaxed", "aggregation": "sum"},
+            "by": "name",
+            "measure": "amount_untaxed",
+            "aggregation": "sum",
         }
     )
     res = tiles.exec_tile(
@@ -206,8 +206,8 @@ def test_graph():
 def test_pivot_column():
     content = serial.dumps(
         {
-            "index": "name",
-            "column": "date_order",
+            "rows": "name",
+            "columns": "date_order",
             "measure": "amount_untaxed",
             "from": "sale.order",
         }
@@ -299,7 +299,7 @@ def test_sandbox_forbidden():
 def test_unknown_table_raises():
     with pytest.raises(tiles.TileError):
         tiles.exec_tile(
-            {"kind": "graph", "name": "x", "content": 'graph_type = "bar"'},
+            {"kind": "graph", "name": "x", "content": 'type = "bar"'},
             "nope.model",
             STORE,
             NO_PREDICATES,
@@ -315,16 +315,17 @@ def test_lazy_store_gives_the_same_tiles():
         (
             "graph",
             {
-                "graph_type": "bar",
-                "x": {"name": "name", "aggregation": "none"},
-                "y": {"name": "amount_untaxed", "aggregation": "sum"},
+                "type": "bar",
+                "by": "name",
+                "measure": "amount_untaxed",
+                "aggregation": "sum",
             },
         ),
         (
             "pivot",
             {
-                "index": "name",
-                "column": "date_order",
+                "rows": "name",
+                "columns": "date_order",
                 "measure": "amount_untaxed",
                 "aggregation": "mean",
             },
@@ -353,10 +354,11 @@ def test_lazy_store_gives_the_same_tiles():
 def _graph_figure(graph_type):
     content = serial.dumps(
         {
-            "graph_type": graph_type,
+            "type": graph_type,
             "from": "sale.order",
-            "x": {"name": "name", "aggregation": "none"},
-            "y": {"name": "amount_untaxed", "aggregation": "sum"},
+            "by": "name",
+            "measure": "amount_untaxed",
+            "aggregation": "sum",
         }
     )
     return tiles.exec_tile(
@@ -408,11 +410,12 @@ def test_graph_where_and_monthly():
     )
     content = serial.dumps(
         {
-            "graph_type": "area",
+            "type": "area",
             "where": "state not in ('draft', 'cancel', 'sent')",
-            "monthly": True,
-            "x": {"name": "date_order", "aggregation": "none"},
-            "y": {"name": "amount_untaxed", "aggregation": "sum"},
+            "grain": "month",
+            "by": "date_order",
+            "measure": "amount_untaxed",
+            "aggregation": "sum",
         }
     )
     res = tiles.exec_tile(
@@ -553,7 +556,7 @@ def test_card_compares_with_the_previous_period():
 
 
 def test_best_card_shows_the_name_of_the_best_group():
-    """`best` : the name with the biggest revenue, the units sold under it (the
+    """`by` : the name with the biggest revenue, the units sold under it (the
     Best Seller / Best Category scorecards of Odoo's Product dashboard)."""
     from kpiten_core import validate_toml
 
@@ -566,8 +569,8 @@ def test_best_card_shows_the_name_of_the_best_group():
         }
     )
     content = (
-        'where = "state = \'sale\'"\nbest = "product_id"\n'
-        'measure = "price_subtotal"\ndetail = "product_uom_qty"\ndetail_label = "sold"\n'
+        'where = "state = \'sale\'"\nby = "product_id"\nmeasure = "price_subtotal"\n'
+        '[detail]\nmeasure = "product_uom_qty"\nlabel = "sold"\n'
     )
     res = tiles.exec_tile(
         {"kind": "card", "name": "Best Seller", "content": content},
@@ -587,8 +590,8 @@ def test_best_card_shows_the_name_of_the_best_group():
     )
     assert (empty.value, empty.text, empty.subtitle) == (None, "–", None)
     assert validate_toml(content, "card", set(lines.columns)) == []
-    assert validate_toml('best = "product_id"\n', "card") == [
-        "Card 'best' needs a 'measure' to rank the groups"
+    assert validate_toml('by = "product_id"\n', "card") == [
+        "'by' needs a 'measure' to rank the groups"
     ]
 
 
@@ -603,9 +606,10 @@ def test_graph_keeps_the_biggest_bars_and_folds_the_rest_only_on_request(monkeyp
     def bars(extra):
         content = serial.dumps(
             {
-                "graph_type": "bar",
-                "x": {"name": "name", "aggregation": "none"},
-                "y": {"name": "amount_untaxed", "aggregation": "sum"},
+                "type": "bar",
+                "by": "name",
+                "measure": "amount_untaxed",
+                "aggregation": "sum",
                 **extra,
             }
         )
