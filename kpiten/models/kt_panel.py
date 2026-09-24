@@ -27,6 +27,16 @@ class KtPanel(models.Model):
         for rec in self:
             rec.line_count = len(rec.line_ids)
 
+    def action_new_tile(self):
+        """The tile builder on a new tile of this panel."""
+        self.ensure_one()
+        dataset = self.line_ids[:1].dataset_id or self.env["kt.dataset"].search(
+            [], limit=1
+        )
+        return self.env["kt.kpi.builder"].open_builder(
+            {"name": _("New tile"), "dataset_id": dataset.id, "panel_id": self.id}
+        )
+
     def action_view_lines(self):
         """The tiles (`kt.kpi`) of this dataset, in a list."""
         self.ensure_one()

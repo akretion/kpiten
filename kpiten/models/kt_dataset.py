@@ -358,6 +358,20 @@ class KtKpi(models.Model):
         """Save and reload the preview (the form saves the KPI before a button)."""
         return True
 
+    def action_open_builder(self):
+        """The tile builder on this KPI (a card, a graph or a pivot)."""
+        self.ensure_one()
+        return self.env["kt.kpi.builder"].open_builder(
+            {
+                "kpi_id": self.id,
+                "name": self.name,
+                "dataset_id": self.dataset_id.id,
+                "panel_id": self.panel_id.id,
+                "kind": self.kind,
+                "before": self.definition,
+            }
+        )
+
     @api.depends("definition", "display", "drill_definition", "kind", "dataset_id")
     def _compute_validation_msg(self):
         for rec in self:
