@@ -25,6 +25,7 @@ from kpiten_core import brand
 from kpiten_core import config as core_config
 from kpiten_core import ods as core_ods
 from kpiten_core import filters
+from kpiten_core import labels as core_labels
 from kpiten_core import comparison, links
 from kpiten_core import themes as core_themes
 from kpiten_core import tiles as core_tiles
@@ -537,6 +538,10 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
         previous_label = filters.describe_previous(date_value)
         info = filters.describe_filters(config, date_value, filt["dims"])
         logger.info("predicates : %s", [str(p) for p in predicates])
+        # the names of the columns : the labels of the fields, in the user's language
+        field_labels = core_labels.field_labels_of(
+            backend, backend.get_user_lang(user_id)
+        )
         cards_grid.clear()
         tiles_grid.clear()
         with cards_grid, tiles_grid:
@@ -549,6 +554,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                         predicates,
                         previous_predicates,
                         previous_label,
+                        field_labels,
                     )
                     if line.get("drill") and result.keys:
                         drill_state["lines"][line["id"]] = line
