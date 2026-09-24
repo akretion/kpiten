@@ -852,6 +852,15 @@ def dataframe_case(content, table, store, full_predicates, extra_variables=None)
     first_line = content.partition("\n")[0]
     out_var = first_line.split(" ")[0]
     df_var = first_line.split(" ")[2]
+    # SQL inside the snippet : `sql("SELECT ... FROM d")` on the rows of the tile, or
+    # `sql("SELECT ... FROM t", t=d_next)` on a frame of the snippet ; checked like
+    # a SQL tile (no file read), never the `.sql()` of polars
+    tables = {**variables.get("tables", {}), "d": lazy}
+    key = variables.get("key") or {}
+    bound = {"odoo_url": variables["odoo_url"], **key}
+    variables["sql"] = lambda query, **frames: sqltile.run(
+        query, {**tables, **frames}, bound
+    )
     try:
         return sandbox.run(content, lazy, df_var, out_var, variables)
     except AttributeError:

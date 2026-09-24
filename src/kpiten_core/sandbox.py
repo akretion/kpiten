@@ -64,6 +64,8 @@ FORBIDDEN = {
     "filter", "os", "sys", "subprocess", "shutil", "pathlib", "socket",
     "importlib", "builtins", "json",
 }
+# the functions the tile gives the snippet (`variables`) : `sql`, the checked SQL
+HELPERS = {"sql"}
 CALLBACK_METHODS = {
     "map_elements", "map", "map_rows", "map_batches", "map_dict", "apply",
 }
@@ -91,7 +93,7 @@ def check(code: str) -> ast.Module:
         if isinstance(node, ast.Call):
             func = node.func
             if isinstance(func, ast.Name):
-                if func.id in FORBIDDEN or func.id not in BUILTINS:
+                if func.id in FORBIDDEN or func.id not in BUILTINS | HELPERS:
                     raise ValueError(f"forbidden call: {func.id}")
             elif isinstance(func, ast.Attribute):
                 if func.attr not in PL_FUNCS | DF_METHODS | EXPR_METHODS:
