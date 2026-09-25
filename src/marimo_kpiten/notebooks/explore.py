@@ -9,7 +9,7 @@ def _():
     import marimo as mo
     import polars as pl
 
-    from kpiten_core import config, filters
+    from kpiten_core import anonymize, config, filters
     from kpiten_core.backend import Backend
     from kpiten_core.loaders import user_store
     from marimo_kpiten import ai, gallery, kpi_view, recipes, ui
@@ -17,6 +17,7 @@ def _():
     return (
         Backend,
         ai,
+        anonymize,
         config,
         filters,
         gallery,
@@ -383,29 +384,47 @@ def _(ai, mo):
 
 
 @app.cell
-def _(ai, available, frame, mo, provider, source):
+def _(ai, anonymize, available, backend, frame, mo, provider, source):
     _chosen = available[provider.value]
+    _level = ai.send_level()  # kt.config : schema, summary (pseudonyms) or clear
+    # the pseudonyms of this source, kept here for the whole conversation
+    anon = anonymize.for_table(backend, source.value, hide=_level != "clear")
     with mo.status.spinner("Reading the columns..."):
-        description = ai.describe(frame)
+        description = ai.describe(frame, anon, _level)
     skills = ai.skills_for(source.value)  # how to write the code, what the words mean
     if not _chosen.leaves_machine:
         _sent = "Nothing leaves this machine : the model is local."
     else:
         _sent = (
-            f"Sent to {_chosen.label} : the name and type of the columns"
-            + (
-                ", the few values of the columns that have few"
-                if ai.sends_values()
-                else ""
-            )
-            + " and your questions. No row. The code it writes runs here, on the "
-            "rows you may read."
+            f"Sent to {_chosen.label} : "
+            + {
+                "schema": "the name and type of the columns",
+                "summary": "the columns, figures on them and a few rows, with the "
+                "customers, people, products and categories renamed (`Customer 12`) and "
+                "no phone, street or free text",
+                "clear": "the columns, figures on them and a few rows, **in clear**",
+            }[_level]
+        )
+        _sent += (
+            ", and your questions. The code it writes runs here, on the rows you "
+            "may read."
         )
     _sent += "\n\nSkills given to the model : " + (
         ", ".join(f"`{s.name}`" for s in skills) or "none"
     )
-    mo.callout(mo.md(_sent), kind="info")
-    return description, skills
+    mo.vstack(
+        [
+            mo.callout(mo.md(_sent), kind="info"),
+            mo.accordion(
+                {
+                    "What the model is told of the table": mo.md(
+                        f"```\n{description}\n```"
+                    )
+                }
+            ),
+        ]
+    )
+    return anon, description, skills
 
 
 @app.cell
@@ -426,6 +445,7 @@ def _(available, config, mo, recipe, recipes):
 @app.cell
 def _(
     ai,
+    anon,
     available,
     description,
     frame,
@@ -447,13 +467,14 @@ def _(
             recipes.seed_messages(recipe),
             refine_text.value.strip(),
             skills=skills,
+            anon=anon,
         )
     mo.vstack([mo.md("**The AI's answer**"), ui.ai_answer(_answer)])
     return
 
 
 @app.cell
-def _(ai, available, description, frame, mo, provider, skills, ui):
+def _(ai, anon, available, description, frame, mo, provider, skills, ui):
     _provider = available[provider.value]
     _history = []  # what was said, for the next question (a new source starts over)
 
@@ -465,6 +486,7 @@ def _(ai, available, description, frame, mo, provider, skills, ui):
             _history,
             messages[-1].content,
             skills=skills,
+            anon=anon,
         )
         _history.extend(answer.exchange)
         del _history[:-12]

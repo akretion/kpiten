@@ -1,8 +1,9 @@
 """The AI of the explorer : it writes polars, the sandbox of kpiten-core runs it.
 
-What the model sees : the name and type of the columns of the table the user chose
-and, unless `AI_SEND_VALUES=0`, the values of the columns that have few of them
-(state, country...). No row. What it answers is checked and run by
+What the model sees depends on the level of `kt.config` (`kpiten_core.anonymize`) :
+the columns only, or figures on them and a few rows, with the people and the
+products renamed (`Customer 12`), or the same in clear for a local model. What it
+answers is revealed (the pseudonyms put back), checked and run by
 `kpiten_core.sandbox` on the table of the user, whose rows and columns are already
 restricted to their rights : only the errors of the code go back to the model.
 
@@ -19,14 +20,11 @@ from pathlib import Path
 import polars as pl
 import requests
 
-from kpiten_core import config, env, sandbox
+from kpiten_core import anonymize, config, env, sandbox
 
 SKILLS_DIR = Path(__file__).parent / "skills"
 ALLOWED = sorted(sandbox.PL_FUNCS | sandbox.DF_METHODS | sandbox.EXPR_METHODS)
 MAX_ROWS = 1000  # rows of an answer
-MAX_VALUES = 12  # values listed for a column
-VALUE_CHARS = 40
-SAMPLE_ROWS = 200_000  # rows looked at to list the values
 ATTEMPTS = 2  # the model may fix its code once, from the error it caused
 TIMEOUT = 120  # seconds to wait for the model
 
@@ -77,49 +75,34 @@ def complete(provider: Provider, system: str, messages: list[dict]) -> str:
     return reply.json()["choices"][0]["message"]["content"]
 
 
-def known_values(frame: pl.LazyFrame) -> dict[str, list[str]]:
-    """The values of the text and boolean columns that have few of them, seen in the
-    first rows (a column with more is not listed)."""
-    schema = frame.collect_schema()
-    columns = [c for c, t in schema.items() if t in (pl.String, pl.Boolean)]
-    if not columns:
-        return {}
-    sample = frame.head(SAMPLE_ROWS)
-    counts = sample.select(
-        [pl.col(c).drop_nulls().n_unique().alias(c) for c in columns]
-    ).collect()
-    few = [c for c in columns if 0 < counts[c][0] <= MAX_VALUES]
-    if not few:
-        return {}
-    values = sample.select(
-        [pl.col(c).drop_nulls().unique().sort().implode().alias(c) for c in few]
-    ).collect()
-    return {c: [str(v)[:VALUE_CHARS] for v in values[c][0]] for c in few}
-
-
 def enabled() -> bool:
     """The AI is on unless `kt.config` (Odoo) turns it off for everyone."""
     return config.ai_enabled()
 
 
+def send_level() -> str:
+    """What the model is told of a table (`anonymize.LEVELS`) : the level of
+    `kt.config` ; `AI_SEND_VALUES=0` in the environment lowers it to `schema`."""
+    if env.get("AI_SEND_VALUES", "1") == "0":
+        return "schema"
+    return config.ai_send_level()
+
+
 def sends_values() -> bool:
-    """Whether the few values of a column go to the model : not when `kt.config` says
-    no, nor with `AI_SEND_VALUES=0` in the environment (either one is enough)."""
-    return config.ai_send_values() and env.get("AI_SEND_VALUES", "1") != "0"
+    return send_level() != "schema"
 
 
-def describe(frame: pl.LazyFrame, send_values: bool | None = None) -> str:
-    """What the model is told about the table : its columns, with their few values."""
-    if send_values is None:
-        send_values = sends_values()
-    values = known_values(frame) if send_values else {}
-    lines = []
-    for column, dtype in frame.collect_schema().items():
-        line = f"- {column} : {dtype}"
-        if column in values:
-            line += " ; values : " + ", ".join(repr(v) for v in values[column])
-        lines.append(line)
-    return "\n".join(lines)
+def describe(
+    frame: pl.LazyFrame,
+    anon: anonymize.Anonymizer | None = None,
+    level: str | None = None,
+) -> str:
+    """What the model is told about the table : its columns, figures on them and a
+    few rows, with pseudonyms (`kpiten_core.anonymize`)."""
+    level = level or send_level()
+    if anon is None:
+        anon = anonymize.Anonymizer(hide=level != "clear")
+    return anonymize.summary(frame, anon, level)
 
 
 @dataclass
@@ -221,11 +204,25 @@ class Answer:
 
 
 def ask(
-    provider, frame, description, history, question, complete=complete, skills=None
+    provider,
+    frame,
+    description,
+    history,
+    question,
+    complete=complete,
+    skills=None,
+    anon: anonymize.Anonymizer | None = None,
 ) -> Answer:
     """The answer to a question : the model writes code, the sandbox runs it, and the
-    model gets one more try when the code was refused or failed."""
+    model gets one more try when the code was refused or failed.
+
+    With `anon`, the model sees pseudonyms only : the real values the session knows
+    are hidden in the question and the history (the code of a KPI to refine), and the
+    pseudonyms of its answer are revealed before it is shown and its code run."""
+    anon = anon or anonymize.Anonymizer(hide=False)
     system = system_prompt(description, skills)
+    question = anon.hide(question)
+    history = [{**m, "content": anon.hide(m["content"])} for m in history]
     messages = [*history, {"role": "user", "content": question}]
     text = explanation = code = error = None
     for _attempt in range(ATTEMPTS):
@@ -234,7 +231,8 @@ def ask(
         except Exception as err:
             return Answer(f"The model could not answer : {err}", error=str(err))
         explanation, code = extract_code(text)
-        exchange = [
+        explanation, code = anon.reveal(explanation), anon.reveal(code)
+        exchange = [  # the conversation as the model saw it : with pseudonyms
             {"role": "user", "content": question},
             {"role": "assistant", "content": text},
         ]
@@ -248,8 +246,8 @@ def ask(
                 {"role": "assistant", "content": text},
                 {
                     "role": "user",
-                    "content": f"The code failed : {error}.{hint(error)}\nAnswer again "
-                    "with the corrected python block.",
+                    "content": f"The code failed : {anon.hide(error)}.{hint(error)}\n"
+                    "Answer again with the corrected python block.",
                 },
             ]
     return Answer(explanation, code, error=error, exchange=exchange)

@@ -24,17 +24,41 @@ def scripted(*replies):
     return complete
 
 
-def test_the_model_sees_the_columns_and_few_values_never_a_row():
-    text = ai.describe(FRAME, send_values=True)
-    assert "- amount : Float64" in text
+def test_the_model_sees_the_columns_and_few_values_never_a_free_text():
+    text = ai.describe(FRAME, level="summary")
+    assert "- amount : Float64 ; from 0 to 49" in text
     assert "'done', 'purchase'" in text  # a column with few values : listed
-    assert "P00001" not in text  # 50 values : not listed, and no row
+    assert "P00001" not in text  # a free text with 50 values : not sent
 
 
 def test_no_value_at_all_when_they_are_not_to_be_sent():
-    text = ai.describe(FRAME, send_values=False)
+    text = ai.describe(FRAME, level="schema")
     assert "state : String" in text
     assert "purchase" not in text
+
+
+def test_the_model_sees_pseudonyms_and_its_answer_is_revealed():
+    from kpiten_core import anonymize
+
+    frame = pl.DataFrame(
+        {"partner_id": ["Dupont SA", "Martin"] * 5, "amount": [1.0] * 10}
+    ).lazy()
+    anon = anonymize.Anonymizer(
+        "sale.order", {"partner_id": {"type": "many2one", "rel": "res.partner"}}
+    )
+    description = ai.describe(frame, anon, "summary")
+    assert "Dupont" not in description and "Customer 1" in description
+    reply = (
+        "Customer 1 buys.\n```python\n"
+        'd_next = d.filter(pl.col("partner_id") == "Customer 1").select(pl.len())\n```'
+    )
+    model = scripted(reply)
+    answer = ai.ask(
+        PROVIDER, frame, description, [], "and Dupont SA ?", model, anon=anon
+    )
+    assert model.calls[0][-1]["content"] == "and Customer 1 ?"  # hidden when sent
+    assert answer.text == "Dupont SA buys." and '"Dupont SA"' in answer.code
+    assert answer.table.item() == 5  # the code ran on the real values
 
 
 def test_the_code_of_the_model_runs_in_the_sandbox():
@@ -164,13 +188,13 @@ def test_the_ai_switches_of_kt_config(monkeypatch):
     monkeypatch.delenv("AI_SEND_VALUES", raising=False)
     try:
         config.set_config({})
-        assert ai.enabled() and ai.sends_values()  # nothing said : on
+        assert ai.enabled() and ai.send_level() == "summary"  # nothing said
         config.set_config({"ai": {"enabled": False, "send_values": False}})
-        assert not ai.enabled() and not ai.sends_values()
-        config.set_config({"ai": {"enabled": True, "send_values": True}})
-        assert ai.sends_values()
+        assert not ai.enabled() and ai.send_level() == "schema"  # an older module
+        config.set_config({"ai": {"send_values": True, "send_level": "clear"}})
+        assert ai.send_level() == "clear"
         monkeypatch.setenv("AI_SEND_VALUES", "0")  # the environment can still say no
-        assert not ai.sends_values()
+        assert ai.send_level() == "schema"
     finally:
         config.set_config({})
 

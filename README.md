@@ -37,9 +37,18 @@ Démarrage : `make start SVC=marimo` (voir `docs/start.md`).
   `ANTHROPIC_MODEL`) et un modèle local à API compatible OpenAI (`LOCAL_LLM_MODEL`,
   `LOCAL_LLM_URL`, Ollama par exemple). Seuls ceux qui sont configurés sont proposés ; sans
   aucun, la page l'explique.
-- Ce que le modèle reçoit : le nom et le type des colonnes, les valeurs des colonnes qui en ont
-  peu (`AI_SEND_VALUES=0` les retire), les questions et les messages d'erreur du code. Jamais une
-  ligne de données. Avec le modèle local, rien ne quitte la machine ; la page indique ce qui part.
+- Ce que le modèle reçoit dépend du niveau de `kt.config` (`kpiten_core.anonymize`, par base) :
+  - `schema` : le nom et le type des colonnes ;
+  - `summary` (par défaut) : les colonnes, des chiffres (min, max, moyenne, période, valeurs
+    les plus fréquentes) et 10 lignes, **pseudonymisés** : clients / fournisseurs
+    (`Customer 12`, `Supplier 3`), vendeurs (`Salesperson 2`), produits (`Product 4`),
+    catégories (`Category 1 / Category 5`), mails (`contact7@example.com`). Téléphones, rues,
+    n° de TVA, jetons, html et texte libre ne partent jamais ;
+  - `clear` : la même chose en clair (pour un modèle local).
+  Les pseudonymes restent sur le serveur, stables pendant la conversation : un vrai nom tapé
+  dans la question est masqué avant l'envoi, la réponse et le code du modèle sont remis en
+  clair avant l'affichage et l'exécution. `AI_SEND_VALUES=0` ramène au niveau `schema`. La page
+  montre ce qui part (« What the model is told of the table »).
 
 ### Skills (le vocabulaire donné au modèle)
 
