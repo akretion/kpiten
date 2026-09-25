@@ -129,8 +129,8 @@
                     </page>
                     <page string="New features" name="new_features">
                         <div class="alert alert-info" role="alert">
-                            These functions of the marimo explorer are new : each one is
-                            off until you check it here.
+                            These functions of the marimo explorer and of Shiny are new :
+                            each one is off until you check it here.
                         </div>
                         <group>
                             <group string="Build a KPI">
@@ -141,8 +141,9 @@
                                 <field name="feature_export_ods" />
                                 <field name="feature_open_in_odoo" />
                             </group>
-                            <group string="AI (marimo explorer)">
+                            <group string="AI">
                                 <field name="feature_ai_refine" />
+                                <field name="feature_ai_tile" />
                             </group>
                         </group>
                     </page>

@@ -17,6 +17,7 @@ FEATURES = (
     "export_ods",
     "ai_refine",
     "open_in_odoo",
+    "ai_tile",
 )
 # what a scorecard of Odoo uses (`baselineColorUp`, `baselineColorDown`)
 DEFAULT_GOOD, DEFAULT_BAD = "#00A04A", "#DC6965"
@@ -332,6 +333,12 @@ class KtConfig(models.Model):
         default=False,
         help="Ask the AI to change the KPI that was built : it gets the polars of the "
         "KPI and the request.",
+    )
+    feature_ai_tile = fields.Boolean(
+        string="Ask a tile in words (Shiny)",
+        default=False,
+        help="A ✨ on each tile of Shiny : the AI narrows the rows of that tile only "
+        "(« only the confirmed orders »). The ✨ of the whole panel does not need it.",
     )
 
     # ---- constraints
