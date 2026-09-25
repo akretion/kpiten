@@ -236,7 +236,7 @@ class KtKpi(models.Model):
         help="Number of grid columns spanned by the tile",
     )
     tile_height = fields.Integer(
-        default=260,
+        default=320,
         help="Height of the tile in pixels",
     )
     table_view = fields.Selection(
