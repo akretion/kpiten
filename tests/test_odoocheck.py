@@ -43,3 +43,20 @@ def test_the_period_ends_before_the_day_after_and_the_ids_are_ranges():
         ("date_order", "<", "2026-08-01"),
     ]
     assert odoocheck.id_ranges([9, 1, 2, 3, 5, 10]) == "1-3,5,9-10"
+
+
+def test_a_graph_by_month_and_a_pivot_by_year_are_grouped_the_same_in_odoo():
+    rows = pl.LazyFrame(
+        {"date_order": [datetime.date(2026, 7, 1)], "user_id": ["Marie"], "x": [1.0]}
+    )
+    graph = {"by": "date_order", "grain": "month", "measure": "x", "series": "user_id"}
+    assert odoocheck._layout("graph", graph, rows) == {
+        "measure": "x",
+        "aggregation": "sum",
+        "groupby": "date_order:month",
+        "colgroupby": "user_id",
+    }
+    pivot = {"rows": "user_id", "columns": "date_order.year", "measure": "x"}
+    assert odoocheck._layout("pivot", pivot, rows)["colgroupby"] == "date_order:year"
+    count = {"by": "user_id", "measure": "x", "aggregation": "count"}
+    assert odoocheck._layout("graph", count, rows)["measure"] is None

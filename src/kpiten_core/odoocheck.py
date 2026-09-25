@@ -1,15 +1,16 @@
-"""Check a card in Odoo : the same rows, counted by Odoo, with the rights of the user.
+"""Check a tile in Odoo (a card, a graph, a pivot) : the same rows, counted by Odoo in
+its pivot view, grouped as the tile, with the rights of the user.
 
 The link opens the route `/kpiten/check` of the module : it makes the pivot view of the
-model on a domain, then redirects to it. The domain says the same as the card :
+model on a domain, then redirects to it. The domain says the same as the tile :
 
 - the period of the panel on its date field(s), in UTC days like the store ;
-- the `where` of the card, the dimensions chosen and the filters the AI made (SQL), turned
+- the `where` of the tile, the dimensions chosen and the filters the AI made (SQL), turned
   into a domain (`where_domain`) ; a name of a many2one is turned into its ids, from the
   store, so that `"user_id" IN ('Marie Stourne')` is exact in Odoo too.
 
 When a condition has no domain (a computed column, a function, a filter of the panel that
-reaches the table through another), the link falls back on the ids of the rows the card
+reaches the table through another), the link falls back on the ids of the rows the tile
 counts : Odoo then counts the same records, but does not check the filter itself.
 """
 
@@ -23,14 +24,14 @@ import sqlglot
 from sqlglot import exp
 
 from kpiten_core import config as settings
-from kpiten_core import dfnorm, filters, links, spec, tiles
+from kpiten_core import dfnorm, env, filters, links, spec, tiles
 
 logger = logging.getLogger(__name__)
 
 # an url longer than that is not followed by every server (nginx : 8k for a line)
 MAX_URL = 6000
 
-# what Odoo shows, when it is not the value of the card itself
+# what Odoo shows, when it is not the value of the tile itself
 HINTS = {
     "mean": "Odoo shows the sum and the count : the mean is the sum / the count",
     "median": "Odoo shows the sum and the count : not the median",
@@ -38,7 +39,7 @@ HINTS = {
     "max": "Odoo shows the sum and the count : not the maximum",
 }
 CURRENCY_HINT = (
-    "Some rows are in another currency : the card converts the amounts to the "
+    "Some rows are in another currency : KpiTen converts the amounts to the "
     "currency of the company, Odoo adds them up as they are"
 )
 
@@ -233,13 +234,13 @@ def id_ranges(ids) -> str:
 
 def check_url(odoo_url: str, model: str, name: str, **params) -> str | None:
     """The link to `/kpiten/check` (None when too long) ; `params` : `domain` (a
-    list), `ids`, `measure`, `groupby`."""
+    list), `ids`, `measure`, `groupby`, `colgroupby`."""
     query = {"model": model, "name": name}
     if params.get("domain") is not None:
         query["domain"] = json.dumps(params["domain"])
     if params.get("ids") is not None:
         query["ids"] = id_ranges(params["ids"])
-    for key in ("measure", "groupby"):
+    for key in ("measure", "groupby", "colgroupby"):
         if params.get(key):
             query[key] = params[key]
     url = f"{odoo_url}/kpiten/check?{urlencode(query)}"
@@ -257,7 +258,54 @@ def _other_currency(rows: pl.LazyFrame) -> bool:
     return rows.filter(other).head(1).collect().height > 0
 
 
-def card_check(
+# a derived date column (`date_order.month`) : the grouping of Odoo (`date_order:month`)
+DATE_PARTS = ("year", "quarter", "month", "week", "day")
+KINDS = ("card", "graph", "pivot")
+
+
+def _grouping(name: str | None, rows: pl.LazyFrame, grain: str | None = None):
+    """The Odoo grouping of a column of a tile : `date_order.month` and a date with a
+    `grain` group by that part of the date ; a date alone by day, or by month when the
+    graph has too many days (`tiles._bound_dates`)."""
+    if not name:
+        return None
+    schema = rows.collect_schema()
+    root, _sep, part = name.rpartition(".")
+    if root and part in DATE_PARTS and name not in schema and root in schema:
+        return f"{root}:{part}"
+    if name in schema and schema[name] in (pl.Date, pl.Datetime):
+        if grain:
+            return f"{name}:{grain}"
+        days = rows.select(pl.col(name).n_unique()).collect().item()
+        return f"{name}:{'month' if days > env.tile_max_points else 'day'}"
+    return name
+
+
+def _layout(kind: str, definition: dict, rows: pl.LazyFrame) -> dict:
+    """What Odoo shows of a tile : `measure`, `aggregation`, `groupby` (the rows of the
+    pivot of Odoo) and `colgroupby` (its columns)."""
+    grain = definition.get("grain")
+    if kind == "card":
+        aggregation = definition.get("aggregation", "count")
+        if definition.get("by"):  # the best group : the sum of `measure` by `by`
+            aggregation = "sum"
+        rows_by, columns_by = definition.get("by"), None
+    elif kind == "graph":
+        aggregation = definition.get("aggregation", "sum")
+        rows_by, columns_by = definition["by"], definition.get("series")
+    else:  # pivot : the grain goes to the date among its rows and columns
+        aggregation = definition.get("aggregation", "sum")
+        rows_by, columns_by = definition["rows"], definition.get("columns")
+    measure = definition.get("measure") if aggregation != "count" else None
+    return {
+        "measure": measure,
+        "aggregation": aggregation,
+        "groupby": _grouping(rows_by, rows, grain),
+        "colgroupby": _grouping(columns_by, rows, grain),
+    }
+
+
+def tile_check(
     line: dict,
     store: dict,
     predicates: list[pl.Expr],
@@ -266,53 +314,55 @@ def card_check(
     conditions: list[str] = (),
     translatable: bool = True,
 ) -> dict | None:
-    """The link that checks a card in Odoo : `{url, how, hints}`, `how` is `domain` or
-    `ids` (see the module). `store` is the one the card reads (the AI filter of the tile
-    applied), `predicates` its panel filters ; `conditions` the dimensions and the AI
-    filters as SQL (`savetile.dimension_conditions`), which the domain adds ;
-    `translatable` False : a filter has no SQL here, only the ids can say it.
-    `hints` : why Odoo may show another value (the aggregation, the currencies).
-    None when the feature is off, or when neither way works."""
-    if not settings.feature("open_in_odoo") or line.get("kind") != "card":
+    """The link that checks a card, a graph or a pivot in Odoo : `{url, how, hints}`,
+    `how` is `domain` or `ids` (see the module). `store` is the one the tile reads (the
+    AI filter of the tile applied), `predicates` its panel filters ; `conditions` the
+    dimensions and the AI filters as SQL (`savetile.dimension_conditions`), which the
+    domain adds ; `translatable` False : a filter has no SQL here, only the ids can say
+    it. `hints` : why Odoo may show another value (the aggregation, the currencies).
+    None when the feature is off, when the tile has no rows, or when neither way
+    works."""
+    kind = line.get("kind")
+    if not settings.feature("open_in_odoo") or kind not in KINDS:
         return None
-    card = spec.load(line["content"], "card")
-    table = card.get("from", line["model"])
+    definition = spec.load(line["content"], kind)
+    table = definition.get("from", line["model"])
     frame = store.get(table)
     if frame is None:
         return None
     frame = frame.lazy()
     columns = set(frame.collect_schema().names())
-    computed = set(card.get("computed") or {})
-    aggregation = card.get("aggregation", "count")
-    measure = card.get("measure") if aggregation != "count" else None
-    if card.get("by"):  # the best group : the sum of `measure` by `by`
-        measure, aggregation = card.get("measure"), "sum"
-    if measure in computed:
-        measure = None
-    params = {"measure": measure, "groupby": card.get("by")}
+    computed = set(definition.get("computed") or {})
+    rows = tiles.tile_rows(definition, line["model"], store, predicates)
+    if rows.head(1).collect().height == 0:
+        return None  # nothing to check (or a model the user may not read)
+    layout = _layout(kind, definition, rows)
+    aggregation = layout.pop("aggregation")
+    if layout["measure"] in computed:
+        layout["measure"] = None
+    measure = layout["measure"]
     odoo_url, name = links.get_odoo_url(), line.get("name") or table
-    rows = tiles.card_rows(card, line["model"], store, predicates)
     hints = [HINTS[aggregation]] if measure and aggregation in HINTS else []
     if measure and _other_currency(rows):
         hints.append(CURRENCY_HINT)
     try:
         if not translatable:
             raise Untranslatable("a filter of the panel")
-        wheres = [tiles.expand_today(card["where"])] if card.get("where") else []
+        wheres = [definition["where"]] if definition.get("where") else []
         domain = (
             []
-            if card.get("ignore_period")
+            if definition.get("ignore_period")
             else period_domain(filters.date_fields(filter_config), date_value, columns)
         )
         for where in [*wheres, *conditions]:
-            domain += where_domain(where, frame, computed)
-        url = check_url(odoo_url, table, name, domain=domain, **params)
+            domain += where_domain(tiles.expand_today(where), frame, computed)
+        url = check_url(odoo_url, table, name, domain=domain, **layout)
         if url:
             return {"url": url, "how": "domain", "hints": hints}
     except Untranslatable as err:
-        logger.info("card %s checked by its ids : %s", line.get("id"), err)
+        logger.info("tile %s checked by its ids : %s", line.get("id"), err)
     if "id" not in columns:
         return None
     ids = rows.select(pl.col("id").drop_nulls()).collect().to_series().to_list()
-    url = check_url(odoo_url, table, name, ids=ids, **params)
+    url = check_url(odoo_url, table, name, ids=ids, **layout)
     return {"url": url, "how": "ids", "hints": hints} if url else None

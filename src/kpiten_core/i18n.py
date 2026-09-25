@@ -98,16 +98,16 @@ FR = {
     "Check in Odoo : the same rows, counted by Odoo (with your rights)": (
         "Vérifier dans Odoo : les mêmes lignes, comptées par Odoo (avec vos droits)"
     ),
-    "The records of the card, by their ids : the filter itself is not checked": (
-        "Les enregistrements de la carte, par leurs ids : le filtre lui-même n'est "
+    "The records of the tile, by their ids : the filter itself is not checked": (
+        "Les enregistrements de la tuile, par leurs ids : le filtre lui-même n'est "
         "pas vérifié"
     ),
     "Odoo shows the sum and the count : the mean is the sum / the count": (
         "Odoo affiche la somme et le nombre : la moyenne est la somme / le nombre"
     ),
-    "Some rows are in another currency : the card converts the amounts to the "
+    "Some rows are in another currency : KpiTen converts the amounts to the "
     "currency of the company, Odoo adds them up as they are": (
-        "Des lignes sont dans une autre devise : la carte convertit les montants dans "
+        "Des lignes sont dans une autre devise : KpiTen convertit les montants dans "
         "la devise de la société, Odoo les additionne tels quels"
     ),
     "Odoo shows the sum and the count : not the median": (

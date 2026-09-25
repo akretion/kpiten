@@ -343,16 +343,16 @@ def _best_case(card_json, df):
     return name, str(name), subtitle
 
 
-def card_rows(card_json: dict, table, store, full_predicates) -> pl.LazyFrame:
-    """The rows a card aggregates : its table (`from`, else the one of its dataset)
-    with the panel filters, its computed columns and its `where`."""
-    df = _resolve_table(store, card_json.get("from", table))
-    if card_json.get("ignore_period"):
+def tile_rows(definition: dict, table, store, full_predicates) -> pl.LazyFrame:
+    """The rows a card, a graph or a pivot aggregates : its table (`from`, else the one
+    of its dataset) with the panel filters, its computed columns and its `where`."""
+    df = _resolve_table(store, definition.get("from", table))
+    if definition.get("ignore_period"):
         full_predicates = _without_period(df, full_predicates)
     df = filter_df(df, full_predicates)
-    df = derive_columns(df, card_json.get("computed") or {})
-    if card_json.get("where"):
-        where = sqltile.check_where(expand_today(card_json["where"]))
+    df = derive_columns(df, definition.get("computed") or {})
+    if definition.get("where"):
+        where = sqltile.check_where(expand_today(definition["where"]))
         df = df.sql(f"SELECT * FROM self WHERE {where}")
     return df
 
@@ -365,7 +365,7 @@ def card_value(content, table, store, full_predicates):
     if aggregation not in CARD_AGGREGATIONS:
         raise TileError(f"unknown card aggregation '{aggregation}'")
     measure = card_json.get("measure")
-    df = card_rows(card_json, table, store, full_predicates)
+    df = tile_rows(card_json, table, store, full_predicates)
 
     if card_json.get("by"):
         return _best_case(card_json, df)
@@ -494,14 +494,8 @@ def graph_case(content, table, store, full_predicates, field_labels=None):
         "name": graph_json["measure"],
         "aggregation": graph_json.get("aggregation", "sum"),
     }
-    df = _resolve_table(store, graph_json.get("from", table))
     notes = []
-
-    source = filter_df(df, full_predicates)
-    source = derive_columns(source, graph_json.get("computed") or {})
-    if graph_json.get("where"):
-        where = sqltile.check_where(expand_today(graph_json["where"]))
-        source = source.sql(f"SELECT * FROM self WHERE {where}")
+    source = tile_rows(graph_json, table, store, full_predicates)
     temporal = is_date(source, cx["name"])
     if temporal and graph_json.get("grain") == "month":
         source = apply_monthly(source, cx["name"])
@@ -667,12 +661,7 @@ def pivot_case(content, table, store, full_predicates, field_labels=None):
     aggregation = pivot_json.get("aggregation", "sum")
     monthly = pivot_json.get("grain") == "month"
 
-    df = _resolve_table(store, pivot_json.get("from", table))
-    df = filter_df(df, full_predicates)
-    df = derive_columns(df, pivot_json.get("computed") or {})
-    if pivot_json.get("where"):
-        where = sqltile.check_where(expand_today(pivot_json["where"]))
-        df = df.sql(f"SELECT * FROM self WHERE {where}")
+    df = tile_rows(pivot_json, table, store, full_predicates)
     df = _resolve_derived_date_columns(df, index, column)
     if monthly and column and is_date(df, column):
         df = apply_monthly(df, column)
