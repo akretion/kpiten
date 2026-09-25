@@ -53,6 +53,7 @@ THEMES = {
     for key, palette in core_themes.PALETTES.items()
 }
 DEFAULT_THEME = core_themes.DEFAULT
+TILE_HEIGHT = 320  # px : a tile without a height (a graph needs room for its labels)
 
 CSS = """
 .bb-ktd {
@@ -595,7 +596,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
             ui.notify(f"Tile #{tile_id} deleted")
         elif action in ("winc", "wdec", "hinc", "hdec"):
             col_span = line.get("col_span") or 1
-            tile_height = line.get("tile_height") or 260
+            tile_height = line.get("tile_height") or TILE_HEIGHT
             if action == "winc":
                 col_span = min(3, col_span + 1)
             elif action == "wdec":
