@@ -47,6 +47,7 @@ dev = [
   "pytest>=8",
   "birdseye>=0.10.0",
   "snoop>=0.6.1",
+  "viztracer>=1.1.1",
 ]
 
 [tool.uv.sources]
