@@ -211,7 +211,7 @@ class KtConfig(models.Model):
     default_theme = fields.Selection(
         THEMES,
         string="Default theme",
-        default="capitaine",
+        default="light",
         help="The theme a user gets until they choose another one.",
     )
     user_theme_ids = fields.One2many(
@@ -326,7 +326,8 @@ class KtConfig(models.Model):
         string="Open a list of records in Odoo",
         default=False,
         help="A KPI that lists Odoo records (an order per row...) gets a link that "
-        "opens the same list in Odoo, with the rights of the user.",
+        "opens the same list in Odoo, with the rights of the user. A card gets an Odoo "
+        "icon (Shiny) : its rows in a pivot of Odoo, to check its value.",
     )
     feature_ai_refine = fields.Boolean(
         string="Refine a KPI with the AI",

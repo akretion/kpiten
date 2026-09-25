@@ -13,6 +13,9 @@ from . import kt_sql
 
 # the name of the generic list actions `get_records_action` makes (one per model)
 RECORDS_ACTION_NAME = "KpiTen records"
+# in the context of the actions `get_check_action` makes (one per user and model)
+CHECK_MARKER = "kpiten_check"
+NUMERIC_TYPES = ("integer", "float", "monetary")
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +43,7 @@ class Kt(models.AbstractModel):
             },
             "res.partner": {
                 "country_id",
+                "country_id.name",
                 "commercial_partner_id",
                 "commercial_partner_id.ref",
             },
@@ -229,9 +233,7 @@ class Kt(models.AbstractModel):
         applies the rights and the record rules of whoever opens the link. Only the
         models of a KpiTen dataset are served.
         """
-        datasets = self.env["kt.dataset"].sudo().search([]).mapped("model_id.model")
-        if model not in datasets:
-            raise exceptions.UserError(_("%s is not a KpiTen data source.", model))
+        self._check_dataset_model(model)
         actions = self.env["ir.actions.act_window"].sudo()
         action = actions.search(
             [("res_model", "=", model), ("name", "=", RECORDS_ACTION_NAME)], limit=1
@@ -245,6 +247,61 @@ class Kt(models.AbstractModel):
                     "view_mode": f"{LIST},form",
                 }
             )
+        return action.id
+
+    @api.model
+    def _check_dataset_model(self, model: str) -> None:
+        datasets = self.env["kt.dataset"].sudo().search([]).mapped("model_id.model")
+        if model not in datasets:
+            raise exceptions.UserError(_("%s is not a KpiTen data source.", model))
+
+    @api.model
+    def get_check_action(self, model, name, domain, measure=None, groupby=None):
+        """The id of the action that checks a card in Odoo : the pivot of `model` on
+        `domain` (the rows of the card), `measure` summed and counted, by `groupby`.
+
+        The link of a card goes through `/kpiten/check` (controllers) : one action per
+        user and model, rewritten at each click. The domain does not widen anything :
+        the user opens it with their rights and record rules. The archived records
+        are counted, as in the store of KpiTen.
+        """
+        self._check_dataset_model(model)
+        records = self.env[model]
+        records.search_count(domain)  # a wrong domain fails here, not in the view
+        fields = records._fields
+        field = fields.get(measure) if measure else None
+        numeric = field and field.store and field.type in NUMERIC_TYPES
+        by = fields.get(groupby) if groupby else None
+        rows = [groupby] if by and by.store else []
+        values = {
+            "name": _("Check : %s", name),
+            "res_model": model,
+            "domain": repr(domain),
+            "view_mode": f"pivot,{LIST},form",
+            "context": repr(
+                {
+                    CHECK_MARKER: True,
+                    "active_test": False,
+                    "pivot_measures": ([measure] if numeric else []) + ["__count"],
+                    "pivot_row_groupby": rows,
+                    "pivot_column_groupby": [],
+                    "group_by": rows,  # the list, grouped the same
+                }
+            ),
+        }
+        actions = self.env["ir.actions.act_window"].sudo()
+        action = actions.search(
+            [
+                ("res_model", "=", model),
+                ("create_uid", "=", self.env.uid),
+                ("context", "like", CHECK_MARKER),
+            ],
+            limit=1,
+        )
+        if action:
+            action.write(values)
+        else:
+            action = actions.create(values)
         return action.id
 
     @api.model

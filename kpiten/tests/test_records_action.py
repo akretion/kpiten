@@ -1,4 +1,5 @@
 from odoo import exceptions
+from odoo.tools.safe_eval import safe_eval
 from odoo.tests.common import TransactionCase, tagged
 
 from ..compat import LIST
@@ -30,3 +31,19 @@ class TestRecordsAction(TransactionCase):
     def test_only_the_models_of_a_dataset_are_served(self):
         with self.assertRaises(exceptions.UserError):
             self.env["kt"].get_records_action("res.country")
+
+    def test_a_card_is_checked_in_a_pivot_of_its_rows_one_action_per_user(self):
+        kt = self.env["kt"]
+        domain = [("is_company", "=", True)]
+        first = kt.get_check_action("res.partner", "Companies", domain, "color", "type")
+        action = self.env["ir.actions.act_window"].browse(first)
+        self.assertEqual(safe_eval(action.domain), domain)
+        self.assertTrue(action.view_mode.startswith("pivot"))
+        context = safe_eval(action.context)
+        self.assertEqual(context["pivot_measures"], ["color", "__count"])
+        self.assertEqual(context["pivot_row_groupby"], ["type"])
+        self.assertFalse(context["active_test"])  # the archived ones are counted
+        again = kt.get_check_action("res.partner", "All", [], "name")
+        self.assertEqual(again, first)  # rewritten : `name` is not a measure
+        context = safe_eval(self.env["ir.actions.act_window"].browse(again).context)
+        self.assertEqual(context["pivot_measures"], ["__count"])
