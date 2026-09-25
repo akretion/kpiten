@@ -568,15 +568,15 @@ def records_link_html(records: dict | None, tr=i18n.english) -> str:
 
 
 def check_html(check: dict | None, tr=i18n.english) -> str:
-    """The Odoo icon of a card : its rows in a pivot of Odoo, to compare the values.
-    `check` is `odoocheck.card_check`."""
+    """The Odoo icon of a tile : its rows in a pivot of Odoo, to compare the values.
+    `check` is `odoocheck.tile_check`."""
     if not check:
         return ""
     lines = [tr("Check in Odoo : the same rows, counted by Odoo (with your rights)")]
     if check["how"] == "ids":
         lines.append(
             tr(
-                "The records of the card, by their ids : the filter itself is not checked"
+                "The records of the tile, by their ids : the filter itself is not checked"
             )
         )
     lines += [tr(hint) for hint in check.get("hints", [])]
@@ -606,8 +606,8 @@ def tile_html(
     `sparkline` the trend under a card's value ; `grid` : a table drawn as an
     interactive grid (`grid_<id>`, the server renders it) ; `tr` : the language of
     the user (`kpiten_core.i18n`) ; `ai` : the button that asks the AI about the tile,
-    and the filter it made (`ai_html`) ; `check` : the Odoo icon of a card
-    (`check_html`)."""
+    and the filter it made (`ai_html`) ; `check` : the Odoo icon of a card, a graph or
+    a pivot (`check_html`)."""
     p = theme.palette
     tooltip = f' title="{info}"' if info else ""
     if result.kind == "card":
@@ -632,7 +632,7 @@ def tile_html(
             + (f'<div class="kpi-trend">{sparkline}</div>' if sparkline else "")
             + "</div>"
         )
-    parts = [tile_header(line, result.kind, info, tr, ai)]
+    parts = [tile_header(line, result.kind, info, tr, check + ai)]
     # a plugin may draw the tile (kpiten_core.hookspecs), e.g. perspective-kpiten
     plugged = core_plugins.render_tile(line, result, p)
     if plugged:
@@ -1694,8 +1694,8 @@ def server(input, output, session):
             conditions.append(ai_filters()[line["id"]]["where"])
         return savetile.new_definition(line, conditions), conditions, notes
 
-    def card_check(line: dict, store_data: dict) -> dict | None:
-        """The link that checks a card in Odoo, with the filters it is seen with : the
+    def tile_check(line: dict, store_data: dict) -> dict | None:
+        """The link that checks a tile in Odoo, with the filters it is seen with : the
         period, the dimensions, the AI filters of the panel and of the tile."""
         table = savetile.tile_table(line)
         frame = store_data.get(table)
@@ -1709,7 +1709,7 @@ def server(input, output, session):
             conditions.append(current["filters"][table])
         if ai_filters().get(line["id"]):
             conditions.append(ai_filters()[line["id"]]["where"])
-        return odoocheck.card_check(
+        return odoocheck.tile_check(
             line,
             tile_store(line, store_data),
             predicates(),
@@ -2000,9 +2000,9 @@ def server(input, output, session):
                     else ""
                 )
                 check = ""
-                if result.kind == "card" and not edit_mode_on:
+                if result.kind in odoocheck.KINDS and not edit_mode_on:
                     try:
-                        check = check_html(card_check(line, store_data), tr)
+                        check = check_html(tile_check(line, store_data), tr)
                     except Exception:  # the card is drawn without it
                         logger.exception("no Odoo check for tile %s", line["id"])
                 rendered = (

@@ -445,6 +445,24 @@ def test_the_odoo_icon_of_a_card_counts_the_same_rows_in_odoo(page: Page) -> Non
         assert odoo.locator(".o_error_dialog").count() == 0
 
 
+def test_the_odoo_icon_of_a_graph_opens_its_pivot_grouped_by_month(page: Page) -> None:
+    """« Graph area monthly » : the pivot of Odoo groups its rows by month too."""
+    with kt_config(feature_open_in_odoo=True):
+        login_to_odoo(page)
+        open_dashboard(page)
+        tile = page.locator(".tile", has_text="Graph area monthly").first
+        tile.wait_for(timeout=60_000)
+        link = tile.locator("h3 .tile-check")
+        assert "groupby=date_order%3Amonth" in link.get_attribute("href")
+        with page.context.expect_page(timeout=20_000) as opened:
+            link.click()
+        odoo = opened.value
+        odoo.locator(".o_pivot td.o_pivot_cell_value").first.wait_for(timeout=60_000)
+        # the total and one row per month (at least one)
+        assert odoo.locator(".o_pivot tbody tr").count() >= 2
+        assert odoo.locator(".o_error_dialog").count() == 0
+
+
 def test_the_link_is_not_there_when_the_feature_is_off(page: Page) -> None:
     with kt_config(feature_open_in_odoo=False):
         open_dashboard(page)

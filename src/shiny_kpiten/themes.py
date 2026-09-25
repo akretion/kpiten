@@ -304,6 +304,9 @@ class Theme:
 .kpi-head .tile-check:hover {{ opacity: 1 }}
 .kpi-head .tile-check img {{ width: 13px; height: 13px; display: block }}
 .kpi-head .tile-check + .tile-ai {{ margin-left: 0 }}
+.tile h3 .tile-check {{ line-height: 1; opacity: .55; display: inline-flex }}
+.tile h3 .tile-check:hover {{ opacity: 1 }}
+.tile h3 .tile-check img {{ width: 13px; height: 13px; display: block }}
 .save-where {{ white-space: pre-wrap; font-size: 12px; padding: 6px 8px; border-radius: 6px; background: rgba(127, 127, 127, .12) }}
 .tile-ai-promote svg {{ width: 10px !important; height: 10px !important; fill: currentColor }}
 /* the panel : its ✨ in the head of the page */
