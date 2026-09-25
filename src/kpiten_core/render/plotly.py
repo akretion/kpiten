@@ -11,6 +11,9 @@ from kpiten_core.charts import Chart
 logger = logging.getLogger(__name__)
 
 DRAW = {"bar": px.bar, "line": px.line, "point": px.scatter, "area": px.area}
+LABEL_CHARS = (
+    14  # a longer category is cut (« Fromagerie Ro… ») ; the hover gives it all
+)
 
 
 def figure(chart: Chart):
@@ -25,6 +28,9 @@ def figure(chart: Chart):
         "margin": dict(l=20, r=20, t=40, b=20),
     }
     fig.update_layout(**layout)
+    if chart.kind != "pie":
+        _short_categories(fig, chart)
+        _axis_titles(fig)
     colorway = graph.get("layout", {}).get("colorway")
     if chart.series:  # a color per series
         _color_series(fig, colorway)
@@ -32,6 +38,46 @@ def figure(chart: Chart):
         _apply_colorway(fig, colorway)
         _apply_fill_color(fig, graph.get("fill_color"), chart.kind)
     return fig
+
+
+def _axis_titles(fig) -> None:
+    """The titles of the axes read horizontally, on a line above the graph : the y axis
+    on the left (`↓ Amount`), the x axis on the right (`Customer →`). Vertical, the
+    title of y was hard to read ; the one of x was hidden by long category labels."""
+    for axis, x, anchor, text in (
+        (fig.layout.yaxis, 0, "left", "↓ {}"),
+        (fig.layout.xaxis, 1, "right", "{} →"),
+    ):
+        title = axis.title.text
+        if not title:
+            continue
+        axis.title.text = None
+        fig.add_annotation(
+            text=text.format(title),
+            xref="paper",
+            yref="paper",
+            x=x,
+            y=1,
+            xanchor=anchor,
+            yanchor="bottom",
+            showarrow=False,
+            font=dict(size=11),
+            name=f"axis-title-{anchor}",
+        )
+
+
+def _short_categories(fig, chart: Chart) -> None:
+    """The categories of a bar graph cut at `LABEL_CHARS` on their axis (the bars keep
+    their whole name in the hover) : long names took the height of the graph."""
+    if chart.kind != "bar" or chart.temporal or chart.x not in chart.points.columns:
+        return
+    values = chart.points[chart.x].drop_nulls().unique(maintain_order=True).to_list()
+    names = [str(v) for v in values]
+    if not any(len(n) > LABEL_CHARS for n in names):
+        return
+    short = [n if len(n) <= LABEL_CHARS else n[: LABEL_CHARS - 1] + "…" for n in names]
+    axis = fig.update_yaxes if chart.orientation == "h" else fig.update_xaxes
+    axis(tickmode="array", tickvals=values, ticktext=short)
 
 
 def _color_series(fig, colorway: list | None) -> None:
