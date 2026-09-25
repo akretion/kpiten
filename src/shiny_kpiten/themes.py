@@ -286,7 +286,7 @@ class Theme:
   cursor: pointer; line-height: 1;
 }}
 .tile-full:hover, .tile h3 .tile-info:hover {{ opacity: .9 }}
-/* ask the AI about a tile ; the filter it made, as a badge */
+/* ask the AI about a tile */
 .tile-ai, .tile-ai-clear, .tile-ai-promote, .panel-ai-clear, .tile-save {{
   background: transparent; border: 0; padding: 2px; color: {p["text"]}; opacity: .45;
   cursor: pointer; line-height: 1;
@@ -301,19 +301,29 @@ class Theme:
 .kpi-head .tile-ai + .tile-save {{ margin-left: 0 }}
 .save-where {{ white-space: pre-wrap; font-size: 12px; padding: 6px 8px; border-radius: 6px; background: rgba(127, 127, 127, .12) }}
 .tile-ai-promote svg {{ width: 10px !important; height: 10px !important; fill: currentColor }}
-/* the panel : its ✨ in the head of the page, the badge of its filter */
+/* the panel : its ✨ in the head of the page */
 #ai_panel_bar {{ display: inline-flex; align-items: center; gap: 8px }}
 .panel-ai svg {{ width: 14px; height: 14px; fill: currentColor }}
-.tile-ai-filter.panel-ai-filter {{ font-size: 12px; max-width: 260px; padding: 2px 4px 2px 10px }}
-.tile-ai-filter {{
-  display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 500;
-  color: {p["accent"]}; border: 1px solid {p["accent"]}; border-radius: 10px;
-  padding: 0 2px 0 8px; max-width: 160px; white-space: nowrap; cursor: help;
+/* a ✨ whose tile (or panel) the AI filters */
+.tile-ai.tile-ai--on {{ color: {p["accent"]}; opacity: 1 }}
+.panel-ai.tile-ai--on {{ background: {p["accent"]}; color: {p["surface_hex"]} }}
+/* the filters the AI made, in the side bar */
+.ai-filters {{ margin: 4px 0 12px }}
+.ai-filters > label {{
+  display: flex; align-items: center; justify-content: flex-start; gap: 6px;
+  margin-bottom: 4px; font-size: 12px; font-weight: 400
 }}
-.tile-ai-filter span {{ overflow: hidden; text-overflow: ellipsis }}
-/* on a card : the badge on a line of its own, under the name */
-.kpi-head:has(.tile-ai-filter) {{ flex-wrap: wrap; row-gap: 2px }}
-.kpi-head .tile-ai-filter {{ order: 3; margin-left: 34px; max-width: calc(100% - 34px) }}
+.ai-filters > label svg {{ width: 12px; height: 12px; fill: {p["accent"]} }}
+.ai-filter {{
+  display: flex; align-items: center; gap: 2px; margin-bottom: 4px; cursor: help;
+  border: 1px solid {p["accent"]}; border-radius: 8px; padding: 3px 4px 3px 8px;
+}}
+.ai-filter-text {{ display: flex; flex-direction: column; min-width: 0; flex: 1 }}
+.ai-filter-scope {{ font-size: 10px; opacity: .7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }}
+.ai-filter-title {{
+  font-size: 12px; font-weight: 500; color: {p["accent"]};
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap
+}}
 .kpiten-ai-head {{
   display: flex; align-items: center; gap: 8px; font-weight: 600; color: {p["accent"]};
 }}

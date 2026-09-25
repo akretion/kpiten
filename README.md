@@ -25,12 +25,14 @@ confirmed orders », « only the product Standing desk oak » (`kpiten_core.quer
 
 - **A tile** (off by default : `kt.config` › New features › « Ask a tile in words ») :
   its ✨ opens a chat on the right ; the model writes a SQL filter on the
-  table of the tile, which is computed again. A badge on the tile gives the filter (SQL
-  in its tooltip) ; × removes it, the layers icon applies it to the whole panel.
+  table of the tile, which is computed again.
 - **The panel** : the ✨ next to its name. The model writes a filter for the tables that
   need one ; the other tables of the panel follow through their many2one (the lines of
-  an order follow the order, the orders follow their lines). The badge next to the name
-  lists the filters and the tables that followed (tooltip).
+  an order follow the order, the orders follow their lines). 
+- **The side bar** lists the filters the AI made, under those of the panel : what they
+  narrow (the panel, a tile), their SQL and the tables that followed in the tooltip,
+  × to remove one, the layers icon to apply the filter of a tile to the whole panel ; a
+  ✨ is in color while its tile (or panel) is filtered.
 - The filters live in the page, for that user, until it is reloaded ; the rights, the
   period and the filters of the panel still apply ; the spreadsheet export and the
   drill-down read the narrowed rows too.

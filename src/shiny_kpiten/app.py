@@ -257,6 +257,8 @@ def app_ui(req):  # noqa: ANN001
                 ui.output_ui("user_name"),
                 ui.input_select("panel", tr("Panel"), choices=[], width="100%"),
                 ui.output_ui("filters"),
+                # the filters the AI made : on the panel, on tiles
+                ui.output_ui("ai_filters_bar"),
                 ui.output_ui("theme_select"),
                 ui.output_ui("db_select"),
                 ui.tags.span(
@@ -488,43 +490,50 @@ def save_html(tr=i18n.english) -> str:
 
 
 def ai_html(where: dict | None, tr=i18n.english) -> str:
-    """The ✨ button of a tile, and the badge of the filter the AI made for it
-    (`where` : {"title", "where"}, None without one) : its SQL in the tooltip."""
-    button = (
-        f'<button type="button" class="tile-ai" title="{html_escape(tr(AI_TOOLTIP))}">'
-        f'{svg("wand-magic-sparkles")}</button>'
-    )
-    if not where:
-        return button
-    tooltip = tr("AI filter : {title}", title=where["title"]) + "\n" + where["where"]
+    """The ✨ button of a tile ; in the color of the theme when the AI filters it (the
+    filter itself is in the side bar, `ai_filter_html`)."""
+    title = tr(AI_TOOLTIP)
+    if where:
+        title += "\n" + tr("AI filter : {title}", title=where["title"])
+    on = " tile-ai--on" if where else ""
     return (
-        f'<span class="tile-ai-filter" title="{html_escape(tooltip, quote=True)}">'
-        f'<span>{html_escape(where["title"])}</span>'
-        f'<button type="button" class="tile-ai-promote" '
-        f'title="{html_escape(tr("Apply this filter to the whole panel"), quote=True)}">'
-        f'{svg("layer-group")}</button>'
-        f'<button type="button" class="tile-ai-clear" '
-        f'title="{html_escape(tr("Remove the AI filter"), quote=True)}">×</button></span>'
-        + button
+        f'<button type="button" class="tile-ai{on}" '
+        f'title="{html_escape(title, quote=True)}">{svg("wand-magic-sparkles")}</button>'
     )
 
 
-def panel_ai_html(current: dict | None, tooltip: str, tr=i18n.english) -> str:
-    """✨ of the panel, and the badge of the filter the AI made for it (`current` :
-    {"filters", "title"}, None without one ; `tooltip` : its SQL, table by table)."""
-    button = (
-        f'<button type="button" class="panel-ai btn btn-kpiten" '
+def panel_ai_html(on: bool, tr=i18n.english) -> str:
+    """✨ of the panel, in the head of the page ; `on` : the AI filters the panel."""
+    return (
+        f'<button type="button" class="panel-ai btn btn-kpiten{" tile-ai--on" if on else ""}" '
         f'title="{html_escape(tr(PANEL_AI_TOOLTIP), quote=True)}">'
         f'{svg("wand-magic-sparkles")}</button>'
     )
-    if not current:
-        return button
-    return button + (
-        f'<span class="tile-ai-filter panel-ai-filter" '
-        f'title="{html_escape(tooltip, quote=True)}">'
-        f'<span>{html_escape(current["title"])}</span>'
-        f'<button type="button" class="panel-ai-clear" '
-        f'title="{html_escape(tr("Remove the AI filter"), quote=True)}">×</button></span>'
+
+
+def ai_filter_html(
+    scope: str, title: str, tooltip: str, tile_id: int | None, tr=i18n.english
+) -> str:
+    """A filter the AI made, in the side bar : what it narrows (the panel or a tile),
+    its title, its SQL in the tooltip, × to remove it ; a tile's can be applied to the
+    whole panel."""
+    tile = f' data-tile-id="{tile_id}"' if tile_id is not None else ""
+    clear = "tile-ai-clear" if tile_id is not None else "panel-ai-clear"
+    promote = (
+        f'<button type="button" class="tile-ai-promote" '
+        f'title="{html_escape(tr("Apply this filter to the whole panel"), quote=True)}">'
+        f'{svg("layer-group")}</button>'
+        if tile_id is not None
+        else ""
+    )
+    return (
+        f'<div class="ai-filter"{tile} title="{html_escape(tooltip, quote=True)}">'
+        f'<div class="ai-filter-text"><span class="ai-filter-scope">'
+        f"{html_escape(scope)}</span>"
+        f'<span class="ai-filter-title">{html_escape(title)}</span></div>'
+        f"{promote}"
+        f'<button type="button" class="{clear}" '
+        f'title="{html_escape(tr("Remove the AI filter"), quote=True)}">×</button></div>'
     )
 
 
@@ -1306,16 +1315,48 @@ def server(input, output, session):
 
     @render.ui
     def ai_panel_bar():
-        """✨ of the panel in its head, and the badge of the filter the AI made for it."""
+        """✨ of the panel in its head (its filter is in the side bar)."""
+        if not ai_on:
+            return None
+        return ui.HTML(panel_ai_html(bool(ai_panel().get(str(req(input.panel())))), tr))
+
+    @render.ui
+    def ai_filters_bar():
+        """The filters the AI made, in the side bar under those of the panel."""
         if not ai_on:
             return None
         current = ai_panel().get(str(req(input.panel())))
-        return ui.HTML(
-            panel_ai_html(
-                current,
-                panel_filter_text(current, narrowed()[1]) if current else "",
-                tr,
+        tiles = {line["id"]: line for line in lines()}
+        entries = []
+        if current:
+            entries.append(
+                ai_filter_html(
+                    tr("All the panel"),
+                    current["title"],
+                    panel_filter_text(current, narrowed()[1]),
+                    None,
+                    tr,
+                )
             )
+        for tile_id, where in ai_filters().items():
+            if tile_id in tiles:
+                entries.append(
+                    ai_filter_html(
+                        f"« {tiles[tile_id]['name']} »",
+                        where["title"],
+                        tr("AI filter : {title}", title=where["title"])
+                        + "\n"
+                        + where["where"],
+                        tile_id,
+                        tr,
+                    )
+                )
+        if not entries:
+            return None
+        return ui.div(
+            ui.tags.label(ui.HTML(svg("wand-magic-sparkles")), tr("AI filters")),
+            ui.HTML("".join(entries)),
+            class_="ai-filters",
         )
 
     async def ai_say(key: tuple, role: str, text: str) -> None:
