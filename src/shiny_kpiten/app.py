@@ -88,6 +88,7 @@ TAB_TITLE = "KpiTen (shiny)"  # the name of the browser tab, after the panel
 GRID_SPAN = {1: 2, 2: 3, 3: 6}
 
 HEIGHT_STEP = 40  # px ; tile_height resize step in edit mode
+TILE_HEIGHT = 320  # px : a tile without a height (a graph needs room for its labels)
 WIDTH_MIN = 1
 WIDTH_MAX = 3
 
@@ -632,7 +633,7 @@ def tile_html(
     parts.append(records_link_html(records, tr))
     html = "".join(str(part) for part in parts)
     drillable = bool(line.get("drill")) and bool(result.keys) and not grid
-    height = line.get("tile_height") or 260
+    height = line.get("tile_height") or TILE_HEIGHT
     # a graph keeps the height of its tile ; a table is as tall as its rows, up to it
     size = (
         f"min-height: {max(height - 40, 120)}px"
@@ -1133,7 +1134,7 @@ def server(input, output, session):
 
         elif action in ("winc", "wdec", "hinc", "hdec"):
             col_span = line.get("col_span") or 1
-            tile_height = line.get("tile_height") or 260
+            tile_height = line.get("tile_height") or TILE_HEIGHT
             if action == "winc":
                 col_span = min(WIDTH_MAX, col_span + 1)
             elif action == "wdec":
@@ -1892,7 +1893,7 @@ def server(input, output, session):
                 if grid:
                     grid_output(line["id"])
                     grid_frames[line["id"]] = grid_rows(result.df)
-                    height = max((line.get("tile_height") or 260) - 60, 200)
+                    height = max((line.get("tile_height") or TILE_HEIGHT) - 60, 200)
                     grid_heights[line["id"]] = f"{height}px"
                 trend = (
                     sparkline(line, card_icon(line["name"])[1])
