@@ -37,7 +37,12 @@ from kpiten_core import ods as core_ods
 from kpiten_core import labels as core_labels
 from kpiten_core import plugins as core_plugins
 from kpiten_core.render.gtable import DRILL_CSS
-from kpiten_core.render.plotly import _with_alpha, apply_theme_colors, finish
+from kpiten_core.render.plotly import (
+    _with_alpha,
+    apply_theme_colors,
+    category_labels,
+    finish,
+)
 from kpiten_core import themes as core_themes
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
@@ -610,6 +615,8 @@ def tile_html(
         parts.append(plugged)
     elif result.kind == "graph":
         apply_theme_colors(result.figure, p)
+        # the labels of the categories that fit the width of the tile
+        category_labels(result.figure, result.chart, line.get("col_span"))
         result.figure.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
