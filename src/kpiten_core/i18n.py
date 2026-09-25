@@ -115,6 +115,8 @@ FR = {
         "Demander à l'IA : restreindre les lignes de ce KPI, en mots"
     ),
     "Remove the AI filter": "Retirer le filtre de l'IA",
+    "AI filters": "Filtres de l'IA",
+    "All the panel": "Tout le tableau",
     "AI filter : {title}": "Filtre de l'IA : {title}",
     "Ask a KPI": "Interroger un KPI",
     "Click ✨ on a tile, then say in words which rows it should count : « only the "

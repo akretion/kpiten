@@ -31,6 +31,12 @@ def figure(chart: Chart):
     if chart.kind != "pie":
         _short_categories(fig, chart)
         _axis_titles(fig)
+    if chart.series and chart.kind != "pie":
+        # the legend under the graph : on its right it took the width, and the titles
+        # of the axes, above the graph, ran into each other
+        fig.update_layout(
+            legend=dict(orientation="h", x=0, xanchor="left", y=-0.18, yanchor="top")
+        )
     colorway = graph.get("layout", {}).get("colorway")
     if chart.series:  # a color per series
         _color_series(fig, colorway)
