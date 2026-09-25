@@ -12,6 +12,7 @@ Themes and their palette live in `themes.py` (default = the one of `kt.config`) 
 theme can be picked in the UI bar, and is then kept in Odoo for the user.
 """
 
+import asyncio
 import datetime
 import json
 import logging
@@ -28,7 +29,7 @@ import polars as pl
 from shiny import App, reactive, render, req, ui
 from shiny.types import SilentException
 
-from kpiten_core import brand, comparison, i18n, links
+from kpiten_core import anonymize, brand, comparison, i18n, links, llm, querychat
 from kpiten_core import config as core_config
 from kpiten_core import ods as core_ods
 from kpiten_core import labels as core_labels
@@ -77,6 +78,7 @@ EDIT_TOOLTIP = (
     "Edit this panel : move, resize or delete its tiles (drag and drop, or the "
     "buttons on each tile). The changes are saved in Odoo."
 )
+AI_TOOLTIP = "Ask the AI : narrow the rows of this KPI in words"
 TAB_TITLE = "KpiTen (shiny)"  # the name of the browser tab, after the panel
 
 # the grid has 6 columns : a tile of width 1 takes a third of the row, 2 a half, 3 the
@@ -180,6 +182,35 @@ def user_lang(sso) -> str | None:  # noqa: ANN001
         return None
 
 
+def tiles_and_chat(tr):  # noqa: ANN001
+    """The tiles ; with an AI model configured (`kpiten_core.llm`), the chat that
+    narrows a tile in words, on their right, closed until a ✨ of a tile opens it."""
+    tiles = ui.div(ui.output_ui("tiles"))
+    if llm.default_provider() is None:
+        return tiles
+    return ui.layout_sidebar(
+        ui.sidebar(
+            ui.output_ui("ai_head"),
+            ui.chat_ui(
+                "ai_chat",
+                placeholder=tr("Narrow this KPI in words…"),
+                drawer=False,
+                width="100%",
+                height="auto",
+            ),
+            id="ai_sidebar",
+            position="right",
+            open="closed",
+            width=380,
+            class_="kpiten-ai",
+        ),
+        tiles,
+        border=False,
+        fillable=False,
+        class_="kpiten-ai-layout",
+    )
+
+
 def app_ui(req):  # noqa: ANN001
     from kpiten_core import env
 
@@ -251,7 +282,7 @@ def app_ui(req):  # noqa: ANN001
                 ui.output_ui("data_freshness"),
                 class_="top-bar",
             ),
-            ui.div(ui.output_ui("tiles")),
+            tiles_and_chat(tr),
             # at the end of the page, on the right : the logo of the framework, then
             # the one of KpiTen with its name
             ui.div(
@@ -312,9 +343,10 @@ def card_badge(name: str) -> str:
     )
 
 
-def tile_header(line: dict, kind: str, info: str, tr=i18n.english) -> str:
+def tile_header(line: dict, kind: str, info: str, tr=i18n.english, ai: str = "") -> str:
     """The title of a tile : its icon, its name, its kind ; the filters it was
-    computed with (an info icon) and the full screen button on the right."""
+    computed with (an info icon), the AI (`ai`, see `ai_html`) and the full screen
+    button on the right."""
     info_icon = (
         f'<span class="tile-info" title="{info}">{svg("circle-info")}</span>'
         if info
@@ -324,7 +356,7 @@ def tile_header(line: dict, kind: str, info: str, tr=i18n.english) -> str:
         f'<h3><span class="tile-icon">{svg(TILE_ICONS.get(kind, "table-list"))}</span>'
         f'<span class="tile-name">{line["name"] or kind}</span>'
         f'<span class="kind-badge">{tr(kind)}</span>'
-        f'<span class="tile-actions">{info_icon}'
+        f'<span class="tile-actions">{ai}{info_icon}'
         f'<button type="button" class="tile-full" title="{tr("Full screen (Esc to leave)")}">'
         f"{svg('expand')}</button></span></h3>"
     )
@@ -413,6 +445,42 @@ DRILL_JS = """
 })();
 """
 
+# ✨ on a tile opens the chat about it ; × on its badge removes the filter the AI made
+AI_JS = """
+(function () {
+  if (window.__kpitenAi) { return; }
+  window.__kpitenAi = true;
+  document.addEventListener("click", function (ev) {
+    var button = ev.target.closest(".tile-ai, .tile-ai-clear");
+    if (!button || !window.Shiny) { return; }
+    ev.stopPropagation();
+    var tile = button.closest("[data-tile-id]");
+    Shiny.setInputValue(
+      button.classList.contains("tile-ai") ? "ai_tile" : "ai_clear",
+      parseInt(tile.dataset.tileId, 10), {priority: "event"});
+  });
+})();
+"""
+
+
+def ai_html(where: dict | None, tr=i18n.english) -> str:
+    """The ✨ button of a tile, and the badge of the filter the AI made for it
+    (`where` : {"title", "where"}, None without one) : its SQL in the tooltip."""
+    button = (
+        f'<button type="button" class="tile-ai" title="{html_escape(tr(AI_TOOLTIP))}">'
+        f'{svg("wand-magic-sparkles")}</button>'
+    )
+    if not where:
+        return button
+    tooltip = tr("AI filter : {title}", title=where["title"]) + "\n" + where["where"]
+    return (
+        f'<span class="tile-ai-filter" title="{html_escape(tooltip, quote=True)}">'
+        f'<span>{html_escape(where["title"])}</span>'
+        f'<button type="button" class="tile-ai-clear" '
+        f'title="{html_escape(tr("Remove the AI filter"), quote=True)}">×</button></span>'
+        + button
+    )
+
 
 # ---- tiles html rendering ---------------------------------------------
 def records_link_html(records: dict | None, tr=i18n.english) -> str:
@@ -448,12 +516,14 @@ def tile_html(
     sparkline: str = "",
     grid: bool = False,
     tr=i18n.english,
+    ai: str = "",
 ) -> str:
     """Tile html ; `info` goes in a tooltip = active filters description ; `records` is
     the link that opens the listed records in Odoo (when the KPI lists some) ;
     `sparkline` the trend under a card's value ; `grid` : a table drawn as an
     interactive grid (`grid_<id>`, the server renders it) ; `tr` : the language of
-    the user (`kpiten_core.i18n`)."""
+    the user (`kpiten_core.i18n`) ; `ai` : the button that asks the AI about the tile,
+    and the filter it made (`ai_html`)."""
     p = theme.palette
     tooltip = f' title="{info}"' if info else ""
     if result.kind == "card":
@@ -461,7 +531,7 @@ def tile_html(
         return (
             f'<div class="tile kpi-card" data-tile-id="{line["id"]}"{tooltip}>'
             f'<div class="kpi-head">{card_badge(line["name"])}'
-            f'<span class="kpi-label">{line["name"] or ""}</span></div>'
+            f'<span class="kpi-label">{line["name"] or ""}</span>{ai}</div>'
             # a name (best seller...) is text : smaller, it can be long
             f'<div class="value{" kpi-text" if isinstance(result.value, str) else ""}">'
             f"{html_escape(result.text)}</div>"
@@ -478,7 +548,7 @@ def tile_html(
             + (f'<div class="kpi-trend">{sparkline}</div>' if sparkline else "")
             + "</div>"
         )
-    parts = [tile_header(line, result.kind, info, tr)]
+    parts = [tile_header(line, result.kind, info, tr, ai)]
     # a plugin may draw the tile (kpiten_core.hookspecs), e.g. perspective-kpiten
     plugged = core_plugins.render_tile(line, result, p)
     if plugged:
@@ -744,6 +814,7 @@ def server(input, output, session):
             ui.tags.style(links.LINK_CSS + DRILL_CSS),
             ui.tags.script(links.NEW_TAB_JS),
             ui.tags.script(DRILL_JS),
+            ui.tags.script(AI_JS),
         )
 
     @reactive.calc
@@ -946,6 +1017,10 @@ def server(input, output, session):
                     info = info + "\n" + more if info else more
             except Exception:
                 pass
+        where = ai_filters().get(line["id"])
+        if where:
+            more = tr("AI filter : {title}", title=where["title"])
+            info = info + "\n" + more if info else more
         return info.replace('"', "'")
 
     def tile_edit_item(
@@ -1057,7 +1132,7 @@ def server(input, output, session):
                 return
             try:
                 result = core_tiles.exec_drill(
-                    line, line["model"], store(), predicates(), keys[row]
+                    line, line["model"], tile_store(line), predicates(), keys[row]
                 )
             except Exception as err:
                 logger.exception("drill-down of tile %s failed", line["name"])
@@ -1086,6 +1161,164 @@ def server(input, output, session):
                 )
             )
 
+    # ---- ask a KPI in words (kpiten_core.querychat) : for every user ------------
+    # the model of `.env` ; `kt.config` may turn the AI off for everyone
+    provider = llm.default_provider()
+    ai_on = provider is not None and core_config.ai_enabled()
+    ai_filters = reactive.Value({})  # tile id -> {"where", "title"}, this session only
+    ai_line = reactive.Value(None)  # the tile the chat is about
+    ai_history: dict[int, list] = {}  # tile id -> the conversation the model saw
+    ai_log: dict[int, list] = {}  # tile id -> the messages shown
+    ai_tables: dict[tuple, tuple] = {}  # (db, table, level) -> (description, anon)
+    chat = ui.Chat("ai_chat", history=False) if provider is not None else None
+
+    def tile_store(line: dict, store_data: dict | None = None) -> dict:
+        """The store a tile reads : its table narrowed by the filter the AI made."""
+        store_data = store() if store_data is None else store_data
+        where = ai_filters().get(line["id"])
+        if not where or line["model"] not in store_data:
+            return store_data
+        frame = querychat.apply(store_data[line["model"]].lazy(), where["where"])
+        return {**store_data, line["model"]: frame}
+
+    def ai_about() -> str:
+        """What the model is, and what it is told of a table (`kt.config`)."""
+        told = {
+            "schema": "It is told the names and types of the columns only.",
+            "clear": "It is told the columns, figures on them and a few rows, in clear.",
+        }.get(
+            core_config.ai_send_level(),
+            "It is told the columns, figures on them and a few rows, with pseudonyms "
+            "for the people and the products.",
+        )
+        text = tr("Model : {model}.", model=provider.label) + " " + tr(told)
+        if not provider.leaves_machine:
+            text += " " + tr("Nothing leaves the machine.")
+        return text
+
+    @render.ui
+    def ai_head():
+        if provider is None:
+            return None
+        if not ai_on:  # turned off in `kt.config` : no chat, no ✨
+            return ui.tags.style(
+                ".kpiten-ai-layout > .sidebar, .kpiten-ai-layout > "
+                ".collapse-toggle { display: none !important }"
+            )
+        line = ai_line()
+        title = f"« {line['name']} »" if line else tr("Ask a KPI")
+        return ui.div(
+            ui.HTML(svg("wand-magic-sparkles")),
+            ui.span(title),
+            ui.span(ui.HTML(svg("circle-info")), class_="tile-info", title=ai_about()),
+            class_="kpiten-ai-head",
+        )
+
+    async def ai_say(line_id: int | None, role: str, text: str) -> None:
+        if line_id is not None:
+            ai_log.setdefault(line_id, []).append({"role": role, "content": text})
+        await chat.append_message({"role": role, "content": text})
+
+    @reactive.effect
+    @reactive.event(input.ai_tile)
+    async def _ai_open():
+        """✨ on a tile : the chat is about it, with what was said of it before."""
+        line = next((l for l in lines() if l["id"] == input.ai_tile()), None)
+        if line is None or not ai_on:
+            return
+        ai_line.set(line)
+        ui.update_sidebar("ai_sidebar", show=True)
+        await chat.clear_messages()
+        for message in ai_log.get(line["id"], []):
+            await chat.append_message(message)
+        if not ai_log.get(line["id"]):
+            await ai_say(
+                line["id"],
+                "assistant",
+                tr(
+                    "Which rows should « {name} » count ? For example « only the "
+                    "confirmed orders ». « Remove the filter » gives the whole KPI "
+                    "back.",
+                    name=line["name"],
+                )
+                + "\n\n"
+                + tr(
+                    "The filter only changes this tile, for you ; it is lost when "
+                    "the page is reloaded."
+                ),
+            )
+
+    @reactive.effect
+    @reactive.event(input.ai_clear)
+    async def _ai_clear():
+        """× on the badge of a tile : the whole tile again."""
+        line_id = input.ai_clear()
+        filters = dict(ai_filters())
+        if filters.pop(line_id, None) is None:
+            return
+        ai_filters.set(filters)
+        line = ai_line()
+        if line is not None and line["id"] == line_id:
+            await ai_say(
+                line_id,
+                "assistant",
+                tr("Filter removed : the KPI counts all its rows again."),
+            )
+
+    if chat is not None:
+
+        @chat.on_user_submit
+        async def _ai_ask(question: str):
+            line = ai_line()
+            if line is None or not ai_on:
+                await chat.append_message(tr("Click ✨ on a tile first."))
+                return
+            ai_log.setdefault(line["id"], []).append(
+                {"role": "user", "content": question}
+            )
+            backend, table = backend_rv(), line["model"]
+            frame = store().get(table)
+            if frame is None:
+                await ai_say(line["id"], "assistant", f"{table} ?")
+                return
+            level = core_config.ai_send_level()
+            key = (backend.db, table, level)
+            history = ai_history.get(line["id"], [])
+
+            def work() -> querychat.Reply:
+                # the figures on the table and the model : off the event loop
+                if key not in ai_tables:
+                    anon = anonymize.for_table(backend, table, hide=level != "clear")
+                    ai_tables[key] = (anonymize.summary(frame, anon, level), anon)
+                description, anon = ai_tables[key]
+                return querychat.ask(
+                    provider,
+                    line,
+                    frame,
+                    description,
+                    history,
+                    question,
+                    anon,
+                    lang=odoo_lang or "",
+                )
+
+            logger.info("ai : %s asks %r on tile %s", backend.db, question, line["id"])
+            reply = await asyncio.to_thread(work)
+            logger.info("ai : %s %r %s", reply.action, reply.where, reply.error or "")
+            ai_history[line["id"]] = (history + reply.exchange)[
+                -2 * querychat.HISTORY :
+            ]
+            text = reply.text
+            filters = dict(ai_filters())
+            if reply.action == querychat.FILTER:
+                filters[line["id"]] = {"where": reply.where, "title": reply.title}
+                text += f"\n\n```sql\n{reply.where}\n```"
+            elif reply.action == querychat.CLEAR:
+                filters.pop(line["id"], None)
+            if filters != ai_filters():
+                ai_filters.set(filters)
+            await ai_say(line["id"], "assistant", text)
+
     def panel_results() -> list:
         """(line, result, error) per tile of the panel : computed with its period, its
         filters and the rights of the user (the tiles on screen, the exports)."""
@@ -1100,7 +1333,7 @@ def server(input, output, session):
                 result = core_tiles.exec_tile(
                     line,
                     line["model"],
-                    store_data,
+                    tile_store(line, store_data),
                     predicate_list,
                     previous_predicates,
                     previous_label,
@@ -1280,6 +1513,7 @@ def server(input, output, session):
                         sparkline=trend,
                         grid=grid,
                         tr=tr,
+                        ai=ai_html(ai_filters().get(line["id"]), tr) if ai_on else "",
                     )
                 )
             except Exception as err:
