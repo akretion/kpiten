@@ -258,12 +258,21 @@ class KtConfig(models.Model):
         default=True,
         help="Uncheck to turn the AI of the explorer off for everyone.",
     )
-    ai_send_values = fields.Boolean(
-        string="Send the few values of a column to the model",
-        default=True,
-        help="The AI knows the columns of the table. Checked, it also gets the values "
-        "of the columns that have few (state, country...) : it writes better code, "
-        "but with an online model those values leave the company. Never a row.",
+    ai_send_level = fields.Selection(
+        [
+            ("schema", "The columns only"),
+            ("summary", "A summary, with pseudonyms"),
+            ("clear", "A summary, in clear"),
+        ],
+        string="What the model is told of a table",
+        default="summary",
+        required=True,
+        help="The columns only : their name and type. A summary : figures on the "
+        "columns (range, mean, period, most frequent values) and a few rows, with the "
+        "customers, suppliers, people, products and categories renamed (Customer 12, "
+        "Product 4) ; phones, streets, VAT numbers and free text are never sent, and the "
+        "answer is shown with the real names. In clear : the same without pseudonyms, "
+        "for a local model (nothing leaves the machine).",
     )
 
     # ---- relations (dot-paths `kt` follows through many2one fields)
@@ -528,7 +537,8 @@ class KtConfig(models.Model):
               "ui": {"theme": "capitaine", "table_rows": 20, "colors": "theme"},
               "explore": {"access": "everyone", "max_rows": 500000,
                           "ods_max_rows": 500000},
-              "ai": {"enabled": True, "send_values": True},
+              "ai": {"enabled": True, "send_level": "summary",
+                     "send_values": True},
               "currency": {"symbol": "$", "position": "before"}}
 
         `currency` is the one of the company : a card with `unit = "currency"`
@@ -583,7 +593,9 @@ class KtConfig(models.Model):
         }
         config["ai"] = {
             "enabled": rec.ai_enabled,
-            "send_values": rec.ai_send_values,
+            "send_level": rec.ai_send_level,
+            # for an older app, which knows only whether values may be sent
+            "send_values": rec.ai_send_level != "schema",
         }
         config["features"] = {name: rec[f"feature_{name}"] for name in FEATURES}
         return config
