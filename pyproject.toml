@@ -45,6 +45,8 @@ dev = [
   "kpiten-core[render]",
   "black>=26.5.1",
   "pytest>=8",
+  "birdseye>=0.10.0",
+  "snoop>=0.6.1",
 ]
 
 [tool.uv.sources]
