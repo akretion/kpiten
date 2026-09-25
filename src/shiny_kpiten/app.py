@@ -1217,6 +1217,8 @@ def server(input, output, session):
     # live in this session only.
     provider = llm.default_provider()
     ai_on = provider is not None and core_config.ai_enabled()
+    # the ✨ of each tile : a new function, off unless `kt.config` turns it on
+    ai_tile_on = ai_on and core_config.feature("ai_tile")
     ai_filters = reactive.Value({})  # tile id -> {"where", "title"}
     ai_panel = reactive.Value({})  # panel id -> {"filters": {table: where}, "title"}
     # what the chat is about : {"key": ("tile", id) or ("panel", id), "name", "line"}
@@ -1336,7 +1338,7 @@ def server(input, output, session):
     async def _ai_open_tile():
         """✨ on a tile : the chat is about it."""
         line = next((l for l in lines() if l["id"] == input.ai_tile()), None)
-        if line is None or not ai_on:
+        if line is None or not ai_tile_on:
             return
         await ai_open(
             {"key": ("tile", line["id"]), "name": line["name"], "line": line},
@@ -1510,7 +1512,11 @@ def server(input, output, session):
         async def _ai_ask(question: str):
             target = ai_target()
             if target is None or not ai_on:
-                await chat.append_message(tr("Click ✨ on a tile first."))
+                await chat.append_message(
+                    tr(
+                        "Click a ✨ first : next to the name of the panel, or on a tile."
+                    )
+                )
                 return
             key = target["key"]
             ai_log.setdefault(key, []).append({"role": "user", "content": question})
@@ -1905,7 +1911,11 @@ def server(input, output, session):
                         sparkline=trend,
                         grid=grid,
                         tr=tr,
-                        ai=(ai_html(ai_filters().get(line["id"]), tr) if ai_on else "")
+                        ai=(
+                            ai_html(ai_filters().get(line["id"]), tr)
+                            if ai_tile_on
+                            else ""
+                        )
                         + (
                             save_html(tr)
                             if saving and line["kind"] in savetile.WHERE_KINDS
