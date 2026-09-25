@@ -96,3 +96,53 @@ def test_the_model_sees_pseudonyms_the_filter_runs_on_real_names():
 def test_parse_refuses_what_is_not_an_object(text):
     with pytest.raises(ValueError):
         querychat.parse(text)
+
+
+# ---- a panel : the tables follow each other through their many2one
+ORDERS = pl.LazyFrame({"id": [1, 2, 3], "amount_untaxed": [100.0, 2500.0, 3000.0]})
+LINES = pl.LazyFrame(
+    {"id": [10, 11, 12, 13], "order_id_": [1, 2, 2, 3], "product_id": list("ABAB")}
+)
+PANEL = {"sale.order": ORDERS, "sale.order.line": LINES}
+RELS = {"sale.order": {}, "sale.order.line": {"order_id": "sale.order"}}
+
+
+def ids(store, table):
+    return sorted(store[table].collect()["id"].to_list())
+
+
+def test_the_lines_follow_their_orders():
+    store, followed = querychat.narrow_store(
+        PANEL, {"sale.order": "amount_untaxed > 2000"}, RELS
+    )
+    assert ids(store, "sale.order") == [2, 3]
+    assert ids(store, "sale.order.line") == [11, 12, 13]
+    assert followed == {"sale.order.line": ["sale.order"]}
+
+
+def test_the_orders_follow_their_lines():
+    store, followed = querychat.narrow_store(
+        PANEL, {"sale.order.line": "product_id = 'A'"}, RELS
+    )
+    assert ids(store, "sale.order") == [1, 2]
+    assert followed == {"sale.order": ["sale.order.line"]}
+
+
+def test_a_table_out_of_the_panel_does_not_follow():
+    store, followed = querychat.narrow_store(
+        PANEL, {"sale.order": "id = 1"}, RELS, tables=["sale.order"]
+    )
+    assert ids(store, "sale.order.line") == [10, 11, 12, 13] and followed == {}
+
+
+def test_the_panel_filters_are_checked_table_by_table():
+    wrong = json.dumps({"action": "filter", "filters": {"res.partner": "id = 1"}})
+    right = json.dumps(
+        {"action": "filter", "filters": {"sale.order": "amount_untaxed > 2000"}}
+    )
+    complete = model(wrong, right)
+    reply = querychat.ask_panel(
+        PROVIDER, "Sales", PANEL, {"sale.order": "…"}, [], "?", complete=complete
+    )
+    assert reply.filters == {"sale.order": "amount_untaxed > 2000"}
+    assert "unknown table" in complete.calls[1][-1]["content"]

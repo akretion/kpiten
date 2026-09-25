@@ -63,7 +63,16 @@ class Anonymizer:
     level) the values are sent as they are ; secrets and free text are still left out.
     """
 
-    def __init__(self, table: str = "", fields: dict | None = None, hide: bool = True):
+    def __init__(
+        self,
+        table: str = "",
+        fields: dict | None = None,
+        hide: bool = True,
+        shared: "Anonymizer | None" = None,
+    ):
+        """`shared` : another table of the same conversation (a panel), whose
+        pseudonyms this one uses and extends : `Customer 12` is the same customer in
+        every table."""
         self.table = table
         self.fields = fields or {}
         self.hide_values = hide
@@ -73,10 +82,12 @@ class Anonymizer:
             "res.users": user,
             **{model: "Product" for model in PRODUCT_MODELS},
         }
-        self._pseudo: dict[tuple[str, str], str] = {}  # (prefix, real) -> pseudonym
-        self._real: dict[str, str] = {}  # pseudonym -> real
-        self._counts: dict[str, int] = {}
-        self._hide_re = None  # built again when a value is learnt
+        # (prefix, real) -> pseudonym ; pseudonym -> real ; pseudonyms per prefix
+        self._pseudo: dict[tuple[str, str], str] = shared._pseudo if shared else {}
+        self._real: dict[str, str] = shared._real if shared else {}
+        self._counts: dict[str, int] = shared._counts if shared else {}
+        self._hide_re = None  # built again when values were learnt
+        self._hide_size = 0
 
     # ---- the kind of a column
     def kind(self, column: str, dtype) -> str:
@@ -132,7 +143,6 @@ class Anonymizer:
             name = f"contact{n}@example.com" if prefix == EMAIL else f"{prefix} {n}"
             self._pseudo[key] = name
             self._real[name] = value
-            self._hide_re = None
         return self._pseudo[key]
 
     def hide_value(self, kind: str, value):
@@ -171,7 +181,8 @@ class Anonymizer:
         """The text with the real values the session knows replaced by their pseudonyms."""
         if not self.hide_values or not self._pseudo or not text:
             return text
-        if self._hide_re is None:
+        if self._hide_re is None or self._hide_size != len(self._pseudo):
+            self._hide_size = len(self._pseudo)
             reals = sorted(
                 {real for (_p, real) in self._pseudo if len(real) >= 3},
                 key=len,
@@ -216,13 +227,16 @@ class Anonymizer:
         )
 
 
-def for_table(backend, table: str, hide: bool = True) -> Anonymizer:
+def for_table(
+    backend, table: str, hide: bool = True, shared: Anonymizer | None = None
+) -> Anonymizer:
     """The anonymizer of a table of the store of `backend`'s database (the fields
-    metadata the sync wrote : type and related model of each field)."""
+    metadata the sync wrote : type and related model of each field) ; `shared` : the
+    one of another table of the same conversation, whose pseudonyms it shares."""
     with env.db_scope(backend.db):
         meta = DFStorage.read_meta(table)
     fields = {k: v for k, v in meta.items() if isinstance(v, dict) and "type" in v}
-    return Anonymizer(table, fields, hide)
+    return Anonymizer(table, fields, hide, shared)
 
 
 def _number(value) -> str:
@@ -234,8 +248,14 @@ def _short(value) -> str:
     return text if len(text) <= VALUE_CHARS else text[: VALUE_CHARS - 1] + "…"
 
 
-def summary(frame: pl.LazyFrame, anon: Anonymizer, level: str = "summary") -> str:
-    """What the model is told of the table, for a level of `LEVELS`."""
+def summary(
+    frame: pl.LazyFrame,
+    anon: Anonymizer,
+    level: str = "summary",
+    sample_rows: int = SAMPLE_ROWS,
+) -> str:
+    """What the model is told of the table, for a level of `LEVELS` ; `sample_rows` :
+    the rows shown (0 : none, the columns and their values only)."""
     schema = frame.collect_schema()
     if level not in ("summary", "clear"):
         return "\n".join(f"- {c} : {t}" for c, t in schema.items())
@@ -302,7 +322,7 @@ def summary(frame: pl.LazyFrame, anon: Anonymizer, level: str = "summary") -> st
         for c in sent
         if c not in texts or c in few or kinds[c] != TEXT  # no free text
     ]
-    sample = head.select(rows).head(SAMPLE_ROWS).collect()
+    sample = head.select(rows).head(sample_rows).collect()
     sample = anon.hide_frame(sample.with_columns(pl.col(pl.Float64).round(2)), kinds)
     sample = sample.select(
         [c for c in sample.columns if sample[c].null_count() < sample.height]
