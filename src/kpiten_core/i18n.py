@@ -127,7 +127,7 @@ FR = {
         "Quelles lignes « {name} » doit-elle compter ? Par exemple « seulement les "
         "commandes confirmées ». « Retire le filtre » rend le KPI entier."
     ),
-    "Narrow this KPI in words…": "Restreindre ce KPI, en mots…",
+    "Narrow the rows in words…": "Restreindre les lignes, en mots…",
     "Model : {model}.": "Modèle : {model}.",
     "It is told the names and types of the columns only.": (
         "Il ne reçoit que le nom et le type des colonnes."
@@ -150,6 +150,33 @@ FR = {
         "Filtre retiré : le KPI compte à nouveau toutes ses lignes."
     ),
     "Click ✨ on a tile first.": "Cliquez d'abord ✨ sur une tuile.",
+    "Ask the AI : narrow all the tiles of this panel in words": (
+        "Demander à l'IA : restreindre toutes les tuiles de ce tableau, en mots"
+    ),
+    "Apply this filter to the whole panel": "Appliquer ce filtre à tout le tableau",
+    "AI filter of the panel : {title}": "Filtre de l'IA sur le tableau : {title}",
+    "{table} follows {tables}": "{table} suit {tables}",
+    "Which rows should the panel « {name} » count ? For example « only the customer "
+    "… », « only the product … ».": (
+        "Quelles lignes le tableau « {name} » doit-il compter ? Par exemple "
+        "« seulement le client … », « seulement le produit … »."
+    ),
+    "Its tables : {tables}. A table without a filter follows the others through their "
+    "links : the lines of an order follow the order.": (
+        "Ses tables : {tables}. Une table sans filtre suit les autres par leurs liens : "
+        "les lignes d'une commande suivent la commande."
+    ),
+    "The filter changes every tile of the panel, for you ; it is lost when the page "
+    "is reloaded.": (
+        "Le filtre change toutes les tuiles du tableau, pour vous ; il est perdu au "
+        "rechargement de la page."
+    ),
+    "Filter removed : the panel counts all its rows again.": (
+        "Filtre retiré : le tableau compte à nouveau toutes ses lignes."
+    ),
+    "« {title} » now narrows the whole panel.": (
+        "« {title} » restreint maintenant tout le tableau."
+    ),
 }
 
 CATALOGS: dict[str, dict[str, str]] = {"fr": FR}
