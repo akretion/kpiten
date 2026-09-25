@@ -165,11 +165,12 @@ FEATURES = (
     "export_ods",
     "ai_refine",
     "open_in_odoo",
+    "ai_tile",  # Shiny : the ✨ of each tile
 )
 
 
 def feature(name: str) -> bool:
-    """Whether a new function of the marimo explorer is on : off unless `kt.config`
+    """Whether a new function (marimo explorer, Shiny) is on : off unless `kt.config`
     (Odoo) says yes, so an older kpiten module, or a database that did not check it,
     keeps things as they were."""
     return bool(_section("features").get(name, False))
