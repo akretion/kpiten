@@ -23,7 +23,8 @@ With an AI model in `bi/.env` (`ANTHROPIC_API_KEY`, or `LOCAL_LLM_MODEL` for a l
 model : see `.env.example`), every user can narrow the rows in words : « only the
 confirmed orders », « only the product Standing desk oak » (`kpiten_core.querychat`).
 
-- **A tile** : its ✨ opens a chat on the right ; the model writes a SQL filter on the
+- **A tile** (off by default : `kt.config` › New features › « Ask a tile in words ») :
+  its ✨ opens a chat on the right ; the model writes a SQL filter on the
   table of the tile, which is computed again. A badge on the tile gives the filter (SQL
   in its tooltip) ; × removes it, the layers icon applies it to the whole panel.
 - **The panel** : the ✨ next to its name. The model writes a filter for the tables that
