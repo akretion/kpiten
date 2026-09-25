@@ -280,9 +280,19 @@ class KtKpi(models.Model):
         name: str = None,
         user_id: int = None,
         panel_id: int = None,
-    ) -> bool:
-        """Create a new tile line for the dataset of `model`."""
+        values: dict = None,
+    ) -> int:
+        """Create a new tile line for the dataset of `model` ; `values` : what it keeps
+        of the tile it is copied from (`col_span`, `tile_height`, `table_view`,
+        `display`, `drill_definition`). Returns its id."""
         self._check_definition(definition, kind)
+        copied = (
+            "col_span",
+            "tile_height",
+            "table_view",
+            "display",
+            "drill_definition",
+        )
         res = self.create(
             {
                 "dataset_id": self.get_conf_id(model),
@@ -291,9 +301,10 @@ class KtKpi(models.Model):
                 "kind": kind,
                 "user_id": user_id or self.env.user.id,
                 "panel_id": panel_id,
+                **{k: v for k, v in (values or {}).items() if k in copied},
             }
         )
-        return bool(res)
+        return res.id
 
     def _check_definition(self, definition: str, kind: str) -> None:
         """The definition must be valid TOML (polars code for kind=data)."""
