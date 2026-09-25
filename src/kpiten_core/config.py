@@ -11,7 +11,7 @@ kpiten module, nothing changes.
      "period": {"default": "last 90 days", "fiscal_start_month": 1},
      "ui": {"theme": "capitaine", "table_rows": 20, "colors": "theme"},
      "explore": {"access": "everyone", "max_rows": 500000, "ods_max_rows": 500000},
-     "ai": {"enabled": True, "send_values": True},
+     "ai": {"enabled": True, "send_values": True, "send_level": "summary"},
      "currency": {"symbol": "$", "position": "before"}}
 """
 
@@ -145,6 +145,15 @@ def ai_enabled() -> bool:
 
 def ai_send_values() -> bool:
     return bool(_section("ai").get("send_values", True))
+
+
+def ai_send_level() -> str:
+    """What the model is told of a table (`anonymize.LEVELS`) : `summary` by default ;
+    an older kpiten module only says whether the few values may be sent."""
+    level = _section("ai").get("send_level")
+    if level in ("schema", "summary", "clear"):
+        return level
+    return "summary" if ai_send_values() else "schema"
 
 
 # ---- new features (off until Odoo turns them on)
