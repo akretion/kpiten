@@ -213,7 +213,9 @@ class Json2Backend:
         name: str | None = None,
         user_id: int | None = None,
         panel_id: int | None = None,
-    ) -> bool:
+        values: dict | None = None,
+    ) -> int:
+        more = {"values": values} if values else {}  # an older module has none
         return self.call(
             self.kpi_model,
             "create_tile",
@@ -223,6 +225,7 @@ class Json2Backend:
             name=name,
             user_id=user_id,
             panel_id=panel_id,
+            **more,
         )
 
     def get_records_action_id(self, model: str) -> int:

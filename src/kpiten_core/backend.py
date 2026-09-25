@@ -111,7 +111,11 @@ class Backend:
         name: str | None = None,
         user_id: int | None = None,
         panel_id: int | None = None,
-    ) -> bool:
+        values: dict | None = None,
+    ) -> int:
+        """A new tile on a panel ; `values` : what it keeps of the tile it is copied
+        from (`col_span`, `tile_height`, `table_view`, `display`, `drill_definition`).
+        Returns its id."""
         raise NotImplementedError
 
     def get_records_action_id(self, model: str) -> int:
