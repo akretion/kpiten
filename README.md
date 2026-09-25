@@ -39,3 +39,13 @@ the code (dev dependencies `birdseye` and `snoop`) :
 
 Useful on the functions that compute (`querychat`, `savetile`, `dfnorm`, `filters`,
 `render.plotly`) ; less on polars in lazy mode (a variable holds a plan, not rows).
+
+The path through the core (VizTracer : every call on a timeline, with its arguments), on
+the real sample of `tests/data` :
+
+```bash
+.venv/bin/python scripts/trace.py tiles -k "top customers"   # or : tiles, panel
+.venv/bin/vizviewer trace.json
+```
+
+More commands to copy : `docs/look_at_the_code.md` (in `bi/`).
