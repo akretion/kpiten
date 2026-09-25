@@ -299,6 +299,11 @@ class Theme:
 .tile-save:hover {{ opacity: .9 }}
 .kpi-head .tile-save svg {{ width: 13px; height: 13px; fill: currentColor }}
 .kpi-head .tile-ai + .tile-save {{ margin-left: 0 }}
+/* the Odoo icon of a card : its rows in a pivot of Odoo */
+.kpi-head .tile-check {{ margin-left: auto; padding: 2px; line-height: 1; opacity: .55 }}
+.kpi-head .tile-check:hover {{ opacity: 1 }}
+.kpi-head .tile-check img {{ width: 13px; height: 13px; display: block }}
+.kpi-head .tile-check + .tile-ai {{ margin-left: 0 }}
 .save-where {{ white-space: pre-wrap; font-size: 12px; padding: 6px 8px; border-radius: 6px; background: rgba(127, 127, 127, .12) }}
 .tile-ai-promote svg {{ width: 10px !important; height: 10px !important; fill: currentColor }}
 /* the panel : its ✨ in the head of the page */

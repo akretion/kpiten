@@ -425,12 +425,33 @@ def test_a_kpi_that_lists_records_opens_the_same_list_in_odoo(page: Page) -> Non
         assert odoo.locator(".o_error_dialog").count() == 0
 
 
+def test_the_odoo_icon_of_a_card_counts_the_same_rows_in_odoo(page: Page) -> None:
+    """The Odoo icon of the « Count » card opens the pivot of its rows in Odoo : Odoo
+    counts as many records as the card."""
+    with kt_config(feature_open_in_odoo=True):
+        login_to_odoo(page)
+        open_dashboard(page)
+        card = page.locator(".kpi-card", has_text="Count").first
+        card.wait_for(timeout=60_000)
+        value = int(re.sub(r"\D", "", card.locator(".value").inner_text()))
+        link = card.locator(".tile-check")
+        assert "/kpiten/check?" in link.get_attribute("href")
+        with page.context.expect_page(timeout=20_000) as opened:
+            link.click()
+        odoo = opened.value
+        total = odoo.locator(".o_pivot td.o_pivot_cell_value").first
+        total.wait_for(timeout=60_000)
+        assert int(re.sub(r"\D", "", total.inner_text())) == value
+        assert odoo.locator(".o_error_dialog").count() == 0
+
+
 def test_the_link_is_not_there_when_the_feature_is_off(page: Page) -> None:
     with kt_config(feature_open_in_odoo=False):
         open_dashboard(page)
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(2000)
         assert page.locator(".records-link").count() == 0
+        assert page.locator(".tile-check").count() == 0
 
 
 def test_the_kpiten_logo_ends_the_side_bar_with_its_slogan_on_hover(page: Page) -> None:

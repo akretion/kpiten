@@ -32,7 +32,7 @@ from shiny.types import SilentException
 from kpiten_core import anonymize, brand, comparison, i18n, links, llm, querychat
 from kpiten_core import config as core_config
 from kpiten_core import explore as core_explore
-from kpiten_core import savetile
+from kpiten_core import odoocheck, savetile
 from kpiten_core import ods as core_ods
 from kpiten_core import labels as core_labels
 from kpiten_core import plugins as core_plugins
@@ -567,6 +567,28 @@ def records_link_html(records: dict | None, tr=i18n.english) -> str:
     )
 
 
+def check_html(check: dict | None, tr=i18n.english) -> str:
+    """The Odoo icon of a card : its rows in a pivot of Odoo, to compare the values.
+    `check` is `odoocheck.card_check`."""
+    if not check:
+        return ""
+    lines = [tr("Check in Odoo : the same rows, counted by Odoo (with your rights)")]
+    if check["how"] == "ids":
+        lines.append(
+            tr(
+                "The records of the card, by their ids : the filter itself is not checked"
+            )
+        )
+    lines += [tr(hint) for hint in check.get("hints", [])]
+    icon = f"{links.get_odoo_url()}/web/static/img/favicon.ico"
+    return (
+        f'<a class="tile-check" href="{html_escape(check["url"], quote=True)}" '
+        'target="_blank" rel="noopener noreferrer" '
+        f'title="{html_escape(chr(10).join(lines), quote=True)}">'
+        f'<img src="{html_escape(icon, quote=True)}" alt="Odoo"></a>'
+    )
+
+
 def tile_html(
     line: dict,
     theme: themes.Theme,
@@ -577,13 +599,15 @@ def tile_html(
     grid: bool = False,
     tr=i18n.english,
     ai: str = "",
+    check: str = "",
 ) -> str:
     """Tile html ; `info` goes in a tooltip = active filters description ; `records` is
     the link that opens the listed records in Odoo (when the KPI lists some) ;
     `sparkline` the trend under a card's value ; `grid` : a table drawn as an
     interactive grid (`grid_<id>`, the server renders it) ; `tr` : the language of
     the user (`kpiten_core.i18n`) ; `ai` : the button that asks the AI about the tile,
-    and the filter it made (`ai_html`)."""
+    and the filter it made (`ai_html`) ; `check` : the Odoo icon of a card
+    (`check_html`)."""
     p = theme.palette
     tooltip = f' title="{info}"' if info else ""
     if result.kind == "card":
@@ -591,7 +615,7 @@ def tile_html(
         return (
             f'<div class="tile kpi-card" data-tile-id="{line["id"]}"{tooltip}>'
             f'<div class="kpi-head">{card_badge(line["name"])}'
-            f'<span class="kpi-label">{line["name"] or ""}</span>{ai}</div>'
+            f'<span class="kpi-label">{line["name"] or ""}</span>{check}{ai}</div>'
             # a name (best seller...) is text : smaller, it can be long
             f'<div class="value{" kpi-text" if isinstance(result.value, str) else ""}">'
             f"{html_escape(result.text)}</div>"
@@ -1670,6 +1694,32 @@ def server(input, output, session):
             conditions.append(ai_filters()[line["id"]]["where"])
         return savetile.new_definition(line, conditions), conditions, notes
 
+    def card_check(line: dict, store_data: dict) -> dict | None:
+        """The link that checks a card in Odoo, with the filters it is seen with : the
+        period, the dimensions, the AI filters of the panel and of the tile."""
+        table = savetile.tile_table(line)
+        frame = store_data.get(table)
+        if frame is None:
+            return None
+        columns = frame.collect_schema().names()
+        config, date_value, dims = filter_state()
+        conditions = savetile.dimension_conditions(config, dims, columns)
+        current = ai_panel().get(str(input.panel()))
+        if current and table in current["filters"]:
+            conditions.append(current["filters"][table])
+        if ai_filters().get(line["id"]):
+            conditions.append(ai_filters()[line["id"]]["where"])
+        return odoocheck.card_check(
+            line,
+            tile_store(line, store_data),
+            predicates(),
+            config,
+            date_value,
+            conditions,
+            # a filter of the panel that reaches the table through another one
+            translatable=not (current and table in narrowed()[1]),
+        )
+
     @reactive.effect
     @reactive.event(input.tile_save)
     def _save_dialog():
@@ -1924,6 +1974,7 @@ def server(input, output, session):
             edit_mode_on = False
         cards, blocks = [], []
         saving = can_edit()  # a KPI manager saves a tile with its filters
+        store_data = panel_store()
         drill_keys.clear()
         for line, result, error in panel_results():
             try:
@@ -1948,6 +1999,12 @@ def server(input, output, session):
                     if result.kind == "card" and not edit_mode_on
                     else ""
                 )
+                check = ""
+                if result.kind == "card" and not edit_mode_on:
+                    try:
+                        check = check_html(card_check(line, store_data), tr)
+                    except Exception:  # the card is drawn without it
+                        logger.exception("no Odoo check for tile %s", line["id"])
                 rendered = (
                     tile_edit_item(line, theme, result, records)
                     if edit_mode_on
@@ -1970,6 +2027,7 @@ def server(input, output, session):
                             if saving and line["kind"] in savetile.WHERE_KINDS
                             else ""
                         ),
+                        check=check,
                     )
                 )
             except Exception as err:
