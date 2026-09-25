@@ -198,6 +198,7 @@ PIVOT = Kind(
     "pivot",
     (
         VERSION_KEY,
+        WHERE,
         FROM,
         Key("rows", column=True, required=True),
         Key("columns", column=True, required=True),
