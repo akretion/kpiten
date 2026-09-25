@@ -149,7 +149,9 @@ FR = {
     "Filter removed : the KPI counts all its rows again.": (
         "Filtre retiré : le KPI compte à nouveau toutes ses lignes."
     ),
-    "Click ✨ on a tile first.": "Cliquez d'abord ✨ sur une tuile.",
+    "Click a ✨ first : next to the name of the panel, or on a tile.": (
+        "Cliquez d'abord un ✨ : à côté du nom du tableau, ou sur une tuile."
+    ),
     "Ask the AI : narrow all the tiles of this panel in words": (
         "Demander à l'IA : restreindre toutes les tuiles de ce tableau, en mots"
     ),
