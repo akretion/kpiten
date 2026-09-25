@@ -28,6 +28,10 @@ render = [
   "plotly[express]>=6.7.0",
   "great-tables>=0.21.0",
 ]
+# Claude as the AI model (kpiten_core.llm) ; a local model needs nothing more
+ai = [
+  "anthropic>=1.7.0",
+]
 
 [project.scripts]
 kpiten-sync = "kpiten_core.sync:main"

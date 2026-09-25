@@ -110,6 +110,46 @@ FR = {
     "Tile #{id} deleted": "Tuile n°{id} supprimée",
     "Tiles order saved.": "Ordre des tuiles enregistré.",
     "Drill-down failed : {error}": "Le détail a échoué : {error}",
+    # ask a KPI in words (querychat)
+    "Ask the AI : narrow the rows of this KPI in words": (
+        "Demander à l'IA : restreindre les lignes de ce KPI, en mots"
+    ),
+    "Remove the AI filter": "Retirer le filtre de l'IA",
+    "AI filter : {title}": "Filtre de l'IA : {title}",
+    "Ask a KPI": "Interroger un KPI",
+    "Click ✨ on a tile, then say in words which rows it should count : « only the "
+    "confirmed orders », « without the Export team ».": (
+        "Cliquez ✨ sur une tuile, puis dites en mots quelles lignes elle doit "
+        "compter : « seulement les commandes confirmées », « sans l'équipe Export »."
+    ),
+    "Which rows should « {name} » count ? For example « only the confirmed orders ». "
+    "« Remove the filter » gives the whole KPI back.": (
+        "Quelles lignes « {name} » doit-elle compter ? Par exemple « seulement les "
+        "commandes confirmées ». « Retire le filtre » rend le KPI entier."
+    ),
+    "Narrow this KPI in words…": "Restreindre ce KPI, en mots…",
+    "Model : {model}.": "Modèle : {model}.",
+    "It is told the names and types of the columns only.": (
+        "Il ne reçoit que le nom et le type des colonnes."
+    ),
+    "It is told the columns, figures on them and a few rows, with pseudonyms for "
+    "the people and the products.": (
+        "Il reçoit les colonnes, des chiffres sur elles et quelques lignes, avec des "
+        "pseudonymes pour les personnes et les produits."
+    ),
+    "It is told the columns, figures on them and a few rows, in clear.": (
+        "Il reçoit les colonnes, des chiffres sur elles et quelques lignes, en clair."
+    ),
+    "Nothing leaves the machine.": "Rien ne quitte la machine.",
+    "The filter only changes this tile, for you ; it is lost when the page is "
+    "reloaded.": (
+        "Le filtre ne change que cette tuile, pour vous ; il est perdu au "
+        "rechargement de la page."
+    ),
+    "Filter removed : the KPI counts all its rows again.": (
+        "Filtre retiré : le KPI compte à nouveau toutes ses lignes."
+    ),
+    "Click ✨ on a tile first.": "Cliquez d'abord ✨ sur une tuile.",
 }
 
 CATALOGS: dict[str, dict[str, str]] = {"fr": FR}
