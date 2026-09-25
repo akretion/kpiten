@@ -17,17 +17,23 @@ The Odoo action `action_redirect_to_kpiten(app="dashboard")` posts a user
 uuid to `internal_url/` and redirects to
 `external_url/dashboard/auth?session=<token>`.
 
-## Ask a KPI in words (AI)
+## Ask a KPI, or the whole panel, in words (AI)
 
 With an AI model in `bi/.env` (`ANTHROPIC_API_KEY`, or `LOCAL_LLM_MODEL` for a local
-model : see `.env.example`), every tile has a ✨ button, for every user. It opens a chat
-on the right : « only the confirmed orders », « without the Export team ». The model
-writes a SQL filter on the table of the tile (`kpiten_core.querychat`) ; the tile is
-computed again on the rows it keeps, a badge on the tile gives its SQL (tooltip) and ×
-removes it.
+model : see `.env.example`), every user can narrow the rows in words : « only the
+confirmed orders », « only the product Standing desk oak » (`kpiten_core.querychat`).
 
-- Only that tile changes, for that user, until the page is reloaded ; the rights, the
-  period and the filters of the panel still apply.
-- What the model is told of the table is set in `kt.config` (the columns only, or
-  figures and a few rows with pseudonyms, or in clear) ; `kt.config` › AI turns it off.
-- The filter is checked before it runs (`sqltile.check_where` : no other table, no file).
+- **A tile** : its ✨ opens a chat on the right ; the model writes a SQL filter on the
+  table of the tile, which is computed again. A badge on the tile gives the filter (SQL
+  in its tooltip) ; × removes it, the layers icon applies it to the whole panel.
+- **The panel** : the ✨ next to its name. The model writes a filter for the tables that
+  need one ; the other tables of the panel follow through their many2one (the lines of
+  an order follow the order, the orders follow their lines). The badge next to the name
+  lists the filters and the tables that followed (tooltip).
+- The filters live in the page, for that user, until it is reloaded ; the rights, the
+  period and the filters of the panel still apply ; the spreadsheet export and the
+  drill-down read the narrowed rows too.
+- What the model is told of a table is set in `kt.config` (the columns only, or figures
+  and a few rows with pseudonyms, or in clear ; for a panel, no rows) ; `kt.config` › AI
+  turns it off.
+- A filter is checked before it runs (`sqltile.check_where` : no other table, no file).
