@@ -31,6 +31,7 @@ from shiny.types import SilentException
 
 from kpiten_core import anonymize, brand, comparison, i18n, links, llm, querychat
 from kpiten_core import config as core_config
+from kpiten_core import explore as core_explore
 from kpiten_core import ods as core_ods
 from kpiten_core import labels as core_labels
 from kpiten_core import plugins as core_plugins
@@ -193,7 +194,7 @@ def tiles_and_chat(tr):  # noqa: ANN001
             ui.output_ui("ai_head"),
             ui.chat_ui(
                 "ai_chat",
-                placeholder=tr("Narrow this KPI in words…"),
+                placeholder=tr("Narrow the rows in words…"),
                 drawer=False,
                 width="100%",
                 height="auto",
@@ -270,6 +271,8 @@ def app_ui(req):  # noqa: ANN001
             # the head of the page : the panel, its actions, the freshness of the data
             ui.div(
                 ui.h2(ui.output_text("panel_title", inline=True)),
+                # ✨ : the AI narrows the whole panel (and the badge of its filter)
+                ui.output_ui("ai_panel_bar", inline=True),
                 ui.input_action_button(
                     "refresh_data",
                     ui.HTML(svg("rotate")),
@@ -450,17 +453,24 @@ AI_JS = """
 (function () {
   if (window.__kpitenAi) { return; }
   window.__kpitenAi = true;
+  var inputs = {"tile-ai": "ai_tile", "tile-ai-clear": "ai_clear",
+    "tile-ai-promote": "ai_promote", "panel-ai": "ai_panel_open",
+    "panel-ai-clear": "ai_panel_clear"};
+  var selector = Object.keys(inputs).map(function (c) { return "." + c; }).join(", ");
   document.addEventListener("click", function (ev) {
-    var button = ev.target.closest(".tile-ai, .tile-ai-clear");
+    var button = ev.target.closest(selector);
     if (!button || !window.Shiny) { return; }
     ev.stopPropagation();
+    var name = Object.keys(inputs).filter(function (c) {
+      return button.classList.contains(c); })[0];
     var tile = button.closest("[data-tile-id]");
-    Shiny.setInputValue(
-      button.classList.contains("tile-ai") ? "ai_tile" : "ai_clear",
-      parseInt(tile.dataset.tileId, 10), {priority: "event"});
+    // a tile : its id ; the panel : a new value, so that each click counts
+    Shiny.setInputValue(inputs[name],
+      tile ? parseInt(tile.dataset.tileId, 10) : Date.now(), {priority: "event"});
   });
 })();
 """
+PANEL_AI_TOOLTIP = "Ask the AI : narrow all the tiles of this panel in words"
 
 
 def ai_html(where: dict | None, tr=i18n.english) -> str:
@@ -476,9 +486,31 @@ def ai_html(where: dict | None, tr=i18n.english) -> str:
     return (
         f'<span class="tile-ai-filter" title="{html_escape(tooltip, quote=True)}">'
         f'<span>{html_escape(where["title"])}</span>'
+        f'<button type="button" class="tile-ai-promote" '
+        f'title="{html_escape(tr("Apply this filter to the whole panel"), quote=True)}">'
+        f'{svg("layer-group")}</button>'
         f'<button type="button" class="tile-ai-clear" '
         f'title="{html_escape(tr("Remove the AI filter"), quote=True)}">×</button></span>'
         + button
+    )
+
+
+def panel_ai_html(current: dict | None, tooltip: str, tr=i18n.english) -> str:
+    """✨ of the panel, and the badge of the filter the AI made for it (`current` :
+    {"filters", "title"}, None without one ; `tooltip` : its SQL, table by table)."""
+    button = (
+        f'<button type="button" class="panel-ai btn btn-kpiten" '
+        f'title="{html_escape(tr(PANEL_AI_TOOLTIP), quote=True)}">'
+        f'{svg("wand-magic-sparkles")}</button>'
+    )
+    if not current:
+        return button
+    return button + (
+        f'<span class="tile-ai-filter panel-ai-filter" '
+        f'title="{html_escape(tooltip, quote=True)}">'
+        f'<span>{html_escape(current["title"])}</span>'
+        f'<button type="button" class="panel-ai-clear" '
+        f'title="{html_escape(tr("Remove the AI filter"), quote=True)}">×</button></span>'
     )
 
 
@@ -996,7 +1028,7 @@ def server(input, output, session):
             if not core_config.explore_allowed(can_edit()):
                 raise PermissionError(tr("You may not export the rows."))
             _name, data, note = core_ods.model_ods(
-                store(),
+                panel_store(),
                 input.ods_model(),
                 predicates(),
                 user_id=current_user_id(),
@@ -1017,6 +1049,12 @@ def server(input, output, session):
                     info = info + "\n" + more if info else more
             except Exception:
                 pass
+        current = ai_panel().get(str(input.panel()))
+        if current and (
+            line["model"] in current["filters"] or line["model"] in narrowed()[1]
+        ):
+            more = tr("AI filter of the panel : {title}", title=current["title"])
+            info = info + "\n" + more if info else more
         where = ai_filters().get(line["id"])
         if where:
             more = tr("AI filter : {title}", title=where["title"])
@@ -1161,25 +1199,61 @@ def server(input, output, session):
                 )
             )
 
-    # ---- ask a KPI in words (kpiten_core.querychat) : for every user ------------
-    # the model of `.env` ; `kt.config` may turn the AI off for everyone
+    # ---- ask a KPI, or the panel, in words (kpiten_core.querychat) : every user -
+    # the model of `.env` ; `kt.config` may turn the AI off for everyone. The filters
+    # live in this session only.
     provider = llm.default_provider()
     ai_on = provider is not None and core_config.ai_enabled()
-    ai_filters = reactive.Value({})  # tile id -> {"where", "title"}, this session only
-    ai_line = reactive.Value(None)  # the tile the chat is about
-    ai_history: dict[int, list] = {}  # tile id -> the conversation the model saw
-    ai_log: dict[int, list] = {}  # tile id -> the messages shown
-    ai_tables: dict[tuple, tuple] = {}  # (db, table, level) -> (description, anon)
+    ai_filters = reactive.Value({})  # tile id -> {"where", "title"}
+    ai_panel = reactive.Value({})  # panel id -> {"filters": {table: where}, "title"}
+    # what the chat is about : {"key": ("tile", id) or ("panel", id), "name", "line"}
+    ai_target = reactive.Value(None)
+    ai_history: dict[tuple, list] = {}  # target key -> the conversation the model saw
+    ai_log: dict[tuple, list] = {}  # target key -> the messages shown
+    ai_tables: dict[tuple, tuple] = {}  # (db, tables, level) -> (descriptions, anon)
+    ai_relations: dict[str, dict] = {}  # db -> the many2one of the tables
     chat = ui.Chat("ai_chat", history=False) if provider is not None else None
 
+    def relations_of(db: str, tables) -> dict:
+        if db not in ai_relations:
+            ai_relations[db] = querychat.relations(db, tables)
+        return ai_relations[db]
+
+    @reactive.calc
+    def narrowed() -> tuple[dict, dict]:
+        """(the store of the panel, the tables that followed) : its tables narrowed by
+        the filters the AI made for the whole panel (the other tables follow through
+        their many2one)."""
+        store_data = store()
+        current = ai_panel().get(str(input.panel()))
+        if not current:
+            return store_data, {}
+        tables = core_explore.panel_tables(lines(), store_data)
+        rels = relations_of(backend_rv().db, list(store_data))
+        return querychat.narrow_store(store_data, current["filters"], rels, tables)
+
+    def panel_store() -> dict:
+        return narrowed()[0]
+
     def tile_store(line: dict, store_data: dict | None = None) -> dict:
-        """The store a tile reads : its table narrowed by the filter the AI made."""
-        store_data = store() if store_data is None else store_data
+        """The store a tile reads : the one of the panel, its table narrowed by the
+        filter the AI made for the tile."""
+        store_data = panel_store() if store_data is None else store_data
         where = ai_filters().get(line["id"])
         if not where or line["model"] not in store_data:
             return store_data
         frame = querychat.apply(store_data[line["model"]].lazy(), where["where"])
         return {**store_data, line["model"]: frame}
+
+    def panel_filter_text(current: dict, followed: dict) -> str:
+        """The filters of the panel, table by table, and the tables that follow."""
+        rows = [tr("AI filter of the panel : {title}", title=current["title"])]
+        rows += [f"{table} : {where}" for table, where in current["filters"].items()]
+        rows += [
+            tr("{table} follows {tables}", table=table, tables=", ".join(others))
+            for table, others in followed.items()
+        ]
+        return "\n".join(rows)
 
     def ai_about() -> str:
         """What the model is, and what it is told of a table (`kt.config`)."""
@@ -1205,8 +1279,8 @@ def server(input, output, session):
                 ".kpiten-ai-layout > .sidebar, .kpiten-ai-layout > "
                 ".collapse-toggle { display: none !important }"
             )
-        line = ai_line()
-        title = f"« {line['name']} »" if line else tr("Ask a KPI")
+        target = ai_target()
+        title = f"« {target['name']} »" if target else tr("Ask a KPI")
         return ui.div(
             ui.HTML(svg("wand-magic-sparkles")),
             ui.span(title),
@@ -1214,39 +1288,86 @@ def server(input, output, session):
             class_="kpiten-ai-head",
         )
 
-    async def ai_say(line_id: int | None, role: str, text: str) -> None:
-        if line_id is not None:
-            ai_log.setdefault(line_id, []).append({"role": role, "content": text})
-        await chat.append_message({"role": role, "content": text})
+    @render.ui
+    def ai_panel_bar():
+        """✨ of the panel in its head, and the badge of the filter the AI made for it."""
+        if not ai_on:
+            return None
+        current = ai_panel().get(str(req(input.panel())))
+        return ui.HTML(
+            panel_ai_html(
+                current,
+                panel_filter_text(current, narrowed()[1]) if current else "",
+                tr,
+            )
+        )
+
+    async def ai_say(key: tuple, role: str, text: str) -> None:
+        ai_log.setdefault(key, []).append({"role": role, "content": text})
+        target = ai_target()
+        if target is not None and target["key"] == key:
+            await chat.append_message({"role": role, "content": text})
+
+    async def ai_open(target: dict, greeting: str) -> None:
+        """The chat about a tile or the panel, with what was said of it before."""
+        ai_target.set(target)
+        ui.update_sidebar("ai_sidebar", show=True)
+        await chat.clear_messages()
+        for message in ai_log.get(target["key"], []):
+            await chat.append_message(message)
+        if not ai_log.get(target["key"]):
+            await ai_say(target["key"], "assistant", greeting)
 
     @reactive.effect
     @reactive.event(input.ai_tile)
-    async def _ai_open():
-        """✨ on a tile : the chat is about it, with what was said of it before."""
+    async def _ai_open_tile():
+        """✨ on a tile : the chat is about it."""
         line = next((l for l in lines() if l["id"] == input.ai_tile()), None)
         if line is None or not ai_on:
             return
-        ai_line.set(line)
-        ui.update_sidebar("ai_sidebar", show=True)
-        await chat.clear_messages()
-        for message in ai_log.get(line["id"], []):
-            await chat.append_message(message)
-        if not ai_log.get(line["id"]):
-            await ai_say(
-                line["id"],
-                "assistant",
-                tr(
-                    "Which rows should « {name} » count ? For example « only the "
-                    "confirmed orders ». « Remove the filter » gives the whole KPI "
-                    "back.",
-                    name=line["name"],
-                )
-                + "\n\n"
-                + tr(
-                    "The filter only changes this tile, for you ; it is lost when "
-                    "the page is reloaded."
-                ),
+        await ai_open(
+            {"key": ("tile", line["id"]), "name": line["name"], "line": line},
+            tr(
+                "Which rows should « {name} » count ? For example « only the "
+                "confirmed orders ». « Remove the filter » gives the whole KPI "
+                "back.",
+                name=line["name"],
             )
+            + "\n\n"
+            + tr(
+                "The filter only changes this tile, for you ; it is lost when "
+                "the page is reloaded."
+            ),
+        )
+
+    @reactive.effect
+    @reactive.event(input.ai_panel_open)
+    async def _ai_open_panel():
+        """✨ in the head of the panel : the chat is about all its tiles."""
+        panel_id = str(req(input.panel()))
+        if not ai_on:
+            return
+        name = panels().get(panel_id) or panel_id
+        tables = core_explore.panel_tables(lines(), store())
+        await ai_open(
+            {"key": ("panel", panel_id), "name": name},
+            tr(
+                "Which rows should the panel « {name} » count ? For example « only "
+                "the customer … », « only the product … ».",
+                name=name,
+            )
+            + "\n\n"
+            + tr(
+                "Its tables : {tables}. A table without a filter follows the others "
+                "through their links : the lines of an order follow the order.",
+                tables=", ".join(tables),
+            )
+            + "\n\n"
+            + tr(
+                "The filter changes every tile of the panel, for you ; it is lost "
+                "when the page is reloaded."
+            ),
+        )
 
     @reactive.effect
     @reactive.event(input.ai_clear)
@@ -1257,36 +1378,68 @@ def server(input, output, session):
         if filters.pop(line_id, None) is None:
             return
         ai_filters.set(filters)
-        line = ai_line()
-        if line is not None and line["id"] == line_id:
-            await ai_say(
-                line_id,
-                "assistant",
-                tr("Filter removed : the KPI counts all its rows again."),
-            )
+        await ai_say(
+            ("tile", line_id),
+            "assistant",
+            tr("Filter removed : the KPI counts all its rows again."),
+        )
+
+    @reactive.effect
+    @reactive.event(input.ai_panel_clear)
+    async def _ai_panel_clear():
+        """× on the badge of the panel : all its rows again."""
+        panel_id = str(req(input.panel()))
+        filters = dict(ai_panel())
+        if filters.pop(panel_id, None) is None:
+            return
+        ai_panel.set(filters)
+        await ai_say(
+            ("panel", panel_id),
+            "assistant",
+            tr("Filter removed : the panel counts all its rows again."),
+        )
+
+    @reactive.effect
+    @reactive.event(input.ai_promote)
+    async def _ai_promote():
+        """The filter of a tile, for the whole panel : on the table of the tile (with
+        the filter the panel may already have on it), the other tables follow."""
+        line_id = input.ai_promote()
+        where = ai_filters().get(line_id)
+        line = next((l for l in lines() if l["id"] == line_id), None)
+        if where is None or line is None:
+            return
+        panel_id = str(req(input.panel()))
+        current = ai_panel().get(panel_id) or {"filters": {}, "title": ""}
+        filters = dict(current["filters"])
+        before = filters.get(line["model"])
+        filters[line["model"]] = (
+            f"({before}) AND ({where['where']})" if before else where["where"]
+        )
+        title = (
+            f"{current['title']} + {where['title']}"
+            if current["title"]
+            else where["title"]
+        )
+        ai_panel.set({**ai_panel(), panel_id: {"filters": filters, "title": title}})
+        tiles_left = dict(ai_filters())
+        tiles_left.pop(line_id)
+        ai_filters.set(tiles_left)
+        text = tr("« {title} » now narrows the whole panel.", title=where["title"])
+        await ai_say(("tile", line_id), "assistant", text)
+        ui.notification_show(text, duration=4)
 
     if chat is not None:
 
-        @chat.on_user_submit
-        async def _ai_ask(question: str):
-            line = ai_line()
-            if line is None or not ai_on:
-                await chat.append_message(tr("Click ✨ on a tile first."))
-                return
-            ai_log.setdefault(line["id"], []).append(
-                {"role": "user", "content": question}
-            )
+        def ask_tile(line: dict, question: str, history: list):
+            """The model on a tile (in a thread : the figures on the table, the
+            model)."""
             backend, table = backend_rv(), line["model"]
-            frame = store().get(table)
-            if frame is None:
-                await ai_say(line["id"], "assistant", f"{table} ?")
-                return
+            frame = store()[table]
             level = core_config.ai_send_level()
-            key = (backend.db, table, level)
-            history = ai_history.get(line["id"], [])
+            key = (backend.db, (table,), level)
 
             def work() -> querychat.Reply:
-                # the figures on the table and the model : off the event loop
                 if key not in ai_tables:
                     anon = anonymize.for_table(backend, table, hide=level != "clear")
                     ai_tables[key] = (anonymize.summary(frame, anon, level), anon)
@@ -1302,27 +1455,113 @@ def server(input, output, session):
                     lang=odoo_lang or "",
                 )
 
-            logger.info("ai : %s asks %r on tile %s", backend.db, question, line["id"])
+            return work
+
+        def ask_panel(name: str, question: str, history: list):
+            """The model on the tables of the panel ; one set of pseudonyms for all of
+            them, and no rows of example : the filters need the columns and their
+            values, and the prompt stays small enough for a local model."""
+            backend, store_data = backend_rv(), store()
+            tables = core_explore.panel_tables(lines(), store_data)
+            frames = {t: store_data[t] for t in tables}
+            level = core_config.ai_send_level()
+            key = (backend.db, tuple(tables), level)
+
+            def work() -> querychat.Reply:
+                if key not in ai_tables:
+                    anon, descriptions = None, {}
+                    for table in tables:
+                        mine = anonymize.for_table(
+                            backend, table, hide=level != "clear", shared=anon
+                        )
+                        anon = anon or mine
+                        descriptions[table] = anonymize.summary(
+                            frames[table], mine, level, sample_rows=0
+                        )
+                    ai_tables[key] = (descriptions, anon)
+                descriptions, anon = ai_tables[key]
+                return querychat.ask_panel(
+                    provider,
+                    name,
+                    frames,
+                    descriptions,
+                    history,
+                    question,
+                    anon,
+                    lang=odoo_lang or "",
+                )
+
+            return work
+
+        @chat.on_user_submit
+        async def _ai_ask(question: str):
+            target = ai_target()
+            if target is None or not ai_on:
+                await chat.append_message(tr("Click ✨ on a tile first."))
+                return
+            key = target["key"]
+            ai_log.setdefault(key, []).append({"role": "user", "content": question})
+            history = ai_history.get(key, [])
+            kind, target_id = key
+            if kind == "tile" and target["line"]["model"] not in store():
+                await ai_say(key, "assistant", f"{target['line']['model']} ?")
+                return
+            work = (
+                ask_tile(target["line"], question, history)
+                if kind == "tile"
+                else ask_panel(target["name"], question, history)
+            )
+            logger.info("ai : %s asks %r on %s", backend_rv().db, question, key)
             reply = await asyncio.to_thread(work)
-            logger.info("ai : %s %r %s", reply.action, reply.where, reply.error or "")
-            ai_history[line["id"]] = (history + reply.exchange)[
-                -2 * querychat.HISTORY :
-            ]
+            logger.info("ai : %s %r %s", reply.action, reply.filters, reply.error or "")
+            ai_history[key] = (history + reply.exchange)[-2 * querychat.HISTORY :]
             text = reply.text
-            filters = dict(ai_filters())
             if reply.action == querychat.FILTER:
-                filters[line["id"]] = {"where": reply.where, "title": reply.title}
-                text += f"\n\n```sql\n{reply.where}\n```"
-            elif reply.action == querychat.CLEAR:
-                filters.pop(line["id"], None)
-            if filters != ai_filters():
-                ai_filters.set(filters)
-            await ai_say(line["id"], "assistant", text)
+                text += (
+                    "\n\n```sql\n"
+                    + "\n".join(
+                        (f"-- {table}\n" if kind == "panel" else "") + where
+                        for table, where in reply.filters.items()
+                    )
+                    + "\n```"
+                )
+            if kind == "tile":
+                filters = dict(ai_filters())
+                if reply.action == querychat.FILTER:
+                    filters[target_id] = {"where": reply.where, "title": reply.title}
+                elif reply.action == querychat.CLEAR:
+                    filters.pop(target_id, None)
+                if filters != ai_filters():
+                    ai_filters.set(filters)
+            else:
+                filters = dict(ai_panel())
+                if reply.action == querychat.FILTER:
+                    filters[target_id] = {
+                        "filters": reply.filters,
+                        "title": reply.title,
+                    }
+                elif reply.action == querychat.CLEAR:
+                    filters.pop(target_id, None)
+                if filters != ai_panel():
+                    ai_panel.set(filters)
+                if reply.action == querychat.FILTER and target_id == str(input.panel()):
+                    followed = narrowed()[1]
+                    if followed:
+                        text += "\n\n" + "\n".join(
+                            "- "
+                            + tr(
+                                "{table} follows {tables}",
+                                table=table,
+                                tables=", ".join(others),
+                            )
+                            for table, others in followed.items()
+                        )
+            await ai_say(key, "assistant", text)
 
     def panel_results() -> list:
         """(line, result, error) per tile of the panel : computed with its period, its
         filters and the rights of the user (the tiles on screen, the exports)."""
-        store_data = store()
+        store_data = panel_store()
         predicate_list = predicates()
         previous_predicates, previous_label = previous()
         field_labels = core_labels.field_labels_of(backend_rv(), odoo_lang)
@@ -1399,7 +1638,7 @@ def server(input, output, session):
     # ---- the trend under a card : its model's documents per month, over the period
     def sparkline(line: dict, color: str) -> str:
         config = panel_settings().get("filter_config") or {}
-        frame = store().get(line["model"])
+        frame = panel_store().get(line["model"])
         if frame is None:
             return ""
         columns = frame.collect_schema()

@@ -298,13 +298,20 @@ class Theme:
 }}
 .tile-full:hover, .tile h3 .tile-info:hover {{ opacity: .9 }}
 /* ask the AI about a tile ; the filter it made, as a badge */
-.tile-ai, .tile-ai-clear {{
+.tile-ai, .tile-ai-clear, .tile-ai-promote, .panel-ai-clear {{
   background: transparent; border: 0; padding: 2px; color: {p["text"]}; opacity: .45;
   cursor: pointer; line-height: 1;
 }}
 .kpi-head .tile-ai {{ margin-left: auto }}
 .kpi-head .tile-ai svg {{ width: 13px; height: 13px; fill: currentColor }}
-.tile-ai:hover, .tile-ai-clear:hover {{ opacity: .9 }}
+.tile-ai:hover, .tile-ai-clear:hover, .tile-ai-promote:hover, .panel-ai-clear:hover {{
+  opacity: .9
+}}
+.tile-ai-promote svg {{ width: 10px !important; height: 10px !important; fill: currentColor }}
+/* the panel : its ✨ in the head of the page, the badge of its filter */
+#ai_panel_bar {{ display: inline-flex; align-items: center; gap: 8px }}
+.panel-ai svg {{ width: 14px; height: 14px; fill: currentColor }}
+.tile-ai-filter.panel-ai-filter {{ font-size: 12px; max-width: 260px; padding: 2px 4px 2px 10px }}
 .tile-ai-filter {{
   display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 500;
   color: {p["accent"]}; border: 1px solid {p["accent"]}; border-radius: 10px;
