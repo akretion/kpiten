@@ -32,6 +32,7 @@ from shiny.types import SilentException
 from kpiten_core import anonymize, brand, comparison, i18n, links, llm, querychat
 from kpiten_core import config as core_config
 from kpiten_core import explore as core_explore
+from kpiten_core import savetile
 from kpiten_core import ods as core_ods
 from kpiten_core import labels as core_labels
 from kpiten_core import plugins as core_plugins
@@ -347,7 +348,7 @@ def card_badge(name: str) -> str:
 
 
 def tile_header(line: dict, kind: str, info: str, tr=i18n.english, ai: str = "") -> str:
-    """The title of a tile : its icon, its name, its kind ; the filters it was
+    """The title of a tile : its icon (its kind), its name ; the filters it was
     computed with (an info icon), the AI (`ai`, see `ai_html`) and the full screen
     button on the right."""
     info_icon = (
@@ -356,9 +357,8 @@ def tile_header(line: dict, kind: str, info: str, tr=i18n.english, ai: str = "")
         else ""
     )
     return (
-        f'<h3><span class="tile-icon">{svg(TILE_ICONS.get(kind, "table-list"))}</span>'
+        f'<h3><span class="tile-icon" title="{tr(kind)}">{svg(TILE_ICONS.get(kind, "table-list"))}</span>'
         f'<span class="tile-name">{line["name"] or kind}</span>'
-        f'<span class="kind-badge">{tr(kind)}</span>'
         f'<span class="tile-actions">{ai}{info_icon}'
         f'<button type="button" class="tile-full" title="{tr("Full screen (Esc to leave)")}">'
         f"{svg('expand')}</button></span></h3>"
@@ -453,7 +453,7 @@ AI_JS = """
 (function () {
   if (window.__kpitenAi) { return; }
   window.__kpitenAi = true;
-  var inputs = {"tile-ai": "ai_tile", "tile-ai-clear": "ai_clear",
+  var inputs = {"tile-ai": "ai_tile", "tile-ai-clear": "ai_clear", "tile-save": "tile_save",
     "tile-ai-promote": "ai_promote", "panel-ai": "ai_panel_open",
     "panel-ai-clear": "ai_panel_clear"};
   var selector = Object.keys(inputs).map(function (c) { return "." + c; }).join(", ");
@@ -471,6 +471,19 @@ AI_JS = """
 })();
 """
 PANEL_AI_TOOLTIP = "Ask the AI : narrow all the tiles of this panel in words"
+SAVE_TOOLTIP = (
+    "Save as a new KPI : this tile with the filters it is seen with (dimensions, AI), "
+    "on the panel you choose"
+)
+
+
+def save_html(tr=i18n.english) -> str:
+    """The button that saves a tile, with its filters, as a new KPI (managers)."""
+    return (
+        f'<button type="button" class="tile-save" '
+        f'title="{html_escape(tr(SAVE_TOOLTIP), quote=True)}">'
+        f'{svg("square-plus")}</button>'
+    )
 
 
 def ai_html(where: dict | None, tr=i18n.english) -> str:
@@ -1558,6 +1571,145 @@ def server(input, output, session):
                         )
             await ai_say(key, "assistant", text)
 
+    # ---- a new KPI from a tile and its filters (a KpiTen manager) -------------
+    save_line = reactive.Value(None)  # the tile being saved
+
+    def filter_titles(line: dict) -> list[str]:
+        """The filters the tile is seen with, in words (the name of the new KPI)."""
+        config, _date, dims = filter_state()
+        titles = [
+            ", ".join(map(str, dims[d["name"]]))
+            for d in config.get("dimensions", [])
+            if dims.get(d["name"])
+        ]
+        current = ai_panel().get(str(input.panel()))
+        if current:
+            titles.append(current["title"])
+        if ai_filters().get(line["id"]):
+            titles.append(ai_filters()[line["id"]]["title"])
+        return titles
+
+    def new_kpi(line: dict) -> tuple[str, list[str], list[str]]:
+        """(definition, conditions, notes) of the tile with the filters it is seen with :
+        the dimensions of the panel, the AI filters of the panel and of the tile. The
+        period is left to the panel the KPI goes on."""
+        table = savetile.tile_table(line)
+        frame = store().get(table)
+        columns = frame.collect_schema().names() if frame is not None else []
+        config, _date, dims = filter_state()
+        conditions = savetile.dimension_conditions(config, dims, columns)
+        notes = []
+        current = ai_panel().get(str(input.panel()))
+        if current and table in current["filters"]:
+            conditions.append(current["filters"][table])
+        elif current and table in narrowed()[1]:
+            notes.append(
+                tr(
+                    "The filter of the panel reaches {table} through {tables} : it is "
+                    "not kept.",
+                    table=table,
+                    tables=", ".join(narrowed()[1][table]),
+                )
+            )
+        if ai_filters().get(line["id"]):
+            conditions.append(ai_filters()[line["id"]]["where"])
+        return savetile.new_definition(line, conditions), conditions, notes
+
+    @reactive.effect
+    @reactive.event(input.tile_save)
+    def _save_dialog():
+        line = next((l for l in lines() if l["id"] == input.tile_save()), None)
+        if line is None or not can_edit():
+            return
+        try:
+            definition, conditions, notes = new_kpi(line)
+        except Exception as err:
+            ui.notification_show(
+                tr("The KPI cannot be saved : {error}", error=err), type="error"
+            )
+            return
+        save_line.set(line)
+        titles = filter_titles(line)
+        name = f"{line['name']} — {' ; '.join(titles)}" if titles else line["name"]
+        where = serial_where(definition)
+        ui.modal_show(
+            ui.modal(
+                ui.input_text("save_name", tr("Name"), value=name, width="100%"),
+                ui.input_select(
+                    "save_panel",
+                    tr("Panel"),
+                    choices=panels(),
+                    selected=str(input.panel()),
+                    width="100%",
+                ),
+                ui.p(
+                    (
+                        tr("Its rows : the period of the panel, and")
+                        if where
+                        else tr("No filter is set : the KPI is a copy of the tile.")
+                    ),
+                    class_="mb-1",
+                ),
+                ui.tags.pre(where, class_="save-where") if where else None,
+                *[ui.p(note, class_="text-warning small") for note in notes],
+                title=tr("Save « {name} » as a new KPI", name=line["name"]),
+                easy_close=True,
+                footer=ui.input_action_button(
+                    "save_create", tr("Create"), class_="btn-kpiten"
+                ),
+            )
+        )
+
+    def serial_where(definition: str) -> str:
+        try:
+            return core_tiles.serial.loads(definition).get("where") or ""
+        except Exception:
+            return ""
+
+    @reactive.effect
+    @reactive.event(input.save_create)
+    def _save_create():
+        line = save_line()
+        if line is None or not can_edit():
+            return
+        name = (input.save_name() or line["name"]).strip()
+        panel_id = int(input.save_panel())
+        try:
+            definition, _conditions, _notes = new_kpi(line)
+            backend_rv().create_tile(
+                line["model"],
+                definition,
+                line["kind"],
+                name,
+                current_user_id(),
+                panel_id,
+                values={
+                    "col_span": line.get("col_span"),
+                    "tile_height": line.get("tile_height"),
+                    "table_view": line.get("table_view"),
+                    "display": line.get("display") or False,
+                    "drill_definition": line.get("drill") or False,
+                },
+            )
+        except Exception as err:
+            logger.exception("saving tile %s failed", line["id"])
+            ui.notification_show(
+                tr("The KPI cannot be saved : {error}", error=err), type="error"
+            )
+            return
+        ui.modal_remove()
+        save_line.set(None)
+        if panel_id == int(input.panel()):
+            layout_version.set(layout_version() + 1)
+        ui.notification_show(
+            tr(
+                "KPI « {name} » added to the panel « {panel} ».",
+                name=name,
+                panel=panels().get(str(panel_id)),
+            ),
+            duration=5,
+        )
+
     def panel_results() -> list:
         """(line, result, error) per tile of the panel : computed with its period, its
         filters and the rights of the user (the tiles on screen, the exports)."""
@@ -1716,6 +1868,7 @@ def server(input, output, session):
         except SilentException:
             edit_mode_on = False
         cards, blocks = [], []
+        saving = can_edit()  # a KPI manager saves a tile with its filters
         drill_keys.clear()
         for line, result, error in panel_results():
             try:
@@ -1752,7 +1905,12 @@ def server(input, output, session):
                         sparkline=trend,
                         grid=grid,
                         tr=tr,
-                        ai=ai_html(ai_filters().get(line["id"]), tr) if ai_on else "",
+                        ai=(ai_html(ai_filters().get(line["id"]), tr) if ai_on else "")
+                        + (
+                            save_html(tr)
+                            if saving and line["kind"] in savetile.WHERE_KINDS
+                            else ""
+                        ),
                     )
                 )
             except Exception as err:

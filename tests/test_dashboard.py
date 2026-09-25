@@ -104,7 +104,7 @@ def test_without_session_asks_to_log_in(page: Page) -> None:
 def test_the_page_speaks_the_language_of_the_user_in_odoo(page: Page) -> None:
     open_dashboard(page)  # Marie works in French
     expect(page.locator("label[for=panel]")).to_have_text("Tableau")
-    expect(page.locator(".kind-badge").first).not_to_have_text("graph")
+    expect(page.locator("label[for=date_period]")).to_have_text("Période")
 
     # the admin : in the language of their Odoo user (English, unless set otherwise)
     from kpiten_core.backend import Backend
