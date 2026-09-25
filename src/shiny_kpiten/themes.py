@@ -297,6 +297,41 @@ class Theme:
   cursor: pointer; line-height: 1;
 }}
 .tile-full:hover, .tile h3 .tile-info:hover {{ opacity: .9 }}
+/* ask the AI about a tile ; the filter it made, as a badge */
+.tile-ai, .tile-ai-clear {{
+  background: transparent; border: 0; padding: 2px; color: {p["text"]}; opacity: .45;
+  cursor: pointer; line-height: 1;
+}}
+.kpi-head .tile-ai {{ margin-left: auto }}
+.kpi-head .tile-ai svg {{ width: 13px; height: 13px; fill: currentColor }}
+.tile-ai:hover, .tile-ai-clear:hover {{ opacity: .9 }}
+.tile-ai-filter {{
+  display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 500;
+  color: {p["accent"]}; border: 1px solid {p["accent"]}; border-radius: 10px;
+  padding: 0 2px 0 8px; max-width: 160px; white-space: nowrap; cursor: help;
+}}
+.tile-ai-filter span {{ overflow: hidden; text-overflow: ellipsis }}
+/* on a card : the badge on a line of its own, under the name */
+.kpi-head:has(.tile-ai-filter) {{ flex-wrap: wrap; row-gap: 2px }}
+.kpi-head .tile-ai-filter {{ order: 3; margin-left: 34px; max-width: calc(100% - 34px) }}
+.kpiten-ai-head {{
+  display: flex; align-items: center; gap: 8px; font-weight: 600; color: {p["accent"]};
+}}
+.kpiten-ai-head svg {{ width: 14px; height: 14px; fill: currentColor }}
+.kpiten-ai-head .tile-info {{ margin-left: auto; opacity: .45; cursor: help; color: {p["text"]} }}
+/* the chat : the colors of the theme */
+.kpiten-ai, .kpiten-ai .shiny-chat-message-body {{ color: {p["text"]} }}
+.kpiten-ai {{ background: {p["surface"]} !important; border-left: 1px solid {p["border"]} }}
+.kpiten-ai .ProseMirror {{
+  background: transparent; color: {p["text"]}; border-color: {p["border"]}
+}}
+.kpiten-ai .shiny-chat-message-body pre {{
+  white-space: pre-wrap; font-size: 12px; background: rgba(127, 127, 127, .12) !important;
+  border: 0; border-radius: 6px; padding: 6px 8px
+}}
+.kpiten-ai .shiny-chat-message-body pre, .kpiten-ai .shiny-chat-message-body pre * {{
+  color: {p["text"]} !important
+}}
 /* a tile in full screen : over the page, all its rows */
 .tile.tile--full {{
   position: fixed; inset: 24px; z-index: 1050; max-height: none !important;
