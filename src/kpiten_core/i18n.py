@@ -95,6 +95,30 @@ FR = {
     "The same list of records, in Odoo (with your rights)": (
         "La même liste d'enregistrements, dans Odoo (avec vos droits)"
     ),
+    "Check in Odoo : the same rows, counted by Odoo (with your rights)": (
+        "Vérifier dans Odoo : les mêmes lignes, comptées par Odoo (avec vos droits)"
+    ),
+    "The records of the card, by their ids : the filter itself is not checked": (
+        "Les enregistrements de la carte, par leurs ids : le filtre lui-même n'est "
+        "pas vérifié"
+    ),
+    "Odoo shows the sum and the count : the mean is the sum / the count": (
+        "Odoo affiche la somme et le nombre : la moyenne est la somme / le nombre"
+    ),
+    "Some rows are in another currency : the card converts the amounts to the "
+    "currency of the company, Odoo adds them up as they are": (
+        "Des lignes sont dans une autre devise : la carte convertit les montants dans "
+        "la devise de la société, Odoo les additionne tels quels"
+    ),
+    "Odoo shows the sum and the count : not the median": (
+        "Odoo affiche la somme et le nombre : pas la médiane"
+    ),
+    "Odoo shows the sum and the count : not the minimum": (
+        "Odoo affiche la somme et le nombre : pas le minimum"
+    ),
+    "Odoo shows the sum and the count : not the maximum": (
+        "Odoo affiche la somme et le nombre : pas le maximum"
+    ),
     "First {rows} of {total} rows": "{rows} premières lignes sur {total}",
     "Grouped by month": "Regroupé par mois",
     "Top {limit} of {total}": "Les {limit} premiers sur {total}",

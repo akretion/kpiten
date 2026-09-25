@@ -343,15 +343,9 @@ def _best_case(card_json, df):
     return name, str(name), subtitle
 
 
-def card_value(content, table, store, full_predicates):
-    """A card's `(value, display, subtitle)` : one number (see `card_case`), or
-    with `by` the name of the best group and a line under it."""
-    card_json = spec.load(content, "card")
-    aggregation = card_json.get("aggregation", "count")
-    if aggregation not in CARD_AGGREGATIONS:
-        raise TileError(f"unknown card aggregation '{aggregation}'")
-    measure = card_json.get("measure")
-    # `from` is optional : defaults to the tile's dataset model (`table`)
+def card_rows(card_json: dict, table, store, full_predicates) -> pl.LazyFrame:
+    """The rows a card aggregates : its table (`from`, else the one of its dataset)
+    with the panel filters, its computed columns and its `where`."""
     df = _resolve_table(store, card_json.get("from", table))
     if card_json.get("ignore_period"):
         full_predicates = _without_period(df, full_predicates)
@@ -360,6 +354,18 @@ def card_value(content, table, store, full_predicates):
     if card_json.get("where"):
         where = sqltile.check_where(expand_today(card_json["where"]))
         df = df.sql(f"SELECT * FROM self WHERE {where}")
+    return df
+
+
+def card_value(content, table, store, full_predicates):
+    """A card's `(value, display, subtitle)` : one number (see `card_case`), or
+    with `by` the name of the best group and a line under it."""
+    card_json = spec.load(content, "card")
+    aggregation = card_json.get("aggregation", "count")
+    if aggregation not in CARD_AGGREGATIONS:
+        raise TileError(f"unknown card aggregation '{aggregation}'")
+    measure = card_json.get("measure")
+    df = card_rows(card_json, table, store, full_predicates)
 
     if card_json.get("by"):
         return _best_case(card_json, df)
