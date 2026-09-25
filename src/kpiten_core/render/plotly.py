@@ -29,7 +29,7 @@ def figure(chart: Chart):
     }
     fig.update_layout(**layout)
     if chart.kind != "pie":
-        _short_categories(fig, chart)
+        category_labels(fig, chart)
         _axis_titles(fig)
     if chart.series and chart.kind != "pie":
         # the legend under the graph : on its right it took the width, and the titles
@@ -72,18 +72,32 @@ def _axis_titles(fig) -> None:
         )
 
 
-def _short_categories(fig, chart: Chart) -> None:
-    """The categories of a bar graph cut at `LABEL_CHARS` on their axis (the bars keep
-    their whole name in the hover) : long names took the height of the graph."""
+# the category labels of a bar graph shown at most, by the width of its tile (`col_span` :
+# a third, a half, the whole row) ; the others are left out, their bars keep their hover
+LABELS_BY_SPAN = {1: 15, 2: 30, 3: 60}
+
+
+def category_labels(fig, chart: Chart, span: int | None = None) -> None:
+    """The categories of a bar graph on their axis : cut at `LABEL_CHARS`, and on a
+    narrow tile one label out of `k`, the first bars (the biggest) first. Long names, or
+    every name of 50 bars, took the height of the graph and ran into each other ; the
+    hover of a bar gives its whole name. `span` : the width of the tile (`col_span`),
+    unknown : a third."""
     if chart.kind != "bar" or chart.temporal or chart.x not in chart.points.columns:
         return
+    if chart.orientation == "h":  # the names are on y, one per line : all kept
+        span = None
+        most = None
+    else:
+        most = LABELS_BY_SPAN.get(span or 1, LABELS_BY_SPAN[1])
     values = chart.points[chart.x].drop_nulls().unique(maintain_order=True).to_list()
     names = [str(v) for v in values]
-    if not any(len(n) > LABEL_CHARS for n in names):
+    step = -(-len(values) // most) if most else 1  # ceil
+    if step == 1 and not any(len(n) > LABEL_CHARS for n in names):
         return
     short = [n if len(n) <= LABEL_CHARS else n[: LABEL_CHARS - 1] + "…" for n in names]
     axis = fig.update_yaxes if chart.orientation == "h" else fig.update_xaxes
-    axis(tickmode="array", tickvals=values, ticktext=short)
+    axis(tickmode="array", tickvals=values[::step], ticktext=short[::step])
 
 
 def _color_series(fig, colorway: list | None) -> None:
