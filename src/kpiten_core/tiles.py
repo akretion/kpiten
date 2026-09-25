@@ -664,6 +664,9 @@ def pivot_case(content, table, store, full_predicates, field_labels=None):
     df = _resolve_table(store, pivot_json.get("from", table))
     df = filter_df(df, full_predicates)
     df = derive_columns(df, pivot_json.get("computed") or {})
+    if pivot_json.get("where"):
+        where = sqltile.check_where(expand_today(pivot_json["where"]))
+        df = df.sql(f"SELECT * FROM self WHERE {where}")
     df = _resolve_derived_date_columns(df, index, column)
     if monthly and column and is_date(df, column):
         df = apply_monthly(df, column)
@@ -765,6 +768,9 @@ def _table(
 
 
 def union_case(transform: dict[str, Any], store, full_predicates):
+    """The rows of two tables one under the other, their columns renamed by `mapping`
+    ({table: {column: name}}) ; `where` (optional) : SQL on the rows of the union, with
+    the names of the mapping."""
     union_json = serial.loads(transform["content"])
     union_model = union_json["union_model"]
     mapping = union_json["mapping"]
@@ -775,7 +781,11 @@ def union_case(transform: dict[str, Any], store, full_predicates):
         .rename(mapping[m])
         for m in (base_model, union_model)
     ]
-    return pl.concat(dfs, how="vertical_relaxed")
+    union = pl.concat(dfs, how="vertical_relaxed")
+    if union_json.get("where"):
+        where = sqltile.check_where(expand_today(union_json["where"]))
+        union = union.sql(f"SELECT * FROM self WHERE {where}")
+    return union
 
 
 HIDDEN_PREFIX = "__"

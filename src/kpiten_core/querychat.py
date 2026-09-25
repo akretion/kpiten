@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 
 import polars as pl
 
-from kpiten_core import anonymize, env, llm, sqltile
+from kpiten_core import anonymize, env, llm, savetile, sqltile
 from kpiten_core.store import DFStorage
 
 ATTEMPTS = 2  # the model may fix its filter once, from the error it caused
@@ -52,7 +52,7 @@ def tile_text(line: dict) -> str:
     """What the model is told of the tile : its name, kind and definition."""
     return (
         f"The KPI « {line.get('name')} » ({line.get('kind')}) on the table "
-        f"{line.get('model')}, defined as :\n{line.get('content') or ''}"
+        f"{savetile.tile_table(line)}, defined as :\n{line.get('content') or ''}"
     )
 
 
@@ -287,7 +287,7 @@ def ask(
         where = anon.reveal(str(data.get("where") or "")).strip()
         if not where:
             raise ValueError('"where" is empty')
-        return {line["model"]: try_where(frame, where)}
+        return {savetile.tile_table(line): try_where(frame, where)}
 
     return _converse(provider, system, history, question, anon, complete, read)
 

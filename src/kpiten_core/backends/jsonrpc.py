@@ -168,10 +168,12 @@ class JsonrpcBackend:
         name: str | None = None,
         user_id: int | None = None,
         panel_id: int | None = None,
-    ) -> bool:
-        return self.env[self.kpi_model].create_tile(
-            model, definition, kind, name, user_id, panel_id
-        )
+        values: dict | None = None,
+    ) -> int:
+        args = [model, definition, kind, name, user_id, panel_id]
+        if values:  # an older kpiten module has no `values`
+            args.append(values)
+        return self.env[self.kpi_model].create_tile(*args)
 
     def get_records_action_id(self, model: str) -> int:
         key = (self.db, model)

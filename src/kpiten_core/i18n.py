@@ -174,6 +174,27 @@ FR = {
     "Filter removed : the panel counts all its rows again.": (
         "Filtre retiré : le tableau compte à nouveau toutes ses lignes."
     ),
+    "Save as a new KPI : this tile with the filters it is seen with (dimensions, AI), "
+    "on the panel you choose": (
+        "Enregistrer comme nouveau KPI : cette tuile avec les filtres qui s'y "
+        "appliquent (dimensions, IA), sur le tableau de votre choix"
+    ),
+    "Name": "Nom",
+    "Create": "Créer",
+    "Save « {name} » as a new KPI": "Enregistrer « {name} » comme nouveau KPI",
+    "Its rows : the period of the panel, and": (
+        "Ses lignes : la période du tableau, et"
+    ),
+    "No filter is set : the KPI is a copy of the tile.": (
+        "Aucun filtre : le KPI est une copie de la tuile."
+    ),
+    "The filter of the panel reaches {table} through {tables} : it is not kept.": (
+        "Le filtre du tableau atteint {table} par {tables} : il n'est pas repris."
+    ),
+    "The KPI cannot be saved : {error}": "Le KPI ne peut pas être enregistré : {error}",
+    "KPI « {name} » added to the panel « {panel} ».": (
+        "KPI « {name} » ajouté au tableau « {panel} »."
+    ),
     "« {title} » now narrows the whole panel.": (
         "« {title} » restreint maintenant tout le tableau."
     ),
