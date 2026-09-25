@@ -1,7 +1,7 @@
 <odoo>
-    <!-- the fronts of KpiTen : a menu each, that opens the front through the SSO of
-         kpiten. A menu is shown only when the address of its front is set (the system
-         parameter `kpiten_<front>_service`, see kt._sync_front_menus) -->
+    <!-- the fronts of KpiTen, opened through the SSO of kpiten : a button each on the
+         home page (views/kt_home.xml), shown when the address of the front is set (the
+         system parameter `kpiten_<front>_service`) ; these actions open them too -->
 
     <record id="action_redirect_to_shiny" model="ir.actions.server">
         <field name="name">Shiny 🡥</field>
@@ -12,14 +12,6 @@
         >action = model.action_redirect_to_kpiten(application="shiny")</field>
     </record>
 
-    <menuitem
-        id="menu_shiny_redirect"
-        parent="kpiten.kpiten_app"
-        name="Shiny"
-        sequence="95"
-        action="action_redirect_to_shiny"
-    />
-
     <record id="action_redirect_to_nicegui" model="ir.actions.server">
         <field name="name">NiceGUI 🡥</field>
         <field name="model_id" ref="kpiten.model_kt" />
@@ -28,14 +20,6 @@
             name="code"
         >action = model.action_redirect_to_kpiten(application="nicegui")</field>
     </record>
-
-    <menuitem
-        id="menu_nicegui_redirect"
-        parent="kpiten.kpiten_app"
-        name="NiceGUI"
-        sequence="96"
-        action="action_redirect_to_nicegui"
-    />
 
     <record id="action_redirect_to_marimo" model="ir.actions.server">
         <field name="name">Marimo 🡥</field>
@@ -46,16 +30,8 @@
         >action = model.action_redirect_to_kpiten(application="marimo")</field>
     </record>
 
-    <menuitem
-        id="menu_marimo_redirect"
-        parent="kpiten.kpiten_app"
-        name="Marimo"
-        sequence="97"
-        action="action_redirect_to_marimo"
-    />
-
     <!-- internal_url : where Odoo asks for a session (SSO) ; external_url : what the
-         browser of the user opens. NiceGUI has none by default : its menu stays hidden
+         browser of the user opens. NiceGUI has none by default : its button stays hidden
          until its address is set -->
     <data noupdate="1">
         <record model="ir.config_parameter" id="kpiten_shiny_setting_service">
@@ -72,5 +48,4 @@
         </record>
     </data>
 
-    <function model="kt" name="_sync_front_menus" />
 </odoo>

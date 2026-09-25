@@ -1,10 +1,11 @@
 <odoo>
+    <!-- the app opens its home page (views/kt_home.xml), open to every internal user :
+         a button per front ; the fronts have no menu of their own -->
     <menuitem
         id="kpiten_app"
         name="KpiTen"
         web_icon="kpiten,static/description/icon.png"
         sequence="50"
+        action="kt_home_server_action"
     />
-
-    <!-- the link to each front (Shiny, NiceGUI, Marimo) is in the module of that front -->
 </odoo>

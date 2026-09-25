@@ -12,3 +12,4 @@ access_kt_user_theme,access_kt_user_theme,kpiten.model_kt_user_theme,base.group_
 access_kt_user_theme_manager,access_kt_user_theme_manager,kpiten.model_kt_user_theme,kpiten.group_kpiten_manager,1,1,1,1
 access_kt_kpi_builder,access_kt_kpi_builder,kpiten.model_kt_kpi_builder,kpiten.group_kpiten_manager,1,1,1,1
 access_kt_kpi_builder_column,access_kt_kpi_builder_column,kpiten.model_kt_kpi_builder_column,kpiten.group_kpiten_manager,1,1,1,1
+access_kt_home,access_kt_home,kpiten.model_kt_home,base.group_user,1,1,1,1

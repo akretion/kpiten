@@ -1,0 +1,79 @@
+<odoo>
+    <!-- the home page of KpiTen : the action of its menu, open to every internal user,
+         a button per front whose address is set (the fronts have no menu of their own) -->
+    <record id="kt_home_form" model="ir.ui.view">
+        <field name="model">kt.home</field>
+        <field name="arch" type="xml">
+            <form string="KpiTen" create="0" edit="0">
+                <field name="shiny_ok" invisible="1" />
+                <field name="nicegui_ok" invisible="1" />
+                <field name="marimo_ok" invisible="1" />
+                <sheet>
+                    <div class="oe_title">
+                        <h1>KpiTen</h1>
+                    </div>
+                    <p class="text-muted">
+                        Your KPIs, with your rights in Odoo : open a front.
+                    </p>
+                    <div class="row mt-4">
+                        <div class="col-md-4 mb-3" invisible="not shiny_ok">
+                            <div class="card h-100 p-3">
+                                <h3><i class="fa fa-tachometer me-2" />Shiny</h3>
+                                <p>The dashboards : the panels and their tiles, the filters,
+                                    the AI.</p>
+                                <button
+                                    name="action_open_shiny"
+                                    type="object"
+                                    string="Open Shiny"
+                                    class="btn-primary mt-auto"
+                                    icon="fa-external-link"
+                                />
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3" invisible="not nicegui_ok">
+                            <div class="card h-100 p-3">
+                                <h3><i class="fa fa-th-large me-2" />NiceGUI</h3>
+                                <p>The same dashboards, in another front.</p>
+                                <button
+                                    name="action_open_nicegui"
+                                    type="object"
+                                    string="Open NiceGUI"
+                                    class="btn-primary mt-auto"
+                                    icon="fa-external-link"
+                                />
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3" invisible="not marimo_ok">
+                            <div class="card h-100 p-3">
+                                <h3><i class="fa fa-flask me-2" />Marimo</h3>
+                                <p>Explore your rows and write analyses in notebooks.</p>
+                                <button
+                                    name="action_open_marimo"
+                                    type="object"
+                                    string="Open Marimo"
+                                    class="btn-primary mt-auto"
+                                    icon="fa-external-link"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        class="alert alert-warning"
+                        role="alert"
+                        invisible="shiny_ok or nicegui_ok or marimo_ok"
+                    >
+                        No front is set : ask your administrator (system parameters
+                        <code>kpiten_&lt;front&gt;_service</code>).
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="kt_home_server_action" model="ir.actions.server">
+        <field name="name">KpiTen</field>
+        <field name="model_id" ref="kpiten.model_kt_home" />
+        <field name="state">code</field>
+        <field name="code">action = model.action_home()</field>
+    </record>
+</odoo>

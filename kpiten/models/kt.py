@@ -8,7 +8,7 @@ import requests
 from odoo import SUPERUSER_ID, api, exceptions, models
 from odoo.tools.translate import _
 
-from ..compat import LIST, can_read, get_param, ids_sql, readable_fields
+from ..compat import LIST, can_read, ids_sql, readable_fields
 from . import kt_sql
 
 # the name of the generic list actions `get_records_action` makes (one per model)
@@ -256,21 +256,6 @@ class Kt(models.AbstractModel):
         """
         user = self.env["res.users"].sudo().browse(user_id or self.env.uid)
         return user.has_group("kpiten.group_kpiten_manager")
-
-    @api.model
-    def _sync_front_menus(self):
-        """The menu of a front is shown when its address is set (the system parameter
-        `kpiten_<front>_service`), hidden otherwise."""
-        from .ir_config_parameter import FRONTS
-        from .res_company import SERVICE_KEY
-
-        for front in FRONTS:
-            menu = self.env.ref(
-                f"kpiten.menu_{front}_redirect", raise_if_not_found=False
-            )
-            if menu:
-                shown = bool(get_param(self.env, SERVICE_KEY % front))
-                menu.sudo().with_context(active_test=False).active = shown
 
     @api.model
     def _kpiten_session(self, application: str = "shiny") -> tuple[str, str]:
