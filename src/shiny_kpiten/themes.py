@@ -216,17 +216,6 @@ class Theme:
   text-decoration: none;
 }}
 .records-link::after {{ content: " \\2197"; opacity: .7 }}
-.kind-badge {{
-  font-size: 10px;
-  font-weight: 400;
-  color: {p["accent"]};
-  border: 1px solid {p["accent"]};
-  border-radius: 4px;
-  padding: 0 5px;
-  margin-left: 8px;
-  vertical-align: middle;
-  opacity: .8;
-}}
 /* cards row : odoo-dashboard style kpi line — one compact centered row of
    single-value tiles, each sized to its content */
 .card-grid {{
@@ -298,7 +287,7 @@ class Theme:
 }}
 .tile-full:hover, .tile h3 .tile-info:hover {{ opacity: .9 }}
 /* ask the AI about a tile ; the filter it made, as a badge */
-.tile-ai, .tile-ai-clear, .tile-ai-promote, .panel-ai-clear {{
+.tile-ai, .tile-ai-clear, .tile-ai-promote, .panel-ai-clear, .tile-save {{
   background: transparent; border: 0; padding: 2px; color: {p["text"]}; opacity: .45;
   cursor: pointer; line-height: 1;
 }}
@@ -307,6 +296,10 @@ class Theme:
 .tile-ai:hover, .tile-ai-clear:hover, .tile-ai-promote:hover, .panel-ai-clear:hover {{
   opacity: .9
 }}
+.tile-save:hover {{ opacity: .9 }}
+.kpi-head .tile-save svg {{ width: 13px; height: 13px; fill: currentColor }}
+.kpi-head .tile-ai + .tile-save {{ margin-left: 0 }}
+.save-where {{ white-space: pre-wrap; font-size: 12px; padding: 6px 8px; border-radius: 6px; background: rgba(127, 127, 127, .12) }}
 .tile-ai-promote svg {{ width: 10px !important; height: 10px !important; fill: currentColor }}
 /* the panel : its ✨ in the head of the page, the badge of its filter */
 #ai_panel_bar {{ display: inline-flex; align-items: center; gap: 8px }}
