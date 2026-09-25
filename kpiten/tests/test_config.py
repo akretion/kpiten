@@ -169,8 +169,11 @@ class TestKtConfig(TransactionCase):
             self.config.ods_max_rows = 0
 
     def test_the_ai_switches_are_sent(self):
-        self.config.write({"ai_enabled": False, "ai_send_values": False})
-        self.assertEqual(self._json()["ai"], {"enabled": False, "send_values": False})
+        self.config.write({"ai_enabled": False, "ai_send_level": "schema"})
+        self.assertEqual(
+            self._json()["ai"],
+            {"enabled": False, "send_level": "schema", "send_values": False},
+        )
 
     def test_the_defaults_change_nothing_for_the_apps(self):
         """A record with its default values asks for what the apps already do."""
@@ -181,7 +184,7 @@ class TestKtConfig(TransactionCase):
         self.assertEqual(fresh.colors_from, "theme")
         self.assertEqual(fresh.table_rows, 20)
         self.assertEqual(fresh.explore_access, "everyone")
-        self.assertTrue(fresh.ai_enabled and fresh.ai_send_values)
+        self.assertTrue(fresh.ai_enabled and fresh.ai_send_level == "summary")
         self.assertEqual(
             (
                 fresh.number_small_below,

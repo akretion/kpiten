@@ -123,7 +123,7 @@
                         </group>
                         <group string="AI (marimo explorer)">
                             <field name="ai_enabled" />
-                            <field name="ai_send_values" invisible="not ai_enabled" />
+                            <field name="ai_send_level" invisible="not ai_enabled" />
                         </group>
                     </group>
                     </page>
