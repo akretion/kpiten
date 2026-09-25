@@ -252,11 +252,12 @@ class KtConfig(models.Model):
         "server stays about the same ; LibreOffice opens 500 000 rows in about 15 s.",
     )
 
-    # ---- AI (marimo explorer)
+    # ---- AI (marimo explorer, a KPI asked in words in Shiny)
     ai_enabled = fields.Boolean(
-        string="AI in the marimo explorer",
+        string="AI",
         default=True,
-        help="Uncheck to turn the AI of the explorer off for everyone.",
+        help="The AI of the marimo explorer, and the ✨ of the tiles in Shiny (a KPI "
+        "narrowed in words, for every user). Uncheck to turn it off for everyone.",
     )
     ai_send_level = fields.Selection(
         [
