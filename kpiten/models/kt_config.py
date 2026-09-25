@@ -326,8 +326,9 @@ class KtConfig(models.Model):
         string="Open a list of records in Odoo",
         default=False,
         help="A KPI that lists Odoo records (an order per row...) gets a link that "
-        "opens the same list in Odoo, with the rights of the user. A card gets an Odoo "
-        "icon (Shiny) : its rows in a pivot of Odoo, to check its value.",
+        "opens the same list in Odoo, with the rights of the user. A card, a graph or a "
+        "pivot gets an Odoo icon (Shiny) : its rows in a pivot of Odoo, to check its "
+        "values.",
     )
     feature_ai_refine = fields.Boolean(
         string="Refine a KPI with the AI",

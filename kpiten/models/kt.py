@@ -16,6 +16,7 @@ RECORDS_ACTION_NAME = "KpiTen records"
 # in the context of the actions `get_check_action` makes (one per user and model)
 CHECK_MARKER = "kpiten_check"
 NUMERIC_TYPES = ("integer", "float", "monetary")
+DATE_INTERVALS = ("day", "week", "month", "quarter", "year")
 
 logger = logging.getLogger(__name__)
 
@@ -256,14 +257,18 @@ class Kt(models.AbstractModel):
             raise exceptions.UserError(_("%s is not a KpiTen data source.", model))
 
     @api.model
-    def get_check_action(self, model, name, domain, measure=None, groupby=None):
-        """The id of the action that checks a card in Odoo : the pivot of `model` on
-        `domain` (the rows of the card), `measure` summed and counted, by `groupby`.
+    def get_check_action(
+        self, model, name, domain, measure=None, groupby=None, colgroupby=None
+    ):
+        """The id of the action that checks a tile in Odoo : the pivot of `model` on
+        `domain` (the rows of the tile), `measure` summed and counted, `groupby` its
+        rows and `colgroupby` its columns (`date_order:month` : a date by month).
 
-        The link of a card goes through `/kpiten/check` (controllers) : one action per
+        The link of a tile goes through `/kpiten/check` (controllers) : one action per
         user and model, rewritten at each click. The domain does not widen anything :
         the user opens it with their rights and record rules. The archived records
-        are counted, as in the store of KpiTen.
+        are counted, as in the store of KpiTen. A measure or a grouping that is not a
+        stored field of the model is left out.
         """
         self._check_dataset_model(model)
         records = self.env[model]
@@ -271,8 +276,8 @@ class Kt(models.AbstractModel):
         fields = records._fields
         field = fields.get(measure) if measure else None
         numeric = field and field.store and field.type in NUMERIC_TYPES
-        by = fields.get(groupby) if groupby else None
-        rows = [groupby] if by and by.store else []
+        rows = self._check_groupings(records, groupby)
+        cols = self._check_groupings(records, colgroupby)
         values = {
             "name": _("Check : %s", name),
             "res_model": model,
@@ -284,8 +289,8 @@ class Kt(models.AbstractModel):
                     "active_test": False,
                     "pivot_measures": ([measure] if numeric else []) + ["__count"],
                     "pivot_row_groupby": rows,
-                    "pivot_column_groupby": [],
-                    "group_by": rows,  # the list, grouped the same
+                    "pivot_column_groupby": cols,
+                    "group_by": rows + cols,  # the list, grouped the same
                 }
             ),
         }
@@ -303,6 +308,25 @@ class Kt(models.AbstractModel):
         else:
             action = actions.create(values)
         return action.id
+
+    @api.model
+    def _check_groupings(self, records, groupings) -> list:
+        """The groupings (`a,b:month`, or a list) that are stored fields of the model,
+        an interval only on a date."""
+        if isinstance(groupings, str):
+            groupings = groupings.split(",")
+        kept = []
+        for grouping in groupings or []:
+            name, _sep, interval = grouping.partition(":")
+            field = records._fields.get(name)
+            if not field or not field.store:
+                continue
+            if interval and (
+                interval not in DATE_INTERVALS or field.type not in ("date", "datetime")
+            ):
+                continue
+            kept.append(grouping)
+        return kept
 
     @api.model
     def can_edit_tiles(self, user_id=None):

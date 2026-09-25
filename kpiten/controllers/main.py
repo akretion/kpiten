@@ -17,8 +17,17 @@ def parse_ids(text: str) -> list:
 
 class KpitenCheck(http.Controller):
     @http.route("/kpiten/check", type="http", auth="user", methods=["GET"])
-    def check(self, model, name="", domain=None, ids=None, measure=None, groupby=None):
-        """The link « check in Odoo » of a card : its rows in a pivot, then the
+    def check(
+        self,
+        model,
+        name="",
+        domain=None,
+        ids=None,
+        measure=None,
+        groupby=None,
+        colgroupby=None,
+    ):
+        """The link « check in Odoo » of a tile : its rows in a pivot, then the
         redirection to it (the user is the one logged in Odoo, with their rights)."""
         if ids is not None:
             domain = [("id", "in", parse_ids(ids))]
@@ -27,7 +36,7 @@ class KpitenCheck(http.Controller):
             if not isinstance(domain, list):
                 raise request.not_found()
         action = request.env["kt"].get_check_action(
-            model, name or model, domain, measure, groupby
+            model, name or model, domain, measure, groupby, colgroupby
         )
         if SERIES >= 18:
             return request.redirect(f"/odoo/action-{action}")

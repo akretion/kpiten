@@ -43,7 +43,12 @@ class TestRecordsAction(TransactionCase):
         self.assertEqual(context["pivot_measures"], ["color", "__count"])
         self.assertEqual(context["pivot_row_groupby"], ["type"])
         self.assertFalse(context["active_test"])  # the archived ones are counted
-        again = kt.get_check_action("res.partner", "All", [], "name")
+        again = kt.get_check_action(
+            "res.partner", "All", [], "name", "create_date:month,email:month", "type"
+        )
         self.assertEqual(again, first)  # rewritten : `name` is not a measure
         context = safe_eval(self.env["ir.actions.act_window"].browse(again).context)
         self.assertEqual(context["pivot_measures"], ["__count"])
+        # an interval only on a date
+        self.assertEqual(context["pivot_row_groupby"], ["create_date:month"])
+        self.assertEqual(context["pivot_column_groupby"], ["type"])
