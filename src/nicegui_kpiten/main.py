@@ -16,7 +16,7 @@ import logging
 import pathlib
 
 from kpiten_core.render.gtable import DRILL_CSS, gt_table
-from kpiten_core.render.plotly import apply_theme_colors, finish
+from kpiten_core.render.plotly import apply_theme_colors, category_labels, finish
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 from nicegui import app, ui, run
@@ -271,12 +271,14 @@ def tile_view(
                     ui.label(delta["description"]).classes("opacity-60")
             return
         with ui.row().classes("w-full items-center no-wrap gap-2"):
-            ui.label(line["name"] or result.kind).classes("text-base font-semibold")
-            ui.badge(result.kind, color="transparent").props(
-                f'outline style="color:{palette["accent"]}"'
-            )
+            # the kind of the tile in the tooltip of its name (no badge)
+            ui.label(line["name"] or result.kind).classes(
+                "text-base font-semibold"
+            ).tooltip(result.kind)
         if result.kind == "graph":
             apply_theme_colors(result.figure, palette)
+            # the labels of the categories that fit the width of the tile
+            category_labels(result.figure, result.chart, line.get("col_span"))
             # the graph is drawn on the tile, in the text color of the theme (as Shiny)
             result.figure.update_layout(
                 paper_bgcolor="rgba(0,0,0,0)",
