@@ -21,6 +21,12 @@ html = render(results, detail)          # le même html pour marimo et Shiny
   l'utilisateur (`user_store`), déjà limitées à ce qu'il peut lire ; le SQL passe par
   `sqltile.check` (un `SELECT` seul, pas de lecture de fichier).
 
+L'IA (`derived_kpiten.ai`) : `system_prompt` assemble la skill `skills/steps.md` (la forme en
+CTE commentées, ce que le SQL de polars sait faire, les pièges des jointures), la description
+de `d` (`kpiten_core.anonymize`, au niveau de `kt.config`) et les colonnes des tables à joindre
+choisies ; `ask` envoie la question avec la requête actuelle, remet les pseudonymes en clair,
+exécute la réponse pas à pas et renvoie une erreur une fois au modèle.
+
 Utilisé par le notebook `derived.py` de `marimo-kpiten` (`make apps` l'installe dans son
 venv). Pas encore de hook pour Shiny.
 

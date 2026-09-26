@@ -51,6 +51,8 @@ class Step:
     kinds: list[str] = field(default_factory=list)
     sources: list[str] = field(default_factory=list)  # the tables read, FROM first
     used: list[str] = field(default_factory=list)  # the columns its SQL names
+    after: str | None = None  # a clause : the step it follows (its rows in)
+    clause: bool = False  # a clause of a query without CTE : no table of its own
 
     @property
     def kind(self) -> str:
@@ -74,6 +76,22 @@ class StepResult:
     @property
     def columns_removed(self) -> list[str]:
         return [c for c in self.columns_in if c not in self.columns]
+
+
+VALID_COLUMNS = re.compile(r";?\s*valid columns: \[[^\]]*\]?")
+
+
+def short_error(err, limit: int = 800, columns: bool = True) -> str:
+    """The message of an error (or its text) without the plan polars adds (`Resolved
+    plan until failure`, dozens of lines) : what is needed to fix the query. Without
+    `columns`, for the user : no list of every column (its `Did you mean` stays)."""
+    text = str(err).split("\n\nResolved plan")[0].strip()
+    # the list of the columns is cut, not what follows it (`Did you mean ...`)
+    cut = lambda m: (
+        m.group(0) if len(m.group(0)) <= limit else m.group(0)[:limit] + " ...]"
+    )
+    text = VALID_COLUMNS.sub(cut if columns else "", text)
+    return text if len(text) <= 2 * limit else text[: 2 * limit] + " ..."
 
 
 def _parse(sql: str) -> exp.Expression:
@@ -165,8 +183,62 @@ def _step(name: str, node: exp.Expression, comment: str) -> Step:
     return Step(name, _plain(node), comment, _kinds(node), _sources(node), _used(node))
 
 
+def _clauses(node: exp.Select, comment: str) -> list[Step]:
+    """A SELECT without CTE, cut in the order the database runs its clauses : FROM and
+    JOIN, WHERE, the SELECT (GROUP BY, HAVING, DISTINCT, windows), ORDER BY, LIMIT.
+    Each step is the query up to its clause ; the last one is the whole query."""
+    tables = _sources(node)
+    names = " and ".join(tables)
+    parts = [
+        (
+            "from",
+            _base(node),
+            f"The rows of {names}" + (", joined" if len(tables) > 1 else ""),
+        )
+    ]
+    if node.args.get("where"):
+        upto = _base(node)
+        upto.set("where", node.args["where"].copy())
+        parts.append(("where", upto, "Keep the rows that meet the conditions"))
+    upto = node.copy()
+    upto.set("order", None)
+    upto.set("limit", None)
+    kinds = _kinds(upto)
+    words = (
+        "One row per group"
+        if "group" in kinds
+        else "Each row once" if "distinct" in kinds else "The columns of the result"
+    )
+    keeps_all = all(isinstance(e, exp.Star) for e in upto.expressions)
+    if not (keeps_all and set(kinds) <= {"join", "filter", "select"}):
+        parts.append(("select", upto, words))  # it does something : a step
+    if node.args.get("order"):
+        upto = upto.copy()
+        upto.set("order", node.args["order"].copy())
+        parts.append(("order", upto, "In order"))
+    if node.args.get("limit"):
+        parts.append(("limit", node.copy(), "The first rows only"))
+    steps, previous = [], None
+    for i, (name, query, words) in enumerate(parts):
+        last = i == len(parts) - 1
+        own = {"from": ["join"] if len(tables) > 1 else ["select"], "where": ["filter"]}
+        kinds = own.get(name) or {"order": ["sort"], "limit": ["limit"]}.get(name)
+        if kinds is None:  # the select : what it does besides the clauses before
+            kinds = [k for k in _kinds(query) if k not in ("join", "filter")]
+            if query.args.get("having"):
+                kinds.append("filter")
+        step = _step(
+            RESULT if last else name, query, (comment if last else "") or words
+        )
+        step.kinds, step.after, step.clause = kinds or ["select"], previous, True
+        steps.append(step)
+        previous = step.name
+    return steps
+
+
 def split(sql: str) -> list[Step]:
-    """The steps of a query : one per CTE of its WITH, then the query itself."""
+    """The steps of a query : one per CTE of its WITH, then the query itself. A query
+    without CTE is cut by its clauses (`_clauses`), when it has more than one."""
     query = _parse(sql)
     steps = []
     with_ = query.args.get("with_")
@@ -175,8 +247,43 @@ def split(sql: str) -> list[Step]:
             steps.append(_step(cte.alias, cte.this, _comment(cte.args["alias"], cte)))
         query = query.copy()
         query.set("with_", None)
+    elif isinstance(query, exp.Select) and query.args.get("from_") is not None:
+        steps = _clauses(query, _comment(query))
+        if len(steps) > 1:
+            return steps
+        steps = []
     steps.append(_step(RESULT, query, _comment(query)))
     return steps
+
+
+def reads(sql: str) -> list[str]:
+    """The tables a query reads (its own CTE left out), in their order."""
+    query = _parse(sql)
+    ctes = {cte.alias_or_name for cte in query.find_all(exp.CTE)}
+    names = []
+    for table in query.find_all(exp.Table):
+        if table.name not in ctes and table.name not in names:
+            names.append(table.name)
+    return names
+
+
+def polars_code(sql: str, source: str, db: str = "") -> str:
+    """The query as python : polars runs it lazily on the store of the user (what
+    to copy in a notebook or a script of one's own)."""
+    frames = ", ".join(
+        f'"{name}": store["{source if name == "d" else name}"]' for name in reads(sql)
+    )
+    return f"""import polars as pl
+from kpiten_core.backend import Backend
+from kpiten_core.loaders import user_store
+
+# the rows and the columns user_id may read in Odoo
+store = user_store(Backend.create(db="{db}"), user_id)
+query = \"\"\"
+{sql.strip()}
+\"\"\"
+result = pl.SQLContext({{{frames}}}).execute(query)  # lazy : .collect() runs it
+"""
 
 
 def _count(frame: pl.LazyFrame) -> int:
@@ -283,11 +390,12 @@ def _detail(step: Step, tables: dict) -> dict:
     if not isinstance(node, exp.Select) or node.args.get("from_") is None:
         return {}
     detail, parts = {}, []
-    if node.args.get("where"):
+    # only what the step does itself : a clause does not repeat those before it
+    if node.args.get("where") and "filter" in step.kinds:
         parts.append(("filter", _filter_detail))
-    if node.args.get("joins"):
+    if node.args.get("joins") and "join" in step.kinds:
         parts.append(("join", _join_detail))
-    if node.args.get("group"):
+    if node.args.get("group") and "group" in step.kinds:
         parts.append(("group", _group_detail))
     for kind, compute in parts:
         try:
@@ -307,10 +415,13 @@ def trace(
     user) ; each step reads the tables and the steps before it. The counts are on every
     row, the sample only is cut."""
     frames = {name: frame.lazy() for name, frame in tables.items()}
-    results = []
+    results, outputs = [], {}
     for step in steps:
         frame = sqltile.run(step.sql, frames)
-        first = frames.get(step.sources[0]) if step.sources else None
+        if step.after:  # a clause : its rows in are the rows of the clause before
+            first = outputs[step.after]
+        else:
+            first = frames.get(step.sources[0]) if step.sources else None
         result = StepResult(
             step,
             rows_in=_count(first) if first is not None else None,
@@ -322,6 +433,7 @@ def trace(
         if detail:
             result.detail = _detail(step, frames)
         results.append(result)
-        if step.name != RESULT:
-            frames[step.name] = frame
+        outputs[step.name] = frame
+        if step.name != RESULT and not step.clause:
+            frames[step.name] = frame  # a CTE : the steps after it read it by its name
     return results

@@ -10,7 +10,28 @@ It reads no store : the front gives it the tables of the user, already restricte
 what the user may read.
 """
 
+from . import ai
 from .render import render
-from .steps import RESULT, Step, StepResult, split, trace
+from .steps import (
+    RESULT,
+    Step,
+    StepResult,
+    polars_code,
+    reads,
+    short_error,
+    split,
+    trace,
+)
 
-__all__ = ["RESULT", "Step", "StepResult", "render", "split", "trace"]
+__all__ = [
+    "RESULT",
+    "ai",
+    "Step",
+    "StepResult",
+    "polars_code",
+    "reads",
+    "render",
+    "short_error",
+    "split",
+    "trace",
+]

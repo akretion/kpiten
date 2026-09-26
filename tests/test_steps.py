@@ -42,9 +42,30 @@ def test_split_one_step_per_cte_with_its_words():
     assert "WITH" not in steps[3].sql
 
 
-def test_a_query_without_cte_is_one_step():
-    steps = split("SELECT *, amount * 2 AS twice FROM d")
-    assert [(s.name, s.kind) for s in steps] == [(RESULT, "compute")]
+def test_a_query_without_cte_is_cut_by_its_clauses(tables):
+    assert [s.name for s in split("SELECT * FROM d")] == [RESULT]
+    sql = (
+        "SELECT user_id, SUM(amount) AS total FROM d WHERE state = 'sale' "
+        "GROUP BY user_id ORDER BY total DESC LIMIT 1"
+    )
+    steps = split(sql)
+    assert [(s.name, s.kind) for s in steps] == [
+        ("from", "select"),
+        ("where", "filter"),
+        ("select", "group"),
+        ("order", "sort"),
+        (RESULT, "limit"),
+    ]
+    results = trace(steps, tables, detail=True)
+    assert [(r.rows_in, r.rows_out) for r in results] == [
+        (4, 4),
+        (4, 2),
+        (2, 2),
+        (2, 2),
+        (2, 1),
+    ]
+    # the detail of a clause is its own : the filter is not measured again later
+    assert list(results[1].detail) == ["filter"] and results[3].detail == {}
 
 
 def test_trace_counts_the_rows_and_the_columns(tables):
@@ -75,3 +96,46 @@ def test_render_shows_the_detail_only_when_asked(tables):
     assert "les commandes confirmées" in simple
     assert "multiplies the rows" not in simple
     assert "multiplies the rows" in detailed and "<pre>" in detailed
+
+
+def test_the_ai_writes_the_query_and_fixes_it_once(tables):
+    from derived_kpiten import ai
+
+    answers = iter(
+        [
+            "Here.\n```sql\nSELECT * FROM nowhere\n```",
+            "Fixed.\n```sql\nWITH\n-- Step 1 : the sales\n"
+            "sales AS (SELECT * FROM d WHERE state = 'sale')\n"
+            "SELECT COUNT(*) AS n FROM sales\n```",
+        ]
+    )
+    sent = []
+
+    def complete(provider, system, messages):
+        sent.append(messages)
+        return next(answers)
+
+    system = ai.system_prompt("sale.order", "id (Int64)", {"line": "qty (Int64)"})
+    assert "Step n" in system and '"line" : qty' in system
+    answer = ai.ask(None, tables, system, "How many sales ?", complete=complete)
+    assert answer.text == "Fixed." and answer.error is None
+    assert [r.step.name for r in answer.results] == ["sales", "result"]
+    assert "unknown table" in sent[1][-1]["content"]  # the error went back once
+
+
+def test_a_pasted_answer_with_an_unknown_name_does_not_run(tables):
+    from kpiten_core.anonymize import Anonymizer
+
+    from derived_kpiten import ai
+
+    anon = Anonymizer("sale.order")
+    known = anon.pseudonym("Salesperson", "Ann")
+    pasted = (
+        "Here.\n```sql\nSELECT * FROM d WHERE user_id IN "
+        f"('{known}', 'Salesperson 9')\n```"
+    )
+    answer = ai.receive(pasted, tables, anon)
+    assert "Salesperson 9" in answer.error and answer.results is None
+    answer = ai.receive(pasted.replace(", 'Salesperson 9'", ""), tables, anon)
+    assert answer.error is None and "'Ann'" in answer.sql  # revealed, then run
+    assert answer.results[-1].rows_out == 2
