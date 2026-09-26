@@ -389,9 +389,13 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
         return
     panels_map = {str(p["id"]): p["name"] for p in panels}
     user_id = sso.user_id if sso else backend.current_user_id()
-    # only a KpiTen manager of Odoo edits the tiles (the apps read Odoo with one
-    # rpc account : nothing else stops a user from sending an edit)
+    # a KpiTen manager of Odoo edits the tiles, and the owner of a panel its own (the
+    # apps read Odoo with one rpc account : nothing else stops a user from sending an
+    # edit) ; the switch is there when the user may edit one panel at least
     can_edit = backend.can_edit_tiles(user_id)
+    edits_some = can_edit or any(
+        backend.can_edit_panel(user_id, panel["id"]) for panel in panels
+    )
     # default panel : first one in sequence order (get_panels is sorted)
     state_panel = panels[0]["id"] if panels else None
     if state_panel is None:
@@ -622,8 +626,11 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
 
     def act(tile_id: int, action: str):
         """One edit action on a tile, saved in odoo right away."""
-        if not can_edit:
-            ui.notify("Only a KpiTen manager can edit tiles.", type="warning")
+        if not backend.can_edit_panel(user_id, panel_label["id"]):
+            ui.notify(
+                "Only the owner of the panel or a KpiTen manager can edit its tiles.",
+                type="warning",
+            )
             return
         cur_lines = backend.get_panel_tiles(panel_label["id"], user_id)
         line = next((l for l in cur_lines if l["id"] == tile_id), None)
@@ -760,7 +767,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                         "flat dense"
                     ).tooltip("Download the rows of an Odoo model as a spreadsheet")
                 ui.button("Refresh tiles", on_click=draw_tiles).props("flat")
-                if can_edit:
+                if edits_some:
                     ui.switch("Edit", value=False, on_change=on_edit_mode).props(
                         "dark"
                     ).tooltip(
@@ -832,9 +839,10 @@ def create_server():
         try:
             backend = Backend.create(db=sso.db if sso else None)
             user_id = sso.user_id if sso else backend.current_user_id()
-            if not backend.can_edit_tiles(user_id):
+            if not backend.can_edit_panel(user_id, int(payload["panel_id"])):
                 return JSONResponse(
-                    status_code=403, content={"error": "Only a KpiTen manager can edit"}
+                    status_code=403,
+                    content={"error": "Only the owner of the panel or a manager edits"},
                 )
             backend.update_tile_order(
                 int(payload["panel_id"]), [int(i) for i in payload.get("ids", [])]
