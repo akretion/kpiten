@@ -11,7 +11,7 @@ ANALYSES = {
     },
     "derived": {
         "icon": "\U0001fa9c",
-        "title": "Step by step",
-        "about": "Write a query in steps (WITH blocks) and see what each step does to your rows",
+        "title": "Query and steps",
+        "about": "Ask or write a query on your tables : its result, or its steps explained",
     },
 }

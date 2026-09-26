@@ -24,9 +24,14 @@ un lien vers Odoo (nouvel onglet, flèche ↗) dans un tableau `mo.ui.table`.
 
 Démarrage : `make start SVC=marimo` (voir `docs/start.md`).
 
-## Step by step (tables dérivées)
+## Query and steps (tables dérivées)
 
-`notebooks/derived.py` : l'utilisateur choisit une table (lue comme `d`), écrit une requête en
+`notebooks/derived.py`, deux modes : **Result** (une requête courte, son résultat dans
+`mo.ui.dataframe`, son code polars à copier) et **Step by step** (ci-dessous) ; « Understand it
+step by step » passe de l'un à l'autre (une requête sans CTE est découpée par clause),
+« Rewrite in commented steps » demande à l'IA de la réécrire en étapes commentées.
+
+En pas à pas, l'utilisateur choisit une table (lue comme `d`), écrit une requête en
 étapes (un bloc `WITH` par étape, sa phrase dans le commentaire `--` au-dessus) et voit ce que
 chaque étape fait à ses lignes : lignes avant → après, colonnes ajoutées ou retirées, un
 échantillon. Un KpiTen manager coche « Detail » : le SQL de chaque étape, les lignes retirées

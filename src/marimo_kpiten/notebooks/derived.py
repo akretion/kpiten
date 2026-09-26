@@ -51,7 +51,9 @@ def _(Backend, db, derived_kpiten, mo, ui, user_id, user_store):
 def _(mo):
     # bumped when a derived table is saved : the list is read again
     get_version, set_version = mo.state(0)
-    return get_version, set_version
+    # the mode : the result of the query, or its steps explained
+    get_mode, set_mode = mo.state("query")
+    return get_mode, get_version, set_mode, set_version
 
 
 @app.cell
@@ -80,19 +82,29 @@ def _(mo, store):
         value="sale.order" if "sale.order" in store else sorted(store)[0],
         label="Table `d`",
     )
-    mo.hstack(
-        [
-            source,
-            mo.md(
-                "<small>The query reads it as `d` ; the other tables by their name "
-                'in quotes : `"sale.order.line"`. One step per `WITH` block, its words '
-                "in the `--` comment above it.</small>"
-            ),
-        ],
-        justify="start",
-        gap=1.5,
-    )
     return (source,)
+
+
+@app.cell
+def _(get_mode, mo, set_mode, source):
+    MODES = {"Result": "query", "Step by step": "steps"}
+    mode = mo.ui.radio(
+        MODES,
+        value=next(label for label, key in MODES.items() if key == get_mode()),
+        on_change=set_mode,
+        inline=True,
+    )
+    mo.vstack(
+        [
+            mo.hstack([source, mode], justify="start", align="center", gap=3),
+            mo.md(
+                "<small>The query reads the table as `d`, the others by their name "
+                'in quotes (`"sale.order.line"`). Step by step : one step per `WITH` '
+                "block (its words in the `--` comment above it), or per clause.</small>"
+            ),
+        ]
+    )
+    return
 
 
 @app.cell
@@ -285,32 +297,49 @@ def _(
     ask_button,
     available,
     derived_kpiten,
+    backend,
     derived_tables,
     description,
+    get_mode,
     get_sql,
     history,
     joins,
     mo,
     provider,
     question,
+    rewrite_button,
     set_answer,
     set_clip,
     set_sql,
     source,
     store,
+    user_id,
 ):
-    mo.stop(not ask_button.value or not question.value.strip())
+    # a question, or « rewrite in commented steps » (the query of the editor)
+    _rewrite = rewrite_button is not None and rewrite_button.value
+    mo.stop(not _rewrite and (not ask_button.value or not question.value.strip()))
+    _mode = "steps" if _rewrite else get_mode()
+    _question = (
+        derived_kpiten.ai.rewrite(backend.get_user_lang(user_id))
+        if _rewrite
+        else question.value.strip()
+    )
     _all = {**store, **derived_tables}
     _system = derived_kpiten.ai.system_prompt(
         source.value,
         description,
         {name: derived_kpiten.ai.columns(_all[name]) for name in joins.value},
+        mode=_mode,
     )
     if provider.value == CLIPBOARD:
         # the prompt to copy : the answer comes back by a paste (cells below)
-        _content = derived_kpiten.ai.message(question.value.strip(), get_sql(), anon)
+        _content = derived_kpiten.ai.message(_question, get_sql(), anon)
         set_clip(
-            {"prompt": derived_kpiten.ai.clipboard(_system, _content), "first": True}
+            {
+                "prompt": derived_kpiten.ai.clipboard(_system, _content),
+                "first": True,
+                "mode": _mode,
+            }
         )
     else:
         with mo.status.spinner("The AI writes the query..."):
@@ -318,10 +347,11 @@ def _(
                 available[provider.value],
                 {**_all, "d": store[source.value]},
                 _system,
-                question.value.strip(),
+                _question,
                 current=get_sql(),
                 history=history,
                 anon=anon,
+                mode=_mode,
             )
         history.extend(_answer.exchange)
         del history[:-8]
@@ -368,6 +398,7 @@ def _(
     anon,
     derived_kpiten,
     derived_tables,
+    get_clip,
     mo,
     paste,
     set_answer,
@@ -380,7 +411,10 @@ def _(
     mo.stop(not use_button.value or not paste.value.strip())
     # the pasted answer : revealed, checked and run like the answer of the api
     _answer = derived_kpiten.ai.receive(
-        paste.value, {**store, **derived_tables, "d": store[source.value]}, anon
+        paste.value,
+        {**store, **derived_tables, "d": store[source.value]},
+        anon,
+        get_clip()["mode"],
     )
     set_answer(_answer)
     if _answer.sql and not _answer.unknown:
@@ -391,6 +425,7 @@ def _(
             {
                 "prompt": derived_kpiten.ai.correction(_answer.error, anon),
                 "first": False,
+                "mode": get_clip()["mode"],
             }
         )
     else:
@@ -399,7 +434,7 @@ def _(
 
 
 @app.cell
-def _(derived_kpiten, get_answer, get_sql, manager, mo, set_sql):
+def _(derived_kpiten, get_answer, get_mode, get_sql, manager, mo, set_sql):
     _answer = get_answer()
     _said = []
     if _answer is not None and _answer.text:
@@ -418,26 +453,101 @@ def _(derived_kpiten, get_answer, get_sql, manager, mo, set_sql):
         value=get_sql(),
         language="sql",
         min_height=260,
-        label="The SQL of the derived table (run when you leave the editor)",
+        label="The SQL (run when you leave the editor)",
         on_change=set_sql,
     )
     # the detail (the SQL and the measures of each step) : a KpiTen manager only
-    detail = mo.ui.checkbox(label="Detail") if manager else None
+    detail = (
+        mo.ui.checkbox(label="Detail") if manager and get_mode() == "steps" else None
+    )
     mo.vstack([*_said, editor, *([detail] if detail is not None else [])])
     return detail, editor
 
 
 @app.cell
-def _(derived_kpiten, derived_tables, detail, editor, mo, source, store):
+def _(
+    db,
+    derived_kpiten,
+    derived_tables,
+    detail,
+    editor,
+    get_mode,
+    mo,
+    provider,
+    set_mode,
+    source,
+    store,
+    ui,
+):
     _detail = bool(detail is not None and detail.value)
     # the table chosen is `d` ; the others, and the derived tables, by their name
     _tables = {**store, **derived_tables, "d": store[source.value]}
+    rewrite_button = understand_button = None
     try:
-        with mo.status.spinner("Running the steps..."):
-            _results = derived_kpiten.trace(
-                derived_kpiten.split(editor.value), _tables, detail=_detail
+        if get_mode() == "query":
+            # the result : polars runs the query lazily, optimized ; its first rows
+            with mo.status.spinner("Running the query..."):
+                _table = derived_kpiten.ai.run(editor.value, _tables)
+            _rows = derived_kpiten.ai.PREVIEW_ROWS
+            # a global of the cell : marimo sends its clicks only then
+            understand_button = mo.ui.button(
+                label="🪜 Understand it step by step",
+                on_click=lambda _: set_mode("steps"),
             )
-        _out = mo.Html(derived_kpiten.render(_results, detail=_detail))
+            _out = mo.vstack(
+                [
+                    mo.md(
+                        f"**{_table.height:,}** rows".replace(",", "\u202f")
+                        + (
+                            f" <small>(the first {_rows:,})</small>".replace(
+                                ",", "\u202f"
+                            )
+                            if _table.height == _rows
+                            else ""
+                        )
+                    ),
+                    mo.ui.dataframe(ui.plain(_table), page_size=15),
+                    mo.hstack(
+                        [
+                            understand_button,
+                            mo.accordion(
+                                {
+                                    "::lucide:code:: The query as polars code": (
+                                        mo.ui.code_editor(
+                                            value=derived_kpiten.polars_code(
+                                                editor.value, source.value, db
+                                            ),
+                                            language="python",
+                                            disabled=True,
+                                        )
+                                    )
+                                }
+                            ),
+                        ],
+                        justify="start",
+                        align="start",
+                        widths=[1, 3],
+                    ),
+                ]
+            )
+        else:
+            with mo.status.spinner("Running the steps..."):
+                _results = derived_kpiten.trace(
+                    derived_kpiten.split(editor.value), _tables, detail=_detail
+                )
+            # the AI rewrites the query in steps with their words (a query cut by
+            # its clauses has none)
+            rewrite_button = (
+                mo.ui.run_button(label="✨ Rewrite in commented steps")
+                if provider is not None
+                else None
+            )
+            _out = mo.vstack(
+                [
+                    mo.Html(derived_kpiten.render(_results, detail=_detail)),
+                    *([rewrite_button] if rewrite_button is not None else []),
+                ]
+            )
     except Exception as err:
         _out = mo.callout(
             mo.md(
@@ -447,7 +557,7 @@ def _(derived_kpiten, derived_tables, detail, editor, mo, source, store):
             kind="danger",
         )
     _out
-    return
+    return rewrite_button, understand_button
 
 
 @app.cell
