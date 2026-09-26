@@ -32,7 +32,7 @@ from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
 from kpiten_core.loaders import (
     last_sync,
-    user_store,
+    tile_store,
 )
 from kpiten_core.service import service as kpiten_service
 
@@ -394,11 +394,11 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
     if asked and asked != (chosen or core_config.default_theme()):
         backend.set_user_theme(user_id, asked)
 
-    store_cache = user_store(backend, user_id)
+    store_cache = tile_store(backend, user_id)
     if not store_cache:
         # fresh database : ask kpiten-core for a full connectorx extract
         kpiten_service.request_refresh(backend.db)
-        store_cache = user_store(backend, user_id)
+        store_cache = tile_store(backend, user_id)
 
     panel_label = {"id": state_panel}
 
@@ -642,7 +642,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
         await run.io_bound(kpiten_service.request_refresh, backend.db, _progress)
         # the user's own view again (column ACL, record rules, lang) : never the
         # raw store, which holds every row of every user
-        fresh = await run.io_bound(user_store, backend, user_id)
+        fresh = await run.io_bound(tile_store, backend, user_id)
         store_cache.clear()
         store_cache.update(fresh)
         ui.notify("Data synced with Odoo")
