@@ -158,6 +158,24 @@ others = true
 </field>
     </record>
 
+    <!-- card : a column computed by a SQL expression (`[computed]`), here a ratio -->
+    <record id="card_computed_sql" model="kt.kpi">
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
+        <field name="kind">card</field>
+        <field name="name">Computed column (SQL)</field>
+        <field name="panel_id" ref="panel_essential" />
+        <field name="sequence">8</field>
+        <field name="definition">where = "state = 'sale'"
+measure = "tax_rate"
+aggregation = "mean"
+unit = "%"
+decimals = 1
+
+[computed]  # any SQL expression on the columns, a later one may use an earlier one
+tax_rate = "amount_tax * 100.0 / NULLIF(amount_untaxed, 0)"
+</field>
+    </record>
+
     <!-- graph : the months, with their linear trend dotted and 3 months ahead (`trend`) -->
     <record id="graph_trend" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
