@@ -1,0 +1,103 @@
+<odoo>
+    <!-- derived tables (kt.derived.table) : a query on the datasets, shared by a KpiTen
+         manager, run on the rows of each user ; the tiles read it by its name -->
+
+    <!-- a derived table that keeps the date and the dimensions of the panel
+         (date_order, user_id, partner_id) : the period and the filters apply to it -->
+    <record id="derived_confirmed_sales" model="kt.derived.table">
+        <field name="name">confirmed_sales</field>
+        <field name="description">The confirmed orders, their date, salesperson, customer and amounts</field>
+        <field name="source">sale.order</field>
+        <field name="language">sql</field>
+        <field name="shared" eval="True" />
+        <field name="user_id" ref="base.user_admin" />
+        <field name="sql">WITH
+-- Step 1 : the confirmed orders
+confirmed AS (SELECT * FROM d WHERE state IN ('sale', 'done'))
+-- Step 2 : what the tiles need : the date and the dimensions of the panel, the amounts
+SELECT id, name, date_order, user_id, partner_id, amount_untaxed, amount_total
+FROM confirmed</field>
+    </record>
+
+    <!-- a derived table without the date of the panel : the tiles read it on every
+         period, and say so (« The filters on date_order do not apply ») -->
+    <record id="derived_sales_by_salesperson" model="kt.derived.table">
+        <field name="name">sales_by_salesperson</field>
+        <field name="description">The confirmed sales of each salesperson, all periods</field>
+        <field name="source">sale.order</field>
+        <field name="language">polars</field>
+        <field name="shared" eval="True" />
+        <field name="user_id" ref="base.user_admin" />
+        <field name="sql">d_next = (
+    tables["confirmed_sales"]
+    # the total of each salesperson
+    .group_by("user_id")
+    .agg(pl.col("amount_untaxed").sum().alias("untaxed"), pl.len().alias("orders"))
+)</field>
+    </record>
+
+    <!-- card : `from` a derived table, compared with the previous period -->
+    <record id="card_derived" model="kt.kpi">
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
+        <field name="kind">card</field>
+        <field name="name">Derived table (from)</field>
+        <field name="panel_id" ref="panel_essential" />
+        <field name="sequence">20</field>
+        <field name="definition">from = "confirmed_sales"
+measure = "amount_untaxed"
+aggregation = "sum"
+unit = "currency"
+compare = true
+</field>
+    </record>
+
+    <!-- card : `from` a derived table without the date : a note says the period does
+         not apply -->
+    <record id="card_derived_no_date" model="kt.kpi">
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
+        <field name="kind">card</field>
+        <field name="name">Derived table without date</field>
+        <field name="panel_id" ref="panel_essential" />
+        <field name="sequence">21</field>
+        <field name="definition">from = "sales_by_salesperson"
+measure = "untaxed"
+aggregation = "sum"
+unit = "currency"
+</field>
+    </record>
+
+    <!-- graph : a line per salesperson over the months, `from` a derived table -->
+    <record id="graph_derived" model="kt.kpi">
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
+        <field name="kind">graph</field>
+        <field name="name">Graph from a derived table</field>
+        <field name="panel_id" ref="panel_essential" />
+        <field name="sequence">22</field>
+        <field name="col_span">2</field>
+        <field name="definition">type = "line"
+from = "confirmed_sales"
+by = "date_order"
+grain = "month"
+series = "user_id"
+measure = "amount_untaxed"
+aggregation = "sum"
+</field>
+    </record>
+
+    <!-- data : SQL on a derived table, read by its name (filtered like the tile) -->
+    <record id="data_derived" model="kt.kpi">
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
+        <field name="kind">data</field>
+        <field name="name">Data from a derived table</field>
+        <field name="panel_id" ref="panel_essential" />
+        <field name="sequence">23</field>
+        <field name="col_span">2</field>
+        <field name="definition">-- the best customers of the period, from the derived table confirmed_sales
+SELECT partner_id AS "Customer", COUNT(*) AS "Orders",
+       SUM(amount_untaxed) AS "Untaxed"
+FROM confirmed_sales
+GROUP BY partner_id
+ORDER BY "Untaxed" DESC
+LIMIT 10</field>
+    </record>
+</odoo>

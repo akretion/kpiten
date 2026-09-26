@@ -31,6 +31,7 @@ compare = true
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Mean</field>
+        <field name="active">0</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">3</field>
         <field name="definition">where = "state = 'sale'"
@@ -46,6 +47,7 @@ decimals = 0
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Median</field>
+        <field name="active">0</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">4</field>
         <field name="definition">where = "state = 'sale'"
@@ -60,6 +62,7 @@ unit = "currency"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_purchases" />
         <field name="kind">card</field>
         <field name="name">Derived column</field>
+        <field name="active">0</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">5</field>
         <field name="definition">where = "state in ('purchase', 'done')"
@@ -80,6 +83,7 @@ days_to_order = "date_approve - create_date"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Ignore period</field>
+        <field name="active">0</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">6</field>
         <field name="definition">where = "state = 'draft'"
@@ -93,6 +97,7 @@ ignore_period = true
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Draft purchases (from)</field>
+        <field name="active">0</field>
         <field name="panel_id" ref="panel_essential" />
         <field name="sequence">7</field>
         <field name="definition">where = "state = 'draft'"
@@ -123,7 +128,7 @@ label = "sold"
         <field name="kind">graph</field>
         <field name="name">Graph bar</field>
         <field name="panel_id" ref="panel_essential" />
-        <field name="sequence">9</field>
+        <field name="sequence">19</field>
         <field name="col_span">2</field>
         <field name="definition">type = "bar"
 where = "state = 'sale'"
@@ -282,7 +287,7 @@ limit = 10
         <field name="kind">pivot</field>
         <field name="name">Pivot</field>
         <field name="panel_id" ref="panel_essential" />
-        <field name="sequence">13</field>
+        <field name="sequence">10</field>
         <field name="col_span">2</field>
         <field name="definition">rows = "user_id"
 columns = "date_order.year"
@@ -338,7 +343,7 @@ amount_untaxed = "amount_untaxed"
         <field name="kind">data</field>
         <field name="name">Data in SQL</field>
         <field name="panel_id" ref="panel_essential" />
-        <field name="sequence">16</field>
+        <field name="sequence">10</field>
         <field name="col_span">2</field>
         <field name="tile_height">380</field>
         <field name="definition">-- d : the rows the user may read, already filtered by the panel period and dimensions

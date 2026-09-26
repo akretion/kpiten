@@ -434,12 +434,27 @@ class KtKpi(models.Model):
             messages.append(
                 _("'from' is the model of the dataset : remove it (not needed).")
             )
+        elif isinstance(table, str) and self._is_derived_table(table):
+            # a shared derived table : its columns are computed by the fronts, unknown
+            # here (a tile that names a missing one says so when it runs)
+            return messages + kt_validate_toml(rec.definition, rec.kind, None)
         elif isinstance(table, str) and table not in self.env:
-            messages.append(_("'from' : unknown model '%s'.") % table)
+            messages.append(
+                _("'from' : unknown model or shared derived table '%s'.") % table
+            )
         elif isinstance(table, str):  # the columns are the ones of the table read
             model = table
         fields = self._valid_columns(rec, model)
         return messages + kt_validate_toml(rec.definition, rec.kind, fields)
+
+    @api.model
+    def _is_derived_table(self, name: str) -> bool:
+        """A shared derived table (`kt.derived.table`) : a tile may read it by `from`."""
+        return bool(
+            self.env["kt.derived.table"]
+            .sudo()
+            .search_count([("name", "=", name), ("shared", "=", True)])
+        )
 
     def _valid_columns(self, rec, model=None) -> set:
         """Set of valid column names for `model` (by default the dataset one).
