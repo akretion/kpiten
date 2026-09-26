@@ -53,8 +53,9 @@ def _(mo):
     get_version, set_version = mo.state(0)
     # the mode : the result of the query, or its steps explained
     get_mode, set_mode = mo.state("query")
-    # the language of the query : SQL (polars SQL) or polars (a chain of methods)
-    get_lang, set_lang = mo.state("sql")
+    # the language of the query : polars (a chain of methods, a comment above each
+    # one) by default, or SQL (polars SQL)
+    get_lang, set_lang = mo.state("polars")
     return get_lang, get_mode, get_version, set_lang, set_mode, set_version
 
 
@@ -182,6 +183,40 @@ SELECT * FROM d LIMIT 10"""
     .sort("untaxed", descending=True)
     .head(10)
 )""",
+        "sale.order.line": """d_next = (
+    d
+    # the lines of the confirmed orders
+    .filter(pl.col("state") == "sale")
+    # the salesperson of the order of each line
+    .join(
+        tables["sale.order"].select("id", pl.col("user_id").alias("salesperson")),
+        left_on="order_id_",
+        right_on="id",
+    )
+    # what each salesperson sells of each category
+    .group_by("salesperson", pl.col("product_id.categ_id.complete_name").alias("category"))
+    .agg(pl.col("price_subtotal").sum().alias("untaxed"))
+    # the largest first
+    .sort("untaxed", descending=True)
+    .head(15)
+)""",
+        "purchase.order": """d_next = (
+    d
+    # the orders, not the requests for quotation
+    .filter(pl.col("state").is_in(["purchase", "done"]))
+    # the days from the order to the planned delivery
+    .with_columns((pl.col("date_planned") - pl.col("date_order")).dt.total_days().alias("days"))
+    # the spend and the delay by vendor
+    .group_by(pl.col("partner_id").alias("vendor"))
+    .agg(
+        pl.col("amount_untaxed").sum().alias("spend"),
+        pl.col("days").mean().round(1).alias("average_days"),
+        pl.len().alias("orders"),
+    )
+    # the 10 largest vendors
+    .sort("spend", descending=True)
+    .head(10)
+)""",
     }
     POLARS_FIRST_ROWS = """d_next = (
     d
@@ -250,7 +285,7 @@ def _(ai, config, derived_tables, manager, mo, source, store):
     available = ai.providers() if ai.enabled() else {}
     _choices = {p.label: key for key, p in available.items()}
     if manager and ai.enabled():
-        _choices["Copy and paste (ChatGPT, Mistral...)"] = CLIPBOARD
+        _choices["Copy and paste to online LLM"] = CLIPBOARD
     if not _choices:
         _out = mo.md(
             "<small>No AI here : turned off in the KpiTen configuration, or none "

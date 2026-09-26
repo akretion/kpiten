@@ -31,8 +31,7 @@ langage, ouvrir une table dérivée, tables à joindre, ce que le modèle reçoi
 l'interrupteur « Advanced », fermé par défaut. Deux modes : **Result** (une requête courte, son résultat dans
 `mo.ui.dataframe`, son code polars à copier) et **Step by step** (ci-dessous) ; « Understand it
 step by step » passe de l'un à l'autre (une requête sans CTE est découpée par clause),
-« Rewrite in commented steps » demande à l'IA de la réécrire en étapes commentées. Un second
-choix, **SQL | Polars** : en polars, l'IA écrit une chaîne de méthodes avec un commentaire
+« Rewrite in commented steps » demande à l'IA de la réécrire en étapes commentées. choix, **SQL | Polars** (Polars par défaut) : en polars, l'IA écrit une chaîne de méthodes avec un commentaire
 dans la langue de l'utilisateur au-dessus de chacune (exécutée par `kpiten_core.sandbox`),
 et le pas à pas fait une étape par méthode.
 
