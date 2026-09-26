@@ -28,5 +28,6 @@ def user_store(backend: Backend, user_id: int) -> dict[str, pl.LazyFrame]:
     - columns are filtered by the user ACL (`kpiten.get_allowed_fields`)
     - rows are filtered by the user record rules (`kpiten.get_access_query`)
     - translatable struct columns are destructured by the user lang
+    - the shared derived tables are there too, by their name (`loaders.tile_store`)
     """
-    return loaders.user_store(backend, user_id)
+    return loaders.tile_store(backend, user_id)
