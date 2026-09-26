@@ -38,18 +38,9 @@
                             />
                         </group>
                     </group>
-                    <field
-                        name="sql"
-                        widget="code"
-                        options="{'mode': 'sql'}"
-                        invisible="language != 'sql'"
-                    />
-                    <field
-                        name="sql"
-                        widget="code"
-                        options="{'mode': 'python'}"
-                        invisible="language != 'polars'"
-                    />
+                    <!-- the code editor has no SQL mode (Odoo 18, 20) : python for both,
+                         as the SQL tiles in the form of a KPI -->
+                    <field name="sql" widget="code" options="{'mode': 'python'}" />
                     <notebook>
                         <page string="Used by" name="kpis">
                             <field
