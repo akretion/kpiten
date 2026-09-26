@@ -17,7 +17,7 @@ FIELDS = {"state", "amount_untaxed", "partner_id", "date_order", "product_id"}
         ({"decimals": "2"}, "card", "must be a int"),
         ({"compare": {"good": "left"}}, "card", "must be one of"),
         ({"best": "state"}, "card", "Unknown key 'best'"),  # the version 1
-        ({"computed": {"d": "x + y"}}, "card", "'<date> - <date>'"),
+        ({"computed": {"d": "x; y"}}, "card", "one SQL expression"),
         (
             {"type": "pie", "by": "state", "measure": "id", "series": "x"},
             "graph",

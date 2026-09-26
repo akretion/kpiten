@@ -24,6 +24,8 @@ except ModuleNotFoundError:  # Python 3.10 (Odoo 16, 17)
 
 VERSION = 2
 DATE_DIFF_RE = re.compile(r"^\s*([\w.]+)\s*-\s*([\w.]+)\s*$")
+# a computed column : its name (a SQL alias without quotes)
+COLUMN_NAME_RE = re.compile(r"^[A-Za-z_]\w*$")
 
 CARD_AGGREGATIONS = ("count", "sum", "mean", "median", "min", "max")
 AGGREGATIONS = ("sum", "count", "mean")
@@ -86,7 +88,8 @@ FROM = Key(
 COMPUTED = Table(
     "computed",
     values=str,
-    help="computed columns : name = '<date> - <date>' (whole days)",
+    help="computed columns : name = a SQL expression on the columns (the ones "
+    "before included) ; '<date> - <date>' : the whole days between two dates",
 )
 LABELS = Table(
     "labels",
@@ -306,8 +309,16 @@ def validate(data: dict, kind: str, fields: Optional[set[str]] = None) -> list[s
         if message:
             messages.append(message)
     for name, expression in computed.items():
-        if isinstance(expression, str) and not DATE_DIFF_RE.match(expression):
-            messages.append(f"Computed column '{name}' must be '<date> - <date>'")
+        if not COLUMN_NAME_RE.match(name):
+            messages.append(
+                f"Computed column '{name}' : a name of letters, digits and _"
+            )
+        if (
+            not isinstance(expression, str)
+            or not expression.strip()
+            or ";" in expression
+        ):
+            messages.append(f"Computed column '{name}' : one SQL expression")
     return messages
 
 
