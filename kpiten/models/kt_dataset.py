@@ -38,6 +38,19 @@ def _from_web_client() -> bool:
 HIDDEN_RE = re.compile(r"""["']__(\w+)["']""")
 POLARS_KEY_RE = re.compile(r"""\bkey\[\s*["'](\w+)["']\s*\]""")
 SQL_KEY_RE = re.compile(r"(?<![:\w]):([A-Za-z_]\w*)")
+# the comments of a SQL or polars snippet : a derived table named there is not read
+COMMENTS_RE = re.compile(r"--[^\n]*|#[^\n]*|/\*.*?\*/", re.S)
+
+
+def names_read(text: str, names) -> list:
+    """The `names` (of derived tables) a data tile reads : cited as a whole word
+    (`confirmed_sales`, not `confirmed_sales_2`), out of its comments."""
+    code = COMMENTS_RE.sub(" ", text or "")
+    return [
+        name for name in names if re.search(rf"(?<![\w.]){re.escape(name)}(?!\w)", code)
+    ]
+
+
 FIRST_LINE_RE = re.compile(r"^\w+ = \w+\s*$")
 
 # Suffixes of date columns added dynamically by kpiten-core
@@ -269,6 +282,19 @@ class KtKpi(models.Model):
     certified = fields.Boolean(
         help="Reviewed by a KpiTen manager : its definition is checked, its figure "
         "can be trusted and reused (the KPI catalogue).",
+    )
+    # the shared derived tables it reads (by `from`, or named in a data tile) : a table
+    # read by a KPI is neither renamed, unshared nor deleted
+    derived_table_ids = fields.Many2many(
+        comodel_name="kt.derived.table",
+        relation="kt_kpi_derived_table_rel",
+        column1="kpi_id",
+        column2="table_id",
+        string="Derived tables",
+        compute="_compute_derived_table_ids",
+        store=True,
+        help="The shared derived tables the KPI reads (its from, or their names in a "
+        "data tile).",
     )
     table_read = fields.Char(
         string="Reads",
@@ -558,6 +584,30 @@ class KtKpi(models.Model):
         fields = self._valid_columns(rec, model)
         return messages + kt_validate_toml(rec.definition, rec.kind, fields)
 
+    def _derived_names(self, shared: list) -> list:
+        """The names of the shared derived tables (`shared`) the KPI reads."""
+        self.ensure_one()
+        if self.kind == "data":
+            return names_read(
+                "\n".join(filter(None, (self.definition, self.drill_definition))),
+                shared,
+            )
+        if self.kind in ("card", "graph", "pivot"):
+            try:
+                source = tomllib.loads(self.definition or "").get("from")
+            except tomllib.TOMLDecodeError:
+                return []
+            return [source] if source in shared else []
+        return []
+
+    @api.depends("definition", "drill_definition", "kind")
+    def _compute_derived_table_ids(self):
+        tables = self.env["kt.derived.table"].sudo().search([("shared", "=", True)])
+        by_name = {table.name: table for table in tables}
+        for rec in self:
+            names = rec._derived_names(list(by_name))
+            rec.derived_table_ids = [(6, 0, [by_name[name].id for name in names])]
+
     @api.depends("definition", "kind", "dataset_id.model_id")
     def _compute_table_read(self):
         derived = (
@@ -567,7 +617,7 @@ class KtKpi(models.Model):
             model = rec.dataset_id.model_id.model or ""
             names = [model]
             if rec.kind == "data":
-                names += [name for name in derived if name in (rec.definition or "")]
+                names += names_read(rec.definition, derived)
             elif rec.kind in ("card", "graph", "pivot"):
                 try:
                     names = [tomllib.loads(rec.definition or "").get("from") or model]

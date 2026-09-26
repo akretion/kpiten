@@ -57,6 +57,76 @@ class KtDerivedTable(models.Model):
         help="Every user may read it (each one sees their own rows). Only a KpiTen "
         "manager shares a table."
     )
+    # the KPIs that read it (`kt.kpi.derived_table_ids`, the same relation)
+    kpi_ids = fields.Many2many(
+        "kt.kpi",
+        relation="kt_kpi_derived_table_rel",
+        column1="table_id",
+        column2="kpi_id",
+        string="Used by",
+        readonly=True,
+        help="The KPIs that read the table : while there is one, the table is neither "
+        "renamed, unshared nor deleted.",
+    )
+    kpi_count = fields.Integer(string="KPIs", compute="_compute_kpi_count")
+
+    def _compute_kpi_count(self):
+        for rec in self:
+            rec.kpi_count = len(rec.with_context(active_test=False).kpi_ids)
+
+    # ---- the KPIs that read a table : the link follows, the table is kept
+    def _check_not_read(self, action):
+        """Refuse `action` (a text) on a table some KPIs read, archived ones too."""
+        for rec in self:
+            kpis = rec.sudo().with_context(active_test=False).kpi_ids
+            if kpis:
+                raise exceptions.UserError(
+                    _(
+                        "The derived table %(name)s cannot be %(action)s : %(kpis)s read it."
+                    )
+                    % {
+                        "name": rec.name,
+                        "action": action,
+                        "kpis": ", ".join(kpis.mapped("name")),
+                    }
+                )
+
+    def _relink_kpis(self, names):
+        """The KPIs that name one of `names` : their derived tables computed again."""
+        kpis = self.env["kt.kpi"].sudo().with_context(active_test=False)
+        for name in set(filter(None, names)):
+            kpis |= kpis.search(
+                [
+                    "|",
+                    ("definition", "ilike", name),
+                    ("drill_definition", "ilike", name),
+                ]
+            )
+        if kpis:
+            kpis.modified(["definition"])
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records._relink_kpis(records.filtered("shared").mapped("name"))
+        return records
+
+    def write(self, vals):
+        if "name" in vals:
+            self.filtered(lambda r: r.name != vals["name"])._check_not_read(
+                _("renamed")
+            )
+        if "shared" in vals and not vals["shared"]:
+            self.filtered("shared")._check_not_read(_("unshared"))
+        before = self.mapped("name")
+        res = super().write(vals)
+        if "name" in vals or "shared" in vals:
+            self._relink_kpis(before + self.mapped("name"))
+        return res
+
+    def unlink(self):
+        self._check_not_read(_("deleted"))
+        return super().unlink()
 
     @api.constrains("name")
     def _check_name(self):

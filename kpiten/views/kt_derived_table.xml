@@ -9,6 +9,7 @@
                 <field name="language" />
                 <field name="user_id" />
                 <field name="shared" />
+                <field name="kpi_count" />
             </list>
         </field>
     </record>
@@ -20,7 +21,10 @@
                 <sheet>
                     <group name="main">
                         <group name="left">
-                            <field name="name" />
+                            <!-- a table some KPIs read keeps its name (and stays
+                                 shared) : they read it by its name -->
+                            <field name="kpi_count" invisible="1" />
+                            <field name="name" readonly="kpi_count" />
                             <field name="description" />
                             <field name="source" />
                             <field name="language" />
@@ -30,6 +34,7 @@
                             <field
                                 name="shared"
                                 groups="kpiten.group_kpiten_manager"
+                                readonly="kpi_count and shared"
                             />
                         </group>
                     </group>
@@ -45,6 +50,22 @@
                         options="{'mode': 'python'}"
                         invisible="language != 'polars'"
                     />
+                    <notebook>
+                        <page string="Used by" name="kpis">
+                            <field
+                                name="kpi_ids"
+                                context="{'active_test': False}"
+                                nolabel="1"
+                            >
+                                <list decoration-muted="not active">
+                                    <field name="name" />
+                                    <field name="kind" />
+                                    <field name="panel_ids" widget="many2many_tags" />
+                                    <field name="active" column_invisible="1" />
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
                 </sheet>
             </form>
         </field>
