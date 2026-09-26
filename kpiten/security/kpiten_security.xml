@@ -10,4 +10,32 @@
     <record id="base.group_system" model="res.groups">
         <field name="implied_ids" eval="[(4, ref('group_kpiten_manager'))]" />
     </record>
+    <!-- the derived tables : a user reads their own and the shared ones, changes only
+         their own, never shared ; a KpiTen manager reads and changes them all -->
+    <record id="kt_derived_table_rule_read" model="ir.rule">
+        <field name="name">Derived tables : own and shared</field>
+        <field name="model_id" ref="model_kt_derived_table" />
+        <field name="groups" eval="[(4, ref('base.group_user'))]" />
+        <field name="domain_force">['|', ('user_id', '=', user.id), ('shared', '=', True)]</field>
+        <field name="perm_read" eval="True" />
+        <field name="perm_write" eval="False" />
+        <field name="perm_create" eval="False" />
+        <field name="perm_unlink" eval="False" />
+    </record>
+    <record id="kt_derived_table_rule_write" model="ir.rule">
+        <field name="name">Derived tables : own, not shared</field>
+        <field name="model_id" ref="model_kt_derived_table" />
+        <field name="groups" eval="[(4, ref('base.group_user'))]" />
+        <field name="domain_force">[('user_id', '=', user.id), ('shared', '=', False)]</field>
+        <field name="perm_read" eval="False" />
+        <field name="perm_write" eval="True" />
+        <field name="perm_create" eval="True" />
+        <field name="perm_unlink" eval="True" />
+    </record>
+    <record id="kt_derived_table_rule_manager" model="ir.rule">
+        <field name="name">Derived tables : all, for a KpiTen manager</field>
+        <field name="model_id" ref="model_kt_derived_table" />
+        <field name="groups" eval="[(4, ref('group_kpiten_manager'))]" />
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
 </odoo>

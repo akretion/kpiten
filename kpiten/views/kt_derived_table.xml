@@ -1,0 +1,60 @@
+<odoo>
+    <record id="kt_derived_table_list" model="ir.ui.view">
+        <field name="model">kt.derived.table</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name" />
+                <field name="description" />
+                <field name="source" />
+                <field name="user_id" />
+                <field name="shared" />
+            </list>
+        </field>
+    </record>
+
+    <record id="kt_derived_table_form" model="ir.ui.view">
+        <field name="model">kt.derived.table</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group name="main">
+                        <group name="left">
+                            <field name="name" />
+                            <field name="description" />
+                            <field name="source" />
+                        </group>
+                        <group name="right">
+                            <field name="user_id" />
+                            <field
+                                name="shared"
+                                groups="kpiten.group_kpiten_manager"
+                            />
+                        </group>
+                    </group>
+                    <field name="sql" widget="code" options="{'mode': 'sql'}" />
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="kt_derived_table_action" model="ir.actions.act_window">
+        <field name="name">Derived tables</field>
+        <field name="res_model">kt.derived.table</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p>
+                A derived table is a query in steps on the datasets, run on the rows
+                of each user. They are written and explained step by step in the
+                Marimo notebook « Step by step ».
+            </p>
+        </field>
+    </record>
+
+    <menuitem
+        id="kt_derived_table_menu"
+        parent="kpiten_app"
+        name="Derived tables"
+        sequence="20"
+        action="kt_derived_table_action"
+    />
+</odoo>

@@ -1,7 +1,7 @@
 {
     "name": "KpiTen",
     "summary": "Store kpiten KPI configuration",
-    "version": "18.0.1.10.0",
+    "version": "18.0.1.11.0",
     "development_status": "Alpha",
     "installable": True,
     "application": True,
@@ -24,6 +24,7 @@
         "views/kt_kpi_builder.xml",
         "views/kt_kpi.xml",
         "views/kt_dataset.xml",
+        "views/kt_derived_table.xml",
         "views/kt_panel.xml",
         "views/kt_config.xml",
     ],
