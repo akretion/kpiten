@@ -9,4 +9,9 @@ ANALYSES = {
         "title": "Data explorer",
         "about": "Pick a table you may read and explore it with an AI that writes the polars",
     },
+    "derived": {
+        "icon": "\U0001fa9c",
+        "title": "Step by step",
+        "about": "Write a query in steps (WITH blocks) and see what each step does to your rows",
+    },
 }

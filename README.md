@@ -24,6 +24,18 @@ un lien vers Odoo (nouvel onglet, flèche ↗) dans un tableau `mo.ui.table`.
 
 Démarrage : `make start SVC=marimo` (voir `docs/start.md`).
 
+## Step by step (tables dérivées)
+
+`notebooks/derived.py` : l'utilisateur choisit une table (lue comme `d`), écrit une requête en
+étapes (un bloc `WITH` par étape, sa phrase dans le commentaire `--` au-dessus) et voit ce que
+chaque étape fait à ses lignes : lignes avant → après, colonnes ajoutées ou retirées, un
+échantillon. Un KpiTen manager coche « Detail » : le SQL de chaque étape, les lignes retirées
+par chaque condition, les jointures qui multiplient les lignes, la taille des groupes.
+
+Le travail est fait par le plugin `derived-kpiten` (`src/derived-kpiten`), installé dans ce
+venv par `make apps` (`MARIMO_PLUGINS`) ; sans lui, la page le dit. Spécification :
+`docs/kpiten-tables-derivees.md` de `bi/`.
+
 ## Data explorer (IA)
 
 `notebooks/explore.py` : l'utilisateur choisit une table parmi celles qu'il peut lire (le store
