@@ -32,6 +32,11 @@ chaque étape fait à ses lignes : lignes avant → après, colonnes ajoutées o
 échantillon. Un KpiTen manager coche « Detail » : le SQL de chaque étape, les lignes retirées
 par chaque condition, les jointures qui multiplient les lignes, la taille des groupes.
 
+« Save as a derived table » enregistre la requête dans Odoo (`kt.derived.table`, sa table
+`d` avec elle) ; « Open a derived table » la rouvre. Une requête lit une table dérivée par
+son nom, calculée sur les lignes de l'utilisateur (`kpiten_core.derived`). Seul un KpiTen
+manager coche « Shared ».
+
 « ✨ Ask the AI » : l'IA écrit (ou modifie) la requête de l'éditeur en étapes commentées,
 dans la langue de la question ; elle reçoit la description de `d` au niveau de `kt.config`
 (pseudonymes par défaut) et les colonnes des seules « Tables to join » choisies. Un modèle

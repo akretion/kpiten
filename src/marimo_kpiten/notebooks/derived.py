@@ -8,7 +8,7 @@ app = marimo.App(width="medium", app_title="Step by step")
 def _():
     import marimo as mo
 
-    from kpiten_core import anonymize
+    from kpiten_core import anonymize, derived
     from kpiten_core.backend import Backend
     from kpiten_core.loaders import user_store
     from marimo_kpiten import ai, ui
@@ -17,7 +17,7 @@ def _():
         import derived_kpiten
     except ImportError:  # the plugin is not in the venv of marimo (make apps)
         derived_kpiten = None
-    return Backend, ai, anonymize, derived_kpiten, mo, ui, user_store
+    return Backend, ai, anonymize, derived, derived_kpiten, mo, ui, user_store
 
 
 @app.cell
@@ -45,6 +45,32 @@ def _(Backend, db, derived_kpiten, mo, ui, user_id, user_store):
     mo.stop(not store, mo.callout("No data source in your scope.", kind="warn"))
     manager = backend.can_edit_tiles(user_id)  # a KpiTen manager : the detail
     return backend, manager, store
+
+
+@app.cell
+def _(mo):
+    # bumped when a derived table is saved : the list is read again
+    get_version, set_version = mo.state(0)
+    return get_version, set_version
+
+
+@app.cell
+def _(backend, derived, get_version, mo, store, user_id):
+    get_version()
+    # the derived tables (kt.derived.table) : the user's own and the shared ones,
+    # computed on the rows of this user ; a query reads them by their name
+    definitions = backend.get_derived_tables(user_id)
+    derived_tables, _errors = derived.resolve(store, definitions)
+    (
+        mo.md(
+            "<small>Derived tables left out : "
+            + " ; ".join(f"`{name}` ({why})" for name, why in _errors.items())
+            + "</small>"
+        )
+        if _errors
+        else None
+    )
+    return definitions, derived_tables
 
 
 @app.cell
@@ -132,11 +158,39 @@ def _(EXAMPLES, FIRST_ROWS, mo, source):
     # the query of the editor, that the AI may replace ; a new table starts over
     get_sql, set_sql = mo.state(EXAMPLES.get(source.value, FIRST_ROWS))
     get_answer, set_answer = mo.state(None)  # the last answer of the AI
-    return get_answer, get_sql, set_answer, set_sql
+    get_current, set_current = mo.state(None)  # the derived table opened or saved
+    return get_answer, get_current, get_sql, set_answer, set_current, set_sql
 
 
 @app.cell
-def _(ai, anonymize, backend, derived_kpiten, mo, source, store):
+def _(definitions, mo, set_current, set_sql, source):
+    # open a derived table of this table `d` (or of none) : its query in the editor
+    _tables = {
+        d["name"] + (" (shared)" if d["shared"] else ""): d
+        for d in definitions
+        if d.get("source") in (source.value, "", None)
+    }
+
+    def _open(chosen):
+        if chosen:
+            set_sql(chosen["sql"])
+            set_current(chosen)
+
+    opener = (
+        mo.ui.dropdown(
+            _tables,
+            label="::lucide:folder-open:: Open a derived table",
+            on_change=_open,
+        )
+        if _tables
+        else None
+    )
+    opener
+    return
+
+
+@app.cell
+def _(ai, anonymize, backend, derived_kpiten, derived_tables, mo, source, store):
     # Ask the AI : it writes the query in steps (skill steps.md of derived-kpiten)
     available = ai.providers() if ai.enabled() else {}
     if not available:
@@ -154,7 +208,8 @@ def _(ai, anonymize, backend, derived_kpiten, mo, source, store):
         # the columns of the tables it may join : only those chosen (a small local
         # model reads a short prompt only)
         joins = mo.ui.multiselect(
-            [name for name in sorted(store) if name != source.value],
+            [name for name in sorted(store) if name != source.value]
+            + sorted(derived_tables),
             label="Tables to join",
         )
         provider = mo.ui.dropdown(
@@ -209,6 +264,7 @@ def _(
     ask_button,
     available,
     derived_kpiten,
+    derived_tables,
     description,
     get_sql,
     history,
@@ -222,15 +278,16 @@ def _(
     store,
 ):
     mo.stop(ask_button is None or not ask_button.value or not question.value.strip())
+    _all = {**store, **derived_tables}
     _system = derived_kpiten.ai.system_prompt(
         source.value,
         description,
-        {name: derived_kpiten.ai.columns(store[name]) for name in joins.value},
+        {name: derived_kpiten.ai.columns(_all[name]) for name in joins.value},
     )
     with mo.status.spinner("The AI writes the query..."):
         _answer = derived_kpiten.ai.ask(
             available[provider.value],
-            {**store, "d": store[source.value]},
+            {**_all, "d": store[source.value]},
             _system,
             question.value.strip(),
             current=get_sql(),
@@ -269,10 +326,10 @@ def _(get_answer, get_sql, manager, mo, set_sql):
 
 
 @app.cell
-def _(derived_kpiten, detail, editor, mo, source, store):
+def _(derived_kpiten, derived_tables, detail, editor, mo, source, store):
     _detail = bool(detail is not None and detail.value)
-    # the table chosen is `d` ; the others keep their name
-    _tables = {**store, "d": store[source.value]}
+    # the table chosen is `d` ; the others, and the derived tables, by their name
+    _tables = {**store, **derived_tables, "d": store[source.value]}
     try:
         with mo.status.spinner("Running the steps..."):
             _results = derived_kpiten.trace(
@@ -281,6 +338,90 @@ def _(derived_kpiten, detail, editor, mo, source, store):
         _out = mo.Html(derived_kpiten.render(_results, detail=_detail))
     except Exception as err:
         _out = mo.callout(mo.md(f"The query does not run : `{err}`"), kind="danger")
+    _out
+    return
+
+
+@app.cell
+def _(get_current, manager, mo):
+    # save the query as a derived table : a table of its own, read by its name
+    _current = get_current() or {}
+    save_name = mo.ui.text(
+        value=_current.get("name", ""),
+        label="Name",
+        placeholder="confirmed_sales",
+    )
+    save_description = mo.ui.text(
+        value=_current.get("description", ""),
+        label="Description",
+        placeholder="What the table holds",
+        full_width=True,
+    )
+    # every user reads a shared table, each one their own rows : a manager only
+    save_shared = (
+        mo.ui.checkbox(value=bool(_current.get("shared")), label="Shared")
+        if manager
+        else None
+    )
+    save_button = mo.ui.run_button(
+        label="::lucide:bookmark-plus:: Save as a derived table"
+    )
+    mo.vstack(
+        [
+            mo.md(
+                "**Save as a derived table** <small>: other queries (and later the "
+                "tiles) read it by its name, on the rows of each user</small>"
+            ),
+            mo.hstack(
+                [
+                    save_name,
+                    save_description,
+                    *([save_shared] if save_shared is not None else []),
+                    save_button,
+                ],
+                align="end",
+                justify="start",
+            ),
+        ]
+    )
+    return save_button, save_description, save_name, save_shared
+
+
+@app.cell
+def _(
+    backend,
+    derived_kpiten,
+    editor,
+    mo,
+    save_button,
+    save_description,
+    save_name,
+    save_shared,
+    set_version,
+    source,
+    user_id,
+):
+    mo.stop(not save_button.value)
+    _name = save_name.value.strip()
+    _shared = bool(save_shared is not None and save_shared.value)
+    try:
+        derived_kpiten.split(editor.value)  # one SELECT, in steps
+        backend.save_derived_table(
+            user_id,
+            _name,
+            editor.value,
+            save_description.value.strip(),
+            _shared,
+            source.value,
+        )
+    except Exception as err:
+        _out = mo.callout(mo.md(f"Not saved : {str(err)[:300]}"), kind="danger")
+    else:
+        # the form keeps what was typed : redrawn, its button would hide this message
+        set_version(lambda version: version + 1)
+        _out = mo.callout(
+            mo.md(f"Saved : a query reads it as `{_name}`."), kind="success"
+        )
     _out
     return
 
