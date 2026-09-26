@@ -127,6 +127,26 @@ class Backend:
         """Whether the user may use the edit mode (a KpiTen manager in Odoo)."""
         raise NotImplementedError
 
+    def get_derived_tables(self, user_id: int) -> list[dict]:
+        """The derived tables (`kt.derived.table`) the user may read : their own and
+        the shared ones, `{"id", "name", "description", "source", "language", "sql",
+        "shared", "owner", "mine"}` ; none with a module that has no derived tables."""
+        raise NotImplementedError
+
+    def save_derived_table(
+        self,
+        user_id: int,
+        name: str,
+        sql: str,
+        description: str = "",
+        shared: bool = False,
+        source: str = "",
+        language: str = "sql",
+    ) -> int:
+        """Create or update the derived table `name` of the user ; its id. Odoo checks
+        the rights of the user : only a KpiTen manager shares a table."""
+        raise NotImplementedError
+
     def get_user_theme(self, user_id: int) -> str | None:
         """The theme the user chose in an app (kept in Odoo), None when none."""
         raise NotImplementedError

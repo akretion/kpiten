@@ -189,6 +189,35 @@ class JsonrpcBackend:
             logger.exception("can_edit_tiles(%s) failed", user_id)
             return False
 
+    def get_derived_tables(self, user_id: int) -> list[dict]:
+        try:
+            return self.call("kt.derived.table", "list_for", user_id=user_id)
+        except Exception:  # an older kpiten module : no derived tables
+            logger.exception("get_derived_tables(%s) failed", user_id)
+            return []
+
+    def save_derived_table(
+        self,
+        user_id: int,
+        name: str,
+        sql: str,
+        description: str = "",
+        shared: bool = False,
+        source: str = "",
+        language: str = "sql",
+    ) -> int:
+        return self.call(
+            "kt.derived.table",
+            "save_for",
+            user_id=user_id,
+            name=name,
+            sql=sql,
+            description=description,
+            shared=shared,
+            source=source,
+            language=language,
+        )
+
     # the tiles are changed by a bare call, never through `browse` : odoorpc reads every
     # field of a record it browses, the preview of a KPI among them, which asks this
     # very app for a session (`kt._kpiten_session`) while it waits for Odoo : 30 s lost

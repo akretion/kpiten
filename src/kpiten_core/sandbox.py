@@ -16,6 +16,7 @@ BUILTINS = {
 PL_FUNCS = {
     "col", "lit", "when", "sum", "mean", "count", "min", "max", "first",
     "last", "len", "all", "any", "int_range", "date_range", "struct",
+    "date", "datetime", "duration",
     "list", "array", "concat", "concat_str", "sum_horizontal",
     "mean_horizontal", "select", "Utf8", "String", "Int64", "Int32",
     "Float64", "Float32", "Boolean", "Date", "Datetime", "Time", "Decimal",

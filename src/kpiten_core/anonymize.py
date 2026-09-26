@@ -208,6 +208,22 @@ class Anonymizer:
             pattern += r"|\b(?:" + "|".join(map(re.escape, prefixes)) + r") \d+\b"
         return re.sub(pattern, lambda m: self._real.get(m.group(0), m.group(0)), text)
 
+    def unknown(self, text: str | None) -> list[str]:
+        """The pseudonyms of a text (`Customer 99`, `contact7@example.com`) this session
+        does not know : an answer pasted after the page was reloaded, or made up by the
+        model. Revealed, they would filter on a name that is in no row."""
+        if not text:
+            return []
+        prefixes = set(self.prefixes.values()) | {p for (p, _r) in self._pseudo}
+        prefixes = sorted((prefixes | {"Category", "Ref"}) - {EMAIL}, key=len)
+        pattern = r"\bcontact\d+@example\.com\b|\b(?:"
+        pattern += "|".join(map(re.escape, prefixes)) + r") \d+\b"
+        found = []
+        for name in re.findall(pattern, text):
+            if name not in self._real and name not in found:
+                found.append(name)
+        return found
+
     def hide_frame(self, df: pl.DataFrame, kinds: dict[str, str]) -> pl.DataFrame:
         """The rows as the model sees them : renamed, secrets and ids left out."""
         columns = [c for c in df.columns if kinds.get(c) not in (DROP, ID)]

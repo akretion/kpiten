@@ -156,6 +156,12 @@ def ai_send_level() -> str:
     return "summary" if ai_send_values() else "schema"
 
 
+def ai_clipboard_pseudonyms() -> bool:
+    """A prompt copied to a chat outside (a KpiTen manager) is always with pseudonyms,
+    whatever `ai_send_level` : off by default (it follows `ai_send_level`)."""
+    return bool(_section("ai").get("clipboard_pseudonyms", False))
+
+
 # ---- new features (off until Odoo turns them on)
 FEATURES = (
     "save_tile",
