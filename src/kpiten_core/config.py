@@ -156,6 +156,11 @@ def ai_send_level() -> str:
     return "summary" if ai_send_values() else "schema"
 
 
+def ai_default_provider() -> str:
+    """The AI offered first (`anthropic`, `local` or `clipboard`) : Claude by default."""
+    return _section("ai").get("default_provider") or "anthropic"
+
+
 def ai_clipboard_pseudonyms() -> bool:
     """A prompt copied to a chat outside (a KpiTen manager) is always with pseudonyms,
     whatever `ai_send_level` : off by default (it follows `ai_send_level`)."""

@@ -51,9 +51,17 @@ def providers() -> dict[str, Provider]:
 
 
 def default_provider() -> Provider | None:
-    """Claude when it is configured, else the local model, else None."""
+    """The AI of `kt.config` (`config.ai_default_provider`) when it is configured here,
+    else Claude, else the local model, else None. Copy and paste is no provider of the
+    api : it falls back the same way."""
+    from kpiten_core import config  # the settings of Odoo, read by the front
+
     found = providers()
-    return found.get("anthropic") or found.get("local")
+    return (
+        found.get(config.ai_default_provider())
+        or found.get("anthropic")
+        or found.get("local")
+    )
 
 
 def complete(provider: Provider, system: str, messages: list[dict]) -> str:
