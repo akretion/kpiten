@@ -181,6 +181,16 @@ class JsonrpcBackend:
             logger.exception("can_edit_tiles(%s) failed", user_id)
             return False
 
+    def can_edit_panel(self, user_id: int, panel_id: int) -> bool:
+        """Closed on any error (an older module too) : a manager, or the owner."""
+        try:
+            return bool(
+                self.call("kt", "can_edit_panel", panel_id=panel_id, user_id=user_id)
+            )
+        except Exception:
+            logger.exception("can_edit_panel(%s, %s) failed", user_id, panel_id)
+            return False
+
     def get_derived_tables(self, user_id: int) -> list[dict]:
         try:
             return self.call("kt.derived.table", "list_for", user_id=user_id)

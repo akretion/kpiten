@@ -146,8 +146,9 @@ FR = {
     "Latest {points} points": "Les {points} derniers points",
     "since last period": "depuis la période précédente",
     "Previous period{period} : {previous}": "Période précédente{period} : {previous}",
-    "Only a KpiTen manager can edit tiles.": (
-        "Seul un gestionnaire KpiTen peut modifier les tuiles."
+    "Only the owner of the panel or a KpiTen manager can edit its tiles.": (
+        "Seul le propriétaire du tableau ou un gestionnaire KpiTen peut modifier ses "
+        "tuiles."
     ),
     "Tile #{id} removed from the panel": "Tuile n°{id} retirée du tableau",
     "Tiles order saved.": "Ordre des tuiles enregistré.",

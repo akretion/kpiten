@@ -128,6 +128,11 @@ class Backend:
         """Whether the user may use the edit mode (a KpiTen manager in Odoo)."""
         raise NotImplementedError
 
+    def can_edit_panel(self, user_id: int, panel_id: int) -> bool:
+        """Whether the user may use the edit mode on this panel : a KpiTen manager, or
+        the owner of the panel (`kt.panel.user_id`)."""
+        raise NotImplementedError
+
     def get_derived_tables(self, user_id: int) -> list[dict]:
         """The derived tables (`kt.derived.table`) the user may read : their own and
         the shared ones, `{"id", "name", "description", "source", "language", "sql",
