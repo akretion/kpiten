@@ -31,6 +31,7 @@ from kpiten_core import themes as core_themes
 from kpiten_core import tiles as core_tiles
 from kpiten_core.backend import Backend
 from kpiten_core.loaders import (
+    is_stale,
     last_sync,
     tile_store,
 )
@@ -546,6 +547,22 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
         field_labels = core_labels.field_labels_of(
             backend, backend.get_user_lang(user_id)
         )
+        # the shared derived tables the tiles may read : named in their tooltip
+        derived = {
+            d["name"]: d for d in backend.get_derived_tables(user_id) if d.get("shared")
+        }
+
+        def tile_info(line: dict) -> str:
+            read = [
+                (
+                    f"Derived table {name} : {derived[name].get('description') or ''}"
+                    if name in derived
+                    else f"Table : {name}"
+                )
+                for name in core_tiles.tables_read(line, line["model"], derived)
+            ]
+            return "\n".join([*read, info] if info else read)
+
         cards_grid.clear()
         tiles_grid.clear()
         with cards_grid, tiles_grid:
@@ -573,13 +590,13 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                             THEMES[theme_key],
                             edit=edit_state["on"],
                             act=act,
-                            info=info,
+                            info=tile_info(line),
                             records=records,
                         )
                 except Exception as err:
                     logger.exception("tile %s failed", line.get("name"))
                     with tiles_grid:
-                        error_view(line, err, info)
+                        error_view(line, err, tile_info(line))
         if edit_state["on"]:
             ui.add_head_html(f"<style>{EDIT_CSS}</style>")
             ui.run_javascript(EDIT_JS)
@@ -731,10 +748,24 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                     )
                 stamp = last_sync(backend, user_id)
                 if stamp:
-                    ui.label("⏱ " + stamp).classes("text-xs opacity-55").tooltip(
+                    from kpiten_core import env
+
+                    # past DATA_STALE_HOURS (24 h), the date in orange
+                    with env.db_scope(backend.db):
+                        stale = is_stale()
+                    ui.label("⏱ " + stamp).classes(
+                        "text-xs font-bold text-orange-700"
+                        if stale
+                        else "text-xs opacity-55"
+                    ).tooltip(
                         "Data as of "
                         + stamp
                         + " — the sync button refreshes it from Odoo"
+                        + (
+                            f" ; they are more than {env.data_stale_hours} hours old"
+                            if stale
+                            else ""
+                        )
                     )
             # linking to the app origin
             with ui.link(target="https://nicegui.io", new_tab=True):
