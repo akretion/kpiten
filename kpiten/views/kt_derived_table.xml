@@ -6,6 +6,7 @@
                 <field name="name" />
                 <field name="description" />
                 <field name="source" />
+                <field name="language" />
                 <field name="user_id" />
                 <field name="shared" />
             </list>
@@ -22,6 +23,7 @@
                             <field name="name" />
                             <field name="description" />
                             <field name="source" />
+                            <field name="language" />
                         </group>
                         <group name="right">
                             <field name="user_id" />
@@ -31,7 +33,18 @@
                             />
                         </group>
                     </group>
-                    <field name="sql" widget="code" options="{'mode': 'sql'}" />
+                    <field
+                        name="sql"
+                        widget="code"
+                        options="{'mode': 'sql'}"
+                        invisible="language != 'sql'"
+                    />
+                    <field
+                        name="sql"
+                        widget="code"
+                        options="{'mode': 'python'}"
+                        invisible="language != 'polars'"
+                    />
                 </sheet>
             </form>
         </field>

@@ -33,10 +33,18 @@ class KtDerivedTable(models.Model):
         help="The table of the store the query reads as d (sale.order) ; the others "
         'by their name in double quotes ("sale.order.line").'
     )
-    sql = fields.Text(
-        string="SQL",
+    language = fields.Selection(
+        [("sql", "SQL"), ("polars", "Polars")],
         required=True,
-        help="A SELECT, in steps : one WITH block per step, a -- comment above each.",
+        default="sql",
+        help="SQL : a SELECT (polars SQL). Polars : a chain of methods on d that ends "
+        'in d_next, the other tables read as tables["sale.order.line"].',
+    )
+    sql = fields.Text(
+        string="Code",
+        required=True,
+        help="The query : SQL in steps (one WITH block per step, a -- comment above "
+        "each), or polars (a # comment above each method).",
     )
     user_id = fields.Many2one(
         "res.users",
@@ -75,10 +83,10 @@ class KtDerivedTable(models.Model):
                     _("A derived table named %s already exists.") % rec.name
                 )
 
-    @api.constrains("sql")
+    @api.constrains("sql", "language")
     def _check_sql(self):
         for rec in self:
-            if is_sql and not is_sql(rec.sql or ""):
+            if rec.language == "sql" and is_sql and not is_sql(rec.sql or ""):
                 raise exceptions.ValidationError(
                     _("The SQL of a derived table is a SELECT (or WITH ... SELECT).")
                 )
@@ -108,6 +116,7 @@ class KtDerivedTable(models.Model):
                 "description": rec.description or "",
                 "source": rec.source or "",
                 "sql": rec.sql,
+                "language": rec.language,
                 "shared": rec.shared,
                 "owner": rec.user_id.sudo().name,
                 "mine": rec.user_id.id == user_id,
@@ -119,7 +128,14 @@ class KtDerivedTable(models.Model):
 
     @api.model
     def save_for(
-        self, user_id, name, sql, description="", shared=False, source=""
+        self,
+        user_id,
+        name,
+        sql,
+        description="",
+        shared=False,
+        source="",
+        language="sql",
     ) -> int:
         """Create, or update, the derived table `name` of `user_id` ; its id."""
         model = self._as_user(user_id)
@@ -128,6 +144,7 @@ class KtDerivedTable(models.Model):
             "description": description,
             "shared": bool(shared),
             "source": source or False,
+            "language": language or "sql",
         }
         record = model.search(
             [("name", "=", name), ("user_id", "=", model.env.uid)], limit=1
