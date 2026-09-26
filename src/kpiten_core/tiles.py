@@ -356,19 +356,30 @@ def expand_today(where: str, today: datetime.date | None = None) -> str:
 
 
 def derive_columns(df, derive: dict[str, str]):
-    """Add derived columns : `{"days_to_order": "date_approve - create_date"}`
-    gives the whole days between two date columns (null if one is null)."""
-    exprs = []
+    """Add the computed columns (`[computed]`), one after the other : a later one may
+    use an earlier one. `"date_approve - create_date"` (two dates) gives the whole days
+    between them (null if one is null) ; any other expression is SQL, run by polars
+    and checked like a `where` (`sqltile` : no other table, no file) :
+    `margin = "amount_untaxed - amount_cost"`,
+    `tax_rate = "amount_tax * 100.0 / NULLIF(amount_untaxed, 0)"`."""
     for name, expression in derive.items():
+        if not re.match(r"^[A-Za-z_]\w*$", name):
+            raise TileError(f"computed '{name}' : a name of letters, digits and _")
+        schema = df.collect_schema()
         match = DERIVE_RE.match(expression)
-        if not match:
-            raise TileError(f"derive '{name}' : expected '<date> - <date>'")
-        end, start = match.groups()
-        for column in (end, start):
-            if column not in df.collect_schema():
-                raise TileError(f"derive '{name}' : unknown column '{column}'")
-        exprs.append((pl.col(end) - pl.col(start)).dt.total_days().alias(name))
-    return df.with_columns(exprs) if exprs else df
+        if match and all(
+            c in schema and schema[c].is_temporal() for c in match.groups()
+        ):
+            end, start = match.groups()
+            days = (pl.col(end) - pl.col(start)).dt.total_days()
+            df = df.with_columns(days.alias(name))
+            continue
+        try:
+            sqltile.check(f"SELECT {expression} FROM self", {"self"})
+            df = df.sql(f'SELECT *, {expression} AS "{name}" FROM self')
+        except Exception as err:
+            raise TileError(f"computed '{name}' : {err}") from err
+    return df
 
 
 def format_card_value(value, aggregation: str, card: dict) -> str:

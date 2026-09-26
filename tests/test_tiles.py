@@ -165,7 +165,7 @@ def test_card_errors():
         card({"aggregation": "sum"})
     with pytest.raises(tiles.TileError, match="unknown card aggregation"):
         card({"aggregation": "variance", "measure": "amount_untaxed"})
-    with pytest.raises(tiles.TileError, match="unknown column"):
+    with pytest.raises(tiles.TileError, match="unable to find column"):
         card({"computed": {"x": "nope - create_date"}})
 
 
@@ -179,8 +179,12 @@ def test_validate_card():
     assert "Unknown key 'foo' in card" in bad
     assert "Key 'unit' in card must be a str" in bad
     assert "Aggregation 'sum' needs a 'measure'" in bad
-    assert validate_toml('[computed]\nx = "a + b"', "card") == [
-        "Computed column 'x' must be '<date> - <date>'"
+    # a computed column is any SQL expression (checked when the tile runs) ; its name
+    # is a plain alias, the expression one statement
+    assert validate_toml('[computed]\nx = "a + b"', "card") == []
+    assert validate_toml('[computed]\n"x y" = "a; b"', "card") == [
+        "Computed column 'x y' : a name of letters, digits and _",
+        "Computed column 'x y' : one SQL expression",
     ]
 
 

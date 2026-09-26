@@ -77,7 +77,7 @@ def test_a_v1_definition_is_refused_and_found_by_the_migration():
         ({"version": 2, "decimals": "2"}, "card", "must be a int"),
         ({"version": 2, "compare": {"good": "left"}}, "card", "must be one of"),
         ({"version": 2, "best": "state"}, "card", "Unknown key 'best'"),
-        ({"version": 2, "computed": {"d": "x + y"}}, "card", "'<date> - <date>'"),
+        ({"version": 2, "computed": {"d": "x; y"}}, "card", "one SQL expression"),
         ({"version": 2}, "union", "no version 2"),
         ({"version": 3}, "card", "Unknown version"),
     ],

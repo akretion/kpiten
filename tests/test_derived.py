@@ -126,3 +126,43 @@ def test_a_monthly_graph_draws_its_trend_ahead():
     assert trend.height == 9 and trend["amount"].to_list()[-1] == 26.0
     assert trend["date_order"].to_list()[-1] == dt.date(2026, 9, 1)
     assert len(chart and tiles.TileResult("graph", "g", chart=chart).figure.data) == 2
+
+
+def test_computed_columns_are_sql_expressions():
+    import datetime as dt
+
+    from kpiten_core import tiles
+
+    store = {
+        "sale.order": pl.LazyFrame(
+            {
+                "amount_untaxed": [100.0, 200.0, 0.0],
+                "amount_tax": [20.0, 40.0, 0.0],
+                "date_order": [dt.date(2026, 1, 1)] * 3,
+                "commitment_date": [dt.date(2026, 1, 11)] * 3,
+            }
+        )
+    }
+    content = """measure = "rate"
+aggregation = "max"
+[computed]
+total = "amount_untaxed + amount_tax"
+rate = "amount_tax * 100.0 / NULLIF(amount_untaxed, 0)"
+days = "commitment_date - date_order"
+"""
+    line = {"kind": "card", "name": "Rate", "content": content}
+    assert tiles.exec_tile(line, "sale.order", store, []).value == 20.0
+    rows = tiles.tile_rows(
+        tiles.spec.load(content, "card"), "sale.order", store, []
+    ).collect()
+    assert rows["total"].to_list() == [120.0, 240.0, 0.0]
+    assert rows["days"].to_list() == [10, 10, 10]  # two dates : whole days
+    bad = {
+        "kind": "card",
+        "name": "x",
+        "content": 'measure = "x"\n[computed]\nx = "(SELECT 1 FROM read_parquet(\'/etc\'))"',
+    }
+    import pytest
+
+    with pytest.raises(tiles.TileError):
+        tiles.exec_tile(bad, "sale.order", store, [])
