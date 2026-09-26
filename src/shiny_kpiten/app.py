@@ -20,6 +20,7 @@ import os
 import pathlib
 import re
 import tempfile
+import urllib.parse
 
 from html import escape as html_escape
 
@@ -142,6 +143,51 @@ EDIT_MODE_JS = """
     Shiny.setInputValue("tile_order", ids, {priority: "event"});
   });
   });
+})();
+"""
+
+
+# The url is the bookmark of the view : the panel, the period and the filters of the
+# dimensions go in its query (`?panel=3&date_period=last_90&dim_user_id=...`) as they
+# change, without reloading the page ; the server applies them when a page opens with
+# them. The 🔗 button copies it.
+URL_STATE_JS = """
+(function () {
+  if (window.__kpitenUrlState) { return; }
+  window.__kpitenUrlState = true;
+  const KEPT = /^(panel|date_period|dim_.+)$/;
+  $(document).on("shiny:inputchanged", function (event) {
+    if (!KEPT.test(event.name)) { return; }
+    const url = new URL(window.location.href);
+    if (event.name === "panel") {
+      // another panel : its own period and filters
+      Array.from(url.searchParams.keys()).forEach(function (key) {
+        if (key === "date_period" || key.startsWith("dim_")) { url.searchParams.delete(key); }
+      });
+    }
+    url.searchParams.delete(event.name);
+    let values = Array.isArray(event.value) ? event.value : [event.value];
+    values.forEach(function (value) {
+      if (value !== null && value !== undefined && value !== "") {
+        url.searchParams.append(event.name, value);
+      }
+    });
+    history.replaceState(null, "", url);
+  });
+  window.kpitenCopyLink = function (button) {
+    const href = window.location.href;
+    function done() {
+      button.classList.add("copied");
+      setTimeout(function () { button.classList.remove("copied"); }, 1500);
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(href).then(done, function () {
+        window.prompt(button.dataset.label, href);
+      });
+    } else {
+      window.prompt(button.dataset.label, href);
+    }
+  };
 })();
 """
 
@@ -291,6 +337,14 @@ def app_ui(req):  # noqa: ANN001
                 ui.output_ui("ods_button"),
                 # the exports of the panel the plugins offer (quarto-kpiten : a PDF)
                 ui.output_ui("plugin_exports"),
+                ui.tags.button(
+                    ui.HTML(svg("link")),
+                    class_="btn-kpiten btn-link-view",
+                    type="button",
+                    title=tr("Copy the link of this view (panel, period, filters)"),
+                    onclick="kpitenCopyLink(this)",
+                    **{"data-label": tr("The link of this view :")},
+                ),
                 ui.output_ui("data_freshness"),
                 class_="top-bar",
             ),
@@ -823,6 +877,15 @@ def server(input, output, session):
             width="100%",
         )
 
+    # the view the url asks for (a bookmark : `?panel=3&date_period=...&dim_x=...`),
+    # applied once, when the page opens ; URL_STATE_JS keeps the url up to date
+    url_view = {"panel": True, "filters": True}  # still to apply
+
+    def url_params() -> dict[str, list[str]]:
+        with reactive.isolate():
+            search = session.clientdata.url_search() or ""
+        return urllib.parse.parse_qs(search.lstrip("?"))
+
     @reactive.calc
     def panels():
         backend_rv()  # re-render on db switch
@@ -835,6 +898,11 @@ def server(input, output, session):
                     current = None
             except (KeyError, TypeError):
                 current = None
+            if url_view["panel"]:  # the panel of a bookmark
+                url_view["panel"] = False
+                wanted = url_params().get("panel", [None])[0]
+                if wanted in choices:
+                    current = wanted
             if current is None:
                 # default : first panel in sequence order
                 current = str(ordered[0]["id"]) if ordered else None
@@ -897,6 +965,7 @@ def server(input, output, session):
         return ui.tags.div(
             ui.tags.style("{}".format(current_theme().css())),
             ui.tags.script(THEME_PERSIST_JS),
+            ui.tags.script(URL_STATE_JS),
             ui.tags.style(links.LINK_CSS + DRILL_CSS),
             ui.tags.script(links.NEW_TAB_JS),
             ui.tags.script(DRILL_JS),
@@ -924,13 +993,21 @@ def server(input, output, session):
         stamp = data_layer.last_sync(backend, current_user_id())
         if not stamp:
             return ui.tags.span("", class_="data-freshness")
+        from kpiten_core import env
+
+        stale = data_layer.is_stale(backend)
+        title = tr(
+            "Data as of {stamp} — parquet snapshot time ; ⟳ syncs with Odoo",
+            stamp=stamp,
+        )
+        if stale:
+            title += "\n" + tr(
+                "The data are more than {hours} hours old", hours=env.data_stale_hours
+            )
         return ui.tags.span(
             "⏱ " + stamp,
-            class_="data-freshness",
-            title=tr(
-                "Data as of {stamp} — parquet snapshot time ; ⟳ syncs with Odoo",
-                stamp=stamp,
-            ),
+            class_="data-freshness" + (" stale" if stale else ""),
+            title=title,
         )
 
     @reactive.calc
@@ -963,6 +1040,13 @@ def server(input, output, session):
         config = panel.get("filter_config") or {}
         controls = []
         store_data = store()
+        # the period and the filters of a bookmark, for its panel, the first time
+        wanted = {}
+        if url_view["filters"]:
+            params = url_params()
+            if params.get("panel", [str(input.panel())])[0] == str(input.panel()):
+                wanted = params
+            url_view["filters"] = False
         if config.get("date"):
             # the choices fit the data of the panel : windows, months or years it covers
             span = filterstate.date_range(store_data, config)
@@ -973,7 +1057,11 @@ def server(input, output, session):
                     tr("Period"),
                     # the keys stay the English ones (the value of the input)
                     choices={key: tr(label) for key, label in options.items()},
-                    selected=filterstate.default_date_option(options, span),
+                    selected=(
+                        wanted["date_period"][0]
+                        if wanted.get("date_period", [None])[0] in options
+                        else filterstate.default_date_option(options, span)
+                    ),
                     width="100%",
                 )
             )
@@ -984,7 +1072,11 @@ def server(input, output, session):
                     dim_input_id(dim["name"]),
                     dim.get("label") or dim["name"],
                     choices=sorted(choices),
-                    selected=[],
+                    selected=[
+                        value
+                        for value in wanted.get(dim_input_id(dim["name"]), [])
+                        if value in choices
+                    ],
                     multiple=True,
                     width="100%",
                 )
@@ -1092,9 +1184,38 @@ def server(input, output, session):
             ui.notification_show(f"{input.ods_model()} : {note}", type="warning")
         yield data
 
+    @reactive.calc
+    def derived_tables_info() -> dict:
+        """The shared derived tables the tiles may read, by name (their description)."""
+        try:
+            return {
+                d["name"]: d
+                for d in backend_rv().get_derived_tables(current_user_id())
+                if d.get("shared")
+            }
+        except Exception:
+            return {}
+
     def tile_info(line: dict) -> str:
-        """Tooltip text : active panel filters + tile own WHERE (card)."""
-        info = filters_text()
+        """Tooltip text : the table the tile reads (a derived table : its description),
+        the active panel filters, the tile own WHERE (card)."""
+        derived = derived_tables_info()
+        read = core_tiles.tables_read(line, line["model"], derived)
+        info = "\n".join(
+            (
+                tr(
+                    "Derived table {name} : {description}",
+                    name=name,
+                    description=derived[name].get("description") or "",
+                )
+                if name in derived
+                else tr("Table : {name}", name=name)
+            )
+            for name in read
+        )
+        filters = filters_text()
+        if filters:
+            info = info + "\n" + filters if info else filters
         if line["kind"] == "card":
             try:
                 where = core_tiles.serial.loads(line["content"]).get("where")

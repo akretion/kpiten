@@ -22,6 +22,14 @@ def last_sync(backend: Backend, user_id: int) -> str | None:
     return loaders.last_sync(backend, user_id)
 
 
+def is_stale(backend: Backend) -> bool:
+    """The last sync is older than `DATA_STALE_HOURS` (the date shown in orange)."""
+    from kpiten_core import env
+
+    with env.db_scope(backend.db):
+        return loaders.is_stale()
+
+
 def user_store(backend: Backend, user_id: int) -> dict[str, pl.LazyFrame]:
     """Per-user view of the store (see `kpiten_core.loaders.user_store`) :
 

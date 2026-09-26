@@ -179,6 +179,8 @@ class Theme:
   color: {page["text"]};
   align-self: center;
 }}
+.data-freshness.stale {{ opacity: 1; color: #e8590c; font-weight: 600 }}
+.btn-link-view.copied {{ color: #2b8a3e }}
 .kpiten-logo {{ height: 80px; width: 80px; align-self: center }}
 .app-footer {{
   display: flex;
