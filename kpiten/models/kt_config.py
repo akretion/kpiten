@@ -276,6 +276,13 @@ class KtConfig(models.Model):
         "answer is shown with the real names. In clear : the same without pseudonyms, "
         "for a local model (nothing leaves the machine).",
     )
+    ai_clipboard_pseudonyms = fields.Boolean(
+        string="Pseudonyms in a copied prompt",
+        default=False,
+        help="A KpiTen manager may copy a prompt to a chat of their own (ChatGPT, "
+        "Mistral...) : checked, what is copied is always with pseudonyms, even when the "
+        "base sends a summary in clear ; unchecked, it follows the setting above.",
+    )
 
     # ---- relations (dot-paths `kt` follows through many2one fields)
     other_relations = fields.Text(
@@ -604,6 +611,7 @@ class KtConfig(models.Model):
         config["ai"] = {
             "enabled": rec.ai_enabled,
             "send_level": rec.ai_send_level,
+            "clipboard_pseudonyms": rec.ai_clipboard_pseudonyms,
             # for an older app, which knows only whether values may be sent
             "send_values": rec.ai_send_level != "schema",
         }
