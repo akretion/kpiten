@@ -29,7 +29,10 @@ Démarrage : `make start SVC=marimo` (voir `docs/start.md`).
 `notebooks/derived.py`, deux modes : **Result** (une requête courte, son résultat dans
 `mo.ui.dataframe`, son code polars à copier) et **Step by step** (ci-dessous) ; « Understand it
 step by step » passe de l'un à l'autre (une requête sans CTE est découpée par clause),
-« Rewrite in commented steps » demande à l'IA de la réécrire en étapes commentées.
+« Rewrite in commented steps » demande à l'IA de la réécrire en étapes commentées. Un second
+choix, **SQL | Polars** : en polars, l'IA écrit une chaîne de méthodes avec un commentaire
+dans la langue de l'utilisateur au-dessus de chacune (exécutée par `kpiten_core.sandbox`),
+et le pas à pas fait une étape par méthode.
 
 En pas à pas, l'utilisateur choisit une table (lue comme `d`), écrit une requête en
 étapes (un bloc `WITH` par étape, sa phrase dans le commentaire `--` au-dessus) et voit ce que

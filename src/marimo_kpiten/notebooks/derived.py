@@ -53,7 +53,9 @@ def _(mo):
     get_version, set_version = mo.state(0)
     # the mode : the result of the query, or its steps explained
     get_mode, set_mode = mo.state("query")
-    return get_mode, get_version, set_mode, set_version
+    # the language of the query : SQL (polars SQL) or polars (a chain of methods)
+    get_lang, set_lang = mo.state("sql")
+    return get_lang, get_mode, get_version, set_lang, set_mode, set_version
 
 
 @app.cell
@@ -86,7 +88,7 @@ def _(mo, store):
 
 
 @app.cell
-def _(get_mode, mo, set_mode, source):
+def _(get_lang, get_mode, mo, set_lang, set_mode, source):
     MODES = {"Result": "query", "Step by step": "steps"}
     mode = mo.ui.radio(
         MODES,
@@ -94,13 +96,22 @@ def _(get_mode, mo, set_mode, source):
         on_change=set_mode,
         inline=True,
     )
+    LANGUAGES = {"SQL": "sql", "Polars": "polars"}
+    language = mo.ui.radio(
+        LANGUAGES,
+        value=next(label for label, key in LANGUAGES.items() if key == get_lang()),
+        on_change=set_lang,
+        inline=True,
+    )
     mo.vstack(
         [
-            mo.hstack([source, mode], justify="start", align="center", gap=3),
+            mo.hstack([source, mode, language], justify="start", align="center", gap=3),
             mo.md(
                 "<small>The query reads the table as `d`, the others by their name "
-                'in quotes (`"sale.order.line"`). Step by step : one step per `WITH` '
-                "block (its words in the `--` comment above it), or per clause.</small>"
+                'in quotes (`"sale.order.line"`), in polars `tables["sale.order.line"]`. '
+                "Step by step : one step per `WITH` block (its words in the `--` comment "
+                "above it) or per clause ; in polars one per method (its `#` comment)."
+                "</small>"
             ),
         ]
     )
@@ -162,13 +173,34 @@ SELECT * FROM by_vendor ORDER BY spend DESC LIMIT 10""",
     }
     FIRST_ROWS = """-- Step 1 : the first rows of the table
 SELECT * FROM d LIMIT 10"""
-    return EXAMPLES, FIRST_ROWS
+    POLARS_EXAMPLES = {
+        "sale.order": """d_next = (
+    d
+    # the confirmed orders
+    .filter((pl.col("state") == "sale") & (pl.col("amount_untaxed") > 0))
+    # the month of each order
+    .with_columns(pl.col("date_order").dt.to_string("%Y-%m").alias("month"))
+    # the total by salesperson and month
+    .group_by("user_id", "month")
+    .agg(pl.col("amount_untaxed").sum().alias("untaxed"), pl.len().alias("orders"))
+    # the 10 best months
+    .sort("untaxed", descending=True)
+    .head(10)
+)""",
+    }
+    POLARS_FIRST_ROWS = """d_next = (
+    d
+    # the first rows of the table
+    .head(10)
+)"""
+    return EXAMPLES, FIRST_ROWS, POLARS_EXAMPLES, POLARS_FIRST_ROWS
 
 
 @app.cell
-def _(EXAMPLES, FIRST_ROWS, mo, source):
+def _(EXAMPLES, FIRST_ROWS, POLARS_EXAMPLES, POLARS_FIRST_ROWS, mo, source):
     # the query of the editor, that the AI may replace ; a new table starts over
     get_sql, set_sql = mo.state(EXAMPLES.get(source.value, FIRST_ROWS))
+    get_py, set_py = mo.state(POLARS_EXAMPLES.get(source.value, POLARS_FIRST_ROWS))
     get_answer, set_answer = mo.state(None)  # the last answer of the AI
     get_current, set_current = mo.state(None)  # the derived table opened or saved
     get_clip, set_clip = mo.state(None)  # the prompt to copy to a chat
@@ -176,16 +208,18 @@ def _(EXAMPLES, FIRST_ROWS, mo, source):
         get_answer,
         get_clip,
         get_current,
+        get_py,
         get_sql,
         set_answer,
         set_clip,
         set_current,
+        set_py,
         set_sql,
     )
 
 
 @app.cell
-def _(definitions, mo, set_current, set_sql, source):
+def _(definitions, mo, set_current, set_lang, set_py, set_sql, source):
     # open a derived table of this table `d` (or of none) : its query in the editor
     _tables = {
         d["name"] + (" (shared)" if d["shared"] else ""): d
@@ -195,7 +229,9 @@ def _(definitions, mo, set_current, set_sql, source):
 
     def _open(chosen):
         if chosen:
-            set_sql(chosen["sql"])
+            _lang = chosen.get("language") or "sql"
+            (set_py if _lang == "polars" else set_sql)(chosen["sql"])
+            set_lang(_lang)
             set_current(chosen)
 
     opener = (
@@ -300,7 +336,9 @@ def _(
     backend,
     derived_tables,
     description,
+    get_lang,
     get_mode,
+    get_py,
     get_sql,
     history,
     joins,
@@ -310,6 +348,7 @@ def _(
     rewrite_button,
     set_answer,
     set_clip,
+    set_py,
     set_sql,
     source,
     store,
@@ -319,8 +358,11 @@ def _(
     _rewrite = rewrite_button is not None and rewrite_button.value
     mo.stop(not _rewrite and (not ask_button.value or not question.value.strip()))
     _mode = "steps" if _rewrite else get_mode()
+    _lang = get_lang()
+    _current = (get_py if _lang == "polars" else get_sql)()
+    _set_code = set_py if _lang == "polars" else set_sql
     _question = (
-        derived_kpiten.ai.rewrite(backend.get_user_lang(user_id))
+        derived_kpiten.ai.rewrite(backend.get_user_lang(user_id), _lang)
         if _rewrite
         else question.value.strip()
     )
@@ -330,15 +372,17 @@ def _(
         description,
         {name: derived_kpiten.ai.columns(_all[name]) for name in joins.value},
         mode=_mode,
+        language=_lang,
     )
     if provider.value == CLIPBOARD:
         # the prompt to copy : the answer comes back by a paste (cells below)
-        _content = derived_kpiten.ai.message(_question, get_sql(), anon)
+        _content = derived_kpiten.ai.message(_question, _current, anon)
         set_clip(
             {
                 "prompt": derived_kpiten.ai.clipboard(_system, _content),
                 "first": True,
                 "mode": _mode,
+                "language": _lang,
             }
         )
     else:
@@ -348,16 +392,17 @@ def _(
                 {**_all, "d": store[source.value]},
                 _system,
                 _question,
-                current=get_sql(),
+                current=_current,
                 history=history,
                 anon=anon,
                 mode=_mode,
+                language=_lang,
             )
         history.extend(_answer.exchange)
         del history[:-8]
         set_answer(_answer)
         if _answer.sql and not _answer.unknown:
-            set_sql(_answer.sql)
+            _set_code(_answer.sql)
     return
 
 
@@ -403,6 +448,7 @@ def _(
     paste,
     set_answer,
     set_clip,
+    set_py,
     set_sql,
     source,
     store,
@@ -415,17 +461,20 @@ def _(
         {**store, **derived_tables, "d": store[source.value]},
         anon,
         get_clip()["mode"],
+        get_clip()["language"],
     )
+    _lang = get_clip()["language"]
     set_answer(_answer)
     if _answer.sql and not _answer.unknown:
-        set_sql(_answer.sql)
+        (set_py if _lang == "polars" else set_sql)(_answer.sql)
     if _answer.error and _answer.sql and not _answer.unknown:
         # the error, to paste in the same conversation
         set_clip(
             {
-                "prompt": derived_kpiten.ai.correction(_answer.error, anon),
+                "prompt": derived_kpiten.ai.correction(_answer.error, anon, _lang),
                 "first": False,
                 "mode": get_clip()["mode"],
+                "language": _lang,
             }
         )
     else:
@@ -434,7 +483,19 @@ def _(
 
 
 @app.cell
-def _(derived_kpiten, get_answer, get_mode, get_sql, manager, mo, set_sql):
+def _(
+    derived_kpiten,
+    get_answer,
+    get_lang,
+    get_mode,
+    get_py,
+    get_sql,
+    manager,
+    mo,
+    set_py,
+    set_sql,
+):
+    _polars = get_lang() == "polars"
     _answer = get_answer()
     _said = []
     if _answer is not None and _answer.text:
@@ -450,11 +511,11 @@ def _(derived_kpiten, get_answer, get_mode, get_sql, manager, mo, set_sql):
             )
         )
     editor = mo.ui.code_editor(
-        value=get_sql(),
-        language="sql",
+        value=(get_py if _polars else get_sql)(),
+        language="python" if _polars else "sql",
         min_height=260,
-        label="The SQL (run when you leave the editor)",
-        on_change=set_sql,
+        label=f"The {'polars code' if _polars else 'SQL'} (run when you leave the editor)",
+        on_change=set_py if _polars else set_sql,
     )
     # the detail (the SQL and the measures of each step) : a KpiTen manager only
     detail = (
@@ -471,6 +532,7 @@ def _(
     derived_tables,
     detail,
     editor,
+    get_lang,
     get_mode,
     mo,
     provider,
@@ -483,11 +545,12 @@ def _(
     # the table chosen is `d` ; the others, and the derived tables, by their name
     _tables = {**store, **derived_tables, "d": store[source.value]}
     rewrite_button = understand_button = None
+    _lang = get_lang()
     try:
         if get_mode() == "query":
             # the result : polars runs the query lazily, optimized ; its first rows
             with mo.status.spinner("Running the query..."):
-                _table = derived_kpiten.ai.run(editor.value, _tables)
+                _table = derived_kpiten.ai.run(editor.value, _tables, language=_lang)
             _rows = derived_kpiten.ai.PREVIEW_ROWS
             # a global of the cell : marimo sends its clicks only then
             understand_button = mo.ui.button(
@@ -512,10 +575,10 @@ def _(
                             understand_button,
                             mo.accordion(
                                 {
-                                    "::lucide:code:: The query as polars code": (
+                                    "::lucide:code:: The code to copy (polars)": (
                                         mo.ui.code_editor(
                                             value=derived_kpiten.polars_code(
-                                                editor.value, source.value, db
+                                                editor.value, source.value, db, _lang
                                             ),
                                             language="python",
                                             disabled=True,
@@ -533,7 +596,9 @@ def _(
         else:
             with mo.status.spinner("Running the steps..."):
                 _results = derived_kpiten.trace(
-                    derived_kpiten.split(editor.value), _tables, detail=_detail
+                    derived_kpiten.ai.split_code(editor.value, _lang),
+                    _tables,
+                    detail=_detail,
                 )
             # the AI rewrites the query in steps with their words (a query cut by
             # its clauses has none)
@@ -610,6 +675,7 @@ def _(
     backend,
     derived_kpiten,
     editor,
+    get_lang,
     mo,
     save_button,
     save_description,
@@ -623,7 +689,7 @@ def _(
     _name = save_name.value.strip()
     _shared = bool(save_shared is not None and save_shared.value)
     try:
-        derived_kpiten.split(editor.value)  # one SELECT, in steps
+        derived_kpiten.ai.split_code(editor.value, get_lang())  # it parses
         backend.save_derived_table(
             user_id,
             _name,
@@ -631,6 +697,7 @@ def _(
             save_description.value.strip(),
             _shared,
             source.value,
+            get_lang(),
         )
     except Exception as err:
         _out = mo.callout(mo.md(f"Not saved : {str(err)[:300]}"), kind="danger")
