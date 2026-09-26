@@ -56,7 +56,9 @@ tile_max_rows = int(get("TILE_MAX_ROWS", "500"))
 # Explore : the rows of a panel taken out of the dashboard (see `explore`)
 explore_max_rows = int(get("EXPLORE_MAX_ROWS", "500000"))  # per table
 explore_dir = get("EXPLORE_DIR")  # default : `explore` next to DATA_PATH
-explore_ttl_hours = int(get("EXPLORE_TTL_HOURS", "1"))  # a leftover export is purged
+explore_ttl_hours = int(get("EXPLORE_TTL_HOURS", "1"))
+# the data are shown as stale (the date in orange) past this age, in hours
+data_stale_hours = int(get("DATA_STALE_HOURS", "24"))  # a leftover export is purged
 
 tile_max_categories = int(get("TILE_MAX_CATEGORIES", "50"))
 # Points kept by a graph on a date axis (above : grouped by month, then cut)

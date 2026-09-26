@@ -277,6 +277,20 @@ def last_sync(backend: "Backend", user_id: int) -> str | None:
     return stamp if tz else f"{stamp} UTC"
 
 
+def is_stale() -> bool:
+    """Whether the most recent sync of the store is older than `DATA_STALE_HOURS` (24 by
+    default) : the fronts show its date in orange. False without any sync."""
+    syncs = [DFStorage.last_sync(table) for table in DFStorage.list_table_names()]
+    syncs = [s for s in syncs if s]
+    if not syncs:
+        return False
+    last = datetime.strptime(max(syncs), "%Y-%m-%d %H:%M:%S").replace(
+        tzinfo=timezone.utc
+    )
+    age = datetime.now(timezone.utc) - last
+    return age.total_seconds() > env.data_stale_hours * 3600
+
+
 def sync_store(
     backend: "Backend",
     extraction_uid: int,

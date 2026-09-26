@@ -277,6 +277,21 @@ def exec_tile(
     raise TileError(f"unknown kind '{kind}' for tile '{label}'")
 
 
+def tables_read(line: dict, table: str, derived=()) -> list[str]:
+    """The tables a tile reads, for its tooltip : a card, a graph or a pivot its `from`
+    (else the table of its dataset) ; a data tile its dataset, and the derived tables
+    (`derived` : their names) it names."""
+    content = line.get("content") or ""
+    if line.get("kind") == "data":
+        return [table, *[name for name in derived if name in content]]
+    if line.get("kind") in ("card", "graph", "pivot"):
+        try:
+            return [serial.loads(content).get("from") or table]
+        except Exception:
+            return [table]
+    return [table]
+
+
 def _filters_note(result, line, table, store, predicates):
     """A tile that reads another table (`from` : a derived table...) : a note names the
     filters of the panel it could not apply, the table having none of their columns

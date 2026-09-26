@@ -120,6 +120,15 @@ FR = {
         "Odoo affiche la somme et le nombre : pas le maximum"
     ),
     "First {rows} of {total} rows": "{rows} premières lignes sur {total}",
+    "Table : {name}": "Table : {name}",
+    "Copy the link of this view (panel, period, filters)": (
+        "Copier le lien de cette vue (tableau, période, filtres)"
+    ),
+    "The link of this view :": "Le lien de cette vue :",
+    "Derived table {name} : {description}": "Table dérivée {name} : {description}",
+    "The data are more than {hours} hours old": (
+        "Les données ont plus de {hours} heures"
+    ),
     "The filters on {columns} do not apply to {table}": (
         "Les filtres sur {columns} ne s'appliquent pas à {table}"
     ),
