@@ -111,3 +111,11 @@
   merges:
     - akretion quarto-kpiten
   target: akretion quarto-kpiten
+
+# derived-kpiten : pas encore poussé sur akretion/kpiten (dépôt local dans src/)
+# ./src/derived-kpiten:
+#   remotes:
+#     akretion: git@github.com:akretion/kpiten.git
+#   merges:
+#     - akretion derived-kpiten
+#   target: akretion derived-kpiten
