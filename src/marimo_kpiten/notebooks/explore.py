@@ -355,7 +355,7 @@ def _(mo):
 
 
 @app.cell
-def _(ai, mo):
+def _(ai, config, mo):
     mo.stop(
         not ai.enabled(),
         mo.callout(
@@ -374,9 +374,11 @@ def _(ai, mo):
             kind="warn",
         ),
     )
+    # the AI of kt.config first, when it is configured here
+    _default = available.get(config.ai_default_provider())
     provider = mo.ui.dropdown(
         {p.label: key for key, p in available.items()},
-        value=next(iter(p.label for p in available.values())),
+        value=(_default or next(iter(available.values()))).label,
         label="Model",
     )
     provider

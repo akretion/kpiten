@@ -242,7 +242,7 @@ def _(definitions, mo, set_current, set_lang, set_py, set_sql, source):
 
 
 @app.cell
-def _(ai, derived_tables, manager, mo, source, store):
+def _(ai, config, derived_tables, manager, mo, source, store):
     # Ask the AI : it writes the query in steps (skill steps.md of derived-kpiten). A
     # KpiTen manager may also ask a chat of their own (ChatGPT, Mistral...) by copy and
     # paste : what is copied goes out of KpiTen, always with pseudonyms
@@ -258,7 +258,16 @@ def _(ai, derived_tables, manager, mo, source, store):
         )
         provider = question = ask_button = joins = None
     else:
-        provider = mo.ui.dropdown(_choices, value=next(iter(_choices)), label="Model")
+        # the AI of kt.config first, when it is offered here
+        _default = config.ai_default_provider()
+        provider = mo.ui.dropdown(
+            _choices,
+            value=next(
+                (label for label, key in _choices.items() if key == _default),
+                next(iter(_choices)),
+            ),
+            label="Model",
+        )
         # the columns of the tables it may join : only those chosen (a small local
         # model reads a short prompt only)
         joins = mo.ui.multiselect(
