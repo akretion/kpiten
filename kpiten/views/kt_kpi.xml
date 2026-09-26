@@ -146,22 +146,21 @@ days_to_order = "date_approve - create_date"</pre>
                         <field name="group_ids" widget="many2many_tags" />
                     </group>
                 </group>
-                <!-- the panels the KPI is on, its place and size on each -->
-                <div class="mb-3">
-                    <div class="fw-bold">Panels
-                        <span
-                            class="badge text-bg-warning ms-1"
-                            invisible="not unused"
-                            title="On no panel : only the catalogue keeps it"
-                        >Unused</span>
-                    </div>
-                    <field name="tile_ids" nolabel="1">
-                        <list editable="bottom">
-                            <field name="panel_id" />
-                            <field name="col_span" />
-                            <field name="tile_height" />
-                        </list>
-                    </field>
+                <!-- the panels the KPI is on ; its place and size on each : from the
+                     panel -->
+                <div class="mb-3 d-flex align-items-center gap-2">
+                    <span class="fw-bold">Panels</span>
+                    <field
+                        name="panel_ids"
+                        widget="many2many_tags"
+                        nolabel="1"
+                        placeholder="On no panel"
+                    />
+                    <span
+                        class="badge text-bg-warning"
+                        invisible="not unused"
+                        title="On no panel : only the catalogue keeps it"
+                    >Unused</span>
                 </div>
                 <!-- the KPI as the Shiny dashboard draws it : reloaded when saved, or by
                      the button (which saves first) -->

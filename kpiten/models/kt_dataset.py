@@ -245,8 +245,11 @@ class KtKpi(models.Model):
         comodel_name="kt.panel",
         string="Panels",
         compute="_compute_panel_ids",
+        inverse="_inverse_panel_ids",
         store=True,
-        help="The panels the KPI is on ; the same KPI may be on several.",
+        readonly=False,
+        help="The panels the KPI is on ; the same KPI may be on several. Its place and "
+        "size on each are set from the panel (its Tiles tab, or the edit mode).",
     )
     unused = fields.Boolean(
         compute="_compute_panel_ids",
@@ -298,6 +301,13 @@ class KtKpi(models.Model):
         for rec in self:
             rec.panel_ids = rec.tile_ids.panel_id
             rec.unused = not rec.tile_ids
+
+    def _inverse_panel_ids(self):
+        """A panel added : the KPI at its end ; a panel taken off : the KPI off it."""
+        for rec in self:
+            rec.tile_ids.filtered(lambda t: t.panel_id not in rec.panel_ids).unlink()
+            for panel in rec.panel_ids - rec.tile_ids.panel_id:
+                rec._put_on_panel(panel.id)
 
     def _compute_xml_id(self):
         xml_ids = self.get_external_id()

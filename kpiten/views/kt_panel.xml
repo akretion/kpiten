@@ -33,16 +33,31 @@
                     </div>
                     <group name="main">
                         <group name="left">
-                            <field name="name" />
-                            <field name="description" />
+                            <field name="name" readonly="not can_edit" />
+                            <field name="description" readonly="not can_edit" />
                         </group>
                         <group name="right">
-                            <field name="active" widget="boolean_toggle" />
-                            <field name="sequence" />
+                            <field
+                                name="user_id"
+                                groups="kpiten.group_kpiten_manager"
+                            />
+                            <field
+                                name="user_id"
+                                readonly="1"
+                                groups="!kpiten.group_kpiten_manager"
+                            />
+                            <field
+                                name="active"
+                                widget="boolean_toggle"
+                                readonly="not can_edit"
+                            />
+                            <field name="can_edit" invisible="1" />
+                            <field name="sequence" readonly="not can_edit" />
                         </group>
                     </group>
                     <field
                         name="filter_config"
+                        readonly="not can_edit"
                         widget="ace"
                         options="{'mode': 'python'}"
                     />
@@ -50,7 +65,7 @@
                         <page string="Tiles">
                             <!-- a KPI of the catalogue is added here ; removing one
                                  keeps the KPI -->
-                            <field name="tile_ids">
+                            <field name="tile_ids" readonly="not can_edit">
                                 <list editable="bottom" decoration-muted="not kpi_active">
                                     <field name="sequence" widget="handle" />
                                     <field name="kpi_id" />
@@ -76,6 +91,10 @@
                         <h4>
                             <field name="name" />
                         </h4>
+                        <div class="text-muted small" title="Owner : edits the panel">
+                            <i class="fa fa-user me-1" />
+                            <field name="user_id" />
+                        </div>
                     </t>
                 </templates>
             </kanban>
@@ -87,6 +106,12 @@
         <field name="arch" type="xml">
             <search>
                 <field name="name" />
+                <field name="user_id" />
+                <filter
+                    name="mine"
+                    string="My panels"
+                    domain="[('user_id', '=', uid)]"
+                />
             </search>
         </field>
     </record>

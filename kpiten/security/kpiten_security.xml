@@ -4,11 +4,45 @@
         <field name="name">KpiTen manager</field>
         <field
             name="comment"
-        >Creates, edits and deletes the panels, the datasets and the tiles (the edit mode of the dashboards), and the configuration. The other users only read them.</field>
+        >Creates, edits and deletes the panels, the datasets and the tiles (the edit mode of the dashboards), and the configuration. The other users read them, and edit only the panels they own.</field>
     </record>
 
     <record id="base.group_system" model="res.groups">
         <field name="implied_ids" eval="[(4, ref('group_kpiten_manager'))]" />
+    </record>
+    <!-- the panels : every user reads them all, changes only their own (and the KPIs
+         on them) ; a KpiTen manager changes them all -->
+    <record id="kt_panel_rule_own" model="ir.rule">
+        <field name="name">Panels : own</field>
+        <field name="model_id" ref="model_kt_panel" />
+        <field name="groups" eval="[(4, ref('base.group_user'))]" />
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+        <field name="perm_read" eval="False" />
+        <field name="perm_write" eval="True" />
+        <field name="perm_create" eval="True" />
+        <field name="perm_unlink" eval="True" />
+    </record>
+    <record id="kt_panel_rule_manager" model="ir.rule">
+        <field name="name">Panels : all, for a KpiTen manager</field>
+        <field name="model_id" ref="model_kt_panel" />
+        <field name="groups" eval="[(4, ref('group_kpiten_manager'))]" />
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="kt_panel_tile_rule_own" model="ir.rule">
+        <field name="name">KPIs on a panel : own panel</field>
+        <field name="model_id" ref="model_kt_panel_tile" />
+        <field name="groups" eval="[(4, ref('base.group_user'))]" />
+        <field name="domain_force">[('panel_id.user_id', '=', user.id)]</field>
+        <field name="perm_read" eval="False" />
+        <field name="perm_write" eval="True" />
+        <field name="perm_create" eval="True" />
+        <field name="perm_unlink" eval="True" />
+    </record>
+    <record id="kt_panel_tile_rule_manager" model="ir.rule">
+        <field name="name">KPIs on a panel : all, for a KpiTen manager</field>
+        <field name="model_id" ref="model_kt_panel_tile" />
+        <field name="groups" eval="[(4, ref('group_kpiten_manager'))]" />
+        <field name="domain_force">[(1, '=', 1)]</field>
     </record>
     <!-- the derived tables : a user reads their own and the shared ones, changes only
          their own, never shared ; a KpiTen manager reads and changes them all -->

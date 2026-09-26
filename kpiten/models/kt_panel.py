@@ -16,6 +16,20 @@ class KtPanel(models.Model):
     # e.g. {"date": {"field": "date_order"}, "dimensions": [{"name": "user_id", "label": "Salesperson"}]}
     filter_config = fields.Text(default="{}")
     active = fields.Boolean(default=True)
+    # its owner edits it (in Odoo and in the edit mode of the dashboards), like a
+    # KpiTen manager ; the other users only read it
+    user_id = fields.Many2one(
+        comodel_name="res.users",
+        string="Owner",
+        default=lambda self: self.env.user,
+        index=True,
+        help="Edits the panel and its tiles, like a KpiTen manager ; the other users "
+        "only read it.",
+    )
+    can_edit = fields.Boolean(
+        compute="_compute_can_edit",
+        help="The current user may change the panel : its owner, or a KpiTen manager.",
+    )
     # the KPIs of the panel, each at its place (a KPI may be on several panels)
     tile_ids = fields.One2many(comodel_name="kt.panel.tile", inverse_name="panel_id")
     line_count = fields.Integer(
@@ -27,6 +41,13 @@ class KtPanel(models.Model):
     def _compute_line_count(self):
         for rec in self:
             rec.line_count = len(rec.tile_ids)
+
+    @api.depends("user_id")
+    @api.depends_context("uid")
+    def _compute_can_edit(self):
+        manager = self.env.user.has_group("kpiten.group_kpiten_manager")
+        for rec in self:
+            rec.can_edit = manager or rec.user_id == self.env.user or not rec.id
 
     def action_new_tile(self):
         """The tile builder on a new tile of this panel."""

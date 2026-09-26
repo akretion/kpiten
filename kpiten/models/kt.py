@@ -339,6 +339,17 @@ class Kt(models.AbstractModel):
         return user.has_group("kpiten.group_kpiten_manager")
 
     @api.model
+    def can_edit_panel(self, panel_id, user_id=None):
+        """Whether the user (default : the current one) may edit the panel : a KpiTen
+        manager, or its owner. The dashboard apps ask here before the edit mode of a
+        panel (they read Odoo with one RPC account)."""
+        user = self.env["res.users"].sudo().browse(user_id or self.env.uid)
+        if user.has_group("kpiten.group_kpiten_manager"):
+            return True
+        panel = self.env["kt.panel"].sudo().browse(panel_id).exists()
+        return bool(panel) and panel.user_id == user
+
+    @api.model
     def _kpiten_session(self, application: str = "shiny") -> tuple[str, str]:
         """A session of the current user in a front : `(session, external_url)`.
 
