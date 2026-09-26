@@ -1,14 +1,14 @@
 import marimo
 
 __generated_with = "0.24.2"
-app = marimo.App(width="medium", app_title="Step by step")
+app = marimo.App(width="medium", app_title="Query and steps")
 
 
 @app.cell
 def _():
     import marimo as mo
 
-    from kpiten_core import anonymize, derived
+    from kpiten_core import anonymize, config, derived
     from kpiten_core.backend import Backend
     from kpiten_core.loaders import user_store
     from marimo_kpiten import ai, ui
@@ -17,7 +17,7 @@ def _():
         import derived_kpiten
     except ImportError:  # the plugin is not in the venv of marimo (make apps)
         derived_kpiten = None
-    return Backend, ai, anonymize, derived, derived_kpiten, mo, ui, user_store
+    return Backend, ai, anonymize, config, derived, derived_kpiten, mo, ui, user_store
 
 
 @app.cell
@@ -103,19 +103,14 @@ def _(get_lang, get_mode, mo, set_lang, set_mode, source):
         on_change=set_lang,
         inline=True,
     )
-    mo.vstack(
-        [
-            mo.hstack([source, mode, language], justify="start", align="center", gap=3),
-            mo.md(
-                "<small>The query reads the table as `d`, the others by their name "
-                'in quotes (`"sale.order.line"`), in polars `tables["sale.order.line"]`. '
-                "Step by step : one step per `WITH` block (its words in the `--` comment "
-                "above it) or per clause ; in polars one per method (its `#` comment)."
-                "</small>"
-            ),
-        ]
+    how = mo.md(
+        "<small>The query reads the table as `d`, the others by their name in quotes "
+        '(`"sale.order.line"`), in polars `tables["sale.order.line"]`. Step by step : '
+        "one step per `WITH` block (its words in the `--` comment above it) or per "
+        "clause ; in polars one per method (its `#` comment).</small>"
     )
-    return
+    source  # the rest is in the Advanced section
+    return how, language, mode
 
 
 @app.cell
@@ -243,8 +238,7 @@ def _(definitions, mo, set_current, set_lang, set_py, set_sql, source):
         if _tables
         else None
     )
-    opener
-    return
+    return (opener,)
 
 
 @app.cell
@@ -282,7 +276,7 @@ def _(ai, derived_tables, manager, mo, source, store):
         _out = mo.vstack(
             [
                 mo.hstack([question, ask_button], align="end", widths=[5, 1]),
-                mo.hstack([provider, joins], justify="start", align="start"),
+                provider,
             ]
         )
     _out
@@ -290,40 +284,43 @@ def _(ai, derived_tables, manager, mo, source, store):
 
 
 @app.cell
-def _(CLIPBOARD, ai, anonymize, available, backend, mo, provider, source, store):
-    mo.stop(provider is None)
-    _clipboard = provider.value == CLIPBOARD
-    _level = ai.send_level()  # kt.config : schema, summary (pseudonyms) or clear
-    if _clipboard and _level == "clear":
-        _level = "summary"  # "clear" is for a local model : a chat is outside
-    # the pseudonyms of this table, kept for the whole conversation (and between the
-    # copy of a prompt and the paste of its answer)
-    anon = anonymize.for_table(backend, source.value, hide=_level != "clear")
-    with mo.status.spinner("Reading the columns..."):
-        description = ai.describe(store[source.value], anon, _level)
+def _(
+    CLIPBOARD, ai, anonymize, available, backend, config, mo, provider, source, store
+):
+    anon = description = told = None
     history = []  # what was said, for the next question (a new table starts over)
-    _sent = {
-        "schema": "the name and type of the columns",
-        "summary": "the columns, figures on them and a few rows, with the "
-        "customers, people and products renamed (`Customer 12`)",
-        "clear": "the columns, figures on them and a few rows, **in clear**",
-    }[_level]
-    if _clipboard:
-        _to = "The prompt you copy to your chat holds"
-    elif not available[provider.value].leaves_machine:
-        _to = "Nothing leaves this machine : the local model gets"
-    else:
-        _to = f"{available[provider.value].label} gets"
-    mo.accordion(
-        {
-            "What the model is told": mo.md(
-                f"{_to} {_sent}, the columns of the tables to join, your question "
-                "and the query of the editor. Its query runs here, on the rows you "
-                f"may read.\n\n```\n{description}\n```"
-            )
-        }
-    )
-    return anon, description, history
+    if provider is not None:
+        _clipboard = provider.value == CLIPBOARD
+        _level = ai.send_level()  # kt.config : schema, summary (pseudonyms) or clear
+        if _clipboard and _level == "clear" and config.ai_clipboard_pseudonyms():
+            _level = "summary"  # kt.config : a copied prompt always with pseudonyms
+        # the pseudonyms of this table, kept for the whole conversation (and between the
+        # copy of a prompt and the paste of its answer)
+        anon = anonymize.for_table(backend, source.value, hide=_level != "clear")
+        with mo.status.spinner("Reading the columns..."):
+            description = ai.describe(store[source.value], anon, _level)
+        _sent = {
+            "schema": "the name and type of the columns",
+            "summary": "the columns, figures on them and a few rows, with the "
+            "customers, people and products renamed (`Customer 12`)",
+            "clear": "the columns, figures on them and a few rows, **in clear**",
+        }[_level]
+        if _clipboard:
+            _to = "The prompt you copy to your chat holds"
+        elif not available[provider.value].leaves_machine:
+            _to = "Nothing leaves this machine : the local model gets"
+        else:
+            _to = f"{available[provider.value].label} gets"
+        told = mo.accordion(
+            {
+                "What the model is told": mo.md(
+                    f"{_to} {_sent}, the columns of the tables to join, your question "
+                    "and the query of the editor. Its query runs here, on the rows you "
+                    f"may read.\n\n```\n{description}\n```"
+                )
+            }
+        )
+    return anon, description, history, told
 
 
 @app.cell
@@ -356,7 +353,10 @@ def _(
 ):
     # a question, or « rewrite in commented steps » (the query of the editor)
     _rewrite = rewrite_button is not None and rewrite_button.value
-    mo.stop(not _rewrite and (not ask_button.value or not question.value.strip()))
+    mo.stop(
+        not _rewrite
+        and (ask_button is None or not ask_button.value or not question.value.strip())
+    )
     _mode = "steps" if _rewrite else get_mode()
     _lang = get_lang()
     _current = (get_py if _lang == "polars" else get_sql)()
@@ -403,6 +403,27 @@ def _(
         set_answer(_answer)
         if _answer.sql and not _answer.unknown:
             _set_code(_answer.sql)
+    return
+
+
+@app.cell
+def _(mo):
+    # the settings a first visit does not need : hidden until asked (a switch keeps
+    # its state when the page is computed again, an accordion would close)
+    advanced = mo.ui.switch(label="Advanced")
+    return (advanced,)
+
+
+@app.cell
+def _(advanced, how, joins, language, mo, mode, opener, told):
+    _parts = [advanced]
+    if advanced.value:
+        _parts += [
+            mo.hstack([mode, language], justify="start", gap=3),
+            how,
+            *[part for part in (opener, joins, told) if part is not None],
+        ]
+    mo.vstack(_parts)
     return
 
 

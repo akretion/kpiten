@@ -26,7 +26,9 @@ Démarrage : `make start SVC=marimo` (voir `docs/start.md`).
 
 ## Query and steps (tables dérivées)
 
-`notebooks/derived.py`, deux modes : **Result** (une requête courte, son résultat dans
+`notebooks/derived.py` : la table, la question, l'éditeur et le résultat ; le reste (mode,
+langage, ouvrir une table dérivée, tables à joindre, ce que le modèle reçoit) derrière
+l'interrupteur « Advanced », fermé par défaut. Deux modes : **Result** (une requête courte, son résultat dans
 `mo.ui.dataframe`, son code polars à copier) et **Step by step** (ci-dessous) ; « Understand it
 step by step » passe de l'un à l'autre (une requête sans CTE est découpée par clause),
 « Rewrite in commented steps » demande à l'IA de la réécrire en étapes commentées. Un second
@@ -51,7 +53,8 @@ dans la langue de la question ; elle reçoit la description de `d` au niveau de 
 local sur CPU (fenêtre de 4 096 tokens) reste lent : Claude est le fournisseur visé.
 
 Un KpiTen manager choisit aussi « Copy and paste (ChatGPT, Mistral...) » : le prompt s'affiche
-dans un bloc à copier (au moins pseudonymisé, même si la base est réglée « en clair »), sa
+dans un bloc à copier (pseudonymisé selon le niveau de la base ; la case « Pseudonyms in a copied prompt » de
+`kt.config` l'impose même quand la base envoie en clair), sa
 réponse se colle dans la page et passe par les mêmes contrôles que celle de l'API ; une erreur
 donne un texte de correction à recopier dans la même conversation. Les pseudonymes restent
 dans la page : un rechargement entre la copie et le collage les perd, la page le signale.
