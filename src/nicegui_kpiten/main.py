@@ -199,7 +199,7 @@ EDIT_JS = """
       fetch('/kpiten/tile-order', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ids: ids}),
+        body: JSON.stringify({panel_id: grid.dataset.panelId, ids: ids}),
       });
     });
   });
@@ -335,7 +335,7 @@ def tile_view(
 
 
 def edit_toolbar(line: dict, act):
-    """Tile editing toolbar (move / width / height / delete) -> Odoo autosave."""
+    """Tile editing toolbar (move / width / height / remove) -> Odoo autosave."""
     actions = [
         ("left", "chevron_left", "Move left"),
         ("right", "chevron_right", "Move right"),
@@ -343,7 +343,7 @@ def edit_toolbar(line: dict, act):
         ("hdec", "unfold_less", "Shorter"),
         ("winc", "add_box", "Wider"),
         ("wdec", "indeterminate_check_box", "Narrower"),
-        ("delete", "delete", "Delete"),
+        ("delete", "close", "Remove from the panel (the KPI stays in the catalogue)"),
     ]
     with ui.row().classes("tile-tools w-full gap-1"):
         ui.label(f"#{line['id']}").classes("text-xs opacity-60")
@@ -581,6 +581,8 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
 
         cards_grid.clear()
         tiles_grid.clear()
+        for grid in (cards_grid, tiles_grid):  # the panel of a drag and drop (EDIT_JS)
+            grid.props(f'data-panel-id="{panel_label["id"]}"')
         with cards_grid, tiles_grid:
             for line in backend.get_panel_tiles(panel_label["id"], user_id):
                 try:
@@ -627,9 +629,11 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
         line = next((l for l in cur_lines if l["id"] == tile_id), None)
         if line is None:
             return
+        panel_id = panel_label["id"]
         if action == "delete":
-            backend.delete_tile(tile_id)
-            ui.notify(f"Tile #{tile_id} deleted")
+            # off the panel only : the KPI stays in the catalogue
+            backend.remove_tile(panel_id, tile_id)
+            ui.notify(f"Tile #{tile_id} removed from the panel")
         elif action in ("winc", "wdec", "hinc", "hdec"):
             col_span = line.get("col_span") or 1
             tile_height = line.get("tile_height") or TILE_HEIGHT
@@ -641,7 +645,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                 tile_height += 40
             else:
                 tile_height = max(40, tile_height - 40)
-            backend.update_tile_layout(tile_id, col_span, tile_height)
+            backend.update_tile_layout(panel_id, tile_id, col_span, tile_height)
         else:  # left / right : swap then store the new sequence
             ids = [l["id"] for l in cur_lines]
             pos = ids.index(tile_id)
@@ -649,7 +653,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                 ids[pos - 1], ids[pos] = ids[pos], ids[pos - 1]
             elif action == "right" and pos < len(ids) - 1:
                 ids[pos + 1], ids[pos] = ids[pos], ids[pos + 1]
-            backend.update_tile_order(ids)
+            backend.update_tile_order(panel_id, ids)
         draw_tiles()
 
     edit_state = {"on": False}
@@ -760,7 +764,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                     ui.switch("Edit", value=False, on_change=on_edit_mode).props(
                         "dark"
                     ).tooltip(
-                        "Edit this panel : move, resize or delete its tiles (drag and drop, "
+                        "Edit this panel : move, resize or remove its tiles (drag and drop, "
                         "or the buttons on each tile). The changes are saved in Odoo."
                     )
                 stamp = last_sync(backend, user_id)
@@ -832,7 +836,9 @@ def create_server():
                 return JSONResponse(
                     status_code=403, content={"error": "Only a KpiTen manager can edit"}
                 )
-            backend.update_tile_order([int(i) for i in payload.get("ids", [])])
+            backend.update_tile_order(
+                int(payload["panel_id"]), [int(i) for i in payload.get("ids", [])]
+            )
         except Exception:
             logger.exception("tile order save failed")
             return JSONResponse(
