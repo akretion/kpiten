@@ -564,6 +564,7 @@ class KtConfig(models.Model):
               "explore": {"access": "everyone", "max_rows": 500000,
                           "ods_max_rows": 500000},
               "ai": {"enabled": True, "send_level": "summary",
+                     "clipboard_pseudonyms": False, "default_provider": "anthropic",
                      "send_values": True},
               "currency": {"symbol": "$", "position": "before"}}
 

@@ -170,10 +170,23 @@ class TestKtConfig(TransactionCase):
             self.config.ods_max_rows = 0
 
     def test_the_ai_switches_are_sent(self):
-        self.config.write({"ai_enabled": False, "ai_send_level": "schema"})
+        self.config.write(
+            {
+                "ai_enabled": False,
+                "ai_send_level": "schema",
+                "ai_default_provider": "anthropic",
+                "ai_clipboard_pseudonyms": False,
+            }
+        )
         self.assertEqual(
             self._json()["ai"],
-            {"enabled": False, "send_level": "schema", "send_values": False},
+            {
+                "enabled": False,
+                "send_level": "schema",
+                "clipboard_pseudonyms": False,
+                "default_provider": "anthropic",
+                "send_values": False,
+            },
         )
 
     def test_the_defaults_change_nothing_for_the_apps(self):
@@ -181,7 +194,7 @@ class TestKtConfig(TransactionCase):
         fresh = self.env["kt.config"].new({})
         self.assertEqual(fresh.default_period, "last 90 days")
         self.assertEqual(fresh.fiscal_year_start_month, "1")
-        self.assertEqual(fresh.default_theme, "capitaine")
+        self.assertEqual(fresh.default_theme, "light")
         self.assertEqual(fresh.colors_from, "theme")
         self.assertEqual(fresh.table_rows, 20)
         self.assertEqual(fresh.explore_access, "everyone")
@@ -224,6 +237,7 @@ class TestKtConfig(TransactionCase):
                 "export_ods",
                 "ai_refine",
                 "open_in_odoo",
+                "ai_tile",
             },
         )
 
