@@ -826,11 +826,20 @@ def server(input, output, session):
         one rpc account : nothing else stops a user from sending an edit)."""
         return backend_rv().can_edit_tiles(current_user_id())
 
+    @reactive.calc
+    def can_edit_panel() -> bool:
+        """The edit mode of the open panel : a KpiTen manager, or the owner of the
+        panel (`kt.panel.user_id`)."""
+        if can_edit():
+            return True
+        return backend_rv().can_edit_panel(current_user_id(), int(req(input.panel())))
+
     @render.ui
     def edit_lock():
         """The switch stays in the page (a dynamic one would render the tiles twice,
-        their render reads it) and is only hidden for a user who is not a manager."""
-        if can_edit():
+        their render reads it) and is only hidden for a user who may not edit the
+        panel (neither a manager nor its owner)."""
+        if can_edit_panel():
             return None
         return ui.tags.style(".shiny-input-container:has(#edit_mode) { display: none }")
 
@@ -1360,8 +1369,12 @@ def server(input, output, session):
         tile_id, action = int(act["id"]), act["action"]
         backend = backend_rv()
         with reactive.isolate():
-            if not can_edit():
-                ui.notification_show(tr("Only a KpiTen manager can edit tiles."))
+            if not can_edit_panel():
+                ui.notification_show(
+                    tr(
+                        "Only the owner of the panel or a KpiTen manager can edit its tiles."
+                    )
+                )
                 return
 
         with reactive.isolate():
@@ -1408,8 +1421,12 @@ def server(input, output, session):
     def _tile_order():
         ids = req(input.tile_order())  # list[str] pushed on html5 drag drop
         with reactive.isolate():
-            if not can_edit():
-                ui.notification_show(tr("Only a KpiTen manager can edit tiles."))
+            if not can_edit_panel():
+                ui.notification_show(
+                    tr(
+                        "Only the owner of the panel or a KpiTen manager can edit its tiles."
+                    )
+                )
                 return
             backend_rv().update_tile_order(int(input.panel()), [int(i) for i in ids])
             layout_version.set(layout_version() + 1)
@@ -2173,8 +2190,8 @@ def server(input, output, session):
         req(input.panel())  # no rendering before a panel is selected
         theme = current_theme()
         tile_lines = lines()
-        try:  # the switch is only there for a manager, and after its first render
-            edit_mode_on = can_edit() and bool(input.edit_mode())
+        try:  # the switch is only there for who edits the panel, after its first render
+            edit_mode_on = can_edit_panel() and bool(input.edit_mode())
         except SilentException:
             edit_mode_on = False
         cards, blocks = [], []
