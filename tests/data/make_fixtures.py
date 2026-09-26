@@ -34,9 +34,10 @@ for model in MODELS:
 
 tiles = []
 for line in env["kt.kpi"].search(
-    [("dataset_id.model_id.model", "in", MODELS), ("panel_id", "!=", False)]
+    [("dataset_id.model_id.model", "in", MODELS), ("panel_ids", "!=", False)]
 ):
-    config = json.loads(line.panel_id.filter_config or "{}")
+    panel = line.panel_ids[:1]  # the filters of its first panel
+    config = json.loads(panel.filter_config or "{}")
     tiles.append(
         {
             "name": line.name,
@@ -44,7 +45,7 @@ for line in env["kt.kpi"].search(
             "model": line.dataset_id.model_id.model,
             "definition": line.definition,
             "drill": line.drill_definition or None,
-            "panel": line.panel_id.name,
+            "panel": panel.name,
             "filter_config": config,
         }
     )

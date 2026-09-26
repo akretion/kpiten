@@ -14,6 +14,7 @@ from kpiten_core.backends.common import (
     KPI_MODEL,
     LEGACY_KPI_MODEL,
     parse_filter_config,
+    read_panel_tiles,
     tile_dict,
     tile_fields,
 )
@@ -129,7 +130,7 @@ class JsonrpcBackend:
         dataset_id = dataset[0]
         domain = [("dataset_id", "=", dataset_id)]
         if panel_id:
-            domain.append(("panel_id", "=", panel_id))
+            domain.append(("panel_ids", "in", [panel_id]))
         records = self.env[self.kpi_model].search_read(
             domain, fields=self._tile_fields()
         )
@@ -146,18 +147,9 @@ class JsonrpcBackend:
 
     def get_panel_tiles(self, panel_id: int, user_id: int) -> list[dict]:
         """All tiles of a panel, whatever the dataset model, with layout info."""
-        lines = self.env[self.kpi_model].search_read(
-            [("panel_id", "=", panel_id)], fields=self._tile_fields()
+        return read_panel_tiles(
+            self.call, self.kpi_model, self._tile_fields(), panel_id
         )
-        if not lines:
-            return []
-        dataset_ids = [l["dataset_id"][0] for l in lines]
-        datasets = self.env["kt.dataset"].read(dataset_ids, ["model_id"])
-        models: dict[int, str] = {}
-        for ds in datasets:
-            ir_model = self.env["ir.model"].browse(ds["model_id"][0])
-            models[ds["id"]] = ir_model.model
-        return [tile_dict(rec, models[rec["dataset_id"][0]]) for rec in lines]
 
     # ---- create / delete tiles ----------------------------------------
     def create_tile(
@@ -222,22 +214,23 @@ class JsonrpcBackend:
     # field of a record it browses, the preview of a KPI among them, which asks this
     # very app for a session (`kt._kpiten_session`) while it waits for Odoo : 30 s lost
     # a tile, the app stuck meanwhile
-    def delete_tile(self, line_id: int) -> None:
-        self.call(self.kpi_model, "unlink", ids=[line_id])
+    def remove_tile(self, panel_id: int, line_id: int) -> None:
+        self.call("kt.panel", "remove_tiles", ids=[panel_id], kpi_ids=[line_id])
 
-    def update_tile_layout(self, line_id: int, col_span: int, tile_height: int) -> None:
+    def update_tile_layout(
+        self, panel_id: int, line_id: int, col_span: int, tile_height: int
+    ) -> None:
         self.call(
-            self.kpi_model,
-            "write",
-            ids=[line_id],
-            vals={"col_span": col_span, "tile_height": tile_height},
+            "kt.panel",
+            "set_tile_layout",
+            ids=[panel_id],
+            kpi_id=line_id,
+            col_span=col_span,
+            tile_height=tile_height,
         )
 
-    def update_tile_order(self, line_ids: list[int]) -> None:
-        for sequence, line_id in enumerate(line_ids):
-            self.call(
-                self.kpi_model, "write", ids=[line_id], vals={"sequence": sequence}
-            )
+    def update_tile_order(self, panel_id: int, line_ids: list[int]) -> None:
+        self.call("kt.panel", "set_tile_order", ids=[panel_id], kpi_ids=line_ids)
 
     # ---- data access --------------------------------------------------
     def get_dataset_models(self) -> list[str]:

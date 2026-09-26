@@ -113,8 +113,9 @@ class Backend:
         panel_id: int | None = None,
         values: dict | None = None,
     ) -> int:
-        """A new tile on a panel ; `values` : what it keeps of the tile it is copied
-        from (`col_span`, `tile_height`, `table_view`, `display`, `drill_definition`).
+        """A new KPI, on the panel `panel_id` ; `values` : what it keeps of the tile it
+        is copied from (its size on the panel : `col_span`, `tile_height` ; `table_view`,
+        `display`, `drill_definition`).
         Returns its id."""
         raise NotImplementedError
 
@@ -155,15 +156,18 @@ class Backend:
         """Keep in Odoo the theme the user chose ; None forgets it."""
         raise NotImplementedError
 
-    def delete_tile(self, line_id: int) -> None:
+    def remove_tile(self, panel_id: int, line_id: int) -> None:
+        """Take the KPI `line_id` off the panel ; the KPI is kept (the catalogue)."""
         raise NotImplementedError
 
-    def update_tile_layout(self, line_id: int, col_span: int, tile_height: int) -> None:
-        """Store the grid layout of a tile (edit mode drag/resize)."""
+    def update_tile_layout(
+        self, panel_id: int, line_id: int, col_span: int, tile_height: int
+    ) -> None:
+        """Store the size of a KPI on a panel (edit mode resize)."""
         raise NotImplementedError
 
-    def update_tile_order(self, line_ids: list[int]) -> None:
-        """Store the tiles sequence of a panel (index in `line_ids`)."""
+    def update_tile_order(self, panel_id: int, line_ids: list[int]) -> None:
+        """Store the order of the KPIs of a panel (index in `line_ids`)."""
         raise NotImplementedError
 
     # ---- auth ---------------------------------------------------------

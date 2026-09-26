@@ -6,7 +6,7 @@ text that is not a sentence goes through unchanged).
 
     tr = translator("fr_FR")
     tr("Panel")                      # 'Panel' -> 'Tableau'
-    tr("Tile #{id} deleted", id=3)   # the {names} are filled after the translation
+    tr("Tile #{id} removed from the panel", id=3)   # the {names} are filled after the translation
 """
 
 import re
@@ -33,9 +33,9 @@ FR = {
     ),
     "Connected to {db} as {name}": "Connecté à {db} en tant que {name}",
     "Built with": "Réalisé avec",
-    "Edit this panel : move, resize or delete its tiles (drag and drop, or the "
+    "Edit this panel : move, resize or remove its tiles (drag and drop, or the "
     "buttons on each tile). The changes are saved in Odoo.": (
-        "Modifier ce tableau : déplacer, redimensionner ou supprimer ses tuiles "
+        "Modifier ce tableau : déplacer, redimensionner ou retirer ses tuiles "
         "(glisser-déposer, ou les boutons de chaque tuile). Les changements sont "
         "enregistrés dans Odoo."
     ),
@@ -88,6 +88,9 @@ FR = {
     "Taller": "Plus haute",
     "Shorter": "Moins haute",
     "Delete": "Supprimer",
+    "Remove from the panel (the KPI stays in the catalogue)": (
+        "Retirer du tableau (le KPI reste dans le catalogue)"
+    ),
     "Open these {count} records in Odoo": "Ouvrir ces {count} enregistrements dans Odoo",
     "Open the first {count} of {total} records in Odoo": (
         "Ouvrir les {count} premiers des {total} enregistrements dans Odoo"
@@ -146,7 +149,7 @@ FR = {
     "Only a KpiTen manager can edit tiles.": (
         "Seul un gestionnaire KpiTen peut modifier les tuiles."
     ),
-    "Tile #{id} deleted": "Tuile n°{id} supprimée",
+    "Tile #{id} removed from the panel": "Tuile n°{id} retirée du tableau",
     "Tiles order saved.": "Ordre des tuiles enregistré.",
     "Drill-down failed : {error}": "Le détail a échoué : {error}",
     # ask a KPI in words (querychat)

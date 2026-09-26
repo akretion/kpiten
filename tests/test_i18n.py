@@ -4,7 +4,9 @@ from kpiten_core.tiles import TileResult, rows_note
 
 def test_a_french_user_reads_french_and_the_others_english():
     fr = i18n.translator("fr_BE")
-    assert fr("Tile #{id} deleted", id=3) == "Tuile n°3 supprimée"
+    assert (
+        fr("Tile #{id} removed from the panel", id=3) == "Tuile n°3 retirée du tableau"
+    )
     assert fr("2026-04") == "2026-04"  # a month is not in the catalog
     assert i18n.translator("de_DE")("Panel") == "Panel"
     note = TileResult(kind="data", label="t", meta={"notes": [rows_note(500, 1200)]})

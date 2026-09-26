@@ -19,7 +19,9 @@ from kpiten_core import env
 from kpiten_core.backends.common import (
     KPI_MODEL,
     LEGACY_KPI_MODEL,
+    model_names,
     parse_filter_config,
+    read_panel_tiles,
     tile_dict,
     tile_fields,
 )
@@ -155,22 +157,12 @@ class Json2Backend:
 
     def _model_names(self, dataset_ids) -> dict[int, str]:
         """dataset id -> the technical name of its model."""
-        datasets = self.call(
-            "kt.dataset", "read", ids=list(set(dataset_ids)), fields=["model_id"]
-        )
-        model_ids = {ds["model_id"][0] for ds in datasets}
-        names = {
-            m["id"]: m["model"]
-            for m in self.call(
-                "ir.model", "read", ids=list(model_ids), fields=["model"]
-            )
-        }
-        return {ds["id"]: names[ds["model_id"][0]] for ds in datasets}
+        return model_names(self.call, dataset_ids)
 
     def get_panel_lines(self, model: str, panel_id: int | None = None) -> list[dict]:
         domain = [("dataset_id.model_id.model", "=", model)]
         if panel_id:
-            domain.append(("panel_id", "=", panel_id))
+            domain.append(("panel_ids", "in", [panel_id]))
         records = self.call(
             self.kpi_model, "search_read", domain=domain, fields=self._tile_fields()
         )
@@ -193,16 +185,9 @@ class Json2Backend:
 
     def get_panel_tiles(self, panel_id: int, user_id: int) -> list[dict]:
         """All tiles of a panel, whatever the dataset model, with layout info."""
-        lines = self.call(
-            self.kpi_model,
-            "search_read",
-            domain=[("panel_id", "=", panel_id)],
-            fields=self._tile_fields(),
+        return read_panel_tiles(
+            self.call, self.kpi_model, self._tile_fields(), panel_id
         )
-        if not lines:
-            return []
-        models = self._model_names(l["dataset_id"][0] for l in lines)
-        return [tile_dict(rec, models[rec["dataset_id"][0]]) for rec in lines]
 
     # ---- create / delete tiles ----------------------------------------
     def create_tile(
@@ -271,22 +256,23 @@ class Json2Backend:
             language=language,
         )
 
-    def delete_tile(self, line_id: int) -> None:
-        self.call(self.kpi_model, "unlink", ids=[line_id])
+    def remove_tile(self, panel_id: int, line_id: int) -> None:
+        self.call("kt.panel", "remove_tiles", ids=[panel_id], kpi_ids=[line_id])
 
-    def update_tile_layout(self, line_id: int, col_span: int, tile_height: int) -> None:
+    def update_tile_layout(
+        self, panel_id: int, line_id: int, col_span: int, tile_height: int
+    ) -> None:
         self.call(
-            self.kpi_model,
-            "write",
-            ids=[line_id],
-            vals={"col_span": col_span, "tile_height": tile_height},
+            "kt.panel",
+            "set_tile_layout",
+            ids=[panel_id],
+            kpi_id=line_id,
+            col_span=col_span,
+            tile_height=tile_height,
         )
 
-    def update_tile_order(self, line_ids: list[int]) -> None:
-        for sequence, line_id in enumerate(line_ids):
-            self.call(
-                self.kpi_model, "write", ids=[line_id], vals={"sequence": sequence}
-            )
+    def update_tile_order(self, panel_id: int, line_ids: list[int]) -> None:
+        self.call("kt.panel", "set_tile_order", ids=[panel_id], kpi_ids=line_ids)
 
     # ---- data access --------------------------------------------------
     def get_dataset_models(self) -> list[str]:

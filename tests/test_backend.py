@@ -30,9 +30,10 @@ def test_json2_sends_named_arguments_with_the_api_key(monkeypatch):
 
     monkeypatch.setattr("requests.Session.post", post)
     backend = Json2Backend(db="claude20")
-    backend.delete_tile(7)
+    backend.remove_tile(3, 7)
     url, body, headers = calls[-1]
-    assert url.endswith("/json/2/kt.kpi/unlink") and body == {"ids": [7]}
+    assert url.endswith("/json/2/kt.panel/remove_tiles")
+    assert body == {"ids": [3], "kpi_ids": [7]}
     assert headers["Authorization"] == "bearer secret"
     assert headers["X-Odoo-Database"] == "claude20"
     assert backend.check_uuid("x") is None  # the error is logged, not raised
