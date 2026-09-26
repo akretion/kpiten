@@ -276,6 +276,21 @@ class KtConfig(models.Model):
         "answer is shown with the real names. In clear : the same without pseudonyms, "
         "for a local model (nothing leaves the machine).",
     )
+    ai_default_provider = fields.Selection(
+        [
+            ("anthropic", "Claude (API)"),
+            ("local", "The local model"),
+            ("clipboard", "Copy and paste to a chat (KpiTen managers)"),
+        ],
+        string="Default AI",
+        default="anthropic",
+        required=True,
+        help="The model offered first : in marimo (the user may choose another one), "
+        "and the one of the ✨ of Shiny. Claude and the local model are configured on "
+        "the server (ANTHROPIC_API_KEY, LOCAL_LLM_MODEL) : one that is not falls back "
+        "on the other. Copy and paste is for the KpiTen managers in marimo ; the others, "
+        "and Shiny, get Claude or the local model.",
+    )
     ai_clipboard_pseudonyms = fields.Boolean(
         string="Pseudonyms in a copied prompt",
         default=False,
@@ -612,6 +627,7 @@ class KtConfig(models.Model):
             "enabled": rec.ai_enabled,
             "send_level": rec.ai_send_level,
             "clipboard_pseudonyms": rec.ai_clipboard_pseudonyms,
+            "default_provider": rec.ai_default_provider,
             # for an older app, which knows only whether values may be sent
             "send_values": rec.ai_send_level != "schema",
         }

@@ -123,6 +123,10 @@
                         </group>
                         <group string="AI (marimo explorer)">
                             <field name="ai_enabled" />
+                            <field
+                                name="ai_default_provider"
+                                invisible="not ai_enabled"
+                            />
                             <field name="ai_send_level" invisible="not ai_enabled" />
                             <field
                                 name="ai_clipboard_pseudonyms"
