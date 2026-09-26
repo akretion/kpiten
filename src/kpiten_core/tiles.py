@@ -210,12 +210,24 @@ def exec_tile(
             meta = {"comparison": comparison} if comparison else {}
             if subtitle:
                 meta["subtitle"] = subtitle
-            return TileResult("card", label, value=value, display=display, meta=meta)
+            return _filters_note(
+                TileResult("card", label, value=value, display=display, meta=meta),
+                line,
+                table,
+                store,
+                full_predicates,
+            )
         if kind == "graph":
             chart, meta = graph_case(
                 line["content"], table, store, full_predicates, field_labels
             )
-            return TileResult("graph", label, chart=chart, meta=meta)
+            return _filters_note(
+                TileResult("graph", label, chart=chart, meta=meta),
+                line,
+                table,
+                store,
+                full_predicates,
+            )
         if kind == "pivot":
             df, drawing = pivot_case(
                 line["content"], table, store, full_predicates, field_labels
@@ -223,13 +235,32 @@ def exec_tile(
             df, meta = cap_rows(df)
             if drawing:
                 meta["table"] = drawing
-            return TileResult("pivot", label, df=df, meta=meta)
+            return _filters_note(
+                TileResult("pivot", label, df=df, meta=meta),
+                line,
+                table,
+                store,
+                full_predicates,
+            )
         if kind == "union":
             df = union_case(line, store, full_predicates)
             df, meta = cap_rows(df)
             return TileResult("union", label, df=df, meta=meta)
         if kind == "data":
-            df = dataframe_case(line["content"], table, store, full_predicates)
+            # the other tables it names (a derived table : `FROM confirmed_sales`,
+            # `tables["confirmed_sales"]`), filtered like the tile, as in a drill-down
+            tables = {
+                name: filter_df(_resolve_table(store, name), full_predicates)
+                for name in store
+                if name != table and name in (line.get("content") or "")
+            }
+            df = dataframe_case(
+                line["content"],
+                table,
+                store,
+                full_predicates,
+                {"tables": tables} if tables else None,
+            )
             df, meta = cap_rows(df)
             df, keys = split_keys(df)
             if keys:
@@ -244,6 +275,54 @@ def exec_tile(
         logger.error("Could not load tile %s", label, exc_info=True)
         raise TileError(f"Error tile '{label}' ({kind}) : {err}") from err
     raise TileError(f"unknown kind '{kind}' for tile '{label}'")
+
+
+def _filters_note(result, line, table, store, predicates):
+    """A tile that reads another table (`from` : a derived table...) : a note names the
+    filters of the panel it could not apply, the table having none of their columns
+    (a derived table without the date of the panel is read on every period)."""
+    try:
+        definition = serial.loads(line.get("content") or "")
+        source = definition.get("from")
+        if not source or source == table or source not in store:
+            return result
+        lazy = store[source].lazy()
+        columns = set(lazy.collect_schema().names())
+        # the period : one predicate per date field of the panel (`date_order`, and
+        # `order_id.date_order` for the lines), each on the tables that have it ; it
+        # applies when one of them does
+        schemas = {name: frame.lazy().collect_schema() for name, frame in store.items()}
+
+        def is_period(predicate):
+            return any(
+                schema.get(n) is not None and schema[n].is_temporal()
+                for n in predicate.meta.root_names()
+                for schema in schemas.values()
+            )
+
+        period = [p for p in predicates if is_period(p)]
+        others = [p for p in predicates if not is_period(p)]
+        applies = lambda p: all(c in columns for c in p.meta.root_names())
+        missing = sorted(
+            {c for p in others if not applies(p) for c in p.meta.root_names()}
+        )
+        if (
+            period
+            and not definition.get("ignore_period")
+            and not any(applies(p) for p in period)
+        ):
+            missing = sorted({*missing, *period[0].meta.root_names()})
+    except Exception:  # a note is no reason to fail a tile
+        logger.exception("filters note of %s", line.get("name"))
+        return result
+    if missing:
+        result.meta.setdefault("notes", []).append(
+            (
+                "The filters on {columns} do not apply to {table}",
+                {"columns": ", ".join(missing), "table": source},
+            )
+        )
+    return result
 
 
 TODAY_RE = re.compile(r"\{today(?:-(\d+))?\}")

@@ -45,3 +45,58 @@ def test_a_derived_table_in_polars_reads_the_others():
     ]
     tables, errors = derived.resolve(STORE, definitions)
     assert errors == {} and tables["big"].collect()["id"].to_list() == [3]
+
+
+def test_a_tile_reads_a_derived_table_and_says_which_filters_it_lacks():
+    from kpiten_core import tiles
+
+    store = {
+        "sale.order": pl.LazyFrame(
+            {
+                "id": [1, 2],
+                "state": ["sale", "sale"],
+                "amount": [10.0, 30.0],
+                "user_id": ["Ann", "Bob"],
+            }
+        )
+    }
+    definitions = [
+        {
+            "name": "by_user",
+            "source": "sale.order",
+            "sql": "SELECT user_id, SUM(amount) AS total FROM d GROUP BY user_id",
+        },
+    ]
+    tables, _errors = derived.resolve(store, definitions)
+    line = {
+        "kind": "card",
+        "name": "Total",
+        "content": 'from = "by_user"\nmeasure = "total"\naggregation = "sum"',
+    }
+    predicates = [pl.col("user_id") == "Ann", pl.col("date_order") > 0]
+    result = tiles.exec_tile(line, "sale.order", {**store, **tables}, predicates)
+    assert result.value == 10.0  # the user filter applies, the date one cannot
+    assert "date_order" in result.note and "by_user" in result.note
+
+
+def test_a_data_tile_reads_a_derived_table_by_its_name():
+    from kpiten_core import tiles
+
+    tables, _errors = derived.resolve(
+        STORE,
+        [
+            {
+                "name": "confirmed",
+                "source": "sale.order",
+                "sql": "SELECT * FROM d WHERE state = 'sale'",
+            }
+        ],
+    )
+    store = {**STORE, **tables}
+    for content in (
+        "SELECT COUNT(*) AS n FROM confirmed",
+        'd_next = tables["confirmed"].select(pl.len().alias("n"))',
+    ):
+        line = {"kind": "data", "name": "n", "content": content}
+        result = tiles.exec_tile(line, "sale.order", store, [pl.col("amount") > 15])
+        assert result.df["n"].to_list() == [1]  # filtered like the tile : id 3 only

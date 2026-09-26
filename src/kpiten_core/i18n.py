@@ -120,6 +120,9 @@ FR = {
         "Odoo affiche la somme et le nombre : pas le maximum"
     ),
     "First {rows} of {total} rows": "{rows} premières lignes sur {total}",
+    "The filters on {columns} do not apply to {table}": (
+        "Les filtres sur {columns} ne s'appliquent pas à {table}"
+    ),
     "Grouped by month": "Regroupé par mois",
     "Top {limit} of {total}": "Les {limit} premiers sur {total}",
     "Top {limit} of {total} (rest in Others)": (

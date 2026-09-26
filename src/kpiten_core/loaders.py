@@ -378,3 +378,19 @@ def user_store(backend: "Backend", user_id: int) -> dict[str, pl.LazyFrame]:
             except Exception:
                 logger.exception("user store fetch failed for %s", table)
     return store
+
+
+def tile_store(backend: "Backend", user_id: int) -> dict[str, pl.LazyFrame]:
+    """The store of the tiles : `user_store`, and the shared derived tables
+    (`kt.derived.table`) computed on it. A tile reads a derived table by its name
+    (`from = "confirmed_sales"`, or in the SQL of a `data` tile) ; each user sees their
+    own rows. A personal derived table is not here : the tiles of a panel are seen by
+    several users."""
+    from kpiten_core import derived
+
+    store = user_store(backend, user_id)
+    shared = [d for d in backend.get_derived_tables(user_id) if d.get("shared")]
+    tables, errors = derived.resolve(store, shared)
+    for name, why in errors.items():
+        logger.warning("derived table %s left out for user %s : %s", name, user_id, why)
+    return {**store, **tables}
