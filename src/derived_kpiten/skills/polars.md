@@ -14,7 +14,9 @@ the code may be shown step by step (one step per method, its comment as its word
 - One method per line, and above each one a comment `# ...` that says what it does, in
   plain words, **in the language of the question** (a question in French gets comments
   in French).
-- The result : sorted, at most 1000 rows, with readable names (`.alias("Untaxed")`).
+- The result : sorted, at most 1000 rows, its columns named with `.alias(...)` **in the
+  language of the question** (`.alias("CA HT")`, `.alias("Vendeur")` for a question in
+  French).
 
 Example :
 

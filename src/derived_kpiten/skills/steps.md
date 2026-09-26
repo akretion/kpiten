@@ -18,8 +18,8 @@ its words, the rows before and after it, the columns it adds. Write it for that 
   confirmées`).
 - CTE names in snake_case that say what the table holds : `confirmed_orders`,
   `by_salesperson`, never `t1`, `cte2`, `tmp`.
-- The final SELECT : sorted, at most 1000 rows, with readable names in double quotes
-  (`AS "Untaxed amount"`).
+- The final SELECT : sorted, at most 1000 rows, its columns named in double quotes **in
+  the language of the question** (`AS "CA HT"`, `AS "Vendeur"` for a question in French).
 
 Example :
 

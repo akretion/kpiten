@@ -13,8 +13,8 @@ gives it, short and efficient.
 - Efficient : filter as early as possible, keep only the columns the result needs, group
   before a join when the join repeats rows. Polars runs it lazily and optimizes it :
   do not add what it does itself (no hints, no temporary tables).
-- The final SELECT : sorted, at most 1000 rows, with readable names in double quotes
-  (`AS "Untaxed amount"`).
+- The final SELECT : sorted, at most 1000 rows, its columns named in double quotes **in
+  the language of the question** (`AS "CA HT"`, `AS "Vendeur"` for a question in French).
 
 Example :
 
