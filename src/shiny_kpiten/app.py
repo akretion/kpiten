@@ -13,6 +13,7 @@ theme can be picked in the UI bar, and is then kept in Odoo for the user.
 """
 
 import asyncio
+import base64
 import datetime
 import json
 import logging
@@ -510,6 +511,34 @@ DRILL_JS = """
 })();
 """
 
+# the spreadsheet of a tile : a click asks the server, which sends the file back
+SHEET_JS = """
+(function () {
+  if (window.__kpitenSheet) { return; }
+  window.__kpitenSheet = true;
+  document.addEventListener("click", function (ev) {
+    var button = ev.target.closest(".tile-sheet");
+    if (!button || !window.Shiny) { return; }
+    var tile = button.closest(".tile");
+    Shiny.setInputValue("tile_sheet", {line: parseInt(tile.dataset.tileId, 10)},
+      {priority: "event"});
+  });
+  function register() {
+    if (!window.Shiny || !Shiny.addCustomMessageHandler) { setTimeout(register, 100); return; }
+    Shiny.addCustomMessageHandler("kpiten_download", function (msg) {
+      var bytes = Uint8Array.from(atob(msg.data), function (c) { return c.charCodeAt(0); });
+      var link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([bytes], {type: msg.mime}));
+      link.download = msg.filename;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(function () { URL.revokeObjectURL(link.href); link.remove(); }, 1000);
+    });
+  }
+  register();
+})();
+"""
+
 # ✨ on a tile opens the chat about it ; × on its badge removes the filter the AI made
 AI_JS = """
 (function () {
@@ -654,8 +683,10 @@ def tile_html(
     tr=i18n.english,
     ai: str = "",
     check: str = "",
+    sheet: bool = False,
 ) -> str:
-    """Tile html ; `info` goes in a tooltip = active filters description ; `records` is
+    """Tile html ; `sheet` : a table offers its rows as a spreadsheet (a button, when
+    `kt.config` lets the user export) ; `info` goes in a tooltip = active filters description ; `records` is
     the link that opens the listed records in Odoo (when the KPI lists some) ;
     `sparkline` the trend under a card's value ; `grid` : a table drawn as an
     interactive grid (`grid_<id>`, the server renders it) ; `tr` : the language of
@@ -686,7 +717,13 @@ def tile_html(
             + (f'<div class="kpi-trend">{sparkline}</div>' if sparkline else "")
             + "</div>"
         )
-    parts = [tile_header(line, result.kind, info, tr, check + ai)]
+    sheet_button = (
+        f'<button type="button" class="tile-sheet" title="{tr("Download the rows of this tile (spreadsheet)")}">'
+        f"{SPREADSHEET_ICON}</button>"
+        if sheet and result.df is not None
+        else ""
+    )
+    parts = [tile_header(line, result.kind, info, tr, check + ai + sheet_button)]
     # a plugin may draw the tile (kpiten_core.hookspecs), e.g. perspective-kpiten
     plugged = core_plugins.render_tile(line, result, p)
     if plugged:
@@ -970,6 +1007,7 @@ def server(input, output, session):
             ui.tags.script(links.NEW_TAB_JS),
             ui.tags.script(DRILL_JS),
             ui.tags.script(AI_JS),
+            ui.tags.script(SHEET_JS),
         )
 
     @reactive.calc
@@ -1183,6 +1221,43 @@ def server(input, output, session):
         if note:
             ui.notification_show(f"{input.ods_model()} : {note}", type="warning")
         yield data
+
+    @reactive.effect
+    @reactive.event(input.tile_sheet)
+    async def _tile_sheet():
+        """The rows of a tile as a spreadsheet, with the period and the filters of the
+        panel (the same rows as on screen, cut like them at TILE_MAX_ROWS)."""
+        if not core_config.explore_allowed(can_edit()):
+            return
+        wanted = (input.tile_sheet() or {}).get("line")
+        line = next((l for l in lines() if l["id"] == wanted), None)
+        if line is None:
+            return
+        try:
+            previous_predicates, previous_label = previous()
+            result = core_tiles.exec_tile(
+                line,
+                line["model"],
+                tile_store(line),
+                predicates(),
+                previous_predicates,
+                previous_label,
+                core_labels.field_labels_of(backend_rv(), odoo_lang),
+            )
+            name = line["name"] or line["kind"]
+            data = core_ods.tile_ods(name, result.df)
+        except Exception as err:
+            logger.exception("spreadsheet of tile %s", wanted)
+            ui.notification_show(str(err), type="error")
+            return
+        await session.send_custom_message(
+            "kpiten_download",
+            {
+                "filename": f"{re.sub(r'[^\w.-]+', '_', name)}.ods",
+                "mime": "application/vnd.oasis.opendocument.spreadsheet",
+                "data": base64.b64encode(data).decode(),
+            },
+        )
 
     @reactive.calc
     def derived_tables_info() -> dict:
@@ -2149,6 +2224,7 @@ def server(input, output, session):
                             else ""
                         ),
                         check=check,
+                        sheet=core_config.explore_allowed(can_edit()),
                     )
                 )
             except Exception as err:

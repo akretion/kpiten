@@ -283,11 +283,12 @@ class Theme:
 }}
 .tile h3 .tile-actions {{ margin-left: auto; display: flex; gap: 6px; align-items: center }}
 .tile h3 .tile-info {{ opacity: .45; cursor: help; color: {p["text"]} }}
-.tile-full {{
+.tile-full, .tile-sheet {{
   background: transparent; border: 0; padding: 2px; color: {p["text"]}; opacity: .45;
   cursor: pointer; line-height: 1;
 }}
-.tile-full:hover, .tile h3 .tile-info:hover {{ opacity: .9 }}
+.tile h3 .tile-actions .tile-sheet svg {{ fill: none; stroke: currentColor }}
+.tile-full:hover, .tile-sheet:hover, .tile h3 .tile-info:hover {{ opacity: .9 }}
 /* ask the AI about a tile */
 .tile-ai, .tile-ai-clear, .tile-ai-promote, .panel-ai-clear, .tile-save {{
   background: transparent; border: 0; padding: 2px; color: {p["text"]}; opacity: .45;
