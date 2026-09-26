@@ -14,6 +14,7 @@ No SSO and no edit mode (that's the "simplified" part of the port).
 
 import logging
 import pathlib
+import re
 
 from kpiten_core.render.gtable import DRILL_CSS, gt_table
 from kpiten_core.render.plotly import apply_theme_colors, category_labels, finish
@@ -233,9 +234,12 @@ def tile_view(
     act=None,
     info: str = "",
     records: dict | None = None,
+    sheet: bool = False,
 ):
     """Draw one tile inside its card container (with toolbar in edit mode). `records`
-    is the link that opens the records the tile lists in Odoo, when it lists some."""
+    is the link that opens the records the tile lists in Odoo, when it lists some ;
+    `sheet` : a table offers its rows as a spreadsheet (when `kt.config` lets the user
+    export)."""
     container_context = ui.element if edit else ui.column
     drillable = bool(line.get("drill")) and bool(result.keys)
     container = container_context().classes("tile drillable" if drillable else "tile")
@@ -276,6 +280,18 @@ def tile_view(
             ui.label(line["name"] or result.kind).classes(
                 "text-base font-semibold"
             ).tooltip(result.kind)
+            if sheet and result.df is not None:
+                name = line["name"] or result.kind
+                ui.space()
+                ui.button(
+                    icon="grid_on",
+                    on_click=lambda: ui.download(
+                        core_ods.tile_ods(name, result.df),
+                        re.sub(r"[^\w.-]+", "_", name) + ".ods",
+                    ),
+                ).props("flat dense round size=sm").classes("opacity-50").tooltip(
+                    "Download the rows of this tile (spreadsheet)"
+                )
         if result.kind == "graph":
             apply_theme_colors(result.figure, palette)
             # the labels of the categories that fit the width of the tile
@@ -592,6 +608,7 @@ def dashboard(request: Request, theme: str | None = None, db: str | None = None)
                             act=act,
                             info=tile_info(line),
                             records=records,
+                            sheet=core_config.explore_allowed(can_edit),
                         )
                 except Exception as err:
                     logger.exception("tile %s failed", line.get("name"))
