@@ -8,15 +8,16 @@ app = marimo.App(width="medium", app_title="Step by step")
 def _():
     import marimo as mo
 
+    from kpiten_core import anonymize
     from kpiten_core.backend import Backend
     from kpiten_core.loaders import user_store
-    from marimo_kpiten import ui
+    from marimo_kpiten import ai, ui
 
     try:
         import derived_kpiten
     except ImportError:  # the plugin is not in the venv of marimo (make apps)
         derived_kpiten = None
-    return Backend, derived_kpiten, mo, ui, user_store
+    return Backend, ai, anonymize, derived_kpiten, mo, ui, user_store
 
 
 @app.cell
@@ -43,7 +44,7 @@ def _(Backend, db, derived_kpiten, mo, ui, user_id, user_store):
     store = user_store(backend, user_id)
     mo.stop(not store, mo.callout("No data source in your scope.", kind="warn"))
     manager = backend.can_edit_tiles(user_id)  # a KpiTen manager : the detail
-    return manager, store
+    return backend, manager, store
 
 
 @app.cell
@@ -127,16 +128,143 @@ SELECT * FROM d LIMIT 10"""
 
 
 @app.cell
-def _(EXAMPLES, FIRST_ROWS, manager, mo, source):
+def _(EXAMPLES, FIRST_ROWS, mo, source):
+    # the query of the editor, that the AI may replace ; a new table starts over
+    get_sql, set_sql = mo.state(EXAMPLES.get(source.value, FIRST_ROWS))
+    get_answer, set_answer = mo.state(None)  # the last answer of the AI
+    return get_answer, get_sql, set_answer, set_sql
+
+
+@app.cell
+def _(ai, anonymize, backend, derived_kpiten, mo, source, store):
+    # Ask the AI : it writes the query in steps (skill steps.md of derived-kpiten)
+    available = ai.providers() if ai.enabled() else {}
+    if not available:
+        ai_panel = mo.md(
+            "<small>No AI here : turned off in the KpiTen configuration, or none "
+            "configured (`ANTHROPIC_API_KEY`, `LOCAL_LLM_MODEL` in `.env`).</small>"
+        )
+        provider = question = ask_button = anon = description = joins = None
+    else:
+        _level = ai.send_level()  # kt.config : schema, summary (pseudonyms) or clear
+        # the pseudonyms of this table, kept for the whole conversation
+        anon = anonymize.for_table(backend, source.value, hide=_level != "clear")
+        with mo.status.spinner("Reading the columns..."):
+            description = ai.describe(store[source.value], anon, _level)
+        # the columns of the tables it may join : only those chosen (a small local
+        # model reads a short prompt only)
+        joins = mo.ui.multiselect(
+            [name for name in sorted(store) if name != source.value],
+            label="Tables to join",
+        )
+        provider = mo.ui.dropdown(
+            {p.label: key for key, p in available.items()},
+            value=next(iter(p.label for p in available.values())),
+            label="Model",
+        )
+        question = mo.ui.text_area(
+            placeholder="The confirmed sales of 2025 by month and salesperson, "
+            "or : now only the customers of France",
+            full_width=True,
+            rows=2,
+        )
+        ask_button = mo.ui.run_button(label="✨ Ask the AI")
+        _sent = {
+            "schema": "the name and type of the columns",
+            "summary": "the columns, figures on them and a few rows, with the "
+            "customers, people and products renamed (`Customer 12`)",
+            "clear": "the columns, figures on them and a few rows, **in clear**",
+        }[_level]
+        ai_panel = mo.vstack(
+            [
+                mo.hstack([question, ask_button], align="end", widths=[5, 1]),
+                mo.hstack(
+                    [
+                        provider,
+                        joins,
+                        mo.accordion(
+                            {
+                                "What the model is told": mo.md(
+                                    f"The model gets {_sent}, the columns of the tables "
+                                    "to join, your question and the query of the "
+                                    "editor. Its query runs here, on the rows you may "
+                                    f"read.\n\n```\n{description}\n```"
+                                )
+                            }
+                        ),
+                    ],
+                    justify="start",
+                    align="start",
+                ),
+            ]
+        )
+    history = []  # what was said, for the next question (a new table starts over)
+    ai_panel
+    return anon, ask_button, available, description, history, joins, provider, question
+
+
+@app.cell
+def _(
+    anon,
+    ask_button,
+    available,
+    derived_kpiten,
+    description,
+    get_sql,
+    history,
+    joins,
+    mo,
+    provider,
+    question,
+    set_answer,
+    set_sql,
+    source,
+    store,
+):
+    mo.stop(ask_button is None or not ask_button.value or not question.value.strip())
+    _system = derived_kpiten.ai.system_prompt(
+        source.value,
+        description,
+        {name: derived_kpiten.ai.columns(store[name]) for name in joins.value},
+    )
+    with mo.status.spinner("The AI writes the query..."):
+        _answer = derived_kpiten.ai.ask(
+            available[provider.value],
+            {**store, "d": store[source.value]},
+            _system,
+            question.value.strip(),
+            current=get_sql(),
+            history=history,
+            anon=anon,
+        )
+    history.extend(_answer.exchange)
+    del history[:-8]
+    set_answer(_answer)
+    if _answer.sql:
+        set_sql(_answer.sql)
+    return
+
+
+@app.cell
+def _(get_answer, get_sql, manager, mo, set_sql):
+    _answer = get_answer()
+    _said = []
+    if _answer is not None and _answer.text:
+        _said.append(mo.callout(mo.md(_answer.text), kind="neutral"))
+    if _answer is not None and _answer.error and _answer.sql:
+        _said.append(
+            mo.md(f"<small>The AI could not fix its query : `{_answer.error}`</small>")
+        )
     editor = mo.ui.code_editor(
-        value=EXAMPLES.get(source.value, FIRST_ROWS),
+        value=get_sql(),
         language="sql",
         min_height=260,
         label="The SQL of the derived table (run when you leave the editor)",
+        on_change=set_sql,
     )
     # the detail (the SQL and the measures of each step) : a KpiTen manager only
     detail = mo.ui.checkbox(label="Detail") if manager else None
-    mo.vstack([editor, detail] if detail is not None else [editor])
+    mo.vstack([*_said, editor, *([detail] if detail is not None else [])])
     return detail, editor
 
 

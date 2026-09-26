@@ -32,6 +32,11 @@ chaque étape fait à ses lignes : lignes avant → après, colonnes ajoutées o
 échantillon. Un KpiTen manager coche « Detail » : le SQL de chaque étape, les lignes retirées
 par chaque condition, les jointures qui multiplient les lignes, la taille des groupes.
 
+« ✨ Ask the AI » : l'IA écrit (ou modifie) la requête de l'éditeur en étapes commentées,
+dans la langue de la question ; elle reçoit la description de `d` au niveau de `kt.config`
+(pseudonymes par défaut) et les colonnes des seules « Tables to join » choisies. Un modèle
+local sur CPU (fenêtre de 4 096 tokens) reste lent : Claude est le fournisseur visé.
+
 Le travail est fait par le plugin `derived-kpiten` (`src/derived-kpiten`), installé dans ce
 venv par `make apps` (`MARIMO_PLUGINS`) ; sans lui, la page le dit. Spécification :
 `docs/kpiten-tables-derivees.md` de `bi/`.
