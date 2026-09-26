@@ -20,7 +20,7 @@ import polars as pl
 import sqlglot
 from sqlglot import exp
 
-from kpiten_core import sqltile
+from kpiten_core import sandbox, sqltile
 
 RESULT = "result"  # the name of the last step, the query past its WITH
 SAMPLE_ROWS = 10
@@ -53,6 +53,11 @@ class Step:
     used: list[str] = field(default_factory=list)  # the columns its SQL names
     after: str | None = None  # a clause : the step it follows (its rows in)
     clause: bool = False  # a clause of a query without CTE : no table of its own
+    language: str = "sql"  # or "polars" : `sql` is then python, its result `step_out`
+    shown: str = ""  # what the step adds, shown in the detail (else `sql`)
+    other: str | None = None  # polars : the table a join reads
+    join_on: str = ""
+    join_how: str = ""
 
     @property
     def kind(self) -> str:
@@ -267,9 +272,22 @@ def reads(sql: str) -> list[str]:
     return names
 
 
-def polars_code(sql: str, source: str, db: str = "") -> str:
+def polars_code(sql: str, source: str, db: str = "", language: str = "sql") -> str:
     """The query as python : polars runs it lazily on the store of the user (what
     to copy in a notebook or a script of one's own)."""
+    if language == "polars":
+        return f"""import polars as pl
+from kpiten_core.backend import Backend
+from kpiten_core.loaders import user_store
+
+# the rows and the columns user_id may read in Odoo
+tables = user_store(Backend.create(db="{db}"), user_id)
+d = tables["{source}"]
+
+{sql.strip()}
+
+result = d_next.collect()
+"""
     frames = ", ".join(
         f'"{name}": store["{source if name == "d" else name}"]' for name in reads(sql)
     )
@@ -405,6 +423,25 @@ def _detail(step: Step, tables: dict) -> dict:
     return detail
 
 
+def _polars_detail(step: Step, result, frames: dict) -> dict:
+    """The detail of a polars step : its join, measured by the rows of the step."""
+    if "join" not in step.kinds:
+        return {}
+    other = frames.get(step.other) if step.other else None
+    return {
+        "join": [
+            {
+                "table": step.other or "?",
+                "on": step.join_on,
+                "side": step.join_how.upper(),
+                "rows_before": result.rows_in,
+                "rows_after": result.rows_out,
+                "rows_other": _count(other) if other is not None else None,
+            }
+        ]
+    }
+
+
 def trace(
     steps: list[Step],
     tables: dict,
@@ -417,7 +454,13 @@ def trace(
     frames = {name: frame.lazy() for name, frame in tables.items()}
     results, outputs = [], {}
     for step in steps:
-        frame = sqltile.run(step.sql, frames)
+        if step.language == "polars":
+            others = {k: v for k, v in frames.items() if k != "d"}
+            frame = sandbox.run(
+                step.sql, frames.get("d"), "d", "step_out", variables={"tables": others}
+            ).lazy()
+        else:
+            frame = sqltile.run(step.sql, frames)
         if step.after:  # a clause : its rows in are the rows of the clause before
             first = outputs[step.after]
         else:
@@ -430,7 +473,9 @@ def trace(
             columns=frame.collect_schema().names(),
             sample=frame.head(sample_rows).collect(),
         )
-        if detail:
+        if detail and step.language == "polars":
+            result.detail = _polars_detail(step, result, frames)
+        elif detail:
             result.detail = _detail(step, frames)
         results.append(result)
         outputs[step.name] = frame

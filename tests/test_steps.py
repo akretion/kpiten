@@ -139,3 +139,37 @@ def test_a_pasted_answer_with_an_unknown_name_does_not_run(tables):
     answer = ai.receive(pasted.replace(", 'Salesperson 9'", ""), tables, anon)
     assert answer.error is None and "'Ann'" in answer.sql  # revealed, then run
     assert answer.results[-1].rows_out == 2
+
+
+def test_polars_code_step_by_step(tables):
+    from derived_kpiten import ai
+
+    code = """d_next = (
+    d
+    # les commandes confirmées
+    .filter(pl.col("state").is_in(["sale", "done"]))
+    # leurs lignes
+    .join(tables["line"], left_on="id", right_on="order_id")
+    # le total par vendeur
+    .group_by("user_id").agg(pl.col("amount").sum().alias("total"))
+    .sort("total", descending=True)
+)"""
+    steps = ai.split_code(code, "polars")
+    assert [(s.name, s.kind, s.comment) for s in steps] == [
+        ("filter", "filter", "les commandes confirmées"),
+        ("join", "join", "leurs lignes"),
+        ("group_by_agg", "group", "le total par vendeur"),
+        (RESULT, "sort", ""),
+    ]
+    results = trace(steps, tables, detail=True)
+    assert [(r.rows_in, r.rows_out) for r in results] == [
+        (4, 3),
+        (3, 3),  # order 1 has 2 lines, order 4 none : its amount counted twice
+        (3, 2),
+        (2, 2),
+    ]
+    assert results[1].detail["join"][0]["rows_other"] == 3
+    answer = ai.receive(
+        f"Voici.\n```python\n{code}\n```", tables, language="polars", mode="query"
+    )
+    assert answer.error is None and answer.table["total"].to_list() == [200.0, 50.0]

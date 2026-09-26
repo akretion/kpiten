@@ -195,7 +195,7 @@ def _step(number: int, result: StepResult, largest: int, detail: bool) -> str:
     width = 100 * result.rows_out / largest if largest else 0
     body = [_columns(result)]
     if detail:
-        body.append(f"<pre>{_e(step.sql)}</pre>")
+        body.append(f"<pre>{_e(step.shown or step.sql)}</pre>")
         found = result.detail
         if "filter" in found:
             body.append(_filter(found["filter"]))

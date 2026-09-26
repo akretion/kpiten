@@ -11,6 +11,7 @@ what the user may read.
 """
 
 from . import ai
+from .polars_steps import split_polars
 from .render import render
 from .steps import (
     RESULT,
@@ -32,6 +33,7 @@ __all__ = [
     "reads",
     "render",
     "short_error",
+    "split_polars",
     "split",
     "trace",
 ]
