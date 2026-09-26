@@ -15,7 +15,7 @@ from typing import Any
 import polars as pl
 
 from kpiten_core import config as settings
-from kpiten_core.charts import KINDS, Chart
+from kpiten_core.charts import KINDS, Chart, linear_trend
 from kpiten_core import env, i18n, labels, links, numfmt, serial, sandbox, spec, sqltile
 from kpiten_core.month import apply_monthly, is_date
 from kpiten_core.spec import CARD_AGGREGATIONS, DATE_DIFF_RE as DERIVE_RE
@@ -657,6 +657,10 @@ def _chart(graph_json, table, field_labels, points, cx, cy, temporal, notes):
         orientation=graph_json.get("orientation", "v"),
         plotly=graph_json.get("plotly") or {},
     )
+    ahead = graph_json.get("trend")
+    if ahead is not None and temporal and not series and kind != "pie":
+        # the linear trend, dotted, prolonged `trend` points (months, by month)
+        chart.trend = linear_trend(points, cx["name"], cy["name"], max(ahead, 0))
     notes = [n for n in notes if n]
     return chart, ({"notes": notes} if notes else {})
 

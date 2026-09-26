@@ -125,6 +125,9 @@ FR = {
         "Copier le lien de cette vue (tableau, période, filtres)"
     ),
     "The link of this view :": "Le lien de cette vue :",
+    "Download the rows of this tile (spreadsheet)": (
+        "Télécharger les lignes de cette tuile (tableur)"
+    ),
     "Derived table {name} : {description}": "Table dérivée {name} : {description}",
     "The data are more than {hours} hours old": (
         "Les données ont plus de {hours} heures"

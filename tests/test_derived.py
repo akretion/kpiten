@@ -100,3 +100,29 @@ def test_a_data_tile_reads_a_derived_table_by_its_name():
         line = {"kind": "data", "name": "n", "content": content}
         result = tiles.exec_tile(line, "sale.order", store, [pl.col("amount") > 15])
         assert result.df["n"].to_list() == [1]  # filtered like the tile : id 3 only
+
+
+def test_a_monthly_graph_draws_its_trend_ahead():
+    import datetime as dt
+
+    from kpiten_core import tiles
+
+    store = {
+        "sale.order": pl.LazyFrame(
+            {
+                "date_order": [dt.date(2026, m, 10) for m in range(1, 7)],
+                "amount": [10.0, 12, 14, 16, 18, 20],
+            }
+        )
+    }
+    line = {
+        "kind": "graph",
+        "name": "Monthly",
+        "content": 'type = "line"\nby = "date_order"\ngrain = "month"\n'
+        'measure = "amount"\ntrend = 3',
+    }
+    chart = tiles.exec_tile(line, "sale.order", store, []).chart
+    trend = chart.trend
+    assert trend.height == 9 and trend["amount"].to_list()[-1] == 26.0
+    assert trend["date_order"].to_list()[-1] == dt.date(2026, 9, 1)
+    assert len(chart and tiles.TileResult("graph", "g", chart=chart).figure.data) == 2

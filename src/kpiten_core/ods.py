@@ -362,6 +362,17 @@ def write_ods(sheets: list[tuple], bold_fills: bool = True) -> bytes:
     return buffer.getvalue()
 
 
+def tile_ods(name: str, df: pl.DataFrame) -> bytes:
+    """The rows of a tile (a table : data, pivot, union) as an .ods of one sheet ; a
+    `[label](url)` link is its label."""
+    df = df.with_columns(
+        pl.col(column).str.replace(r"^\[(.*)\]\(https?://[^)]*\)$", "$1")
+        for column, dtype in df.schema.items()
+        if dtype == pl.String
+    )
+    return write_ods([(name, df)])
+
+
 def exportable_models(store: dict) -> list[str]:
     """The Odoo models the user may export : the tables of HIS store."""
     return sorted(store)

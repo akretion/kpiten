@@ -43,6 +43,16 @@ def figure(chart: Chart):
     else:  # a color per bar
         _apply_colorway(fig, colorway)
         _apply_fill_color(fig, graph.get("fill_color"), chart.kind)
+    if chart.trend is not None:  # the trend : dotted, the points ahead included
+        fig.add_scatter(
+            x=chart.trend[chart.x],
+            y=chart.trend[chart.y],
+            mode="lines",
+            name="Trend",
+            showlegend=False,
+            hovertemplate="%{x}<br>%{y:,.0f}<extra>Trend</extra>",
+            line=dict(dash="dot", width=2, color="rgba(128,128,128,0.9)"),
+        )
     return fig
 
 
