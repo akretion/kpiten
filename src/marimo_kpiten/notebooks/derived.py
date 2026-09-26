@@ -159,7 +159,17 @@ def _(EXAMPLES, FIRST_ROWS, mo, source):
     get_sql, set_sql = mo.state(EXAMPLES.get(source.value, FIRST_ROWS))
     get_answer, set_answer = mo.state(None)  # the last answer of the AI
     get_current, set_current = mo.state(None)  # the derived table opened or saved
-    return get_answer, get_current, get_sql, set_answer, set_current, set_sql
+    get_clip, set_clip = mo.state(None)  # the prompt to copy to a chat
+    return (
+        get_answer,
+        get_clip,
+        get_current,
+        get_sql,
+        set_answer,
+        set_clip,
+        set_current,
+        set_sql,
+    )
 
 
 @app.cell
@@ -190,32 +200,29 @@ def _(definitions, mo, set_current, set_sql, source):
 
 
 @app.cell
-def _(ai, anonymize, backend, derived_kpiten, derived_tables, mo, source, store):
-    # Ask the AI : it writes the query in steps (skill steps.md of derived-kpiten)
+def _(ai, derived_tables, manager, mo, source, store):
+    # Ask the AI : it writes the query in steps (skill steps.md of derived-kpiten). A
+    # KpiTen manager may also ask a chat of their own (ChatGPT, Mistral...) by copy and
+    # paste : what is copied goes out of KpiTen, always with pseudonyms
+    CLIPBOARD = "clipboard"
     available = ai.providers() if ai.enabled() else {}
-    if not available:
-        ai_panel = mo.md(
+    _choices = {p.label: key for key, p in available.items()}
+    if manager and ai.enabled():
+        _choices["Copy and paste (ChatGPT, Mistral...)"] = CLIPBOARD
+    if not _choices:
+        _out = mo.md(
             "<small>No AI here : turned off in the KpiTen configuration, or none "
             "configured (`ANTHROPIC_API_KEY`, `LOCAL_LLM_MODEL` in `.env`).</small>"
         )
-        provider = question = ask_button = anon = description = joins = None
+        provider = question = ask_button = joins = None
     else:
-        _level = ai.send_level()  # kt.config : schema, summary (pseudonyms) or clear
-        # the pseudonyms of this table, kept for the whole conversation
-        anon = anonymize.for_table(backend, source.value, hide=_level != "clear")
-        with mo.status.spinner("Reading the columns..."):
-            description = ai.describe(store[source.value], anon, _level)
+        provider = mo.ui.dropdown(_choices, value=next(iter(_choices)), label="Model")
         # the columns of the tables it may join : only those chosen (a small local
         # model reads a short prompt only)
         joins = mo.ui.multiselect(
             [name for name in sorted(store) if name != source.value]
             + sorted(derived_tables),
             label="Tables to join",
-        )
-        provider = mo.ui.dropdown(
-            {p.label: key for key, p in available.items()},
-            value=next(iter(p.label for p in available.values())),
-            label="Model",
         )
         question = mo.ui.text_area(
             placeholder="The confirmed sales of 2025 by month and salesperson, "
@@ -224,42 +231,56 @@ def _(ai, anonymize, backend, derived_kpiten, derived_tables, mo, source, store)
             rows=2,
         )
         ask_button = mo.ui.run_button(label="✨ Ask the AI")
-        _sent = {
-            "schema": "the name and type of the columns",
-            "summary": "the columns, figures on them and a few rows, with the "
-            "customers, people and products renamed (`Customer 12`)",
-            "clear": "the columns, figures on them and a few rows, **in clear**",
-        }[_level]
-        ai_panel = mo.vstack(
+        _out = mo.vstack(
             [
                 mo.hstack([question, ask_button], align="end", widths=[5, 1]),
-                mo.hstack(
-                    [
-                        provider,
-                        joins,
-                        mo.accordion(
-                            {
-                                "What the model is told": mo.md(
-                                    f"The model gets {_sent}, the columns of the tables "
-                                    "to join, your question and the query of the "
-                                    "editor. Its query runs here, on the rows you may "
-                                    f"read.\n\n```\n{description}\n```"
-                                )
-                            }
-                        ),
-                    ],
-                    justify="start",
-                    align="start",
-                ),
+                mo.hstack([provider, joins], justify="start", align="start"),
             ]
         )
+    _out
+    return CLIPBOARD, ask_button, available, joins, provider, question
+
+
+@app.cell
+def _(CLIPBOARD, ai, anonymize, available, backend, mo, provider, source, store):
+    mo.stop(provider is None)
+    _clipboard = provider.value == CLIPBOARD
+    _level = ai.send_level()  # kt.config : schema, summary (pseudonyms) or clear
+    if _clipboard and _level == "clear":
+        _level = "summary"  # "clear" is for a local model : a chat is outside
+    # the pseudonyms of this table, kept for the whole conversation (and between the
+    # copy of a prompt and the paste of its answer)
+    anon = anonymize.for_table(backend, source.value, hide=_level != "clear")
+    with mo.status.spinner("Reading the columns..."):
+        description = ai.describe(store[source.value], anon, _level)
     history = []  # what was said, for the next question (a new table starts over)
-    ai_panel
-    return anon, ask_button, available, description, history, joins, provider, question
+    _sent = {
+        "schema": "the name and type of the columns",
+        "summary": "the columns, figures on them and a few rows, with the "
+        "customers, people and products renamed (`Customer 12`)",
+        "clear": "the columns, figures on them and a few rows, **in clear**",
+    }[_level]
+    if _clipboard:
+        _to = "The prompt you copy to your chat holds"
+    elif not available[provider.value].leaves_machine:
+        _to = "Nothing leaves this machine : the local model gets"
+    else:
+        _to = f"{available[provider.value].label} gets"
+    mo.accordion(
+        {
+            "What the model is told": mo.md(
+                f"{_to} {_sent}, the columns of the tables to join, your question "
+                "and the query of the editor. Its query runs here, on the rows you "
+                f"may read.\n\n```\n{description}\n```"
+            )
+        }
+    )
+    return anon, description, history
 
 
 @app.cell
 def _(
+    CLIPBOARD,
     anon,
     ask_button,
     available,
@@ -273,44 +294,125 @@ def _(
     provider,
     question,
     set_answer,
+    set_clip,
     set_sql,
     source,
     store,
 ):
-    mo.stop(ask_button is None or not ask_button.value or not question.value.strip())
+    mo.stop(not ask_button.value or not question.value.strip())
     _all = {**store, **derived_tables}
     _system = derived_kpiten.ai.system_prompt(
         source.value,
         description,
         {name: derived_kpiten.ai.columns(_all[name]) for name in joins.value},
     )
-    with mo.status.spinner("The AI writes the query..."):
-        _answer = derived_kpiten.ai.ask(
-            available[provider.value],
-            {**_all, "d": store[source.value]},
-            _system,
-            question.value.strip(),
-            current=get_sql(),
-            history=history,
-            anon=anon,
+    if provider.value == CLIPBOARD:
+        # the prompt to copy : the answer comes back by a paste (cells below)
+        _content = derived_kpiten.ai.message(question.value.strip(), get_sql(), anon)
+        set_clip(
+            {"prompt": derived_kpiten.ai.clipboard(_system, _content), "first": True}
         )
-    history.extend(_answer.exchange)
-    del history[:-8]
-    set_answer(_answer)
-    if _answer.sql:
-        set_sql(_answer.sql)
+    else:
+        with mo.status.spinner("The AI writes the query..."):
+            _answer = derived_kpiten.ai.ask(
+                available[provider.value],
+                {**_all, "d": store[source.value]},
+                _system,
+                question.value.strip(),
+                current=get_sql(),
+                history=history,
+                anon=anon,
+            )
+        history.extend(_answer.exchange)
+        del history[:-8]
+        set_answer(_answer)
+        if _answer.sql and not _answer.unknown:
+            set_sql(_answer.sql)
     return
 
 
 @app.cell
-def _(get_answer, get_sql, manager, mo, set_sql):
+def _(get_clip, mo):
+    # copy the prompt to a chat, paste its answer back
+    _clip = get_clip()
+    mo.stop(_clip is None)
+    paste = mo.ui.text_area(
+        placeholder="Paste here the whole answer of the chat",
+        full_width=True,
+        rows=5,
+    )
+    use_button = mo.ui.run_button(label="Use the answer")
+    _how = (
+        "Copy this prompt into a **new conversation** of your chat"
+        if _clip["first"]
+        else "The query did not run : copy this into the **same conversation**"
+    )
+    mo.vstack(
+        [
+            mo.md(f"**1.** {_how} : the copy icon at the top right of the block"),
+            mo.ui.code_editor(
+                value=_clip["prompt"],
+                language="markdown",
+                disabled=True,
+                max_height=180,
+            ),
+            mo.md("**2.** Paste its whole answer :"),
+            mo.hstack([paste, use_button], align="end", widths=[5, 1]),
+        ]
+    )
+    return paste, use_button
+
+
+@app.cell
+def _(
+    anon,
+    derived_kpiten,
+    derived_tables,
+    mo,
+    paste,
+    set_answer,
+    set_clip,
+    set_sql,
+    source,
+    store,
+    use_button,
+):
+    mo.stop(not use_button.value or not paste.value.strip())
+    # the pasted answer : revealed, checked and run like the answer of the api
+    _answer = derived_kpiten.ai.receive(
+        paste.value, {**store, **derived_tables, "d": store[source.value]}, anon
+    )
+    set_answer(_answer)
+    if _answer.sql and not _answer.unknown:
+        set_sql(_answer.sql)
+    if _answer.error and _answer.sql and not _answer.unknown:
+        # the error, to paste in the same conversation
+        set_clip(
+            {
+                "prompt": derived_kpiten.ai.correction(_answer.error, anon),
+                "first": False,
+            }
+        )
+    else:
+        set_clip(None)
+    return
+
+
+@app.cell
+def _(derived_kpiten, get_answer, get_sql, manager, mo, set_sql):
     _answer = get_answer()
     _said = []
     if _answer is not None and _answer.text:
         _said.append(mo.callout(mo.md(_answer.text), kind="neutral"))
     if _answer is not None and _answer.error and _answer.sql:
         _said.append(
-            mo.md(f"<small>The AI could not fix its query : `{_answer.error}`</small>")
+            mo.callout(
+                mo.md(
+                    "The query of the AI does not run : "
+                    f"`{derived_kpiten.short_error(_answer.error, columns=False)}`"
+                ),
+                kind="warn",
+            )
         )
     editor = mo.ui.code_editor(
         value=get_sql(),
@@ -337,7 +439,13 @@ def _(derived_kpiten, derived_tables, detail, editor, mo, source, store):
             )
         _out = mo.Html(derived_kpiten.render(_results, detail=_detail))
     except Exception as err:
-        _out = mo.callout(mo.md(f"The query does not run : `{err}`"), kind="danger")
+        _out = mo.callout(
+            mo.md(
+                "The query does not run : "
+                f"`{derived_kpiten.short_error(err, columns=False)}`"
+            ),
+            kind="danger",
+        )
     _out
     return
 

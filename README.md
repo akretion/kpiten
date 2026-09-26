@@ -42,6 +42,12 @@ dans la langue de la question ; elle reçoit la description de `d` au niveau de 
 (pseudonymes par défaut) et les colonnes des seules « Tables to join » choisies. Un modèle
 local sur CPU (fenêtre de 4 096 tokens) reste lent : Claude est le fournisseur visé.
 
+Un KpiTen manager choisit aussi « Copy and paste (ChatGPT, Mistral...) » : le prompt s'affiche
+dans un bloc à copier (au moins pseudonymisé, même si la base est réglée « en clair »), sa
+réponse se colle dans la page et passe par les mêmes contrôles que celle de l'API ; une erreur
+donne un texte de correction à recopier dans la même conversation. Les pseudonymes restent
+dans la page : un rechargement entre la copie et le collage les perd, la page le signale.
+
 Le travail est fait par le plugin `derived-kpiten` (`src/derived-kpiten`), installé dans ce
 venv par `make apps` (`MARIMO_PLUGINS`) ; sans lui, la page le dit. Spécification :
 `docs/kpiten-tables-derivees.md` de `bi/`.
