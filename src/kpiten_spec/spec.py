@@ -150,6 +150,11 @@ GRAPH = Kind(
         Key("series", column=True, help="one color per value of this column"),
         Key("stacked", bool, default=False, help="the series one on the other"),
         Key("orientation", choices=("v", "h"), default="v", help="h : horizontal"),
+        Key(
+            "trend",
+            int,
+            help="a date on x : the linear trend, dotted, this many points ahead",
+        ),
         COMPUTED,
         LABELS,
         Table(
