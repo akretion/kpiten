@@ -4,6 +4,7 @@ from . import (
     kt_derived_table,
     ir_model_fields,
     res_users_log,
+    res_users,
     kt,
     kt_panel,
     kt_config,

@@ -212,14 +212,8 @@ class KtConfig(models.Model):
         THEMES,
         string="Default theme",
         default="light",
-        help="The theme a user gets until they choose another one.",
-    )
-    user_theme_ids = fields.One2many(
-        "kt.user.theme",
-        "config_id",
-        string="Themes of the users",
-        help="The theme each user chose in a dashboard app : it follows them from "
-        "one browser, or one app, to another.",
+        help="The theme a user gets until they choose another one (in a dashboard "
+        "app, or in their preferences).",
     )
     table_rows = fields.Integer(
         string="Rows of a table",

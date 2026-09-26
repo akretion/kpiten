@@ -101,14 +101,6 @@
                             <field name="table_rows" />
                         </group>
                     </group>
-                    <group string="Themes of the users">
-                        <field name="user_theme_ids" nolabel="1" colspan="2">
-                            <list editable="bottom">
-                                <field name="user_id" />
-                                <field name="theme" />
-                            </list>
-                        </field>
-                    </group>
                     <group>
                         <group string="Explore (export of the rows)">
                             <field name="explore_access" />
@@ -193,4 +185,19 @@
         sequence="100"
         action="kt_config_act_window"
     />
+
+    <!-- the preferences of a user : the theme of the dashboards -->
+    <record id="view_users_form_simple_modif_kpiten" model="ir.ui.view">
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form_simple_modif" />
+        <field name="arch" type="xml">
+            <field name="tz" position="after">
+                <field
+                    name="kpiten_theme"
+                    readonly="0"
+                    placeholder="Default theme"
+                />
+            </field>
+        </field>
+    </record>
 </odoo>
