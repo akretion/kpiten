@@ -184,6 +184,24 @@ days_to_order = "date_approve - create_date"</pre>
                         groups="kpiten.group_kpiten_manager"
                         title="Change the definition in a form : its keys, their choices and their help"
                     />
+                    <button
+                        name="action_refresh_thumbnail"
+                        type="object"
+                        string="Thumbnail"
+                        icon="fa-picture-o"
+                        class="btn-secondary ms-2"
+                        invisible="kind == 'card'"
+                        title="Make the thumbnail of the catalogue again from the preview (blurred : its shape, not its figures)"
+                    />
+                    <field
+                        name="thumbnail"
+                        widget="image"
+                        readonly="1"
+                        nolabel="1"
+                        class="ms-2 align-middle"
+                        options="{'size': [0, 36]}"
+                        invisible="not thumbnail or kind == 'card'"
+                    />
                 </div>
                 <field name="preview_html" nolabel="1" readonly="1" />
             </form>
@@ -209,6 +227,86 @@ days_to_order = "date_approve - create_date"</pre>
                 <field name="xml_id" optional="hide" />
                 <field name="active" widget="boolean_toggle" />
             </list>
+        </field>
+    </record>
+
+    <!-- the catalogue at a glance : a blurred thumbnail of each KPI (made when its
+         preview is shown), the shape of the figure, not its numbers ; a card : the
+         same generic card for all, never captured -->
+    <record id="kt_kpi_kanban" model="ir.ui.view">
+        <field name="model">kt.kpi</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kt_kpi_kanban">
+                <field name="certified" />
+                <field name="unused" />
+                <field name="kind" />
+                <templates>
+                    <t t-name="card">
+                        <div class="d-flex flex-column h-100">
+                            <div
+                                class="text-center mb-2"
+                                style="height: 120px; overflow: hidden"
+                            >
+                                <!-- a card : a figure and its trend, whatever the KPI -->
+                                <div
+                                    invisible="kind != 'card'"
+                                    class="h-100 d-flex align-items-center justify-content-center"
+                                    title="A card : one figure, compared with the previous period"
+                                >
+                                    <div
+                                        class="border rounded px-4 py-2 text-start bg-light"
+                                        style="min-width: 60%"
+                                    >
+                                        <div
+                                            class="rounded bg-secondary opacity-25 mb-2"
+                                            style="height: 8px; width: 50%"
+                                        />
+                                        <div class="fs-2 fw-bold text-muted">
+                                            1 234
+                                        </div>
+                                        <div class="small text-success">
+                                            <i class="fa fa-arrow-up" /> 5 %
+                                        </div>
+                                    </div>
+                                </div>
+                                <field
+                                    name="thumbnail"
+                                    widget="image"
+                                    invisible="not thumbnail or kind == 'card'"
+                                    options="{'size': [0, 120]}"
+                                    title="A blurred view of the KPI : open it to see its figures"
+                                />
+                                <div
+                                    invisible="thumbnail or kind == 'card'"
+                                    class="h-100 d-flex align-items-center justify-content-center text-muted"
+                                    title="No thumbnail yet : it is made when the preview of the KPI is shown"
+                                >
+                                    <i class="fa fa-3x fa-bar-chart opacity-25" />
+                                </div>
+                            </div>
+                            <div class="fw-bold">
+                                <field name="name" />
+                                <i
+                                    class="fa fa-check-circle text-success ms-1"
+                                    title="Certified"
+                                    invisible="not certified"
+                                />
+                            </div>
+                            <div class="text-muted small">
+                                <field name="kind" /> · <field name="table_read" />
+                            </div>
+                            <div class="mt-1">
+                                <field name="panel_ids" widget="many2many_tags" />
+                                <span
+                                    class="badge text-bg-warning"
+                                    invisible="not unused"
+                                    title="On no panel : only the catalogue keeps it"
+                                >Unused</span>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
         </field>
     </record>
 
@@ -264,8 +362,8 @@ days_to_order = "date_approve - create_date"</pre>
     <record id="kt_kpi_catalogue_action" model="ir.actions.act_window">
         <field name="name">KPI catalogue</field>
         <field name="res_model">kt.kpi</field>
-        <field name="view_mode">list,form</field>
-        <field name="context">{'search_default_by_panel': 1}</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="context">{}</field>
         <field name="help" type="html">
             <p>
                 Every KPI, on a panel or not : search one by its name, its table or its

@@ -1,3 +1,6 @@
+import base64
+import hashlib
+import io
 import logging
 import re
 from html import escape
@@ -13,6 +16,13 @@ from ..compat import validate_display as kt_validate_display
 from ..compat import validate_toml as kt_validate_toml
 
 logger = logging.getLogger(__name__)
+
+# the thumbnail of a KPI (the kanban of the catalogue) : a capture of its preview, made
+# small and blurred here, whoever sent it : the shape of the figure, not its numbers
+# (the preview is computed with the rights of the one who opened it)
+THUMBNAIL_SIZE = 360  # px, its largest side
+THUMBNAIL_BLUR = 3  # px, the radius of the gaussian blur
+THUMBNAIL_MAX_BYTES = 4_000_000  # the capture sent by the browser
 
 
 def _from_web_client() -> bool:
@@ -269,6 +279,14 @@ class KtKpi(models.Model):
         store=True,
         help="Structural validation messages for the definition (non blocking).",
     )
+    thumbnail = fields.Image(
+        attachment=True,
+        help="A blurred capture of the preview : the look of the KPI in the catalogue, "
+        "not its figures. Made again when the preview is shown after a change of the "
+        "definition.",
+    )
+    # the definition the thumbnail was made from (`_thumbnail_key`)
+    thumbnail_key = fields.Char(copy=False)
     xml_id = fields.Char(
         string="External ID",
         compute="_compute_xml_id",
@@ -384,11 +402,59 @@ class KtKpi(models.Model):
             # the date of the last save : a new url, the iframe reloads
             version = int(rec.write_date.timestamp()) if rec.write_date else 0
             src = f"{url}/dashboard/tile/{rec.id}?session={session}&v={version}"
+            key = rec._thumbnail_key()
+            # a card : no thumbnail, the kanban draws a generic one
+            if rec.kind != "card" and (rec.thumbnail_key != key or not rec.thumbnail):
+                src += f"&thumb={key}"  # the page sends back a capture of itself
             height = max(rec.tile_ids.mapped("tile_height") or [320]) + 40
             rec.preview_html = Markup(
                 f'<iframe src="{escape(src)}" loading="lazy" '
                 f'style="width: 100%; height: {height}px; border: 0"></iframe>'
             )
+
+    def _thumbnail_key(self) -> str:
+        """What the look of the KPI depends on : a new one, a new thumbnail."""
+        self.ensure_one()
+        text = "\x00".join(
+            str(value or "")
+            for value in (self.kind, self.definition, self.display, self.table_view)
+        )
+        return hashlib.sha1(text.encode()).hexdigest()
+
+    def set_thumbnail(self, image: str, key: str) -> bool:
+        """The capture of the preview (a PNG in base64) : made small and blurred, kept
+        as the thumbnail of the KPI ; refused when it was made from another definition
+        (`key`, see `_thumbnail_key`)."""
+        self.ensure_one()
+        if (
+            self.kind == "card"
+            or key != self._thumbnail_key()
+            or len(image or "") > THUMBNAIL_MAX_BYTES
+        ):
+            return False
+        from PIL import Image, ImageFilter  # Pillow comes with Odoo
+
+        try:
+            picture = Image.open(io.BytesIO(base64.b64decode(image))).convert("RGBA")
+            # what is transparent on white (a bare RGB conversion makes it black)
+            flat = Image.new("RGBA", picture.size, "white")
+            picture = Image.alpha_composite(flat, picture).convert("RGB")
+        except Exception:
+            logger.warning("thumbnail of KPI %s : not an image", self.id)
+            return False
+        picture.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE))
+        picture = picture.filter(ImageFilter.GaussianBlur(THUMBNAIL_BLUR))
+        out = io.BytesIO()
+        picture.save(out, format="PNG")
+        self.write(
+            {"thumbnail": base64.b64encode(out.getvalue()), "thumbnail_key": key}
+        )
+        return True
+
+    def action_refresh_thumbnail(self):
+        """The preview, reloaded, sends a new capture : the thumbnail is made again."""
+        self.thumbnail_key = False
+        return True
 
     def action_preview(self):
         """Save and reload the preview (the form saves the KPI before a button)."""
