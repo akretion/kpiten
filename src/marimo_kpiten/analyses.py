@@ -9,9 +9,4 @@ ANALYSES = {
         "title": "Data explorer",
         "about": "Pick a table you may read and explore it with an AI that writes the polars",
     },
-    "purchase": {
-        "icon": "\U0001f6d2",
-        "title": "Purchase analysis",
-        "about": "Spend, vendors and orders, compared with the previous period",
-    },
 }

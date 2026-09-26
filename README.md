@@ -13,7 +13,7 @@ avec les droits de l'utilisateur connecté (`user_store` : colonnes autorisées 
 
 ## Ajouter une analyse
 
-1. Un notebook `notebooks/<clé>.py` (modèle : `purchase.py`) : il lit l'utilisateur dans
+1. Un notebook `notebooks/<clé>.py` (modèle : `explore.py`) : il lit l'utilisateur dans
    `mo.app_meta().request.meta`, prend ses données dans `user_store(...)` et commence par
    `ui.header("<clé>", user_id, db)`.
 2. Une entrée dans `analyses.py` (icône, titre, une phrase) : elle apparaît sur la page
