@@ -279,11 +279,12 @@ class KtKpiBuilder(models.TransientModel):
                     "name": self.name,
                     "dataset_id": self.dataset_id.id,
                     "kind": self.kind,
-                    "panel_id": self.panel_id.id,
                     "definition": self.definition or "\n",
                     "user_id": self.env.user.id,
                 }
             )
+            if self.panel_id:
+                kpi._put_on_panel(self.panel_id.id)
         return {
             "type": "ir.actions.act_window",
             "res_model": "kt.kpi",

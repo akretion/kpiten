@@ -41,14 +41,17 @@ FROM confirmed</field>
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Derived table (from)</field>
-        <field name="panel_id" ref="panel_essential" />
-        <field name="sequence">20</field>
         <field name="definition">from = "confirmed_sales"
 measure = "amount_untaxed"
 aggregation = "sum"
 unit = "currency"
 compare = true
 </field>
+    </record>
+    <record id="card_derived_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_essential" />
+        <field name="kpi_id" ref="card_derived" />
+        <field name="sequence">20</field>
     </record>
 
     <!-- card : `from` a derived table without the date : a note says the period does
@@ -57,13 +60,16 @@ compare = true
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Derived table without date</field>
-        <field name="panel_id" ref="panel_essential" />
-        <field name="sequence">21</field>
         <field name="definition">from = "sales_by_salesperson"
 measure = "untaxed"
 aggregation = "sum"
 unit = "currency"
 </field>
+    </record>
+    <record id="card_derived_no_date_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_essential" />
+        <field name="kpi_id" ref="card_derived_no_date" />
+        <field name="sequence">21</field>
     </record>
 
     <!-- graph : a line per salesperson over the months, `from` a derived table -->
@@ -71,9 +77,6 @@ unit = "currency"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
         <field name="name">Graph from a derived table</field>
-        <field name="panel_id" ref="panel_essential" />
-        <field name="sequence">22</field>
-        <field name="col_span">2</field>
         <field name="definition">type = "line"
 from = "confirmed_sales"
 by = "date_order"
@@ -83,15 +86,18 @@ measure = "amount_untaxed"
 aggregation = "sum"
 </field>
     </record>
+    <record id="graph_derived_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_essential" />
+        <field name="kpi_id" ref="graph_derived" />
+        <field name="sequence">22</field>
+        <field name="col_span">2</field>
+    </record>
 
     <!-- data : SQL on a derived table, read by its name (filtered like the tile) -->
     <record id="data_derived" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Data from a derived table</field>
-        <field name="panel_id" ref="panel_essential" />
-        <field name="sequence">23</field>
-        <field name="col_span">2</field>
         <field name="definition">-- the best customers of the period, from the derived table confirmed_sales
 SELECT partner_id AS "Customer", COUNT(*) AS "Orders",
        SUM(amount_untaxed) AS "Untaxed"
@@ -99,5 +105,11 @@ FROM confirmed_sales
 GROUP BY partner_id
 ORDER BY "Untaxed" DESC
 LIMIT 10</field>
+    </record>
+    <record id="data_derived_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_essential" />
+        <field name="kpi_id" ref="data_derived" />
+        <field name="sequence">23</field>
+        <field name="col_span">2</field>
     </record>
 </odoo>

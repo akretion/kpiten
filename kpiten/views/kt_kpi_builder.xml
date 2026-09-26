@@ -16,7 +16,7 @@
                     </group>
                     <group>
                         <field name="kind" widget="radio" readonly="kpi_id" />
-                        <field name="panel_id" readonly="kpi_id" />
+                        <field name="panel_id" invisible="kpi_id" />
                     </group>
                 </group>
                 <div name="spec_fields" />

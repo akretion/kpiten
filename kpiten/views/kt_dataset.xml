@@ -48,8 +48,7 @@
                                 <field name="sequence" widget="handle" />
                                 <field name="name" />
                                 <field name="kind" />
-                                <field name="col_span" />
-                                <field name="tile_height" />
+                                <field name="panel_ids" widget="many2many_tags" />
                                 <field name="group_ids" widget="many2many_tags" />
                                 <field name="active" widget="boolean_toggle" />
                                 <!-- read for the decoration-danger : older series check it -->

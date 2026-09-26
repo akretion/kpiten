@@ -5,6 +5,8 @@ access_kt_kpi,access_kt_kpi,kpiten.model_kt_kpi,base.group_user,1,0,0,0
 access_kt_kpi_manager,access_kt_kpi_manager,kpiten.model_kt_kpi,kpiten.group_kpiten_manager,1,1,1,1
 access_kt_panel,access_kt_panel,kpiten.model_kt_panel,base.group_user,1,0,0,0
 access_kt_panel_manager,access_kt_panel_manager,kpiten.model_kt_panel,kpiten.group_kpiten_manager,1,1,1,1
+access_kt_panel_tile,access_kt_panel_tile,kpiten.model_kt_panel_tile,base.group_user,1,0,0,0
+access_kt_panel_tile_manager,access_kt_panel_tile_manager,kpiten.model_kt_panel_tile,kpiten.group_kpiten_manager,1,1,1,1
 access_kt,access_kt,kpiten.model_kt,base.group_user,1,1,1,1
 access_kt_config,access_kt_config,kpiten.model_kt_config,base.group_user,1,0,0,0
 access_kt_config_manager,access_kt_config_manager,kpiten.model_kt_config,kpiten.group_kpiten_manager,1,1,1,0

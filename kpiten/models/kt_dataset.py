@@ -189,7 +189,7 @@ class KtDataset(models.Model):
 class KtKpi(models.Model):
     _name = "kt.kpi"
     _description = "Configuration lines for kpiten"
-    _order = "sequence"
+    _order = "sequence, name, id"
 
     dataset_id = fields.Many2one(comodel_name="kt.dataset", required=True)
     definition = fields.Text(
@@ -229,15 +229,19 @@ class KtKpi(models.Model):
         help="Representation type",
     )
     user_id = fields.Many2one(comodel_name="res.users")
-    panel_id = fields.Many2one(comodel_name="kt.panel")
-    # Grid layout of the panel
-    col_span = fields.Integer(
-        default=1,
-        help="Number of grid columns spanned by the tile",
+    # the panels the KPI is on, each with its place and size there
+    tile_ids = fields.One2many(comodel_name="kt.panel.tile", inverse_name="kpi_id")
+    panel_ids = fields.Many2many(
+        comodel_name="kt.panel",
+        string="Panels",
+        compute="_compute_panel_ids",
+        store=True,
+        help="The panels the KPI is on ; the same KPI may be on several.",
     )
-    tile_height = fields.Integer(
-        default=320,
-        help="Height of the tile in pixels",
+    unused = fields.Boolean(
+        compute="_compute_panel_ids",
+        store=True,
+        help="On no panel : only the catalogue keeps it.",
     )
     table_view = fields.Selection(
         [("table", "Table"), ("grid", "Interactive grid")],
@@ -271,6 +275,12 @@ class KtKpi(models.Model):
         help="The xml id of the tile, when a module's data defines it.",
     )
 
+    @api.depends("tile_ids.panel_id")
+    def _compute_panel_ids(self):
+        for rec in self:
+            rec.panel_ids = rec.tile_ids.panel_id
+            rec.unused = not rec.tile_ids
+
     def _compute_xml_id(self):
         xml_ids = self.get_external_id()
         for rec in self:
@@ -297,13 +307,8 @@ class KtKpi(models.Model):
         of the tile it is copied from (`col_span`, `tile_height`, `table_view`,
         `display`, `drill_definition`). Returns its id."""
         self._check_definition(definition, kind)
-        copied = (
-            "col_span",
-            "tile_height",
-            "table_view",
-            "display",
-            "drill_definition",
-        )
+        values = values or {}
+        copied = ("table_view", "display", "drill_definition")
         res = self.create(
             {
                 "dataset_id": self.get_conf_id(model),
@@ -311,11 +316,30 @@ class KtKpi(models.Model):
                 "name": name,
                 "kind": kind,
                 "user_id": user_id or self.env.user.id,
-                "panel_id": panel_id,
-                **{k: v for k, v in (values or {}).items() if k in copied},
+                **{k: v for k, v in values.items() if k in copied},
             }
         )
+        if panel_id:
+            res._put_on_panel(
+                panel_id,
+                {k: v for k, v in values.items() if k in ("col_span", "tile_height")},
+            )
         return res.id
+
+    def _put_on_panel(self, panel_id: int, layout: dict = None) -> None:
+        """The KPI at the end of the panel `panel_id` ; `layout` : its size there."""
+        self.ensure_one()
+        last = self.env["kt.panel.tile"].search(
+            [("panel_id", "=", panel_id)], order="sequence desc", limit=1
+        )
+        self.env["kt.panel.tile"].create(
+            {
+                "panel_id": panel_id,
+                "kpi_id": self.id,
+                "sequence": last.sequence + 1,
+                **(layout or {}),
+            }
+        )
 
     def _check_definition(self, definition: str, kind: str) -> None:
         """The definition must be valid TOML (polars code for kind=data)."""
@@ -360,7 +384,7 @@ class KtKpi(models.Model):
             # the date of the last save : a new url, the iframe reloads
             version = int(rec.write_date.timestamp()) if rec.write_date else 0
             src = f"{url}/dashboard/tile/{rec.id}?session={session}&v={version}"
-            height = (rec.tile_height or 320) + 40
+            height = max(rec.tile_ids.mapped("tile_height") or [320]) + 40
             rec.preview_html = Markup(
                 f'<iframe src="{escape(src)}" loading="lazy" '
                 f'style="width: 100%; height: {height}px; border: 0"></iframe>'
@@ -378,7 +402,7 @@ class KtKpi(models.Model):
                 "kpi_id": self.id,
                 "name": self.name,
                 "dataset_id": self.dataset_id.id,
-                "panel_id": self.panel_id.id,
+                "panel_id": self.panel_ids[:1].id,
                 "kind": self.kind,
                 "before": self.definition,
             }

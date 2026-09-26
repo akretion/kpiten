@@ -48,14 +48,16 @@
                     />
                     <notebook>
                         <page string="Tiles">
-                            <field name="line_ids">
-                                <list>
+                            <!-- a KPI of the catalogue is added here ; removing one
+                                 keeps the KPI -->
+                            <field name="tile_ids">
+                                <list editable="bottom" decoration-muted="not kpi_active">
                                     <field name="sequence" widget="handle" />
-                                    <field name="name" />
+                                    <field name="kpi_id" />
                                     <field name="kind" />
                                     <field name="col_span" />
                                     <field name="tile_height" />
-                                    <field name="active" widget="boolean_toggle" />
+                                    <field name="kpi_active" />
                                 </list>
                             </field>
                         </page>

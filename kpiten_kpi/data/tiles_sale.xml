@@ -10,30 +10,34 @@
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Quotations</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">20</field>
         <field name="definition">where = "state in ('draft', 'sent')"
 compare = true
 </field>
+    </record>
+    <record id="sale_quotations_card_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_quotations_card" />
+        <field name="sequence">20</field>
     </record>
 
     <record id="sale_orders_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Orders</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">21</field>
         <field name="definition">where = "state = 'sale'"
 compare = true
 </field>
+    </record>
+    <record id="sale_orders_card_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_orders_card" />
+        <field name="sequence">21</field>
     </record>
 
     <record id="sale_revenue_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Revenue</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">22</field>
         <field name="definition">where = "state = 'sale'"
 measure = "amount_untaxed"
 aggregation = "sum"
@@ -41,13 +45,16 @@ unit = "currency"
 compare = true
 </field>
     </record>
+    <record id="sale_revenue_card_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_revenue_card" />
+        <field name="sequence">22</field>
+    </record>
 
     <record id="sale_avg_order_card" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">card</field>
         <field name="name">Average Order</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">23</field>
         <field name="definition">where = "state = 'sale'"
 measure = "amount_untaxed"
 aggregation = "mean"
@@ -56,6 +63,11 @@ decimals = 0
 compare = true
 </field>
     </record>
+    <record id="sale_avg_order_card_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_avg_order_card" />
+        <field name="sequence">23</field>
+    </record>
 
     <!-- the "Monthly sales" chart of the same dashboard : revenue of the
         confirmed orders per month, as a filled line, full width -->
@@ -63,10 +75,6 @@ compare = true
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">graph</field>
         <field name="name">Monthly sales</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">1</field>
-        <field name="col_span">3</field>
-        <field name="tile_height">340</field>
         <field name="definition">type = "area"
 where = "state not in ('draft', 'cancel', 'sent')"
 by = "date_order"
@@ -74,6 +82,13 @@ grain = "month"
 measure = "amount_untaxed"
 aggregation = "sum"
 </field>
+    </record>
+    <record id="sale_monthly_sales_graph_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_monthly_sales_graph" />
+        <field name="sequence">1</field>
+        <field name="col_span">3</field>
+        <field name="tile_height">340</field>
     </record>
 
     <!-- "Top Sales Orders" of the same dashboard : the ten confirmed orders
@@ -85,10 +100,6 @@ aggregation = "sum"
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Sales Orders</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">5</field>
-        <field name="col_span">2</field>
-        <field name="tile_height">380</field>
         <field name="definition">d_next = d
 # d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
 # confirmed orders only
@@ -113,6 +124,13 @@ d_next = d_next.select([
     pl.col("price_subtotal").alias("Subtotal"),
 ])</field>
     </record>
+    <record id="sale_top_orders_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_top_orders_table" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
 
     <!-- "Top Quotations" of the same dashboard : the ten quotations (draft or
         sent) with the biggest untaxed amount, then the default order of
@@ -121,10 +139,6 @@ d_next = d_next.select([
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Quotations</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">5</field>
-        <field name="col_span">2</field>
-        <field name="tile_height">380</field>
         <field name="definition">d_next = d
 # d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
 # open quotations
@@ -148,6 +162,13 @@ d_next = d_next.select([
     pl.col("price_subtotal").alias("Subtotal"),
 ])</field>
     </record>
+    <record id="sale_top_quotations_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_top_quotations_table" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
 
     <!-- "Top Products" of the same dashboard : per product, the number of
         confirmed orders it is in and its revenue, the ten best. On the order
@@ -158,10 +179,6 @@ d_next = d_next.select([
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Top Products</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">5</field>
-        <field name="col_span">2</field>
-        <field name="tile_height">380</field>
         <field name="definition">d_next = d
 # d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
 # confirmed orders
@@ -190,6 +207,13 @@ d_next = d_next.select([
     pl.col("price_subtotal").alias("Revenue"),
 ])</field>
     </record>
+    <record id="sale_top_products_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_top_products_table" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
 
     <!-- "Top Salespeople" of the same dashboard : per salesperson, the number of
         confirmed orders and their revenue, the ten best, with the panel period -->
@@ -197,10 +221,6 @@ d_next = d_next.select([
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Salespeople</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">5</field>
-        <field name="col_span">2</field>
-        <field name="tile_height">380</field>
         <field name="definition">d_next = d
 # d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
 # confirmed orders that have a salesperson
@@ -222,16 +242,19 @@ d_next = d_next.select([
     pl.col("amount_untaxed").alias("Revenue"),
 ])</field>
     </record>
+    <record id="sale_top_salespeople_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_top_salespeople_table" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
 
     <!-- "Top Customers" of the same dashboard : per customer, the confirmed orders and their revenue, the ten best. The customer is a link to its form in Odoo -->
     <record id="sale_top_customers_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Customers</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">5</field>
-        <field name="col_span">2</field>
-        <field name="tile_height">380</field>
         <field name="definition">d_next = d
 # d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
 # confirmed orders
@@ -260,16 +283,19 @@ d_next = d_next.select([
     pl.col("amount_untaxed").alias("Revenue"),
 ])</field>
     </record>
+    <record id="sale_top_customers_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_top_customers_table" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
 
     <!-- "Top Categories" : per product category, the orders it is in and its revenue, on the order lines. The category is shown with its path, as Odoo does -->
     <record id="sale_top_categories_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Top Categories</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">5</field>
-        <field name="col_span">2</field>
-        <field name="tile_height">380</field>
         <field name="definition">d_next = d
 # d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
 # confirmed orders
@@ -294,16 +320,19 @@ d_next = d_next.select([
     pl.col("price_subtotal").alias("Revenue"),
 ])</field>
     </record>
+    <record id="sale_top_categories_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_top_categories_table" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
 
     <!-- "Top Sales Teams" : per sales team, the confirmed orders and their revenue -->
     <record id="sale_top_sales_teams_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Sales Teams</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">5</field>
-        <field name="col_span">2</field>
-        <field name="tile_height">380</field>
         <field name="definition">d_next = d
 # d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
 # confirmed orders that have a team
@@ -313,16 +342,19 @@ d_next = d_next.group_by("team_id").agg([pl.len().alias("Orders"), pl.col("amoun
 d_next = d_next.sort(["Revenue", "team_id"], descending=[True, False]).head(10)
 d_next = d_next.rename({"team_id": "Sales Team"})</field>
     </record>
+    <record id="sale_top_sales_teams_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_top_sales_teams_table" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
 
     <!-- "Top Sources" : per campaign source, the confirmed orders and their revenue (empty while no order has a source) -->
     <record id="sale_top_sources_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Sources</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">5</field>
-        <field name="col_span">2</field>
-        <field name="tile_height">380</field>
         <field name="definition">d_next = d
 # d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
 # confirmed orders that have a source
@@ -332,16 +364,19 @@ d_next = d_next.group_by("source_id").agg([pl.len().alias("Orders"), pl.col("amo
 d_next = d_next.sort(["Revenue", "source_id"], descending=[True, False]).head(10)
 d_next = d_next.rename({"source_id": "Source"})</field>
     </record>
+    <record id="sale_top_sources_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_top_sources_table" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
 
     <!-- "Top Mediums" : per campaign medium, the confirmed orders and their revenue (empty while no order has a medium) -->
     <record id="sale_top_mediums_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Mediums</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">5</field>
-        <field name="col_span">2</field>
-        <field name="tile_height">380</field>
         <field name="definition">d_next = d
 # d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
 # confirmed orders that have a medium
@@ -351,16 +386,19 @@ d_next = d_next.group_by("medium_id").agg([pl.len().alias("Orders"), pl.col("amo
 d_next = d_next.sort(["Revenue", "medium_id"], descending=[True, False]).head(10)
 d_next = d_next.rename({"medium_id": "Medium"})</field>
     </record>
+    <record id="sale_top_mediums_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_top_mediums_table" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
 
     <!-- "Top Countries" : per customer country, the confirmed orders and their revenue (empty while no customer has a country) -->
     <record id="sale_top_countries_table" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
         <field name="kind">data</field>
         <field name="name">Top Countries</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">5</field>
-        <field name="col_span">2</field>
-        <field name="tile_height">380</field>
         <field name="definition">d_next = d
 # d : the rows the user may read, already filtered by the panel period and dimensions ; line 1 must stay `out = in`
 # confirmed orders
@@ -383,5 +421,12 @@ d_next = d_next.select([
     pl.col("user_id").alias("Salesperson"),
     pl.col("amount_untaxed").alias("Revenue"),
 ])</field>
+    </record>
+    <record id="sale_top_countries_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_top_countries_table" />
+        <field name="sequence">5</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
     </record>
 </odoo>

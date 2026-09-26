@@ -6,10 +6,6 @@
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">data</field>
         <field name="name">Sales explorer (Perspective)</field>
-        <field name="panel_id" ref="panel_sale" />
-        <field name="sequence">90</field>
-        <field name="col_span">6</field>
-        <field name="tile_height">460</field>
         <field name="definition">-- perspective: {"plugin": "Datagrid", "group_by": ["Salesperson"], "split_by": ["Year"], "columns": ["Revenue"], "sort": [["Revenue", "col desc"]]}
 -- the confirmed order lines, by salesperson and month : a pivot to move in the browser
 SELECT
@@ -23,5 +19,12 @@ FROM d
 WHERE "state" NOT IN ('draft', 'sent', 'cancel')
 GROUP BY "Salesperson", "Year", "Month"
 ORDER BY "Month", "Salesperson"</field>
+    </record>
+    <record id="sale_perspective_explorer_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_sale" />
+        <field name="kpi_id" ref="sale_perspective_explorer_table" />
+        <field name="sequence">90</field>
+        <field name="col_span">6</field>
+        <field name="tile_height">460</field>
     </record>
 </odoo>
