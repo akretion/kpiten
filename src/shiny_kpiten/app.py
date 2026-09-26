@@ -327,24 +327,27 @@ def app_ui(req):  # noqa: ANN001
             # the head of the page : the panel, its actions, the freshness of the data
             ui.div(
                 ui.h2(ui.output_text("panel_title", inline=True)),
-                # ✨ : the AI narrows the whole panel (and the badge of its filter)
-                ui.output_ui("ai_panel_bar", inline=True),
-                ui.input_action_button(
-                    "refresh_data",
-                    ui.HTML(svg("rotate")),
-                    class_="btn-kpiten",
-                    title=tr(REFRESH_TOOLTIP),
-                ),
-                ui.output_ui("ods_button"),
-                # the exports of the panel the plugins offer (quarto-kpiten : a PDF)
-                ui.output_ui("plugin_exports"),
-                ui.tags.button(
-                    ui.HTML(svg("link")),
-                    class_="btn-kpiten btn-link-view",
-                    type="button",
-                    title=tr("Copy the link of this view (panel, period, filters)"),
-                    onclick="kpitenCopyLink(this)",
-                    **{"data-label": tr("The link of this view :")},
+                ui.div(
+                    # ✨ : the AI narrows the whole panel (and the badge of its filter)
+                    ui.output_ui("ai_panel_bar", inline=True),
+                    ui.input_action_button(
+                        "refresh_data",
+                        ui.HTML(svg("rotate")),
+                        class_="btn-kpiten",
+                        title=tr(REFRESH_TOOLTIP),
+                    ),
+                    ui.output_ui("ods_button"),
+                    # the exports of the panel the plugins offer (quarto : a PDF)
+                    ui.output_ui("plugin_exports"),
+                    ui.tags.button(
+                        ui.HTML(svg("link")),
+                        class_="btn-kpiten btn-link-view",
+                        type="button",
+                        title=tr("Copy the link of this view (panel, period, filters)"),
+                        onclick="kpitenCopyLink(this)",
+                        **{"data-label": tr("The link of this view :")},
+                    ),
+                    class_="top-actions",
                 ),
                 ui.output_ui("data_freshness"),
                 class_="top-bar",
@@ -1043,7 +1046,8 @@ def server(input, output, session):
                 "The data are more than {hours} hours old", hours=env.data_stale_hours
             )
         return ui.tags.span(
-            "⏱ " + stamp,
+            ui.HTML(svg("clock", width="11px", height="11px")),
+            stamp,
             class_="data-freshness" + (" stale" if stale else ""),
             title=title,
         )
@@ -1181,7 +1185,10 @@ def server(input, output, session):
         if not core_config.explore_allowed(can_edit()):
             return None
         return ui.input_action_button(
-            "ods_open", "\u2913", class_="btn-kpiten", title=tr(ODS_TOOLTIP)
+            "ods_open",
+            ui.HTML(svg("file-arrow-down")),
+            class_="btn-kpiten",
+            title=tr(ODS_TOOLTIP),
         )
 
     @reactive.effect

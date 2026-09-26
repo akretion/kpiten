@@ -108,8 +108,16 @@ class Theme:
 .kpiten-brand img.kpiten-logo {{ width: 40px; height: 40px }}
 .top-bar h2 {{ font-size: 22px; font-weight: 700; margin: 0 8px 0 0; color: {page["text"]} }}
 .top-bar {{ align-items: center !important }}
-.top-bar .btn-kpiten {{ width: 38px; padding: 0; display: grid; place-items: center }}
-.top-bar .btn-kpiten svg {{ width: 15px; height: 15px; fill: currentColor }}
+.top-bar .btn-kpiten {{
+  width: 34px; height: 34px; padding: 0; display: grid; place-items: center
+}}
+/* faicons puts margins in the style of its svg : they shift the icon off center */
+.top-bar .btn-kpiten svg {{
+  font-size: 15px; margin: 0 !important; vertical-align: 0 !important
+}}
+/* the actions of the panel : a tight group, apart from the title */
+.top-bar .top-actions {{ display: inline-flex; align-items: center; gap: 6px }}
+.top-bar .top-actions .shiny-html-output {{ display: contents }}
 /* one compact row : logo, panel, database, theme, actions, freshness */
 .top-bar, .filter-bar {{
   display: flex;
@@ -178,7 +186,10 @@ class Theme:
   opacity: 0.55;
   color: {page["text"]};
   align-self: center;
+  display: inline-flex; align-items: center; gap: 4px;
+  cursor: default;
 }}
+.data-freshness svg {{ margin: 0 !important; vertical-align: 0 !important }}
 .data-freshness.stale {{ opacity: 1; color: #e8590c; font-weight: 600 }}
 .btn-link-view.copied {{ color: #2b8a3e }}
 .kpiten-logo {{ height: 80px; width: 80px; align-self: center }}
@@ -314,7 +325,6 @@ class Theme:
 .tile-ai-promote svg {{ width: 10px !important; height: 10px !important; fill: currentColor }}
 /* the panel : its ✨ in the head of the page */
 #ai_panel_bar {{ display: inline-flex; align-items: center; gap: 8px }}
-.panel-ai svg {{ width: 14px; height: 14px; fill: currentColor }}
 /* a ✨ whose tile (or panel) the AI filters */
 .tile-ai.tile-ai--on {{ color: {p["accent"]}; opacity: 1 }}
 .panel-ai.tile-ai--on {{ background: {p["accent"]}; color: {p["surface_hex"]} }}
