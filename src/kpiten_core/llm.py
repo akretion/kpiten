@@ -4,6 +4,9 @@ Two providers, each one offered only when configured (`bi/.env`, see `.env.examp
 Claude (`ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`) and a local model behind an
 OpenAI-compatible api (`LOCAL_LLM_MODEL`, `LOCAL_LLM_URL`) : with it nothing leaves
 the machine. What is sent is decided by the caller (`kpiten_core.anonymize`).
+
+Every call of the fronts goes through `complete` : the querychat of Shiny, the chat and
+the step by step of marimo.
 """
 
 from dataclasses import dataclass
@@ -12,7 +15,19 @@ import requests
 
 from kpiten_core import env
 
-TIMEOUT = 120  # seconds to wait for the model
+# seconds to wait for the model : a local model on a CPU may take minutes
+TIMEOUT = int(env.get("LLM_TIMEOUT", "600"))
+
+
+def thinks(model: str) -> bool:
+    """A model that reasons before it answers, by default (qwen3) : told not to.
+
+    TODO : review later. It is a special case of qwen : without it, a qwen3 on a CPU
+    reasons for minutes before a short answer. Measured with Ollama 0.34 : 100 s for
+    « say hi », 1 s with `reasoning_effort: none` (`/no_think` in the prompt does not
+    stop it). A setting per model, or a model that does not reason, would be better.
+    """
+    return model.lower().startswith("qwen")
 
 
 @dataclass
@@ -54,14 +69,13 @@ def complete(provider: Provider, system: str, messages: list[dict]) -> str:
         )
         return "".join(block.text for block in reply.content if block.type == "text")
     url = env.get("LOCAL_LLM_URL", "http://localhost:11434/v1").rstrip("/")
-    reply = requests.post(
-        f"{url}/chat/completions",
-        json={
-            "model": provider.model,
-            "messages": [{"role": "system", "content": system}, *messages],
-            "temperature": 0,
-        },
-        timeout=TIMEOUT,
-    )
+    body = {
+        "model": provider.model,
+        "messages": [{"role": "system", "content": system}, *messages],
+        "temperature": 0,
+    }
+    if thinks(provider.model):
+        body["reasoning_effort"] = "none"
+    reply = requests.post(f"{url}/chat/completions", json=body, timeout=TIMEOUT)
     reply.raise_for_status()
     return reply.json()["choices"][0]["message"]["content"]
