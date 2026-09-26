@@ -158,6 +158,24 @@ others = true
 </field>
     </record>
 
+    <!-- graph : the months, with their linear trend dotted and 3 months ahead (`trend`) -->
+    <record id="graph_trend" model="kt.kpi">
+        <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />
+        <field name="kind">graph</field>
+        <field name="name">Graph with trend</field>
+        <field name="panel_id" ref="panel_essential" />
+        <field name="sequence">11</field>
+        <field name="col_span">2</field>
+        <field name="definition">type = "line"
+where = "state = 'sale'"
+by = "date_order"
+grain = "month"
+measure = "amount_untaxed"
+aggregation = "sum"
+trend = 3
+</field>
+    </record>
+
     <!-- graph : an area over the months (`grain` groups the dates by month) -->
     <record id="graph_area_monthly" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales" />

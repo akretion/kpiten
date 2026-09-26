@@ -249,6 +249,17 @@ class KtKpi(models.Model):
         "Interactive grid : the user sorts and filters each column.",
     )
     active = fields.Boolean(default=True)
+    certified = fields.Boolean(
+        help="Reviewed by a KpiTen manager : its definition is checked, its figure "
+        "can be trusted and reused (the KPI catalogue).",
+    )
+    table_read = fields.Char(
+        string="Reads",
+        compute="_compute_table_read",
+        store=True,
+        help="The table the tile reads : its dataset, or its 'from' (another model, a "
+        "shared derived table) ; a data tile : also the derived tables it names.",
+    )
     validation_msg = fields.Text(
         compute="_compute_validation_msg",
         store=True,
@@ -446,6 +457,23 @@ class KtKpi(models.Model):
             model = table
         fields = self._valid_columns(rec, model)
         return messages + kt_validate_toml(rec.definition, rec.kind, fields)
+
+    @api.depends("definition", "kind", "dataset_id.model_id")
+    def _compute_table_read(self):
+        derived = (
+            self.env["kt.derived.table"].sudo().search([("shared", "=", True)])
+        ).mapped("name")
+        for rec in self:
+            model = rec.dataset_id.model_id.model or ""
+            names = [model]
+            if rec.kind == "data":
+                names += [name for name in derived if name in (rec.definition or "")]
+            elif rec.kind in ("card", "graph", "pivot"):
+                try:
+                    names = [tomllib.loads(rec.definition or "").get("from") or model]
+                except tomllib.TOMLDecodeError:
+                    pass
+            rec.table_read = ", ".join(name for name in names if name)
 
     @api.model
     def _is_derived_table(self, name: str) -> bool:

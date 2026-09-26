@@ -143,6 +143,8 @@ days_to_order = "date_approve - create_date"</pre>
                     </group>
                     <group>
                         <field name="active" widget="boolean_toggle" />
+                        <field name="certified" widget="boolean_toggle" />
+                        <field name="table_read" />
                         <field name="user_id" />
                         <field name="group_ids" widget="many2many_tags" />
                     </group>
@@ -188,6 +190,8 @@ days_to_order = "date_approve - create_date"</pre>
                 <field name="table_view" optional="hide" />
                 <field name="group_ids" widget="many2many_tags" optional="hide" />
                 <field name="user_id" optional="hide" />
+                <field name="table_read" optional="show" />
+                <field name="certified" widget="boolean_toggle" optional="show" />
                 <field name="validation_msg" optional="hide" />
                 <field name="xml_id" optional="hide" />
                 <field name="active" widget="boolean_toggle" />
@@ -202,6 +206,13 @@ days_to_order = "date_approve - create_date"</pre>
                 <field name="name" />
                 <field name="panel_id" />
                 <field name="dataset_id" />
+                <field name="table_read" />
+                <field name="definition" />
+                <filter
+                    name="certified"
+                    string="Certified"
+                    domain="[('certified', '=', True)]"
+                />
                 <filter
                     name="archived"
                     string="Archived"
@@ -219,9 +230,37 @@ days_to_order = "date_approve - create_date"</pre>
                         string="Panel"
                         context="{'group_by': 'panel_id'}"
                     />
+                    <filter
+                        name="by_table"
+                        string="Table read"
+                        context="{'group_by': 'table_read'}"
+                    />
                 </group>
             </search>
         </field>
     </record>
 
+    <!-- the KPI catalogue : every tile, to find one, see what it reads and who
+         certified it -->
+    <record id="kt_kpi_catalogue_action" model="ir.actions.act_window">
+        <field name="name">KPI catalogue</field>
+        <field name="res_model">kt.kpi</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_by_panel': 1}</field>
+        <field name="help" type="html">
+            <p>
+                Every tile of every panel : search a KPI by its name, its table or its
+                definition before writing a new one ; the certified ones are checked by
+                a KpiTen manager.
+            </p>
+        </field>
+    </record>
+
+    <menuitem
+        id="kt_kpi_catalogue_menu"
+        parent="kpiten_app"
+        name="KPI catalogue"
+        sequence="15"
+        action="kt_kpi_catalogue_action"
+    />
 </odoo>
