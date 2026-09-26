@@ -7,6 +7,7 @@ default period of `kt.config`, in their theme and their language.
 """
 
 import html
+import json
 import logging
 
 from kpiten_core import config as core_config
@@ -37,14 +38,78 @@ def _page(body: str, css: str = "") -> str:
     )
 
 
+# the thumbnail of the KPI in the catalogue of Odoo : the page takes a picture of its
+# tile and sends it back (`POST .../thumbnail`) ; Odoo makes it small and blurred.
+# html2canvas : html-to-image hung on the tables of great_tables
+HTML2CANVAS_JS = (
+    "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+)
+CAPTURE_JS = """
+// html2canvas reads no `color(srgb ...)`, what the browser makes of a `color-mix()`
+// (the badges of the cards...) : rgba() in the copy it draws
+var COLOR_PROPS = ["color", "backgroundColor", "backgroundImage", "borderTopColor",
+  "borderRightColor", "borderBottomColor", "borderLeftColor", "outlineColor",
+  "textDecorationColor", "boxShadow", "fill", "stroke"];
+function srgbToRgba(value) {
+  return value.replace(
+    /color\\(srgb ([-\\d.e]+) ([-\\d.e]+) ([-\\d.e]+)(?: \\/ ([-\\d.e]+))?\\)/g,
+    function (_, r, g, b, a) {
+      var c = function (x) { return Math.round(Math.min(1, Math.max(0, +x)) * 255); };
+      return "rgba(" + c(r) + ", " + c(g) + ", " + c(b) + ", " + (a || 1) + ")";
+    });
+}
+function plainColors(doc) {
+  doc.querySelectorAll("*").forEach(function (el) {
+    var style = doc.defaultView.getComputedStyle(el);
+    COLOR_PROPS.forEach(function (prop) {
+      var value = style[prop];
+      if (value && value.indexOf("color(") >= 0) { el.style[prop] = srgbToRgba(value); }
+    });
+  });
+}
+window.addEventListener("load", function () {
+  // the graphs of plotly are drawn after the load
+  setTimeout(function () {
+    var body = document.body;
+    if (!document.querySelector(".tile") || !window.html2canvas) { return; }
+    // the page with its background (a gradient of the theme), as high as its tile
+    body.style.minHeight = "0";
+    body.style.backgroundAttachment = "scroll";
+    html2canvas(body, {
+      scale: 1, logging: false, height: body.offsetHeight, onclone: plainColors,
+    })
+      .then(function (canvas) {
+        fetch(location.pathname + "/thumbnail" + location.search, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            image: canvas.toDataURL("image/png").split(",")[1], key: %s,
+          }),
+        });
+      })
+      .catch(function (err) { console.warn("thumbnail", err); });
+  }, 1500);
+});
+"""
+
+
+def _capture(key: str) -> str:
+    """The script that sends a picture of the tile, made from the definition `key`."""
+    return (
+        f'<script src="{HTML2CANVAS_JS}"></script>'
+        f"<script>{CAPTURE_JS % json.dumps(key)}</script>"
+    )
+
+
 def _message(text: str) -> str:
     return _page(
         f'<p style="font-family: sans-serif; opacity: .7">{html.escape(text)}</p>'
     )
 
 
-def tile_page(tile_id: int, sso) -> str:
-    """The html of the tile `tile_id` for the user of the session `sso`."""
+def tile_page(tile_id: int, sso, thumb: str | None = None) -> str:
+    """The html of the tile `tile_id` for the user of the session `sso` ; `thumb` : the
+    page sends a picture of the tile back (the thumbnail of the KPI, see `_capture`)."""
     tr = i18n.translator(sso.lang)
     backend = Backend.create(db=sso.db)
     core_tiles.set_chart_config(backend.get_chart_config())
@@ -82,6 +147,8 @@ def tile_page(tile_id: int, sso) -> str:
             core_labels.field_labels_of(backend, sso.lang),
         )
         body = tile_html(line, theme, result, tr=tr)
+        if thumb:  # not of an error : a thumbnail shows the KPI
+            body += _capture(thumb)
     except Exception as err:
         logger.exception("the preview of tile %s failed", tile_id)
         body = tile_error_html(line, str(err))

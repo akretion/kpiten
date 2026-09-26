@@ -11,7 +11,7 @@ import json
 import logging
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from kpiten_core.backend import Backend
 
@@ -74,8 +74,9 @@ def check(session: str):
 
 
 @this_app.get("/dashboard/tile/{tile_id}")
-def tile(tile_id: int, session: str):
-    """One tile alone : the iframe of a KPI in its form in Odoo (see `tile_page`)."""
+def tile(tile_id: int, session: str, thumb: str | None = None):
+    """One tile alone : the iframe of a KPI in its form in Odoo (see `tile_page`) ;
+    `thumb` : Odoo asks for a new thumbnail, made from this definition."""
     sso = SessionHandler.get(session)
     if sso is None:
         return HTMLResponse(
@@ -84,7 +85,30 @@ def tile(tile_id: int, session: str):
         )
     from .tile_page import tile_page
 
-    return HTMLResponse(tile_page(tile_id, sso))
+    return HTMLResponse(tile_page(tile_id, sso, thumb))
+
+
+@this_app.post("/dashboard/tile/{tile_id}/thumbnail")
+def tile_thumbnail(tile_id: int, session: str, payload: dict):
+    """The picture of a tile its page took (`tile_page._capture`) -> the thumbnail of
+    the KPI ; Odoo makes it small and blurred, and refuses it when the definition
+    changed since (`kt.kpi.set_thumbnail`)."""
+    sso = SessionHandler.get(session)
+    if sso is None:
+        return JSONResponse(status_code=403, content={"error": "Not connected"})
+    try:
+        backend = Backend.create(db=sso.db)
+        done = backend.call(
+            backend.kpi_model,
+            "set_thumbnail",
+            ids=[tile_id],
+            image=str(payload.get("image") or ""),
+            key=str(payload.get("key") or ""),
+        )
+    except Exception:
+        logger.exception("the thumbnail of KPI %s failed", tile_id)
+        return JSONResponse(status_code=500, content={"error": "Thumbnail failed"})
+    return JSONResponse(content={"ok": bool(done)})
 
 
 this_app.mount("/dashboard", shiny_app)
