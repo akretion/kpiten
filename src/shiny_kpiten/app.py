@@ -84,7 +84,7 @@ ODS_MODEL_TOOLTIP = (
     "filters of the panel"
 )
 EDIT_TOOLTIP = (
-    "Edit this panel : move, resize or delete its tiles (drag and drop, or the "
+    "Edit this panel : move, resize or remove its tiles (drag and drop, or the "
     "buttons on each tile). The changes are saved in Odoo."
 )
 AI_TOOLTIP = "Ask the AI : narrow the rows of this KPI in words"
@@ -481,7 +481,7 @@ def _inject_toolbar(content: str, line: dict, tr=i18n.english) -> str:
         ("wdec", "⇤", "Narrower"),
         ("hinc", "⤒", "Taller"),
         ("hdec", "⤓", "Shorter"),
-        ("delete", "🗑", "Delete"),
+        ("delete", "✕", "Remove from the panel (the KPI stays in the catalogue)"),
     ]
     toolbar = "".join(
         f'<button class="tile-act" data-action="{key}" title="{tr(label)}" '
@@ -1371,9 +1371,11 @@ def server(input, output, session):
         if line is None:
             return
 
+        panel_id = int(input.panel())
         if action == "delete":
-            backend.delete_tile(tile_id)
-            ui.notification_show(tr("Tile #{id} deleted", id=tile_id))
+            # off the panel only : the KPI stays in the catalogue
+            backend.remove_tile(panel_id, tile_id)
+            ui.notification_show(tr("Tile #{id} removed from the panel", id=tile_id))
 
         elif action in ("winc", "wdec", "hinc", "hdec"):
             col_span = line.get("col_span") or 1
@@ -1386,7 +1388,7 @@ def server(input, output, session):
                 tile_height += HEIGHT_STEP
             else:
                 tile_height = max(HEIGHT_STEP, tile_height - HEIGHT_STEP)
-            backend.update_tile_layout(tile_id, col_span, tile_height)
+            backend.update_tile_layout(panel_id, tile_id, col_span, tile_height)
 
         else:  # left / right : swap with a neighbour, save the new sequence
             # the neighbour on screen : a card among the cards, a tile among the tiles
@@ -1397,7 +1399,7 @@ def server(input, output, session):
                 ids[pos - 1], ids[pos] = ids[pos], ids[pos - 1]
             elif action == "right" and pos < len(ids) - 1:
                 ids[pos + 1], ids[pos] = ids[pos], ids[pos + 1]
-            backend.update_tile_order(ids)
+            backend.update_tile_order(panel_id, ids)
 
         with reactive.isolate():
             layout_version.set(layout_version() + 1)
@@ -1409,7 +1411,7 @@ def server(input, output, session):
             if not can_edit():
                 ui.notification_show(tr("Only a KpiTen manager can edit tiles."))
                 return
-            backend_rv().update_tile_order([int(i) for i in ids])
+            backend_rv().update_tile_order(int(input.panel()), [int(i) for i in ids])
             layout_version.set(layout_version() + 1)
             ui.notification_show(tr("Tiles order saved."))
 

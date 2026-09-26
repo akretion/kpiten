@@ -48,10 +48,11 @@ def tile_page(tile_id: int, sso) -> str:
     tr = i18n.translator(sso.lang)
     backend = Backend.create(db=sso.db)
     core_tiles.set_chart_config(backend.get_chart_config())
-    kpi = backend.call(backend.kpi_model, "read", ids=[tile_id], fields=["panel_id"])
-    if not kpi or not kpi[0]["panel_id"]:
+    kpi = backend.call(backend.kpi_model, "read", ids=[tile_id], fields=["panel_ids"])
+    if not kpi or not kpi[0]["panel_ids"]:
         return _message(tr("Put the KPI on a panel to see it."))
-    panel_id = kpi[0]["panel_id"][0]
+    # drawn with the filters of its first panel (a KPI may be on several)
+    panel_id = kpi[0]["panel_ids"][0]
     line = next(
         (
             t
