@@ -122,50 +122,52 @@ def _():
 -- Step 1 : the confirmed orders
 confirmed AS (SELECT * FROM d WHERE state = 'sale' AND amount_untaxed > 0),
 -- Step 2 : the month of each order
-with_month AS (SELECT *, strftime(date_order, '%Y-%m') AS month FROM confirmed),
+with_month AS (SELECT *, strftime(date_order, '%Y-%m') AS mois FROM confirmed),
 -- Step 3 : the total by salesperson and month
 by_user AS (
-    SELECT user_id, month, SUM(amount_untaxed) AS untaxed, COUNT(*) AS orders
+    SELECT user_id AS "Vendeur", mois AS "Mois",
+           SUM(amount_untaxed) AS "CA HT", COUNT(*) AS "Commandes"
     FROM with_month
-    GROUP BY user_id, month
+    GROUP BY user_id, mois
 )
 -- Step 4 : the 10 best months
-SELECT * FROM by_user ORDER BY untaxed DESC LIMIT 10""",
+SELECT * FROM by_user ORDER BY "CA HT" DESC LIMIT 10""",
         "sale.order.line": """WITH
 -- Step 1 : the lines of the confirmed orders
 confirmed AS (SELECT * FROM d WHERE state = 'sale'),
 -- Step 2 : the salesperson of the order of each line
 with_user AS (
-    SELECT l.*, o.user_id AS salesperson
+    SELECT l.*, o.user_id AS vendeur
     FROM confirmed l JOIN "sale.order" o ON l.order_id_ = o.id
 ),
 -- Step 3 : what each salesperson sells of each category
 by_category AS (
-    SELECT salesperson, "product_id.categ_id.complete_name" AS category,
-           SUM(price_subtotal) AS untaxed
+    SELECT vendeur AS "Vendeur",
+           "product_id.categ_id.complete_name" AS "Catégorie",
+           SUM(price_subtotal) AS "CA HT"
     FROM with_user
-    GROUP BY salesperson, category
+    GROUP BY vendeur, "product_id.categ_id.complete_name"
 )
 -- Step 4 : the largest first
-SELECT * FROM by_category ORDER BY untaxed DESC LIMIT 15""",
+SELECT * FROM by_category ORDER BY "CA HT" DESC LIMIT 15""",
         "purchase.order": """WITH
 -- Step 1 : the orders, not the requests for quotation
 orders AS (SELECT * FROM d WHERE state IN ('purchase', 'done')),
 -- Step 2 : the days from the order to the planned delivery
 with_delay AS (
     -- a date cast to an integer : its number of days
-    SELECT *, CAST(date_planned AS INTEGER) - CAST(date_order AS INTEGER) AS days
+    SELECT *, CAST(date_planned AS INTEGER) - CAST(date_order AS INTEGER) AS jours
     FROM orders
 ),
 -- Step 3 : the spend and the delay by vendor
 by_vendor AS (
-    SELECT partner_id AS vendor, SUM(amount_untaxed) AS spend,
-           AVG(days) AS average_days, COUNT(*) AS orders
+    SELECT partner_id AS "Fournisseur", SUM(amount_untaxed) AS "Achats HT",
+           ROUND(AVG(jours), 1) AS "Délai moyen (jours)", COUNT(*) AS "Commandes"
     FROM with_delay
     GROUP BY partner_id
 )
 -- Step 4 : the 10 largest vendors
-SELECT * FROM by_vendor ORDER BY spend DESC LIMIT 10""",
+SELECT * FROM by_vendor ORDER BY "Achats HT" DESC LIMIT 10""",
     }
     FIRST_ROWS = """-- Step 1 : the first rows of the table
 SELECT * FROM d LIMIT 10"""
@@ -175,12 +177,15 @@ SELECT * FROM d LIMIT 10"""
     # the confirmed orders
     .filter((pl.col("state") == "sale") & (pl.col("amount_untaxed") > 0))
     # the month of each order
-    .with_columns(pl.col("date_order").dt.to_string("%Y-%m").alias("month"))
+    .with_columns(pl.col("date_order").dt.to_string("%Y-%m").alias("Mois"))
     # the total by salesperson and month
-    .group_by("user_id", "month")
-    .agg(pl.col("amount_untaxed").sum().alias("untaxed"), pl.len().alias("orders"))
+    .group_by(pl.col("user_id").alias("Vendeur"), "Mois")
+    .agg(
+        pl.col("amount_untaxed").sum().alias("CA HT"),
+        pl.len().alias("Commandes"),
+    )
     # the 10 best months
-    .sort("untaxed", descending=True)
+    .sort("CA HT", descending=True)
     .head(10)
 )""",
         "sale.order.line": """d_next = (
@@ -189,15 +194,17 @@ SELECT * FROM d LIMIT 10"""
     .filter(pl.col("state") == "sale")
     # the salesperson of the order of each line
     .join(
-        tables["sale.order"].select("id", pl.col("user_id").alias("salesperson")),
+        tables["sale.order"].select("id", pl.col("user_id").alias("Vendeur")),
         left_on="order_id_",
         right_on="id",
     )
     # what each salesperson sells of each category
-    .group_by("salesperson", pl.col("product_id.categ_id.complete_name").alias("category"))
-    .agg(pl.col("price_subtotal").sum().alias("untaxed"))
+    .group_by(
+        "Vendeur", pl.col("product_id.categ_id.complete_name").alias("Catégorie")
+    )
+    .agg(pl.col("price_subtotal").sum().alias("CA HT"))
     # the largest first
-    .sort("untaxed", descending=True)
+    .sort("CA HT", descending=True)
     .head(15)
 )""",
         "purchase.order": """d_next = (
@@ -205,16 +212,18 @@ SELECT * FROM d LIMIT 10"""
     # the orders, not the requests for quotation
     .filter(pl.col("state").is_in(["purchase", "done"]))
     # the days from the order to the planned delivery
-    .with_columns((pl.col("date_planned") - pl.col("date_order")).dt.total_days().alias("days"))
+    .with_columns(
+        (pl.col("date_planned") - pl.col("date_order")).dt.total_days().alias("jours")
+    )
     # the spend and the delay by vendor
-    .group_by(pl.col("partner_id").alias("vendor"))
+    .group_by(pl.col("partner_id").alias("Fournisseur"))
     .agg(
-        pl.col("amount_untaxed").sum().alias("spend"),
-        pl.col("days").mean().round(1).alias("average_days"),
-        pl.len().alias("orders"),
+        pl.col("amount_untaxed").sum().alias("Achats HT"),
+        pl.col("jours").mean().round(1).alias("Délai moyen (jours)"),
+        pl.len().alias("Commandes"),
     )
     # the 10 largest vendors
-    .sort("spend", descending=True)
+    .sort("Achats HT", descending=True)
     .head(10)
 )""",
     }
