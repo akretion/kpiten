@@ -535,7 +535,7 @@ def _(
         value=(get_py if _polars else get_sql)(),
         language="python" if _polars else "sql",
         min_height=260,
-        label=f"The {'polars code' if _polars else 'SQL'} (run when you leave the editor)",
+        label="The code (run when you leave the editor)",
         on_change=set_py if _polars else set_sql,
     )
     # the detail (the SQL and the measures of each step) : a KpiTen manager only
