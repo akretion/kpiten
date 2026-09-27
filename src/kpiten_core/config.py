@@ -11,6 +11,7 @@ kpiten module, nothing changes.
      "period": {"default": "last 90 days", "fiscal_start_month": 1},
      "ui": {"theme": "capitaine", "table_rows": 20, "colors": "theme",
             "idle_minutes": 60},
+     "table": {"total_row_first": True, "total_column_first": True},
      "explore": {"access": "everyone", "max_rows": 500000, "ods_max_rows": 500000},
      "ai": {"enabled": True, "send_values": True, "send_level": "summary"},
      "currency": {"symbol": "$", "position": "before"}}
@@ -119,6 +120,20 @@ def table_rows() -> int:
     """Rows a table tile shows (what the tile holds beyond scrolls or is left out)."""
     rows = _section("ui").get("table_rows") or 20
     return max(1, rows)
+
+
+def total_row_first() -> bool | None:
+    """The « Total » row of a table (the sum of each column) above its rows ; None when
+    Odoo says nothing : each kind keeps its place (a pivot on top, a data tile below).
+    """
+    value = _section("table").get("total_row_first")
+    return None if value is None else bool(value)
+
+
+def total_column_first() -> bool:
+    """The « Total » column of a table (the sum of each row) right after the labels of
+    the rows ; on the right when Odoo says nothing."""
+    return bool(_section("table").get("total_column_first", False))
 
 
 def idle_minutes(config: dict | None = None) -> int:

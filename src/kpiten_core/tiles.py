@@ -866,10 +866,8 @@ def pivot_case(content, table, store, full_predicates, field_labels=None):
     shown = labels.column_label(index, pivot_json.get("labels"), fields)
     if shown != index and shown not in pivoted.columns:
         pivoted = pivoted.rename({index: shown})
-    df, drawing = _table(pivoted, pivot_json)
-    if drawing.get("totals"):  # like in Odoo : the « Total » row above the rows
-        drawing["totals_first"] = True
-    return df, drawing
+    # like in Odoo : the « Total » row above the rows, unless kt.config says otherwise
+    return _table(pivoted, pivot_json, totals_first=True)
 
 
 TOTAL = "Total"
@@ -902,12 +900,14 @@ def _data_display(line: dict, df: pl.DataFrame, table: str, field_labels):
 
 
 def _table(
-    df: pl.DataFrame, tile_json: dict, stub: bool = True
+    df: pl.DataFrame, tile_json: dict, stub: bool = True, totals_first: bool = False
 ) -> tuple[pl.DataFrame, dict]:
     """The `[table]` of a pivot or a data tile : its « Total » column added to the rows,
     and what the front draws (`meta["table"]`, see `render.gtable`) : the formats, the
     « Total » row computed on every row (the front shows the first ones only), the
-    heatmap... `stub` : the first column as row headers, by default."""
+    heatmap... `stub` : the first column as row headers, by default. The places of the
+    totals : kt.config (`total_row_first`, `total_column_first`), else the « Total »
+    row above the rows with `totals_first` and the « Total » column on the right."""
     table_json = tile_json.get("table")
     if not table_json and not tile_json.get("limit"):
         return df, {}
@@ -915,6 +915,8 @@ def _table(
     values = [c for c in df.columns[1:] if df.schema[c].is_numeric()]
     if table_json.pop("row_totals", False) and values and TOTAL not in df.columns:
         df = df.with_columns(pl.sum_horizontal(values).alias(TOTAL))
+        if settings.total_column_first():  # right after the labels of the rows
+            df = df.select(df.columns[0], TOTAL, *df.columns[1:-1])
     drawing = {key: value for key, value in table_json.items() if key != "totals"}
     drawing["values"] = values  # the heatmap : the cells, not the totals
     if table_json.get("totals") and df.width > 1:
@@ -923,6 +925,9 @@ def _table(
             {c: df[c].sum() for c in df.columns[1:] if df.schema[c].is_numeric()}
         )
         drawing["totals"] = row
+        first = settings.total_row_first()
+        if first if first is not None else totals_first:
+            drawing["totals_first"] = True
     if tile_json.get("limit"):
         drawing["limit"] = tile_json["limit"]
     return df, drawing
