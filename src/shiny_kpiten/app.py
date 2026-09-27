@@ -1966,7 +1966,7 @@ def server(input, output, session):
                     "save_panel",
                     tr("Panel"),
                     choices=panels(),
-                    selected=str(input.panel()),
+                    selected=save_panel_default(),
                     width="100%",
                 ),
                 ui.p(
@@ -1986,6 +1986,17 @@ def server(input, output, session):
                 ),
             )
         )
+
+    def save_panel_default() -> str:
+        """The panel a KPI is saved on by default : the open one when the user owns it,
+        else the first one they own, else the open one."""
+        current = str(input.panel())
+        owned = [
+            str(i)
+            for i in backend_rv().get_owned_panel_ids(current_user_id())
+            if str(i) in panels()
+        ]
+        return current if current in owned or not owned else owned[0]
 
     def serial_where(definition: str) -> str:
         try:
@@ -2016,6 +2027,7 @@ def server(input, output, session):
                     "table_view": line.get("table_view"),
                     "display": line.get("display") or False,
                     "drill_definition": line.get("drill") or False,
+                    "duplicated_id": line["id"],
                 },
             )
         except Exception as err:
