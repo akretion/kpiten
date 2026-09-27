@@ -2,16 +2,28 @@
     <record model="kt.panel" id="panel_sale">
         <field name="name">Sales</field>
         <field name="sequence">10</field>
-        <field
-            name="filter_config"
-        >{"date": {"field": ["date_order", "order_id.date_order"]}, "dimensions": [{"name": "user_id", "label": "Salesperson"}, {"name": "partner_id", "label": "Customer"}]}</field>
+        <field name="filter_config">[date]
+field = ["date_order", "order_id.date_order"]
+
+[[dimensions]]
+name = "user_id"
+label = "Salesperson"
+
+[[dimensions]]
+name = "partner_id"
+label = "Customer"
+</field>
     </record>
     <record model="kt.panel" id="panel_purchase">
         <field name="name">Purchase</field>
         <field name="sequence">20</field>
-        <field
-            name="filter_config"
-        >{"date": {"field": "date_order"}, "dimensions": [{"name": "partner_id", "label": "Vendor"}]}</field>
+        <field name="filter_config">[date]
+field = "date_order"
+
+[[dimensions]]
+name = "partner_id"
+label = "Vendor"
+</field>
     </record>
 
 </odoo>

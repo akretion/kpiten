@@ -4,8 +4,16 @@
     <record model="kt.panel" id="panel_essential">
         <field name="name">Essentials</field>
         <field name="sequence">100</field>
-        <field
-            name="filter_config"
-        >{"date": {"field": ["date_order", "order_id.date_order"]}, "dimensions": [{"name": "user_id", "label": "Salesperson"}, {"name": "partner_id", "label": "Customer"}]}</field>
+        <field name="filter_config">[date]
+field = ["date_order", "order_id.date_order"]
+
+[[dimensions]]
+name = "user_id"
+label = "Salesperson"
+
+[[dimensions]]
+name = "partner_id"
+label = "Customer"
+</field>
     </record>
 </odoo>

@@ -1,5 +1,6 @@
-from odoo import _, api, fields, models
+from odoo import _, api, exceptions, fields, models
 
+from .. import filter_config as kt_filter_config
 from ..compat import LIST, sql_constraints
 
 
@@ -12,9 +13,16 @@ class KtPanel(models.Model):
     # never empty : Postgres puts an empty sequence last, after "Main" (50)
     sequence = fields.Integer(default=10)
     description = fields.Char()
-    # Filters available on the dashboard, as JSON
-    # e.g. {"date": {"field": "date_order"}, "dimensions": [{"name": "user_id", "label": "Salesperson"}]}
-    filter_config = fields.Text(default="{}")
+    # the filters of the dashboard, in TOML (see `filter_config.py`) ; a JSON value is
+    # written back as TOML
+    filter_config = fields.Text(
+        string="Filters",
+        default="",
+        help="The filters of the dashboards, in TOML :\n"
+        "[date] field = the date of the rows (a list : the first one each table "
+        "has) ;\n"
+        "[[dimensions]] name = a field, label = its name on the dashboard.",
+    )
     active = fields.Boolean(default=True)
     # its owner edits it (in Odoo and in the edit mode of the dashboards), like a
     # KpiTen manager ; the other users only read it
@@ -36,6 +44,37 @@ class KtPanel(models.Model):
         compute="_compute_line_count",
         help="Number of tiles of this panel, the archived KPIs included.",
     )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if "filter_config" in vals:
+                vals["filter_config"] = kt_filter_config.normalize(
+                    vals["filter_config"]
+                )
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if "filter_config" in vals:
+            vals = dict(
+                vals, filter_config=kt_filter_config.normalize(vals["filter_config"])
+            )
+        return super().write(vals)
+
+    @api.constrains("filter_config")
+    def _check_filter_config(self):
+        for rec in self:
+            try:
+                config = kt_filter_config.parse(rec.filter_config)
+            except ValueError as err:  # TOMLDecodeError, JSONDecodeError
+                raise exceptions.ValidationError(
+                    _("The filters must be valid TOML :\n%s") % err
+                )
+            wrong = kt_filter_config.errors(config)
+            if wrong:
+                raise exceptions.ValidationError(
+                    _("The filters are not valid :\n%s") % "\n".join(wrong)
+                )
 
     @api.depends("tile_ids")
     def _compute_line_count(self):

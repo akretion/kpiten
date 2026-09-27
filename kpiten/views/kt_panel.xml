@@ -55,12 +55,6 @@
                             <field name="sequence" readonly="not can_edit" />
                         </group>
                     </group>
-                    <field
-                        name="filter_config"
-                        readonly="not can_edit"
-                        widget="ace"
-                        options="{'mode': 'python'}"
-                    />
                     <notebook>
                         <page string="Tiles">
                             <!-- a KPI of the catalogue is added here ; removing one
@@ -75,6 +69,16 @@
                                     <field name="kpi_active" />
                                 </list>
                             </field>
+                        </page>
+                        <!-- the filters of the dashboards, in TOML -->
+                        <page string="Filters">
+                            <field
+                                name="filter_config"
+                                nolabel="1"
+                                readonly="not can_edit"
+                                widget="ace"
+                                options="{'mode': 'python'}"
+                            />
                         </page>
                     </notebook>
                 </sheet>
