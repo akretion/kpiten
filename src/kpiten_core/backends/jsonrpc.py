@@ -176,6 +176,24 @@ class JsonrpcBackend:
             args.append(values)
         return self.env[self.kpi_model].create_tile(*args)
 
+    def adopt_tile(
+        self, kpi_id: int, panel_id: int, user_id: int, from_panel_id: int | None = None
+    ) -> bool:
+        return bool(
+            self.call(
+                self.kpi_model,
+                "adopt_tile",
+                kpi_id=kpi_id,
+                panel_id=panel_id,
+                user_id=user_id,
+                from_panel_id=from_panel_id,
+            )
+        )
+
+    def get_tile_panel_ids(self, kpi_id: int) -> list[int]:
+        records = self.call(self.kpi_model, "read", ids=[kpi_id], fields=["panel_ids"])
+        return records[0]["panel_ids"] if records else []
+
     def get_records_action_id(self, model: str) -> int:
         key = (self.db, model)
         if key not in _RECORDS_ACTIONS:  # the action of a model does not change

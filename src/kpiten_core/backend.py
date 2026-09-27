@@ -124,6 +124,18 @@ class Backend:
         Returns its id."""
         raise NotImplementedError
 
+    def adopt_tile(
+        self, kpi_id: int, panel_id: int, user_id: int, from_panel_id: int | None = None
+    ) -> bool:
+        """The KPI `kpi_id` (the same, not a copy) also on the panel `panel_id`, with its
+        size on `from_panel_id` ; Odoo refuses a user who does not edit that panel.
+        False when it was already there."""
+        raise NotImplementedError
+
+    def get_tile_panel_ids(self, kpi_id: int) -> list[int]:
+        """The panels the KPI is on."""
+        raise NotImplementedError
+
     def get_records_action_id(self, model: str) -> int:
         """The id of the Odoo list action that opens the records whose ids it is given
         (`/odoo/action-<id>?active_ids=1,2,3`), one per model."""

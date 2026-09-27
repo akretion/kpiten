@@ -139,7 +139,23 @@ FR = {
     ),
     # the menu of the actions of a tile
     "Actions": "Actions",
-    "Save as a new KPI": "Enregistrer comme nouveau KPI",
+    "Copy as a new KPI": "Copier comme nouveau KPI",
+    "Adopt this KPI": "Adopter ce KPI",
+    "Adopt this KPI : the same KPI also on another panel (not a copy : a change of "
+    "the KPI shows on both)": (
+        "Adopter ce KPI : le même KPI aussi sur un autre tableau (pas une copie : une "
+        "modification du KPI se voit sur les deux)"
+    ),
+    "Adopt « {name} » on another panel": "Adopter « {name} » sur un autre tableau",
+    "Adopt": "Adopter",
+    "The same KPI, not a copy : a change of the KPI shows on every panel it is on.": (
+        "Le même KPI, pas une copie : une modification du KPI se voit sur tous les "
+        "tableaux où il est."
+    ),
+    "The KPI is already on every panel you edit.": (
+        "Le KPI est déjà sur tous les tableaux que vous modifiez."
+    ),
+    "The KPI cannot be adopted : {error}": "Le KPI ne peut pas être adopté : {error}",
     "Ask the AI": "Demander à l'IA",
     "Check in Odoo": "Vérifier dans Odoo",
     "Download the rows": "Télécharger les lignes",
@@ -233,14 +249,14 @@ FR = {
     "Filter removed : the panel counts all its rows again.": (
         "Filtre retiré : le tableau compte à nouveau toutes ses lignes."
     ),
-    "Save as a new KPI : this tile with the filters it is seen with (dimensions, AI), "
+    "Copy as a new KPI : this tile with the filters it is seen with (dimensions, AI), "
     "on the panel you choose": (
-        "Enregistrer comme nouveau KPI : cette tuile avec les filtres qui s'y "
+        "Copier comme nouveau KPI : cette tuile avec les filtres qui s'y "
         "appliquent (dimensions, IA), sur le tableau de votre choix"
     ),
     "Name": "Nom",
     "Create": "Créer",
-    "Save « {name} » as a new KPI": "Enregistrer « {name} » comme nouveau KPI",
+    "Copy « {name} » as a new KPI": "Copier « {name} » comme nouveau KPI",
     "Its rows : the period of the panel, and": (
         "Ses lignes : la période du tableau, et"
     ),
