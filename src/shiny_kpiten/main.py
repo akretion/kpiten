@@ -10,9 +10,12 @@
 import json
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
+from kpiten_core import config as core_config
+from kpiten_core import i18n
+from kpiten_core import session as core_session
 from kpiten_core.backend import Backend
 
 from .app import app as shiny_app
@@ -46,7 +49,11 @@ def auth(payload: dict):
     env.current_db = backend.db
     # the language of the user in Odoo : the one of the dashboard
     token = SessionHandler.new_session(
-        user_id, db=backend.db, lang=backend.get_user_lang(user_id)
+        user_id,
+        db=backend.db,
+        lang=backend.get_user_lang(user_id),
+        idle_minutes=core_config.idle_minutes(backend.get_chart_config()),
+        odoo_url=backend.get_base_url(),
     )
     return Response(status_code=200, content=json.dumps({"session": token}))
 
@@ -70,6 +77,33 @@ def check(session: str):
         path="/dashboard",
         max_age=int(sso.VALIDITY_TIME.total_seconds()),
     )
+    return response
+
+
+@this_app.post("/dashboard/ping")
+def ping(request: Request):
+    """The user is active on the page (`kpiten_core.session.idle_script`) : their
+    session lives on ; 403 when it ended."""
+    if SessionHandler.get(request.cookies.get(SESSION_COOKIE)) is None:
+        return JSONResponse(status_code=403, content={"error": "Not connected"})
+    return JSONResponse(content={"ok": True})
+
+
+@this_app.get("/dashboard/logout")
+def logout(request: Request, idle: bool = False):
+    """End the session (`idle` : after the minutes without activity of kt.config)."""
+    sso = SessionHandler.drop(request.cookies.get(SESSION_COOKIE))
+    tr = i18n.translator(sso.lang if sso else request.headers.get("accept-language"))
+    response = HTMLResponse(
+        core_session.logged_out_html(
+            tr,
+            idle,
+            "Shiny",
+            sso.odoo_url if sso else core_session.odoo_url_of(),
+            icon="/dashboard/static/kpiten.png",
+        )
+    )
+    response.delete_cookie(SESSION_COOKIE, path="/dashboard")
     return response
 
 

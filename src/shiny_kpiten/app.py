@@ -38,6 +38,7 @@ from kpiten_core import odoocheck, savetile
 from kpiten_core import ods as core_ods
 from kpiten_core import labels as core_labels
 from kpiten_core import plugins as core_plugins
+from kpiten_core import session as core_session
 from kpiten_core.render.gtable import DRILL_CSS
 from kpiten_core.render.plotly import (
     _with_alpha,
@@ -275,12 +276,8 @@ def app_ui(req):  # noqa: ANN001
         return ui.page_fluid(
             {"class": "kpiten-dashboard"},
             ui.head_content(FAVICON),
-            ui.h3(tr("Not connected")),
-            ui.p(
-                tr(
-                    "Open the dashboard from Odoo : menu KpiTen → {front}.",
-                    front="Shiny",
-                )
+            ui.HTML(
+                core_session.not_connected_html(tr, "Shiny", core_session.odoo_url_of())
             ),
             title=f"{tr('Not connected')} · {TAB_TITLE}",
         )
@@ -296,6 +293,14 @@ def app_ui(req):  # noqa: ANN001
             ui.tags.script(src=PLOTLY_JS),
             ui.tags.script(FULLSCREEN_JS),
             ui.tags.script(TILE_MENU_JS),
+            # the logout after the minutes without activity of kt.config
+            (
+                ui.tags.script(
+                    core_session.idle_script(sso.idle_minutes, "/dashboard") + LOGOUT_JS
+                )
+                if sso and sso.idle_minutes
+                else None
+            ),
             # the scripts and styles of the plugins' tiles (kpiten_core.hookspecs)
             ui.HTML(core_plugins.head_html()),
         ),
@@ -489,6 +494,19 @@ FULLSCREEN_JS = """
 })();
 """
 
+
+# the server ended the session (`_idle_logout`) : the page of the logout
+LOGOUT_JS = """
+(function () {
+  function register() {
+    if (!window.Shiny || !Shiny.addCustomMessageHandler) { setTimeout(register, 100); return; }
+    Shiny.addCustomMessageHandler("kpiten_logout", function (msg) {
+      window.location.replace(msg.url);
+    });
+  }
+  register();
+})();
+"""
 
 # the menu of the actions of a tile : fixed on the page, so that the scroll of the tile
 # does not cut it ; closed by a click anywhere (an action too) and by Esc
@@ -861,6 +879,20 @@ def server(input, output, session):
     sso = SessionHandler.get(session.http_conn.cookies.get(SESSION_COOKIE))
     if sso is None and not env.allow_rpc_user:
         return  # app_ui shows « log in from Odoo »
+
+    if sso is not None and sso.idle_minutes:
+
+        @reactive.effect
+        async def _idle_logout():
+            """The session ended (the minutes without activity, a logout) : the page
+            goes to the logout ; the script of the page does it too, this is the
+            server's side, when the script did not."""
+            reactive.invalidate_later(60)
+            if sso.expired:
+                await session.send_custom_message(
+                    "kpiten_logout", {"url": "/dashboard/logout?idle=1"}
+                )
+                await session.close()
 
     # active odoo database : the sso session one (an SSO user is bound to it),
     # switched reactively by the Database select in dev mode (each db has its
