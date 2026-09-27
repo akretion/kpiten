@@ -43,6 +43,35 @@ class SyncService:
         self._lock = threading.Lock()
         self._locks: dict[str, threading.Lock] = {}
         self._done: dict[str, float] = {}  # db -> the last slot synced
+        self._backfilling: set[str] = set()  # the dbs whose history is loading
+
+    def keep_backfilling(self, db: str):
+        """While the history of `db` is loading (`loaders.backfill_since`) : a sync
+        at every slot, in a thread of its own (one per db, whoever asks) ; it stops
+        when the history is complete."""
+        with self._lock:
+            if db in self._backfilling or not self._history_loading(db):
+                return
+            self._backfilling.add(db)
+
+        def loop():
+            try:
+                while self._history_loading(db):
+                    self.scheduled_refresh(db, next_slot())
+            except Exception:
+                logger.exception("the history of db %s stops loading", db)
+            finally:
+                with self._lock:
+                    self._backfilling.discard(db)
+
+        threading.Thread(target=loop, name=f"kpiten-history-{db}", daemon=True).start()
+
+    @staticmethod
+    def _history_loading(db: str) -> bool:
+        from kpiten_core import loaders
+
+        with env.db_scope(db):
+            return loaders.backfill_since() is not None
 
     def scheduled_refresh(self, db: str, slot: float) -> bool:
         """A sync asked by a user (the Refresh button) : at `slot` (`next_slot`),

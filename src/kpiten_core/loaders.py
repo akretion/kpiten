@@ -16,7 +16,7 @@ applied from the `auditlog` module (unlink logs).
 import logging
 import queue
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Callable
 from zoneinfo import ZoneInfo
 
@@ -171,16 +171,21 @@ def _extract_full_model(
     model: str,
     extraction_uid: int,
     progress: ProgressFn | None = None,
+    domain: list | None = None,
 ) -> int:
-    """Full extract of one model straight from Postgres, block by block.
+    """Full extract of one model straight from Postgres, block by block ; with
+    `domain`, its records that match it only (the recent ones,
+    `_extract_recent_model`).
 
     Each block is written as soon as it is complete, so the memory used is one
     block, not the table. The table only becomes readable as blocks once all of
     them are written (`DFStorage.commit_full`). Returns the number of rows.
     """
-    logger.info("extracting %s via direct SQL", model)
+    logger.info("extracting %s via direct SQL %s", model, domain or "")
     metadata = backend.get_fields_metadata(model)
-    if env.extract_mode == "view":
+    if domain:
+        base_query = backend.get_sql_query(model, domain, "")
+    elif env.extract_mode == "view":
         base_query = f"SELECT * FROM {backend.get_view_name(model)}"
     else:
         base_query = backend.get_sql_query(model, [], "")
@@ -227,6 +232,129 @@ def _extract_delta_model(
     return rows
 
 
+# A fresh table : its last RECENT_DAYS first (the dashboards open on 90 days), a
+# result in a moment ; then its history, BACKFILL_DAYS more at each sync (every 5
+# minutes, `service.keep_backfilling`) down to its first record. By their creation
+# date, not by id ranges : the ids of imported records do not follow their dates. The
+# table says where it is : `backfill_since`, the records created since are loaded.
+RECENT_DAYS = 90
+BACKFILL_DAYS = 91
+
+
+def _sql_value(backend: "Backend", query: str):
+    """The single value of an aggregate `query` on Postgres."""
+    import connectorx as cx
+
+    df = cx.read_sql(_pg_uri(backend.db), query, return_type="polars")
+    return df[df.columns[0]][0] if df.height else None
+
+
+def _stamp(moment: datetime) -> str:
+    return moment.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _newest_created(backend: "Backend", model: str, before: datetime | None = None):
+    """The `create_date` of the newest record (created before `before`), None when
+    there is none."""
+    domain = [("create_date", "<", _stamp(before))] if before else []
+    query = backend.get_sql_query(model, domain, "")
+    return _sql_value(backend, f"SELECT max(create_date) FROM ({query}) AS kt_q")
+
+
+def _loaded_since(model: str) -> datetime | None:
+    """The date the history of a table reaches while it loads, None when complete."""
+    loaded = DFStorage.read_meta(model).get("backfill_since")
+    return datetime.strptime(loaded, "%Y-%m-%d %H:%M:%S") if loaded else None
+
+
+def _extract_recent_model(
+    backend: "Backend",
+    model: str,
+    extraction_uid: int,
+    progress: ProgressFn | None,
+    since: datetime,
+) -> int:
+    """A fresh table : its records created since `since` (the same date for every
+    table of the store), readable at once ; the older ones come later
+    (`_backfill_model`). A table without records since then (inactive) or read from a
+    view : all of it at once."""
+    recent = env.extract_mode != "view" and _newest_created(backend, model)
+    if not recent or recent < since:
+        return _extract_full_model(backend, model, extraction_uid, progress)
+    domain = [("create_date", ">=", _stamp(since))]
+    rows = _extract_full_model(backend, model, extraction_uid, progress, domain)
+    if rows and _newest_created(backend, model, since) is not None:
+        meta = DFStorage.read_meta(model)
+        meta["backfill_since"] = _stamp(since)
+        DFStorage.write_meta(model, meta)
+    return rows
+
+
+def _history_target(backend: "Backend", models: list[str]) -> datetime | None:
+    """The date the tables whose history loads all reach at this sync, the same for
+    all (the parquets stay consistent : a line and its order are there together) :
+    BACKFILL_DAYS before the least advanced one, a period without any record in any
+    of them skipped. None when none is loading."""
+    loading = {m: s for m in models if (s := _loaded_since(m))}
+    if not loading:
+        return None
+    newest = [_newest_created(backend, m, s) for m, s in loading.items()]
+    newest = [n for n in newest if n is not None]
+    start = max(loading.values())
+    if newest:
+        start = min(start, max(newest))
+    return start - timedelta(days=BACKFILL_DAYS)
+
+
+def _backfill_model(
+    backend: "Backend",
+    model: str,
+    target: datetime,
+    progress: ProgressFn | None = None,
+) -> int:
+    """One step of the history of a table not complete yet : its records created
+    from `target` (`_history_target`) to the date it reached, upserted in their
+    blocks. Returns the number of rows."""
+    loaded = _loaded_since(model)
+    if not loaded:
+        return 0
+    rows = 0
+    if target < loaded:
+        domain = [
+            ("create_date", ">=", _stamp(target)),
+            ("create_date", "<", _stamp(loaded)),
+        ]
+        query = backend.get_sql_query(model, domain, "")
+        metadata = backend.get_fields_metadata(model)
+        for _, df in _stream_blocks(
+            backend, query, metadata, model, "history", progress
+        ):
+            rows += DFStorage.merge_df(model, df)
+    meta = DFStorage.read_meta(model)  # merge_df wrote its columns in it
+    if _newest_created(backend, model, min(target, loaded)) is None:
+        meta.pop("backfill_since", None)  # the whole history is there
+        logger.info("history of %s complete", model)
+    else:
+        meta["backfill_since"] = _stamp(min(target, loaded))
+    DFStorage.write_meta(model, meta)
+    return rows
+
+
+def backfill_since() -> datetime | None:
+    """The date the history of the store reaches while it is loading (its oldest
+    record loaded, on the table that is the least far) ; None when it is complete."""
+    dates = [
+        DFStorage.read_meta(table).get("backfill_since")
+        for table in DFStorage.list_table_names()
+    ]
+    dates = [d for d in dates if d]
+    if not dates:
+        return None
+    return datetime.strptime(max(dates), "%Y-%m-%d %H:%M:%S").replace(
+        tzinfo=timezone.utc
+    )
+
+
 def _get_deletions(uri: str, model: str, since: str) -> list[int]:
     """Ids of `model` records deleted after `since` (module `auditlog`), via SQL.
 
@@ -267,11 +395,11 @@ def last_sync(backend: "Backend", user_id: int) -> str | None:
 
 
 def user_datetime(
-    backend: "Backend", user_id: int, dt: datetime, date: bool = True
+    backend: "Backend", user_id: int, dt: datetime, date: bool = True, time: bool = True
 ) -> str:
     """`dt` (aware) in the timezone of the user and in the formats of their language
-    in Odoo (`res.lang`), to the minute ; the time only without `date`. « UTC » after
-    it when the user has no timezone."""
+    in Odoo (`res.lang`), to the minute ; the time only without `date`, the date only
+    without `time`. « UTC » after a time when the user has no timezone."""
     tz = backend.get_user_tz(user_id)
     if tz:
         try:
@@ -284,6 +412,8 @@ def user_datetime(
     date_format, time_format = backend.get_lang_formats(backend.get_user_lang(user_id))
     # to the minute : the seconds of the format of the language left out
     time_format = time_format.replace(":%S", "").replace("%S", "").strip()
+    if not time:
+        return dt.strftime(date_format)
     stamp = dt.strftime(f"{date_format} {time_format}" if date else time_format)
     return stamp if tz else f"{stamp} UTC"
 
@@ -311,8 +441,11 @@ def sync_store(
     """Incremental refresh : full extract on first run, delta afterwards.
 
     Per table :
+    - `full` : full extract
     - no stored blocks yet (fresh database, a table still in the legacy
-      single-file layout, or `full`) : full extract
+      single-file layout) : its records of the last RECENT_DAYS, the older ones
+      BACKFILL_DAYS at each following sync (`_backfill_model`), the same dates for
+      every table
     - otherwise new / updated records (`create_date`/`write_date` >
       last_sync) are normalized and upserted in their blocks, and deletions
       recorded by the `auditlog` module are applied
@@ -321,15 +454,27 @@ def sync_store(
     """
     counts: dict[str, int] = {}
     uri = _pg_uri(backend.db)
-    for model in backend.get_dataset_models():
+    models = backend.get_dataset_models()
+    # the same dates for every table (the parquets stay consistent) : a fresh table
+    # starts at `recent`, the tables whose history loads all reach `target`
+    recent = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+        days=RECENT_DAYS
+    )
+    target = None if full else _history_target(backend, models)
+    for model in models:
         since = (
             None
             if full or not DFStorage.is_partitioned(model)
             else DFStorage.last_sync(model)
         )
-        if not since:
+        if full:
             counts[model] = _extract_full_model(
                 backend, model, extraction_uid, progress
+            )
+            continue
+        if not since:  # a fresh table : its recent records first
+            counts[model] = _extract_recent_model(
+                backend, model, extraction_uid, progress, recent
             )
             continue
         started = (
@@ -338,6 +483,8 @@ def sync_store(
         counts[model] = _extract_delta_model(backend, model, since, progress)
         _apply_deletions(uri, model, since)
         DFStorage.touch_sync(model, started)
+        if target is not None:  # a table whose history is loading : to `target`
+            counts[model] += _backfill_model(backend, model, target, progress)
     return counts
 
 

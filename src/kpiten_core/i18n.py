@@ -68,6 +68,12 @@ FR = {
         "Synchronisation avec Odoo à {time} (au plus une toutes les 5 minutes)."
     ),
     "Last sync : {stamp}.": "Dernière synchronisation : {stamp}.",
+    "history from {date}": "historique depuis le {date}",
+    "The history is loading : 3 months more every 5 minutes. Before "
+    "{date}, the figures are not complete yet.": (
+        "L'historique se charge : 3 mois de plus toutes les 5 minutes. Avant le "
+        "{date}, les chiffres ne sont pas encore complets."
+    ),
     "The sync with Odoo failed.": "La synchronisation avec Odoo a échoué.",
     "initial extract": "extraction initiale",
     "update": "mise à jour",
