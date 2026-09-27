@@ -56,8 +56,8 @@ def figure(chart: Chart):
     return fig
 
 
-AXIS_TITLE_SIZE = 16.5  # the titles of the axes, above the graph (the ticks : 11)
-AXIS_TITLE_LINE = 26  # px : the height of a line of an axis title (its arrow is bigger)
+AXIS_TITLE_SIZE = 14  # the titles of the axes, above the graph (the ticks : 11)
+AXIS_TITLE_LINE = 16  # px : the height of a line of an axis title (its arrow is bigger)
 # the arrow of an axis title : bold and bigger than its text (a plain ↓ is too thin)
 AXIS_ARROW = '<span style="font-size:{size}px"><b>{arrow}</b></span>'
 

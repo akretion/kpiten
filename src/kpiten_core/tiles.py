@@ -475,16 +475,73 @@ def card_value(content, table, store, full_predicates):
     if card_json.get("by"):
         return _best_case(card_json, df)
 
-    if aggregation == "count":
-        expr = pl.col(measure).count() if measure else pl.len()
-    elif measure not in df.collect_schema():
-        raise TileError(f"card '{aggregation}' needs a `measure` column")
-    else:
-        expr = getattr(pl.col(measure), aggregation)()
-    value = _collect(df.select(expr)).item()
+    value = _collect(df.select(_card_expr(card_json, df))).item()
     if isinstance(value, decimal.Decimal):
         value = float(value)
     return value, format_card_value(value, aggregation, card_json), None
+
+
+def _card_expr(card_json: dict, df: pl.LazyFrame) -> pl.Expr:
+    """The figure of a card over its rows : `aggregation` (count by default) of
+    `measure`."""
+    aggregation = card_json.get("aggregation", "count")
+    measure = card_json.get("measure")
+    if aggregation == "count":
+        return pl.col(measure).count() if measure else pl.len()
+    if measure not in df.collect_schema():
+        raise TileError(f"card '{aggregation}' needs a `measure` column")
+    return getattr(pl.col(measure), aggregation)()
+
+
+def card_trend(
+    content, table, store, full_predicates, date_fields: list[str], today=None
+) -> dict | None:
+    """The figure of a card month by month, for its sparkline : the same rows (its
+    `from`, the filters of the panel, its `where`) and the same aggregation as the
+    card. `date_fields` : the dates of the Period filter, the first one its table has.
+    A month without rows is 0 for a count or a sum (a gap for the others).
+
+    Returns `{"months": [...], "values": [...], "partial": bool}` — `partial` : the
+    last month is the current one, not over yet — or None : a `by` card (a name), no
+    date, less than 2 months."""
+    card_json = spec.load(content, "card")
+    if card_json.get("by") or card_json.get("aggregation", "count") not in (
+        CARD_AGGREGATIONS
+    ):
+        return None
+    df = tile_rows(card_json, table, store, full_predicates)
+    schema = df.collect_schema()
+    date = next((f for f in date_fields if f in schema and is_date(df, f)), None)
+    if date is None:
+        return None
+    rows = _collect(
+        df.filter(pl.col(date).is_not_null())
+        .group_by(pl.col(date).dt.truncate("1mo").cast(pl.Date).alias("month"))
+        .agg(_card_expr(card_json, df).alias("value"))
+        .sort("month")
+    )
+    if rows.height < 2:
+        return None
+    months = pl.DataFrame(
+        {
+            "month": pl.date_range(
+                rows["month"].min(), rows["month"].max(), "1mo", eager=True
+            )
+        }
+    )
+    rows = months.join(rows, on="month", how="left")
+    if card_json.get("aggregation", "count") in ("count", "sum"):
+        rows = rows.with_columns(pl.col("value").fill_null(0))
+    today = today or datetime.date.today()
+    last = rows["month"][-1]
+    return {
+        "months": rows["month"].to_list(),
+        "values": [
+            float(v) if isinstance(v, decimal.Decimal) else v
+            for v in rows["value"].to_list()
+        ],
+        "partial": (last.year, last.month) == (today.year, today.month),
+    }
 
 
 def _bound_dates(source: pl.LazyFrame, column: str) -> tuple[pl.LazyFrame, str | None]:
