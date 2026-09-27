@@ -57,9 +57,9 @@ def figure(chart: Chart):
 
 
 AXIS_TITLE_SIZE = 14  # the titles of the axes, above the graph (the ticks : 11)
-AXIS_TITLE_LINE = 16  # px : the height of a line of an axis title (its arrow is bigger)
-# the arrow of an axis title : bold and bigger than its text (a plain ↓ is too thin)
-AXIS_ARROW = '<span style="font-size:{size}px"><b>{arrow}</b></span>'
+AXIS_TITLE_LINE = 16  # px : the height of a line of an axis title
+# the arrow of an axis title : bold, the size of its text (a plain ↓ is too thin)
+AXIS_ARROW = "<b>{arrow}</b>"
 
 
 def _axis_titles(fig) -> None:
@@ -77,7 +77,7 @@ def _axis_titles(fig) -> None:
         if axis.title.text
     ]
     for line, (axis, x, anchor, arrow) in enumerate(titles):
-        arrow = AXIS_ARROW.format(size=round(AXIS_TITLE_SIZE * 1.25), arrow=arrow)
+        arrow = AXIS_ARROW.format(arrow=arrow)
         title = axis.title.text
         axis.title.text = None
         fig.add_annotation(
