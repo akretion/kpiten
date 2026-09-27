@@ -95,6 +95,11 @@ class Backend:
         raise NotImplementedError
 
     # ---- kpiten config ------------------------------------------------
+    def get_owned_panel_ids(self, user_id: int) -> list[int]:
+        """The panels the user owns (`kt.panel.user_id`), in their order ; none with
+        an older kpiten module."""
+        raise NotImplementedError
+
     def get_panel_lines(self, model: str, panel_id: int | None = None) -> list[dict]:
         """Fetch the tiles (`kt.kpi`) of a model / panel."""
         raise NotImplementedError
@@ -115,7 +120,7 @@ class Backend:
     ) -> int:
         """A new KPI, on the panel `panel_id` ; `values` : what it keeps of the tile it
         is copied from (its size on the panel : `col_span`, `tile_height` ; `table_view`,
-        `display`, `drill_definition`).
+        `display`, `drill_definition` ; its id : `duplicated_id`).
         Returns its id."""
         raise NotImplementedError
 

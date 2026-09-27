@@ -130,6 +130,18 @@ class Json2Backend:
         )
         return [{"id": rec["id"], "name": rec["name"]} for rec in records]
 
+    def get_owned_panel_ids(self, user_id: int) -> list[int]:
+        try:
+            return self.call(
+                "kt.panel",
+                "search",
+                domain=[("user_id", "=", user_id)],
+                order="sequence, id",
+            )
+        except Exception:  # an older kpiten module : no owner of a panel
+            logger.exception("get_owned_panel_ids(%s) failed", user_id)
+            return []
+
     def get_panel_settings(self, panel_id: int) -> dict:
         rec = self.call(
             "kt.panel", "read", ids=[panel_id], fields=["id", "name", "filter_config"]
