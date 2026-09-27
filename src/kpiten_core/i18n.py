@@ -131,6 +131,12 @@ FR = {
     "Download the rows of this tile (spreadsheet)": (
         "Télécharger les lignes de cette tuile (tableur)"
     ),
+    # the menu of the actions of a tile
+    "Actions": "Actions",
+    "Save as a new KPI": "Enregistrer comme nouveau KPI",
+    "Ask the AI": "Demander à l'IA",
+    "Check in Odoo": "Vérifier dans Odoo",
+    "Download the rows": "Télécharger les lignes",
     "Derived table {name} : {description}": "Table dérivée {name} : {description}",
     "The data are more than {hours} hours old": (
         "Les données ont plus de {hours} heures"
