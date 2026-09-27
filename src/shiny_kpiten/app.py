@@ -98,6 +98,8 @@ GRID_SPAN = {1: 2, 2: 3, 3: 6}
 
 HEIGHT_STEP = 40  # px ; tile_height resize step in edit mode
 TILE_HEIGHT = 320  # px : a tile without a height (a graph needs room for its labels)
+# the month under way on the sparkline of a card : the share of the way drawn (dotted)
+SPARKLINE_ONGOING = 0.2
 WIDTH_MIN = 1
 WIDTH_MAX = 3
 
@@ -2317,32 +2319,29 @@ def server(input, output, session):
         export_download(export)
 
     # ---- the trend under a card : its model's documents per month, over the period
-    def sparkline(line: dict, color: str) -> str:
+    def sparkline(line: dict, color: str, store_data: dict | None = None) -> str:
+        """The figure of a card month by month (`core_tiles.card_trend` : its rows, its
+        aggregation) ; the current month, not over, dashed."""
         config = panel_settings().get("filter_config") or {}
-        frame = panel_store().get(line["model"])
-        if frame is None:
-            return ""
-        columns = frame.collect_schema()
-        date = next((f for f in filterstate.date_fields(config) if f in columns), None)
-        if date is None:
-            return ""
         try:
-            # the core leaves out a filter on a column this model does not have
-            rows = (
-                core_tiles.filter_df(frame.lazy(), predicates())
-                .group_by(pl.col(date).dt.truncate("1mo").alias("month"))
-                .agg(pl.len().alias("n"))
-                .sort("month")
-                .collect()
+            trend = core_tiles.card_trend(
+                line["content"],
+                line["model"],
+                tile_store(line, store_data),
+                predicates(),
+                filterstate.date_fields(config),
             )
-        except Exception:  # a predicate on a column this model does not have
+        except Exception:  # the card itself says what is wrong
+            logger.exception("no sparkline for tile %s", line["id"])
             return ""
-        if rows.height < 2:
+        if trend is None:
             return ""
+        months, values = trend["months"], trend["values"]
+        done = len(months) - 1 if trend["partial"] else len(months)
         fig = go.Figure(
             go.Scatter(
-                x=rows["month"],
-                y=rows["n"],
+                x=months[:done],
+                y=values[:done],
                 mode="lines",
                 line=dict(width=2, color=color),
                 fill="tozeroy",
@@ -2350,11 +2349,26 @@ def server(input, output, session):
                 hoverinfo="skip",
             )
         )
+        if trend["partial"] and None not in values[-2:]:
+            # the month under way : its start only (a fifth of the way, same slope),
+            # the direction it takes, not a month drawn as if it were over
+            start = datetime.datetime.combine(months[-2], datetime.time())
+            end = datetime.datetime.combine(months[-1], datetime.time())
+            share = SPARKLINE_ONGOING
+            fig.add_scatter(
+                x=[start, start + (end - start) * share],
+                y=[values[-2], values[-2] + (values[-1] - values[-2]) * share],
+                mode="lines",
+                line=dict(width=2, color=_with_alpha(color, 0.6), dash="dot"),
+                fill="tozeroy",
+                fillcolor=_with_alpha(color, 0.06),
+                hoverinfo="skip",
+            )
         fig.update_xaxes(visible=False)
         fig.update_yaxes(visible=False)
         fig.update_layout(
             showlegend=False,
-            height=34,
+            height=34,  # the .kpi-trend of the theme
             margin=dict(l=0, r=0, t=0, b=0),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
@@ -2421,7 +2435,7 @@ def server(input, output, session):
                     height = max((line.get("tile_height") or TILE_HEIGHT) - 60, 200)
                     grid_heights[line["id"]] = f"{height}px"
                 trend = (
-                    sparkline(line, card_icon(line["name"])[1])
+                    sparkline(line, card_icon(line["name"])[1], store_data)
                     if result.kind == "card" and not edit_mode_on
                     else ""
                 )
