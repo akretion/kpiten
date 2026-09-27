@@ -33,6 +33,7 @@ from shiny.types import SilentException
 
 from kpiten_core import anonymize, brand, comparison, i18n, links, llm, querychat
 from kpiten_core import config as core_config
+from kpiten_core.service import next_slot as next_sync_slot
 from kpiten_core import explore as core_explore
 from kpiten_core import odoocheck, savetile
 from kpiten_core import ods as core_ods
@@ -1496,16 +1497,54 @@ def server(input, output, session):
             f' draggable="true" style="grid-column: span {span_of(line)}">{content}</div>'
         )
 
-    # ---- data refresh effect (on-demand button) --------------------------
+    # ---- data refresh : when the page opens, and the button (5-minute slots)
     @reactive.effect
-    def _refresh():
-        input.refresh_data()
+    def _refresh_on_open():
+        """The page opens : a sync now (the button waits for its slot)."""
         with reactive.isolate():
             backend = backend_rv()
             with ui.Progress(min=1, max=100) as p:
                 data_layer.request_refresh(backend.db, progress=_progress_cb(p))
             data_version.set(data_version() + 1)
             ui.notification_show(tr("Data synced with Odoo."), duration=3)
+
+    @reactive.extended_task
+    async def refresh_task(db: str, slot: float) -> bool:
+        """The sync asked by the button, in the background : the page stays usable."""
+        return await asyncio.to_thread(data_layer.scheduled_refresh, db, slot)
+
+    @reactive.effect
+    @reactive.event(input.refresh_data)
+    def _refresh():
+        """At most one sync per 5 minutes : asked at 10:02, done at 10:05 ; every
+        request of the slot (the other users too) shares it."""
+        if refresh_task.status() == "running":
+            return
+        backend = backend_rv()
+        slot = next_sync_slot()
+        refresh_task(backend.db, slot)
+        ui.update_action_button("refresh_data", disabled=True)
+        last = data_layer.last_sync(backend, current_user_id())
+        text = tr(
+            "Sync with Odoo at {time} (at most one every 5 minutes).",
+            time=data_layer.user_time(backend, current_user_id(), slot),
+        )
+        if last:
+            text += " " + tr("Last sync : {stamp}.", stamp=last)
+        ui.notification_show(text, duration=8)
+
+    @reactive.effect
+    def _refreshed():
+        status = refresh_task.status()
+        if status not in ("success", "error"):
+            return
+        ui.update_action_button("refresh_data", disabled=False)
+        if status == "error":
+            ui.notification_show(tr("The sync with Odoo failed."), type="error")
+            return
+        with reactive.isolate():
+            data_version.set(data_version() + 1)
+        ui.notification_show(tr("Data synced with Odoo."), duration=3)
 
     # ---- edit mode : layout save + tile delete -------------------------
     @reactive.effect
