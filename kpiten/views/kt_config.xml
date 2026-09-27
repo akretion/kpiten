@@ -102,6 +102,44 @@
                             <field name="idle_minutes" />
                         </group>
                     </group>
+                    <!-- the totals of the tables : the tile Pivot of the demo, as the
+                         setting draws it -->
+                    <group string="Totals of the tables">
+                        <group>
+                            <field name="total_row_first" />
+                            <div colspan="2" class="mb-3">
+                                <img
+                                    src="/kpiten/static/src/img/total_row_first.png"
+                                    alt="The Total row on top"
+                                    class="img-fluid border rounded"
+                                    invisible="not total_row_first"
+                                />
+                                <img
+                                    src="/kpiten/static/src/img/total_row_last.png"
+                                    alt="The Total row below the rows"
+                                    class="img-fluid border rounded"
+                                    invisible="total_row_first"
+                                />
+                            </div>
+                        </group>
+                        <group>
+                            <field name="total_column_first" />
+                            <div colspan="2" class="mb-3">
+                                <img
+                                    src="/kpiten/static/src/img/total_column_first.png"
+                                    alt="The Total column first"
+                                    class="img-fluid border rounded"
+                                    invisible="not total_column_first"
+                                />
+                                <img
+                                    src="/kpiten/static/src/img/total_column_last.png"
+                                    alt="The Total column on the right"
+                                    class="img-fluid border rounded"
+                                    invisible="total_column_first"
+                                />
+                            </div>
+                        </group>
+                    </group>
                     <group>
                         <group string="Explore (export of the rows)">
                             <field name="explore_access" />

@@ -221,6 +221,19 @@ class KtConfig(models.Model):
         help="Rows a table tile shows ; a longer one is cut off, its note says how "
         "many rows it holds.",
     )
+    # ---- the totals of the tables (pivots, data tiles with [table])
+    total_row_first = fields.Boolean(
+        string="Total row on top",
+        default=True,
+        help="The « Total » row of a table (the sum of each column) above its rows, as "
+        "in Odoo ; below them when unchecked.",
+    )
+    total_column_first = fields.Boolean(
+        string="Total column first",
+        default=True,
+        help="The « Total » column of a table (the sum of each row) right after the "
+        "labels of the rows ; on the right when unchecked.",
+    )
     idle_minutes = fields.Integer(
         string="Log out after (minutes idle)",
         default=60,
@@ -577,6 +590,7 @@ class KtConfig(models.Model):
               "period": {"default": "last 90 days", "fiscal_start_month": 1},
               "ui": {"theme": "capitaine", "table_rows": 20, "colors": "theme",
                      "idle_minutes": 60},
+              "table": {"total_row_first": True, "total_column_first": True},
               "explore": {"access": "everyone", "max_rows": 500000,
                           "ods_max_rows": 500000},
               "ai": {"enabled": True, "send_level": "summary",
@@ -629,6 +643,10 @@ class KtConfig(models.Model):
             "table_rows": rec.table_rows,
             "colors": rec.colors_from,
             "idle_minutes": rec.idle_minutes,
+        }
+        config["table"] = {
+            "total_row_first": rec.total_row_first,
+            "total_column_first": rec.total_column_first,
         }
         config["explore"] = {
             "access": rec.explore_access,
