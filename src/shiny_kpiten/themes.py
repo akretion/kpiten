@@ -233,6 +233,13 @@ class Theme:
 }}
 /* the tables sit on the left of their tile, like the other front */
 .tile .gt_table {{ margin-left: 0 !important; margin-right: 0 !important }}
+/* the header of a table stays on top when its tile scrolls : the tile scrolls, not the
+   div great_tables puts around the table (its overflow would hold the sticky header) */
+.tile > div:has(> table.gt_table) {{ overflow: visible !important }}
+.tile .gt_table thead {{
+  position: sticky; top: -8px;  /* the padding of the tile : right at its edge */
+  z-index: 2; background: {p["thead"]};
+}}
 /* edit mode : the grid item is the wrapper of the tile */
 .tile-edit-item {{ display: flex; flex-direction: column }}
 .tile-edit-item > .tile {{ flex: 1 }}
