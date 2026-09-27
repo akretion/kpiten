@@ -221,6 +221,13 @@ class KtConfig(models.Model):
         help="Rows a table tile shows ; a longer one is cut off, its note says how "
         "many rows it holds.",
     )
+    idle_minutes = fields.Integer(
+        string="Log out after (minutes idle)",
+        default=60,
+        help="Shiny and marimo log a user out after this many minutes without a click "
+        "or a key ; they open the app again from Odoo. 0 : never. Taken at the "
+        "login in the app.",
+    )
 
     # ---- explore
     explore_access = fields.Selection(
@@ -375,6 +382,14 @@ class KtConfig(models.Model):
             if not 1 <= rec.table_rows <= 500:
                 raise exceptions.ValidationError(
                     _("A table shows between 1 and 500 rows.")
+                )
+
+    @api.constrains("idle_minutes")
+    def _check_idle_minutes(self):
+        for rec in self:
+            if rec.idle_minutes < 0:
+                raise exceptions.ValidationError(
+                    _("The minutes before a logout are 0 (never) or more.")
                 )
 
     @api.constrains("explore_max_rows", "ods_max_rows")
@@ -560,7 +575,8 @@ class KtConfig(models.Model):
               "card": {"comparison": True, "good_color": "#00A04A"},
               "number": {"format": "space_comma", "small_below": 10, ...},
               "period": {"default": "last 90 days", "fiscal_start_month": 1},
-              "ui": {"theme": "capitaine", "table_rows": 20, "colors": "theme"},
+              "ui": {"theme": "capitaine", "table_rows": 20, "colors": "theme",
+                     "idle_minutes": 60},
               "explore": {"access": "everyone", "max_rows": 500000,
                           "ods_max_rows": 500000},
               "ai": {"enabled": True, "send_level": "summary",
@@ -612,6 +628,7 @@ class KtConfig(models.Model):
             "theme": rec.default_theme,
             "table_rows": rec.table_rows,
             "colors": rec.colors_from,
+            "idle_minutes": rec.idle_minutes,
         }
         config["explore"] = {
             "access": rec.explore_access,

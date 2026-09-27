@@ -99,6 +99,7 @@
                         <group string="Interface">
                             <field name="default_theme" />
                             <field name="table_rows" />
+                            <field name="idle_minutes" />
                         </group>
                     </group>
                     <group>
