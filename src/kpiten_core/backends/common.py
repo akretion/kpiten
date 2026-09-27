@@ -1,6 +1,7 @@
 """What the Odoo backends share : the fields of a tile and the dict the fronts get."""
 
 import json
+import tomllib
 
 # the model of the tiles ; `kt.dataset.line` before the kpiten module 1.5.0 (a base
 # not updated yet : the backends ask which one it has)
@@ -37,10 +38,14 @@ def tile_fields(fields_get) -> list[str]:
     return TILE_FIELDS + [name for name in OPTIONAL_TILE_FIELDS if name in known]
 
 
-def parse_filter_config(raw):
-    if not raw:
+def parse_filter_config(raw) -> dict:
+    """The filters of a panel (`kt.panel.filter_config`) : TOML, or JSON for a kpiten
+    module older than 1.20.0."""
+    if not raw or not raw.strip():
         return {}
-    return json.loads(raw)
+    if raw.lstrip().startswith("{"):
+        return json.loads(raw)
+    return tomllib.loads(raw)
 
 
 def tile_dict(rec: dict, model: str | None = None) -> dict:

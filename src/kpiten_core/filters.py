@@ -1,8 +1,13 @@
 """Panel filters helpers from `kt.panel.filter_config` (framework agnostic).
 
-filter_config JSON schema ::
-    {"date": {"field": "date_order"},   # or a list : ["date_order", "order_id.date_order"]
-     "dimensions": [{"name": "user_id", "label": "Salesperson"}]}
+filter_config, in TOML (`backends.common.parse_filter_config` gives the dict) ::
+
+    [date]
+    field = "date_order"  # or a list : ["date_order", "order_id.date_order"]
+
+    [[dimensions]]
+    name = "user_id"
+    label = "Salesperson"
 
 All expressions are polars predicates (list[pl.Expr]).
 """

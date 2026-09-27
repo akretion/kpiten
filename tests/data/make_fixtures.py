@@ -9,6 +9,8 @@ but the real columns.
 import json
 import pathlib
 
+from odoo.addons.kpiten.filter_config import parse as parse_filter_config
+
 DATA = pathlib.Path("src/kpiten-core/tests/data")
 MODELS = ["sale.order", "sale.order.line", "purchase.order", "purchase.order.line"]
 SIZE = 300
@@ -37,7 +39,7 @@ for line in env["kt.kpi"].search(
     [("dataset_id.model_id.model", "in", MODELS), ("panel_ids", "!=", False)]
 ):
     panel = line.panel_ids[:1]  # the filters of its first panel
-    config = json.loads(panel.filter_config or "{}")
+    config = parse_filter_config(panel.filter_config)
     tiles.append(
         {
             "name": line.name,
