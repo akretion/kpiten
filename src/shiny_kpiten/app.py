@@ -1497,17 +1497,9 @@ def server(input, output, session):
             f' draggable="true" style="grid-column: span {span_of(line)}">{content}</div>'
         )
 
-    # ---- data refresh : when the page opens, and the button (5-minute slots)
-    @reactive.effect
-    def _refresh_on_open():
-        """The page opens : a sync now (the button waits for its slot)."""
-        with reactive.isolate():
-            backend = backend_rv()
-            with ui.Progress(min=1, max=100) as p:
-                data_layer.request_refresh(backend.db, progress=_progress_cb(p))
-            data_version.set(data_version() + 1)
-            ui.notification_show(tr("Data synced with Odoo."), duration=3)
-
+    # ---- data refresh : only when the user asks for it (the button, 5-minute slots) ;
+    # the data may be hours old (their date in the head of the page), an empty store
+    # is filled when the page opens (`store`)
     @reactive.extended_task
     async def refresh_task(db: str, slot: float) -> bool:
         """The sync asked by the button, in the background : the page stays usable."""
