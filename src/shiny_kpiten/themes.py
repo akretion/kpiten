@@ -240,6 +240,11 @@ class Theme:
   position: sticky; top: -8px;  /* the padding of the tile : right at its edge */
   z-index: 2; background: {p["thead"]};
 }}
+/* a « Total » row above the rows stays under the header (its height : --kt-thead-h,
+   measured by STICKY_TOTAL_JS) */
+.tile.totals-first .gt_table tbody tr:first-child > * {{
+  position: sticky; top: calc(var(--kt-thead-h, 40px) - 8px); z-index: 1;
+}}
 /* edit mode : the grid item is the wrapper of the tile */
 .tile-edit-item {{ display: flex; flex-direction: column }}
 .tile-edit-item > .tile {{ flex: 1 }}

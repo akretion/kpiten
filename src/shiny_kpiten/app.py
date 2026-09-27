@@ -295,6 +295,7 @@ def app_ui(req):  # noqa: ANN001
             FAVICON,
             ui.tags.script(src=PLOTLY_JS),
             ui.tags.script(FULLSCREEN_JS),
+            ui.tags.script(STICKY_TOTAL_JS),
             ui.tags.script(TILE_MENU_JS),
             # the logout after the minutes without activity of kt.config
             (
@@ -475,6 +476,30 @@ def grid_rows(df: pl.DataFrame) -> pl.DataFrame:
 GRID_DEPENDENCIES = ui.output_data_frame("grid").get_dependencies()
 
 # a tile in full screen : the button of its title ; Esc gives the page back
+# a « Total » row above the rows sticks under the header of its table : the height of
+# that header (--kt-thead-h), measured when the tiles are drawn and when the window
+# changes size
+STICKY_TOTAL_JS = """
+(function () {
+  if (window.__kpitenStickyTotal) { return; }
+  window.__kpitenStickyTotal = true;
+  var pending = false;
+  function measure() {
+    pending = false;
+    document.querySelectorAll(".tile.totals-first .gt_table").forEach(function (t) {
+      var head = t.querySelector("thead");
+      if (head) { t.style.setProperty("--kt-thead-h", head.offsetHeight + "px"); }
+    });
+  }
+  function later() {
+    if (!pending) { pending = true; requestAnimationFrame(measure); }
+  }
+  new MutationObserver(later).observe(document.documentElement,
+    {childList: true, subtree: true});
+  window.addEventListener("resize", later);
+})();
+"""
+
 FULLSCREEN_JS = """
 (function () {
   if (window.__kpitenFull) { return; }
@@ -863,6 +888,16 @@ def tile_html(
     parts.append(records_link_html(records, tr))
     html = "".join(str(part) for part in parts)
     drillable = bool(line.get("drill")) and bool(result.keys) and not grid
+    # a table with its « Total » row above the rows : that row stays under the header
+    drawing = result.meta.get("table") or {}
+    totals_first = (
+        result.kind != "graph"
+        and not plugged
+        and not grid
+        and bool(drawing.get("totals") and drawing.get("totals_first"))
+    )
+    classes = "tile" + (" drillable" if drillable else "")
+    classes += " totals-first" if totals_first else ""
     height = line.get("tile_height") or TILE_HEIGHT
     # a graph keeps the height of its tile ; a table is as tall as its rows, up to it
     size = (
@@ -871,7 +906,7 @@ def tile_html(
         else f"max-height: {max(height, 340)}px"
     )
     return (
-        f'<div class="tile{" drillable" if drillable else ""}" '
+        f'<div class="{classes}" '
         f'data-tile-id="{line["id"]}"{tooltip} style="grid-column: span {span_of(line)}; '
         f'{size}">{html}</div>'
     )
