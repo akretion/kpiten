@@ -56,30 +56,54 @@ def figure(chart: Chart):
     return fig
 
 
+AXIS_TITLE_SIZE = 16.5  # the titles of the axes, above the graph (the ticks : 11)
+AXIS_TITLE_LINE = 26  # px : the height of a line of an axis title (its arrow is bigger)
+# the arrow of an axis title : bold and bigger than its text (a plain ↓ is too thin)
+AXIS_ARROW = '<span style="font-size:{size}px"><b>{arrow}</b></span>'
+
+
 def _axis_titles(fig) -> None:
-    """The titles of the axes read horizontally, on a line above the graph : the y axis
-    on the left (`↓ Amount`), the x axis on the right (`Customer →`). Vertical, the
-    title of y was hard to read ; the one of x was hidden by long category labels."""
-    for axis, x, anchor, text in (
-        (fig.layout.yaxis, 0, "left", "↓ {}"),
-        (fig.layout.xaxis, 1, "right", "{} →"),
-    ):
+    """The titles of the axes read horizontally, above the graph : the x axis on the
+    right, right above it (`← Customer`), the y axis on the left (`↓ Amount`), a line
+    higher when both are there (on one line, long titles ran into each other).
+    Vertical, the title of y was hard to read ; the one of x was hidden by long
+    category labels."""
+    titles = [
+        (axis, x, anchor, arrow)
+        for axis, x, anchor, arrow in (
+            (fig.layout.xaxis, 1, "right", "←"),
+            (fig.layout.yaxis, 0, "left", "↓"),
+        )
+        if axis.title.text
+    ]
+    for line, (axis, x, anchor, arrow) in enumerate(titles):
+        arrow = AXIS_ARROW.format(size=round(AXIS_TITLE_SIZE * 1.25), arrow=arrow)
         title = axis.title.text
-        if not title:
-            continue
         axis.title.text = None
         fig.add_annotation(
-            text=text.format(title),
+            text=f"{arrow} {title}",
             xref="paper",
             yref="paper",
             x=x,
             y=1,
+            yshift=line * AXIS_TITLE_LINE,
             xanchor=anchor,
             yanchor="bottom",
             showarrow=False,
-            font=dict(size=11),
+            font=dict(size=AXIS_TITLE_SIZE),
             name=f"axis-title-{anchor}",
         )
+
+
+def axis_titles_margin(fig, base: int = 30) -> int:
+    """The top margin of a graph whose front sets it (`base` : room for one line of
+    axis titles) : a line more when the titles of both axes are there."""
+    lines = sum(
+        1
+        for note in fig.layout.annotations or ()
+        if (note.name or "").startswith("axis-title-")
+    )
+    return base + max(0, lines - 1) * AXIS_TITLE_LINE
 
 
 # the category labels of a bar graph shown at most, by the width of its tile (`col_span` :
