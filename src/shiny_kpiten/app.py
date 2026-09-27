@@ -625,7 +625,7 @@ AI_JS = """
   if (window.__kpitenAi) { return; }
   window.__kpitenAi = true;
   var inputs = {"tile-ai": "ai_tile", "tile-ai-clear": "ai_clear", "tile-save": "tile_save",
-    "tile-ai-promote": "ai_promote", "panel-ai": "ai_panel_open",
+    "tile-adopt": "tile_adopt", "tile-ai-promote": "ai_promote", "panel-ai": "ai_panel_open",
     "panel-ai-clear": "ai_panel_clear"};
   var selector = Object.keys(inputs).map(function (c) { return "." + c; }).join(", ");
   document.addEventListener("click", function (ev) {
@@ -643,17 +643,30 @@ AI_JS = """
 """
 PANEL_AI_TOOLTIP = "Ask the AI : narrow all the tiles of this panel in words"
 SAVE_TOOLTIP = (
-    "Save as a new KPI : this tile with the filters it is seen with (dimensions, AI), "
+    "Copy as a new KPI : this tile with the filters it is seen with (dimensions, AI), "
     "on the panel you choose"
+)
+ADOPT_TOOLTIP = (
+    "Adopt this KPI : the same KPI also on another panel (not a copy : a change of "
+    "the KPI shows on both)"
 )
 
 
 def save_html(tr=i18n.english) -> str:
-    """The button that saves a tile, with its filters, as a new KPI (managers)."""
+    """The button that copies a tile, with its filters, as a new KPI (managers)."""
     return (
         f'<button type="button" class="tile-save" '
         f'title="{html_escape(tr(SAVE_TOOLTIP), quote=True)}">'
-        f'{svg("square-plus")}{menu_label(tr("Save as a new KPI"))}</button>'
+        f'{svg("clone")}{menu_label(tr("Copy as a new KPI"))}</button>'
+    )
+
+
+def adopt_html(tr=i18n.english) -> str:
+    """The button that puts the KPI of a tile on another panel (who edits a panel)."""
+    return (
+        f'<button type="button" class="tile-adopt" '
+        f'title="{html_escape(tr(ADOPT_TOOLTIP), quote=True)}">'
+        f'{svg("thumbtack")}{menu_label(tr("Adopt this KPI"))}</button>'
     )
 
 
@@ -1969,6 +1982,7 @@ def server(input, output, session):
 
     # ---- a new KPI from a tile and its filters (a KpiTen manager) -------------
     save_line = reactive.Value(None)  # the tile being saved
+    adopt_line = reactive.Value(None)  # the tile being adopted by another panel
 
     def filter_titles(line: dict) -> list[str]:
         """The filters the tile is seen with, in words (the name of the new KPI)."""
@@ -2074,7 +2088,7 @@ def server(input, output, session):
                 ),
                 ui.tags.pre(where, class_="save-where") if where else None,
                 *[ui.p(note, class_="text-warning small") for note in notes],
-                title=tr("Save « {name} » as a new KPI", name=line["name"]),
+                title=tr("Copy « {name} » as a new KPI", name=line["name"]),
                 easy_close=True,
                 footer=ui.input_action_button(
                     "save_create", tr("Create"), class_="btn-kpiten"
@@ -2140,6 +2154,87 @@ def server(input, output, session):
                 "KPI « {name} » added to the panel « {panel} ».",
                 name=name,
                 panel=panels().get(str(panel_id)),
+            ),
+            duration=5,
+        )
+
+    # ---- adopt : the same KPI also on another panel (who edits that panel)
+    @reactive.calc
+    def editable_panel_ids() -> list[str]:
+        """The panels the user may add a KPI to : all for a KpiTen manager, else the
+        ones they own."""
+        if can_edit():
+            return list(panels())
+        owned = backend_rv().get_owned_panel_ids(current_user_id())
+        return [str(i) for i in owned if str(i) in panels()]
+
+    def adopt_targets(line: dict) -> dict[str, str]:
+        """{panel id: its name} : the panels the user edits that the KPI is not on."""
+        on = {str(i) for i in backend_rv().get_tile_panel_ids(line["id"])}
+        return {pid: panels()[pid] for pid in editable_panel_ids() if pid not in on}
+
+    @reactive.effect
+    @reactive.event(input.tile_adopt)
+    def _adopt_dialog():
+        line = next((l for l in lines() if l["id"] == input.tile_adopt()), None)
+        if line is None:
+            return
+        targets = adopt_targets(line)
+        if not targets:
+            ui.notification_show(
+                tr("The KPI is already on every panel you edit."), duration=5
+            )
+            return
+        adopt_line.set(line)
+        owned = [str(i) for i in backend_rv().get_owned_panel_ids(current_user_id())]
+        ui.modal_show(
+            ui.modal(
+                ui.input_select(
+                    "adopt_panel",
+                    tr("Panel"),
+                    choices=targets,
+                    selected=next((p for p in owned if p in targets), None),
+                    width="100%",
+                ),
+                ui.p(
+                    tr(
+                        "The same KPI, not a copy : a change of the KPI shows on "
+                        "every panel it is on."
+                    ),
+                    class_="small text-muted",
+                ),
+                title=tr("Adopt « {name} » on another panel", name=line["name"]),
+                easy_close=True,
+                footer=ui.input_action_button(
+                    "adopt_confirm", tr("Adopt"), class_="btn-kpiten"
+                ),
+            )
+        )
+
+    @reactive.effect
+    @reactive.event(input.adopt_confirm)
+    def _adopt():
+        line = adopt_line()
+        panel = input.adopt_panel()
+        if line is None or panel not in editable_panel_ids():
+            return
+        try:
+            backend_rv().adopt_tile(
+                line["id"], int(panel), current_user_id(), int(input.panel())
+            )
+        except Exception as err:
+            logger.exception("adopting tile %s failed", line["id"])
+            ui.notification_show(
+                tr("The KPI cannot be adopted : {error}", error=err), type="error"
+            )
+            return
+        ui.modal_remove()
+        adopt_line.set(None)
+        ui.notification_show(
+            tr(
+                "KPI « {name} » added to the panel « {panel} ».",
+                name=line["name"],
+                panel=panels().get(panel),
             ),
             duration=5,
         )
@@ -2303,6 +2398,8 @@ def server(input, output, session):
             edit_mode_on = False
         cards, blocks = [], []
         saving = can_edit()  # a KPI manager saves a tile with its filters
+        # who edits another panel may put the KPI of a tile there too
+        adopting = any(p != str(input.panel()) for p in editable_panel_ids())
         store_data = panel_store()
         drill_keys.clear()
         for line, result, error in panel_results():
@@ -2355,7 +2452,8 @@ def server(input, output, session):
                             save_html(tr)
                             if saving and line["kind"] in savetile.WHERE_KINDS
                             else ""
-                        ),
+                        )
+                        + (adopt_html(tr) if adopting else ""),
                         check=check,
                         sheet=core_config.explore_allowed(can_edit()),
                     )

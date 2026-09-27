@@ -315,7 +315,7 @@ class Theme:
 .tile h3 .tile-actions .tile-sheet svg {{ fill: none; stroke: currentColor }}
 .tile-full:hover, .tile-sheet:hover, .tile h3 .tile-info:hover {{ opacity: .9 }}
 /* ask the AI about a tile */
-.tile-ai, .tile-ai-clear, .tile-ai-promote, .panel-ai-clear, .tile-save {{
+.tile-ai, .tile-ai-clear, .tile-ai-promote, .panel-ai-clear, .tile-save, .tile-adopt {{
   background: transparent; border: 0; padding: 2px; color: {p["text"]}; opacity: .45;
   cursor: pointer; line-height: 1;
 }}
@@ -367,7 +367,8 @@ class Theme:
   margin: 0 !important; vertical-align: 0 !important;
 }}
 .tile-menu-items .tile-sheet svg {{ fill: none; stroke: currentColor }}
-.tile-menu-items .tile-ai svg, .tile-menu-items .tile-save svg {{ fill: currentColor }}
+.tile-menu-items .tile-ai svg, .tile-menu-items .tile-save svg,
+.tile-menu-items .tile-adopt svg {{ fill: currentColor }}
 .save-where {{ white-space: pre-wrap; font-size: 12px; padding: 6px 8px; border-radius: 6px; background: rgba(127, 127, 127, .12) }}
 .tile-ai-promote svg {{ width: 10px !important; height: 10px !important; fill: currentColor }}
 /* the panel : its ✨ in the head of the page */
