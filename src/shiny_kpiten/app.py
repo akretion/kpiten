@@ -295,6 +295,7 @@ def app_ui(req):  # noqa: ANN001
             FAVICON,
             ui.tags.script(src=PLOTLY_JS),
             ui.tags.script(FULLSCREEN_JS),
+            ui.tags.script(TILE_MENU_JS),
             # the scripts and styles of the plugins' tiles (kpiten_core.hookspecs)
             ui.HTML(core_plugins.head_html()),
         ),
@@ -413,10 +414,30 @@ def card_badge(name: str) -> str:
     )
 
 
+def tile_menu_html(items: str, tr=i18n.english) -> str:
+    """The actions of a tile (`items` : the Odoo check, the AI, the save, the
+    spreadsheet) behind one button ; the info and the full screen stay apart. The
+    button is in the color of the theme when the AI filters the tile."""
+    if not items:
+        return ""
+    on = " tile-ai--on" if "tile-ai--on" in items else ""
+    return (
+        f'<span class="tile-menu"><button type="button" class="tile-menu-btn{on}" '
+        f'title="{html_escape(tr("Actions"), quote=True)}" aria-haspopup="true">'
+        f'{svg("ellipsis-vertical")}</button>'
+        f'<span class="tile-menu-items" role="menu">{items}</span></span>'
+    )
+
+
+def menu_label(label: str) -> str:
+    """The text of an action in the menu of a tile (its tooltip says more)."""
+    return f'<span class="tile-menu-label">{html_escape(label)}</span>'
+
+
 def tile_header(line: dict, kind: str, info: str, tr=i18n.english, ai: str = "") -> str:
-    """The title of a tile : its icon (its kind), its name ; the filters it was
-    computed with (an info icon), the AI (`ai`, see `ai_html`) and the full screen
-    button on the right."""
+    """The title of a tile : its icon (its kind), its name ; on the right, the filters
+    it was computed with (an info icon), the full screen button and, last, the menu of
+    its actions (`ai` : its items, see `tile_menu_html`)."""
     info_icon = (
         f'<span class="tile-info" title="{info}">{svg("circle-info")}</span>'
         if info
@@ -425,9 +446,9 @@ def tile_header(line: dict, kind: str, info: str, tr=i18n.english, ai: str = "")
     return (
         f'<h3><span class="tile-icon" title="{tr(kind)}">{svg(TILE_ICONS.get(kind, "table-list"))}</span>'
         f'<span class="tile-name">{line["name"] or kind}</span>'
-        f'<span class="tile-actions">{ai}{info_icon}'
+        f'<span class="tile-actions">{info_icon}'
         f'<button type="button" class="tile-full" title="{tr("Full screen (Esc to leave)")}">'
-        f"{svg('expand')}</button></span></h3>"
+        f"{svg('expand')}</button>{tile_menu_html(ai, tr)}</span></h3>"
     )
 
 
@@ -465,6 +486,43 @@ FULLSCREEN_JS = """
     });
     resize();
   });
+})();
+"""
+
+
+# the menu of the actions of a tile : fixed on the page, so that the scroll of the tile
+# does not cut it ; closed by a click anywhere (an action too) and by Esc
+TILE_MENU_JS = """
+(function () {
+  if (window.__kpitenMenu) { return; }
+  window.__kpitenMenu = true;
+  function close() {
+    document.querySelectorAll(".tile-menu--open").forEach(function (m) {
+      m.classList.remove("tile-menu--open");
+      var tile = m.closest(".tile");
+      if (tile) { tile.classList.remove("tile--menu"); }
+    });
+  }
+  document.addEventListener("click", function (e) {
+    var button = e.target.closest(".tile-menu-btn");
+    var menu = button && button.parentElement;
+    var was = menu && menu.classList.contains("tile-menu--open");
+    close();
+    if (!menu || was) { return; }
+    e.stopPropagation();
+    // no transform on the tile (its hover) : the fixed menu is placed on the page
+    menu.closest(".tile").classList.add("tile--menu");
+    menu.classList.add("tile-menu--open");
+    var items = menu.querySelector(".tile-menu-items");
+    var r = button.getBoundingClientRect();
+    items.style.top = (r.bottom + 4) + "px";
+    items.style.left = Math.max(8, r.right - items.offsetWidth) + "px";
+  }, true);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { close(); }
+  });
+  window.addEventListener("resize", close);
+  document.addEventListener("scroll", close, true);
 })();
 """
 
@@ -576,7 +634,7 @@ def save_html(tr=i18n.english) -> str:
     return (
         f'<button type="button" class="tile-save" '
         f'title="{html_escape(tr(SAVE_TOOLTIP), quote=True)}">'
-        f'{svg("square-plus")}</button>'
+        f'{svg("square-plus")}{menu_label(tr("Save as a new KPI"))}</button>'
     )
 
 
@@ -589,7 +647,8 @@ def ai_html(where: dict | None, tr=i18n.english) -> str:
     on = " tile-ai--on" if where else ""
     return (
         f'<button type="button" class="tile-ai{on}" '
-        f'title="{html_escape(title, quote=True)}">{svg("wand-magic-sparkles")}</button>'
+        f'title="{html_escape(title, quote=True)}">{svg("wand-magic-sparkles")}'
+        f'{menu_label(tr("Ask the AI"))}</button>'
     )
 
 
@@ -671,7 +730,8 @@ def check_html(check: dict | None, tr=i18n.english) -> str:
         f'<a class="tile-check" href="{html_escape(check["url"], quote=True)}" '
         'target="_blank" rel="noopener noreferrer" '
         f'title="{html_escape(chr(10).join(lines), quote=True)}">'
-        f'<img src="{html_escape(icon, quote=True)}" alt="Odoo"></a>'
+        f'<img src="{html_escape(icon, quote=True)}" alt="Odoo">'
+        f'{menu_label(tr("Check in Odoo"))}</a>'
     )
 
 
@@ -703,7 +763,8 @@ def tile_html(
         return (
             f'<div class="tile kpi-card" data-tile-id="{line["id"]}"{tooltip}>'
             f'<div class="kpi-head">{card_badge(line["name"])}'
-            f'<span class="kpi-label">{line["name"] or ""}</span>{check}{ai}</div>'
+            f'<span class="kpi-label">{line["name"] or ""}</span>'
+            f"{tile_menu_html(check + ai, tr)}</div>"
             # a name (best seller...) is text : smaller, it can be long
             f'<div class="value{" kpi-text" if isinstance(result.value, str) else ""}">'
             f"{html_escape(result.text)}</div>"
@@ -722,7 +783,7 @@ def tile_html(
         )
     sheet_button = (
         f'<button type="button" class="tile-sheet" title="{tr("Download the rows of this tile (spreadsheet)")}">'
-        f"{SPREADSHEET_ICON}</button>"
+        f'{SPREADSHEET_ICON}{menu_label(tr("Download the rows"))}</button>'
         if sheet and result.df is not None
         else ""
     )

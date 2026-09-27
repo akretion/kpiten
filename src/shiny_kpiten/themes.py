@@ -321,6 +321,39 @@ class Theme:
 .tile h3 .tile-check {{ line-height: 1; opacity: .55; display: inline-flex }}
 .tile h3 .tile-check:hover {{ opacity: 1 }}
 .tile h3 .tile-check img {{ width: 13px; height: 13px; display: block }}
+/* the menu of the actions of a tile (the info and the full screen stay apart) */
+.tile-menu {{ display: inline-flex; line-height: 1 }}
+.kpi-head .tile-menu {{ margin-left: auto }}
+.tile-menu-btn {{
+  background: transparent; border: 0; padding: 2px 4px; color: {p["text"]}; opacity: .45;
+  cursor: pointer; line-height: 1;
+}}
+.tile-menu-btn:hover, .tile-menu--open .tile-menu-btn {{ opacity: .9 }}
+.tile-menu-btn.tile-ai--on {{ color: {p["accent"]}; opacity: 1 }}
+.tile-menu-btn svg {{ width: 13px; height: 13px; fill: currentColor; margin: 0 !important }}
+.tile-menu-items {{
+  display: none; position: fixed; z-index: 1100; flex-direction: column; min-width: 190px;
+  padding: 4px; background: {p["surface_hex"]}; color: {p["text"]};
+  border: 1px solid {p["border"]}; border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+  font-size: 13px; font-weight: 400;
+}}
+.tile-menu--open .tile-menu-items {{ display: flex }}
+.tile.tile--menu {{ transform: none !important }}
+.tile-menu-items > * {{
+  display: flex !important; align-items: center; gap: 8px; width: 100%; padding: 6px 8px !important;
+  margin: 0 !important; border-radius: 6px; color: {p["text"]} !important; opacity: 1 !important;
+  text-decoration: none; text-align: left; white-space: nowrap;
+}}
+.tile-menu-items > *:hover {{ background: rgba(127, 127, 127, .15) }}
+.tile-menu-items > .tile-ai--on {{ color: {p["accent"]} !important }}
+/* faicons puts margin-left: auto in the style of its svg : the icons in one column */
+.tile-menu-items svg, .tile-menu-items img {{
+  width: 14px !important; height: 14px !important; flex: none; display: block;
+  margin: 0 !important; vertical-align: 0 !important;
+}}
+.tile-menu-items .tile-sheet svg {{ fill: none; stroke: currentColor }}
+.tile-menu-items .tile-ai svg, .tile-menu-items .tile-save svg {{ fill: currentColor }}
 .save-where {{ white-space: pre-wrap; font-size: 12px; padding: 6px 8px; border-radius: 6px; background: rgba(127, 127, 127, .12) }}
 .tile-ai-promote svg {{ width: 10px !important; height: 10px !important; fill: currentColor }}
 /* the panel : its ✨ in the head of the page */
