@@ -9,7 +9,8 @@ kpiten module, nothing changes.
      "number": {"format": "space_comma", "small_below": 10, "small_decimals": 2,
                 "large_decimals": 0},
      "period": {"default": "last 90 days", "fiscal_start_month": 1},
-     "ui": {"theme": "capitaine", "table_rows": 20, "colors": "theme"},
+     "ui": {"theme": "capitaine", "table_rows": 20, "colors": "theme",
+            "idle_minutes": 60},
      "explore": {"access": "everyone", "max_rows": 500000, "ods_max_rows": 500000},
      "ai": {"enabled": True, "send_values": True, "send_level": "summary"},
      "currency": {"symbol": "$", "position": "before"}}
@@ -118,6 +119,14 @@ def table_rows() -> int:
     """Rows a table tile shows (what the tile holds beyond scrolls or is left out)."""
     rows = _section("ui").get("table_rows") or 20
     return max(1, rows)
+
+
+def idle_minutes(config: dict | None = None) -> int:
+    """Minutes without a click or a key before the fronts log the user out ; 0 : never
+    (an older kpiten module). `config` : the dict of `kt.config` of the database of
+    the login (the settings of the process when None)."""
+    ui = (config if config is not None else CONFIG).get("ui") or {}
+    return max(0, int(ui.get("idle_minutes") or 0))
 
 
 # ---- explore

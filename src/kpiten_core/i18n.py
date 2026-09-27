@@ -20,6 +20,12 @@ FR = {
     "Open the dashboard from Odoo : menu KpiTen → {front}.": (
         "Ouvrez le tableau de bord depuis Odoo : menu KpiTen → {front}."
     ),
+    "Logged out": "Déconnecté",
+    "Open KpiTen in Odoo": "Ouvrir KpiTen dans Odoo",
+    "You were logged out after a time without activity.": (
+        "Vous avez été déconnecté après un temps sans activité."
+    ),
+    "You are logged out.": "Vous êtes déconnecté.",
     "Panel": "Tableau",
     "Period": "Période",
     "Theme": "Thème",

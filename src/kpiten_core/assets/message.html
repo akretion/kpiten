@@ -1,0 +1,157 @@
+<!-- The pages without a dashboard (logout, not connected) : a card over a chart that
+     only suggests one (its bars and its line are made up, blurred and faded).
+     `kpiten_core.session.message_html` fills the title and the body of the card. -->
+<style>
+  .kt-msg {
+    --bg: #f4f6fb;
+    --card: rgba(255, 255, 255, 0.82);
+    --text: #1f2430;
+    --muted: #5f6878;
+    --accent: #00a09d;
+    --bar: #7c8db5;
+    --border: rgba(31, 36, 48, 0.08);
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    .kt-msg {
+      --bg: #11151d;
+      --card: rgba(28, 33, 44, 0.82);
+      --text: #e8ebf2;
+      --muted: #9aa3b5;
+      --accent: #2bd4c9;
+      --bar: #56648a;
+      --border: rgba(255, 255, 255, 0.08);
+    }
+  }
+  .kt-msg-chart {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    filter: blur(3px);
+    opacity: 0.35;
+    pointer-events: none;
+  }
+  .kt-msg-chart .bar { fill: var(--bar); }
+  .kt-msg-chart .grid { stroke: var(--muted); stroke-opacity: 0.25; stroke-width: 1; }
+  .kt-msg-chart .area { fill: var(--accent); fill-opacity: 0.12; }
+  .kt-msg-chart .trend {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .kt-msg-card {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 440px;
+    padding: 32px 28px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(10px);
+    text-align: center;
+  }
+  .kt-msg-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 14px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+  .kt-msg-card h1 { font-size: 22px; margin: 0 0 10px; font-weight: 650; color: var(--text); }
+  .kt-msg-card p {
+    margin: 0 0 10px;
+    color: var(--muted);
+    line-height: 1.5;
+    font-size: 15px;
+    text-wrap: balance;
+  }
+  .kt-msg-button {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .kt-msg-button:hover { filter: brightness(1.08); color: #fff; }
+  .kt-msg-button:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+</style>
+<div class="kt-msg">
+  <svg
+    class="kt-msg-chart"
+    viewBox="0 0 1200 600"
+    preserveAspectRatio="xMidYMax slice"
+    aria-hidden="true"
+  >
+    <line class="grid" x1="0" x2="1200" y1="560" y2="560" />
+    <line class="grid" x1="0" x2="1200" y1="450" y2="450" />
+    <line class="grid" x1="0" x2="1200" y1="340" y2="340" />
+    <line class="grid" x1="0" x2="1200" y1="230" y2="230" />
+    <line class="grid" x1="0" x2="1200" y1="120" y2="120" />
+    <rect class="bar" x="14" y="393" width="48" height="167" rx="6" />
+    <rect class="bar" x="89" y="331" width="48" height="229" rx="6" />
+    <rect class="bar" x="164" y="362" width="48" height="198" rx="6" />
+    <rect class="bar" x="239" y="292" width="48" height="268" rx="6" />
+    <rect class="bar" x="314" y="309" width="48" height="251" rx="6" />
+    <rect class="bar" x="389" y="252" width="48" height="308" rx="6" />
+    <rect class="bar" x="464" y="278" width="48" height="282" rx="6" />
+    <rect class="bar" x="539" y="217" width="48" height="343" rx="6" />
+    <rect class="bar" x="614" y="243" width="48" height="317" rx="6" />
+    <rect class="bar" x="689" y="186" width="48" height="374" rx="6" />
+    <rect class="bar" x="764" y="208" width="48" height="352" rx="6" />
+    <rect class="bar" x="839" y="160" width="48" height="400" rx="6" />
+    <rect class="bar" x="914" y="226" width="48" height="334" rx="6" />
+    <rect class="bar" x="989" y="173" width="48" height="387" rx="6" />
+    <rect class="bar" x="1064" y="142" width="48" height="418" rx="6" />
+    <rect class="bar" x="1139" y="124" width="48" height="436" rx="6" />
+    <polygon
+      class="area"
+      points="38,560 38,353 113,291 188,322 263,252 338,269 413,212 488,238 563,177 638,203 713,146 788,168 863,120 938,186 1013,133 1088,102 1163,84 1163,560"
+    />
+    <polyline
+      class="trend"
+      points="38,353 113,291 188,322 263,252 338,269 413,212 488,238 563,177 638,203 713,146 788,168 863,120 938,186 1013,133 1088,102 1163,84"
+    />
+  </svg>
+  <main class="kt-msg-card">
+    <div class="kt-msg-icon">
+      <!-- lucide « log-out » -->
+      <svg
+        width="26"
+        height="26"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" x2="9" y1="12" y2="12" />
+      </svg>
+    </div>
+    <h1>{{title}}</h1>
+    {{body}}
+  </main>
+</div>
