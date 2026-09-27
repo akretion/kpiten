@@ -43,6 +43,7 @@ from kpiten_core.render.gtable import DRILL_CSS
 from kpiten_core.render.plotly import (
     _with_alpha,
     apply_theme_colors,
+    axis_titles_margin,
     category_labels,
     finish,
 )
@@ -818,7 +819,8 @@ def tile_html(
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             font=dict(color=p["text"], size=11),
-            margin=dict(l=10, r=10, t=30, b=20),
+            # the titles of the axes above the graph : one line, or two
+            margin=dict(l=10, r=10, t=axis_titles_margin(result.figure), b=20),
         )
         finish(result.figure, result.chart)  # the [plotly] of the tile : last
         parts.append(result.figure.to_html(include_plotlyjs=False, full_html=False))
