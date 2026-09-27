@@ -37,6 +37,37 @@ def user_time(backend: Backend, user_id: int, epoch: float) -> str:
     return loaders.user_datetime(backend, user_id, moment, date=False)
 
 
+def keep_backfilling(db: str):
+    """A fresh database got its recent records : its history comes 3 months every 5
+    minutes, in the background (`kpiten_core.service.keep_backfilling`)."""
+    kpiten_service.keep_backfilling(db)
+
+
+def history_since(backend: Backend, user_id: int) -> str | None:
+    """While the history is loading : the date it reaches, as the user reads a date ;
+    None when it is complete."""
+    from kpiten_core import env
+
+    with env.db_scope(backend.db):
+        since = loaders.backfill_since()
+    return (
+        None
+        if since is None
+        else loaders.user_datetime(backend, user_id, since, time=False)
+    )
+
+
+def sync_stamp(db: str) -> str:
+    """The time of the last sync of the store (raw) : a page sees a sync made
+    without it (the history, another user) and draws its tiles again."""
+    from kpiten_core import env
+    from kpiten_core.store import DFStorage
+
+    with env.db_scope(db):
+        stamps = [DFStorage.last_sync(t) for t in DFStorage.list_table_names()]
+    return max((s for s in stamps if s), default="")
+
+
 def is_stale(backend: Backend) -> bool:
     """The last sync is older than `DATA_STALE_HOURS` (the date shown in orange)."""
     from kpiten_core import env

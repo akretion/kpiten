@@ -1175,11 +1175,28 @@ def server(input, output, session):
         user_id = current_user_id()
         content = data_layer.user_store(backend, user_id)
         if not content:
-            # fresh database : ask kpiten-core for a full connectorx extract
+            # fresh database : its recent records now (a result in a moment)
             with ui.Progress(min=1, max=100) as p:
                 data_layer.request_refresh(backend.db, progress=_progress_cb(p))
             content = data_layer.user_store(backend, user_id)
+        # its history, if it is still loading : 3 months more every 5 minutes
+        data_layer.keep_backfilling(backend.db)
         return content
+
+    @reactive.poll(lambda: data_layer.sync_stamp(backend_rv().db), 30)
+    def synced_at():
+        """A sync made without this page (the history, another user) : read again."""
+        return data_layer.sync_stamp(backend_rv().db)
+
+    seen_sync = {"stamp": None}  # the last sync the tiles were drawn from
+
+    @reactive.effect
+    def _reload_after_sync():
+        stamp = synced_at()
+        if seen_sync["stamp"] is not None and stamp != seen_sync["stamp"]:
+            with reactive.isolate():
+                data_version.set(data_version() + 1)
+        seen_sync["stamp"] = stamp
 
     @render.ui
     def data_freshness():
@@ -1200,9 +1217,25 @@ def server(input, output, session):
             title += "\n" + tr(
                 "The data are more than {hours} hours old", hours=env.data_stale_hours
             )
+        # a fresh database : its history loads in the background
+        since = data_layer.history_since(backend, current_user_id())
+        if since:
+            title += "\n" + tr(
+                "The history is loading : 3 months more every 5 minutes. Before "
+                "{date}, the figures are not complete yet.",
+                date=since,
+            )
         return ui.tags.span(
             ui.HTML(svg("clock", width="11px", height="11px")),
             stamp,
+            (
+                ui.tags.span(
+                    " · " + tr("history from {date}", date=since),
+                    class_="data-history",
+                )
+                if since
+                else None
+            ),
             class_="data-freshness" + (" stale" if stale else ""),
             title=title,
         )
@@ -1536,6 +1569,8 @@ def server(input, output, session):
             return
         with reactive.isolate():
             data_version.set(data_version() + 1)
+            # drawn from this sync : the watch of the syncs does not draw them again
+            seen_sync["stamp"] = data_layer.sync_stamp(backend_rv().db)
         ui.notification_show(tr("Data synced with Odoo."), duration=3)
 
     # ---- edit mode : layout save + tile delete -------------------------
