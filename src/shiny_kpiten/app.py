@@ -336,12 +336,6 @@ def app_ui(req):  # noqa: ANN001
                 ui.div(
                     # ✨ : the AI narrows the whole panel (and the badge of its filter)
                     ui.output_ui("ai_panel_bar", inline=True),
-                    ui.input_action_button(
-                        "refresh_data",
-                        ui.HTML(svg("rotate")),
-                        class_="btn-kpiten",
-                        title=tr(REFRESH_TOOLTIP),
-                    ),
                     ui.output_ui("ods_button"),
                     # the exports of the panel the plugins offer (quarto : a PDF)
                     ui.output_ui("plugin_exports"),
@@ -352,6 +346,12 @@ def app_ui(req):  # noqa: ANN001
                         title=tr("Copy the link of this view (panel, period, filters)"),
                         onclick="kpitenCopyLink(this)",
                         **{"data-label": tr("The link of this view :")},
+                    ),
+                    ui.input_action_button(
+                        "refresh_data",
+                        ui.HTML(svg("rotate")),
+                        class_="btn-kpiten",
+                        title=tr(REFRESH_TOOLTIP),
                     ),
                     class_="top-actions",
                 ),

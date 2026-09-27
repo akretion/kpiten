@@ -100,7 +100,21 @@ class Theme:
 .kpiten-user svg {{ fill: currentColor; flex: none; opacity: .8 }}
 .kpiten-user span {{ min-width: 0; overflow: hidden; text-overflow: ellipsis }}
 .kpiten-sidebar .shiny-input-container {{ width: 100% !important; margin-bottom: 12px }}
-.kpiten-sidebar .collapse-toggle {{ color: {page["text"]} }}
+/* the buttons that fold the side bars (filters, AI) : bslib puts each right after its
+   side bar, out of it, in the color of the body ; in the colors of the theme */
+.kpiten-dashboard .sidebar + .collapse-toggle {{
+  color: {page["text"]} !important;
+  background: {page["surface"]} !important;
+  border: 1px solid {page["border"]} !important;
+  border-radius: 8px;
+  opacity: .85;
+}}
+.kpiten-dashboard .sidebar + .collapse-toggle:hover,
+.kpiten-dashboard .sidebar + .collapse-toggle:focus-visible {{
+  color: {page["accent"]} !important;
+  opacity: 1;
+}}
+.kpiten-dashboard .sidebar + .collapse-toggle svg {{ fill: currentColor; stroke: currentColor }}
 .kpiten-brand {{
   display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px;
   margin-bottom: 8px;
