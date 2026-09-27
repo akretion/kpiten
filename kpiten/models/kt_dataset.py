@@ -252,6 +252,15 @@ class KtKpi(models.Model):
         help="Representation type",
     )
     user_id = fields.Many2one(comodel_name="res.users")
+    duplicated_id = fields.Many2one(
+        comodel_name="kt.kpi",
+        string="Duplicated from",
+        readonly=True,
+        copy=False,
+        ondelete="set null",
+        help="The KPI it was saved from in a dashboard (Save as a new KPI), with the "
+        "filters it was seen with.",
+    )
     # the panels the KPI is on, each with its place and size there
     tile_ids = fields.One2many(comodel_name="kt.panel.tile", inverse_name="kpi_id")
     panel_ids = fields.Many2many(
@@ -359,10 +368,10 @@ class KtKpi(models.Model):
     ) -> int:
         """Create a new tile line for the dataset of `model` ; `values` : what it keeps
         of the tile it is copied from (`col_span`, `tile_height`, `table_view`,
-        `display`, `drill_definition`). Returns its id."""
+        `display`, `drill_definition`) and its id (`duplicated_id`). Returns its id."""
         self._check_definition(definition, kind)
         values = values or {}
-        copied = ("table_view", "display", "drill_definition")
+        copied = ("table_view", "display", "drill_definition", "duplicated_id")
         res = self.create(
             {
                 "dataset_id": self.get_conf_id(model),

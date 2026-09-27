@@ -143,6 +143,7 @@ days_to_order = "date_approve - create_date"</pre>
                         <field name="certified" widget="boolean_toggle" />
                         <field name="table_read" />
                         <field name="user_id" />
+                        <field name="duplicated_id" invisible="not duplicated_id" />
                         <field name="group_ids" widget="many2many_tags" />
                     </group>
                 </group>
@@ -220,6 +221,7 @@ days_to_order = "date_approve - create_date"</pre>
                 <field name="table_view" optional="hide" />
                 <field name="group_ids" widget="many2many_tags" optional="hide" />
                 <field name="user_id" optional="hide" />
+                <field name="duplicated_id" optional="hide" />
                 <field name="table_read" optional="show" />
                 <field name="certified" widget="boolean_toggle" optional="show" />
                 <field name="validation_msg" optional="hide" />
