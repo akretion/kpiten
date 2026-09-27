@@ -26,12 +26,35 @@ logger = logging.getLogger(__name__)
 POLL_SECONDS = 0.5
 # how long a front waits for a sync started elsewhere (cron, another front)
 WAIT_OTHER_SECONDS = 3600
+# the syncs a user asks for run on the next boundary of these slots of the clock
+# (asked at 10:02 : run at 10:05) ; all the requests of a slot share one sync
+SLOT_SECONDS = 300
+
+
+def next_slot(now: float | None = None) -> float:
+    """The time (epoch seconds) of the next slot boundary, `now` itself when it is
+    one."""
+    now = time.time() if now is None else now
+    return -(-now // SLOT_SECONDS) * SLOT_SECONDS
 
 
 class SyncService:
     def __init__(self):
         self._lock = threading.Lock()
         self._locks: dict[str, threading.Lock] = {}
+        self._done: dict[str, float] = {}  # db -> the last slot synced
+
+    def scheduled_refresh(self, db: str, slot: float) -> bool:
+        """A sync asked by a user (the Refresh button) : at `slot` (`next_slot`),
+        once for all the requests of that slot. Blocks until it is over ; False when
+        an other request of the slot already did it."""
+        time.sleep(max(0.0, slot - time.time()))
+        with self._db_lock(db):
+            if self._done.get(db, 0) >= slot:
+                return False
+            self._execute(db, None, False)
+            self._done[db] = slot
+        return True
 
     def request_refresh(self, db: str, progress=None, full: bool = False):
         """Sync `db` (incremental unless `full`), in a child process. Returns

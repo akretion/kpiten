@@ -38,6 +38,37 @@ def tile_fields(fields_get) -> list[str]:
     return TILE_FIELDS + [name for name in OPTIONAL_TILE_FIELDS if name in known]
 
 
+# the formats of a date and a time of each language of each database (res.lang)
+_LANG_FORMATS: dict[tuple, tuple[str, str]] = {}
+ISO_FORMATS = ("%Y-%m-%d", "%H:%M:%S")
+
+
+def lang_formats(call, db: str | None, lang: str | None) -> tuple[str, str]:
+    """(date_format, time_format) of `lang` in Odoo (`res.lang`), the ISO ones when
+    the language is unknown or Odoo does not answer. `call` : the backend's."""
+    key = (db, lang)
+    if key not in _LANG_FORMATS:
+        try:
+            rows = (
+                call(
+                    "res.lang",
+                    "search_read",
+                    domain=[("code", "=", lang)],
+                    fields=["date_format", "time_format"],
+                )
+                if lang
+                else []
+            )
+        except Exception:
+            return ISO_FORMATS  # not kept : Odoo may answer next time
+        _LANG_FORMATS[key] = (
+            (rows[0]["date_format"] or ISO_FORMATS[0], rows[0]["time_format"] or ISO_FORMATS[1])
+            if rows
+            else ISO_FORMATS
+        )
+    return _LANG_FORMATS[key]
+
+
 def parse_filter_config(raw) -> dict:
     """The filters of a panel (`kt.panel.filter_config`) : TOML, or JSON for a kpiten
     module older than 1.20.0."""

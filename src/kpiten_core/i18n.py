@@ -64,6 +64,11 @@ FR = {
     ),
     "Database switched to {db}": "Base changée pour {db}",
     "Data synced with Odoo.": "Données synchronisées avec Odoo.",
+    "Sync with Odoo at {time} (at most one every 5 minutes).": (
+        "Synchronisation avec Odoo à {time} (au plus une toutes les 5 minutes)."
+    ),
+    "Last sync : {stamp}.": "Dernière synchronisation : {stamp}.",
+    "The sync with Odoo failed.": "La synchronisation avec Odoo a échoué.",
     "initial extract": "extraction initiale",
     "update": "mise à jour",
     "{kind} : {model} — {count} records": "{kind} : {model} — {count} enregistrements",

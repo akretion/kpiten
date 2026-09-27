@@ -256,16 +256,22 @@ def _apply_deletions(uri: str, model: str, since: str) -> int:
 
 
 def last_sync(backend: "Backend", user_id: int) -> str | None:
-    """Most recent last_sync across the stored tables, in the user timezone.
-
-    Formatted 'YYYY-MM-DD HH:MM' (minutes precision) ; UTC suffix is added
-    when the user has no timezone set.
-    """
+    """Most recent last_sync across the stored tables, as the user reads a date and a
+    time (`user_datetime`)."""
     syncs = [DFStorage.last_sync(table) for table in DFStorage.list_table_names()]
     syncs = [s for s in syncs if s]
     if not syncs:
         return None
     dt = datetime.strptime(max(syncs), "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    return user_datetime(backend, user_id, dt)
+
+
+def user_datetime(
+    backend: "Backend", user_id: int, dt: datetime, date: bool = True
+) -> str:
+    """`dt` (aware) in the timezone of the user and in the formats of their language
+    in Odoo (`res.lang`), to the minute ; the time only without `date`. « UTC » after
+    it when the user has no timezone."""
     tz = backend.get_user_tz(user_id)
     if tz:
         try:
@@ -273,7 +279,12 @@ def last_sync(backend: "Backend", user_id: int) -> str | None:
         except Exception:
             logger.warning("unknown timezone %s, falling back to UTC", tz)
             tz = None
-    stamp = dt.strftime("%Y-%m-%d %H:%M")
+    if not tz:
+        dt = dt.astimezone(timezone.utc)
+    date_format, time_format = backend.get_lang_formats(backend.get_user_lang(user_id))
+    # to the minute : the seconds of the format of the language left out
+    time_format = time_format.replace(":%S", "").replace("%S", "").strip()
+    stamp = dt.strftime(f"{date_format} {time_format}" if date else time_format)
     return stamp if tz else f"{stamp} UTC"
 
 

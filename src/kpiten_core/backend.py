@@ -90,6 +90,11 @@ class Backend:
     def get_user_lang(self, user_id: int) -> str:
         raise NotImplementedError
 
+    def get_lang_formats(self, lang: str | None) -> tuple[str, str]:
+        """(date_format, time_format) of an Odoo language (`res.lang`, strftime), the
+        ISO ones when it has none."""
+        raise NotImplementedError
+
     def get_user_tz(self, user_id: int) -> str | None:
         """IANA timezone of the user (res.users.tz), None if unset."""
         raise NotImplementedError

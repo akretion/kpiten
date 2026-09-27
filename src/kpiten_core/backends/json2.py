@@ -20,6 +20,7 @@ from kpiten_core.backends.common import (
     KPI_MODEL,
     LEGACY_KPI_MODEL,
     model_names,
+    lang_formats,
     parse_filter_config,
     read_panel_tiles,
     tile_dict,
@@ -109,6 +110,9 @@ class Json2Backend:
 
     def get_user_tz(self, user_id: int) -> str | None:
         return self._user(user_id, "tz") or None
+
+    def get_lang_formats(self, lang: str | None) -> tuple[str, str]:
+        return lang_formats(self.call, self.db, lang)
 
     # ---- auth ---------------------------------------------------------
     def check_uuid(self, uuid: str) -> int | None:
