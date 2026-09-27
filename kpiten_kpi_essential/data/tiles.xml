@@ -254,7 +254,7 @@ aggregation = "sum"
     <record id="graph_point" model="kt.kpi">
         <field name="dataset_id" ref="kpiten_commercial_data.kpiten_sales_lines" />
         <field name="kind">graph</field>
-        <field name="name">Graph point</field>
+        <field name="name">Nbr de ventes par vendeur - Graph point</field>
         <field name="definition">type = "point"
 by = "salesman_id"
 measure = "id"

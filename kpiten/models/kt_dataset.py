@@ -389,6 +389,34 @@ class KtKpi(models.Model):
             )
         return res.id
 
+    @api.model
+    def adopt_tile(
+        self, kpi_id: int, panel_id: int, user_id: int = None, from_panel_id: int = None
+    ) -> bool:
+        """The KPI `kpi_id` (the same, not a copy) also on the panel `panel_id`, at its
+        end, with its size on `from_panel_id`. Only who edits that panel adopts (a
+        KpiTen manager, its owner : `kt.can_edit_panel`). False when it is already
+        there."""
+        if not self.env["kt"].can_edit_panel(panel_id, user_id):
+            raise exceptions.AccessError(
+                _("Only the owner of the panel or a KpiTen manager adds a KPI to it.")
+            )
+        kpi = self.browse(kpi_id).exists()
+        if not kpi:
+            raise exceptions.UserError(_("This KPI does not exist any more."))
+        if panel_id in kpi.tile_ids.panel_id.ids:
+            return False
+        source = kpi.tile_ids.filtered(lambda t: t.panel_id.id == from_panel_id)[:1]
+        kpi._put_on_panel(
+            panel_id,
+            (
+                {"col_span": source.col_span, "tile_height": source.tile_height}
+                if source
+                else None
+            ),
+        )
+        return True
+
     def _put_on_panel(self, panel_id: int, layout: dict = None) -> None:
         """The KPI at the end of the panel `panel_id` ; `layout` : its size there."""
         self.ensure_one()
