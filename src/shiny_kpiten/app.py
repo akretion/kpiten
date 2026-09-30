@@ -1270,7 +1270,13 @@ def server(input, output, session):
         panel = panel_settings()
         config = panel.get("filter_config") or {}
         controls = []
-        store_data = store()
+        # the tables of the panel : the choices fit its data, the other tables of
+        # the store are not opened (their record rules cost a query each)
+        full_store = store()
+        store_data = {
+            name: full_store[name]
+            for name in core_explore.panel_tables(lines(), full_store)
+        }
         # the period and the filters of a bookmark, for its panel, the first time
         wanted = {}
         if url_view["filters"]:
@@ -1739,7 +1745,7 @@ def server(input, output, session):
         if not where or line["model"] not in store_data:
             return store_data
         frame = querychat.apply(store_data[line["model"]].lazy(), where["where"])
-        return {**store_data, line["model"]: frame}
+        return store_data | {line["model"]: frame}
 
     def panel_filter_text(current: dict, followed: dict) -> str:
         """The filters of the panel, table by table, and the tables that follow."""
@@ -2358,6 +2364,7 @@ def server(input, output, session):
         field_labels = core_labels.field_labels_of(backend_rv(), odoo_lang)
         logger.info("predicates : %s", [str(p) for p in predicate_list])
         results = []
+        started = time.perf_counter()
         for line in lines():
             try:
                 result = core_tiles.exec_tile(
@@ -2373,6 +2380,13 @@ def server(input, output, session):
             except Exception as err:
                 logger.exception("tile %s failed", line["name"])
                 results.append((line, None, str(err)))
+        # the first time, it opens the tables the panel reads (their record rules)
+        logger.info(
+            "panel %s : %s tiles in %.0f ms",
+            input.panel(),
+            len(results),
+            (time.perf_counter() - started) * 1000,
+        )
         return results
 
     # ---- the exports of the panel the plugins offer (kpiten_core.hookspecs)
