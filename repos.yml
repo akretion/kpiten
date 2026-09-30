@@ -75,13 +75,6 @@
     - akretion kpiten-core
   target: akretion kpiten-core
 
-./src/nicegui-kpiten:
-  remotes:
-    akretion: git@github.com:akretion/kpiten.git
-  merges:
-    - akretion nicegui-kpiten
-  target: akretion nicegui-kpiten
-
 ./src/shiny-kpiten:
   remotes:
     akretion: git@github.com:akretion/kpiten.git

@@ -1,4 +1,4 @@
-DB      ?= kpiten
+DB      ?= dash,big
 MODULES ?= erp_commercial_data,kpiten_kpi_essential
 
 # mot de passe Postgres de l'utilisateur odoo : PGPASSWORD dans .env (voir
@@ -14,7 +14,7 @@ ODOO_SHELL := $(PY) src/odoo/odoo-bin shell -c odoo.conf
 
 N       ?= 100000
 # filtre des bases visibles en mode multi-bases (regex) ; vide = celui de odoo.conf
-DBFILTER ?=
+DBFILTER ?= dash,big
 
 .PHONY: check-repos repos venv apps db run run-db shell update add-sales sync up down restart status logs sample-fixtures
 
@@ -53,7 +53,7 @@ PLUGINS ?= perspective-kpiten quarto-kpiten
 ## Les plugins de marimo-kpiten (dans son venv) : derived-kpiten, le notebook derived.py
 MARIMO_PLUGINS ?= derived-kpiten
 apps:
-	@for a in kpiten-core nicegui-kpiten shiny-kpiten marimo-kpiten; do (cd src/$$a && uv sync); done
+	@for a in kpiten-core shiny-kpiten marimo-kpiten; do (cd src/$$a && uv sync); done
 	@for p in $(PLUGINS); do \
 	  [ -d src/$$p ] && uv pip install --python src/shiny-kpiten/.venv/bin/python -e src/$$p \
 	    || echo "plugin $$p absent de src/ (make repos)"; \
@@ -87,7 +87,7 @@ run:
 ## Les trois services (Odoo :8069, Shiny :5000, NiceGUI :5001), détachés du
 ## terminal, via ./stack ; logs dans data/logs/.
 ##   make up | down | restart | status        tous
-##   make restart SVC=shiny                    un seul : odoo | shiny | nicegui | marimo
+##   make restart SVC=shiny                    un seul : odoo | shiny | marimo
 ##   make logs [SVC=shiny]                     suit les logs (Ctrl-C pour quitter)
 SVC ?= all
 up:
