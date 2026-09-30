@@ -14,6 +14,7 @@ applied from the `auditlog` module (unlink logs).
 """
 
 import logging
+import re
 import queue
 import threading
 from datetime import datetime, timedelta, timezone
@@ -497,16 +498,39 @@ def load_store() -> dict[str, pl.LazyFrame]:
     return {table: DFStorage.scan_df(table) for table in DFStorage.list_table_names()}
 
 
-def accessible_ids(backend: "Backend", table: str, user_id: int) -> pl.Series:
-    """Ids of the `table` records the user may read.
+FROM_TABLE_RE = re.compile(r'\bFROM\s+"(\w+)"')
 
-    Odoo builds the `SELECT id` with its own record rules (ir.rule) applied for
-    that user ; it is run here straight against Postgres, like the extraction.
+
+def _all_readable(backend: "Backend", query: str) -> tuple[int, int] | None:
+    """(the highest id, the number of rows) of the table when the access `query`
+    keeps all its rows, else None.
+
+    The record rules let a manager read every row : the ids are then all the ids
+    of the table, millions on a big base, fetched for nothing. Looking for a
+    hidden row is cheaper : it stops at the first one (a salesman, ~10 ms), and
+    goes through the table only when there is none. One statement, one snapshot.
     """
-    query = backend.get_access_query(table, user_id)
-    if not query:  # no read access to the model at all
-        return pl.Series("id", [], dtype=pl.Int64)
-    return _read_sql_df(_pg_uri(backend.db), query)["id"]
+    table = FROM_TABLE_RE.search(query)
+    if not table:
+        return None
+    import connectorx as cx
+
+    row = cx.read_sql(
+        _pg_uri(backend.db),
+        # counting the table in a CASE, only when no row is hidden, makes Postgres
+        # lose its parallel plan : the count is ~80 ms on 3 million rows
+        f"""SELECT NOT EXISTS (
+                SELECT 1 FROM "{table.group(1)}" AS kt_t WHERE NOT EXISTS (
+                    SELECT 1 FROM ({query}) AS kt_r WHERE kt_r.id = kt_t.id
+                )
+            ) AS all_rows, max(id) AS max_id, count(*) AS total
+        FROM "{table.group(1)}"
+        """,
+        return_type="polars",
+    ).row(0, named=True)
+    if not row["all_rows"]:
+        return None
+    return row["max_id"] or 0, row["total"]
 
 
 def restrict_rows(frame: "pl.DataFrame | pl.LazyFrame", ids: pl.Series):
@@ -522,6 +546,30 @@ def restrict_rows(frame: "pl.DataFrame | pl.LazyFrame", ids: pl.Series):
     return frame.join(keys, on="id", how="semi", maintain_order="left")
 
 
+def user_rows(backend: "Backend", table: str, user_id: int, lazy: pl.LazyFrame):
+    """`lazy` restricted to the rows of `table` the user may read (record rules).
+
+    Odoo builds the `SELECT id` with its own record rules (ir.rule) applied for
+    that user ; it is run here straight against Postgres, like the extraction.
+
+    When the rules keep every row, `id <= max(id)` is the same restriction as
+    the ids (`_all_readable`) : the rows synced later have a greater id and stay
+    hidden. Only if the stored rows up to that id are as many as in Postgres : a
+    record deleted since the last sync is still stored, and might be one the
+    rules would hide ; the ids then.
+    """
+    query = backend.get_access_query(table, user_id)
+    if not query:  # no read access to the model at all
+        return lazy.filter(pl.lit(False))
+    everything = _all_readable(backend, query)
+    if everything is not None:
+        max_id, total = everything
+        bounded = lazy.filter(pl.col("id") <= max_id)
+        if bounded.select(pl.len()).collect().item() == total:
+            return bounded
+    return restrict_rows(lazy, _read_sql_df(_pg_uri(backend.db), query)["id"])
+
+
 def user_store(backend: "Backend", user_id: int) -> dict[str, pl.LazyFrame]:
     """Per-user view of the store : the columns the user may read (ACL), the
     rows the user may read (record rules), translatable lang.
@@ -531,7 +579,8 @@ def user_store(backend: "Backend", user_id: int) -> dict[str, pl.LazyFrame]:
     it needs when it runs.
 
     The record rules are always applied, even for a user who may read every
-    row : rows synced after this call are not in `ids`, so they stay hidden
+    row : rows synced after this call are not in its ids (nor under its id
+    bound, `readable_bound`), so they stay hidden
     until the store is rebuilt, instead of leaking to a user who may not read
     them.
 
@@ -545,8 +594,7 @@ def user_store(backend: "Backend", user_id: int) -> dict[str, pl.LazyFrame]:
             try:
                 allowed = backend.get_allowed_fields(table, user_id)
                 lazy = DFStorage.scan_df(table, allowed_fields=allowed, lang=lang)
-                ids = accessible_ids(backend, table, user_id)
-                store[table] = restrict_rows(lazy, ids)
+                store[table] = user_rows(backend, table, user_id, lazy)
             except Exception:
                 logger.exception("user store fetch failed for %s", table)
     return store

@@ -97,6 +97,40 @@ def test_user_store_applies_the_record_rules(monkeypatch):
     assert "broken" not in store
 
 
+def test_all_rows_readable_is_an_id_bound(monkeypatch):
+    """Rules keeping every row : a bound on the id instead of the ids. A row synced
+    later stays hidden ; a row deleted in Odoo but still stored, the ids again."""
+    import connectorx
+
+    stored = pl.DataFrame({"id": [1, 2, 3, 4], "name": list("abcd")})
+    backend = FakeBackend()
+    backend.get_access_query = lambda table, user_id: (
+        'SELECT "sale_order"."id" FROM "sale_order" WHERE company_id IN (1)'
+    )
+    answer = {}  # what Postgres answers : a hidden row or not, the bound of the table
+    monkeypatch.setattr(
+        connectorx, "read_sql", lambda uri, sql, return_type: pl.DataFrame(answer)
+    )
+    monkeypatch.setattr(
+        loaders,
+        "_read_sql_df",
+        lambda uri, sql: pl.DataFrame({"id": [1, 3]}, schema={"id": pl.Int64}),
+    )
+
+    def rows():
+        lazy = loaders.user_rows(backend, "sale.order", 8, stored.lazy())
+        return lazy.collect()["id"].to_list()
+
+    answer.update(all_rows=[True], max_id=[3], total=[3])
+    assert rows() == [1, 2, 3]  # 4 : synced after
+    # the rules hide a row : its ids
+    answer.update(all_rows=[False], max_id=[3], total=[3])
+    assert rows() == [1, 3]
+    # every row readable, but 2 was deleted in Odoo and is still stored : the ids
+    answer.update(all_rows=[True], max_id=[3], total=[2])
+    assert rows() == [1, 3]
+
+
 def test_user_store_is_scoped_to_the_database(monkeypatch):
     seen = []
 
