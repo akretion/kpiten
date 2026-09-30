@@ -241,6 +241,13 @@ class KtConfig(models.Model):
         "or a key ; they open the app again from Odoo. 0 : never. Taken at the "
         "login in the app.",
     )
+    sync_grouped = fields.Boolean(
+        string="Group the syncs (5 minutes)",
+        default=True,
+        help="The « Refresh data » of Shiny syncs with Odoo on the next 5 minutes of "
+        "the clock (asked at 10:02 : done at 10:05), one sync for all the users of the "
+        "slot : Odoo is spared. Unchecked : each refresh syncs at once.",
+    )
 
     # ---- explore
     explore_access = fields.Selection(
@@ -590,6 +597,7 @@ class KtConfig(models.Model):
               "period": {"default": "last 90 days", "fiscal_start_month": 1},
               "ui": {"theme": "capitaine", "table_rows": 20, "colors": "theme",
                      "idle_minutes": 60},
+              "sync": {"grouped": True},
               "table": {"total_row_first": True, "total_column_first": True},
               "explore": {"access": "everyone", "max_rows": 500000,
                           "ods_max_rows": 500000},
@@ -644,6 +652,7 @@ class KtConfig(models.Model):
             "colors": rec.colors_from,
             "idle_minutes": rec.idle_minutes,
         }
+        config["sync"] = {"grouped": rec.sync_grouped}
         config["table"] = {
             "total_row_first": rec.total_row_first,
             "total_column_first": rec.total_column_first,

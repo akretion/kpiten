@@ -100,6 +100,7 @@
                             <field name="default_theme" />
                             <field name="table_rows" />
                             <field name="idle_minutes" />
+                            <field name="sync_grouped" />
                         </group>
                     </group>
                     <!-- the totals of the tables : the tile Pivot of the demo, as the
