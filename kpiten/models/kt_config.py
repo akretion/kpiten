@@ -243,7 +243,7 @@ class KtConfig(models.Model):
     )
     sync_grouped = fields.Boolean(
         string="Group the syncs (5 minutes)",
-        default=True,
+        default=False,
         help="The « Refresh data » of Shiny syncs with Odoo on the next 5 minutes of "
         "the clock (asked at 10:02 : done at 10:05), one sync for all the users of the "
         "slot : Odoo is spared. Unchecked : each refresh syncs at once.",
