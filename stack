@@ -12,7 +12,7 @@
 # A service is found by the port it listens on (never by a name pattern), and
 # logs go to data/logs/{odoo,shiny,nicegui,marimo}.log (appended ; rotated at start past KPITEN_LOG_MAX bytes), and shiny
 # dumps the html of its tiles there (kpiten_tiles.html). Environment :
-#   KPITEN_DB_FILTER  Odoo db filter, default '^dash$'
+#   KPITEN_DB_FILTER  Odoo db filter, default '^(big|dash)$'
 #   KPITEN_LOG_MAX    size in bytes above which a log is rotated at start (log.1 .. log.3), default 5242880
 #   PGPASSWORD        Postgres password of the odoo user (odoo.conf has none) : set it in .env
 #   ALLOW_RPC_USER=1  passed through : dashboards usable without SSO (dev only)
@@ -27,7 +27,7 @@ if [ -f "$ROOT/.env" ]; then
     set +a
 fi
 
-DB_FILTER="${KPITEN_DB_FILTER:-^dash$}"
+DB_FILTER="${KPITEN_DB_FILTER:-^(big|dash)$}"
 SERVICES=(odoo shiny nicegui marimo)
 
 port_of() {
