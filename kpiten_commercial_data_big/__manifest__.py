@@ -1,6 +1,6 @@
 {
     "name": "KpiTen Commercial Data (big volume)",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.1.0",
     "category": "Sales",
     "summary": "The volume of the big demo sales set in the KpiTen configuration, and generated from it in the background",
     "description": """

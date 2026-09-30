@@ -23,6 +23,17 @@
                             <field name="demo_invoiced_rate" />
                         </group>
                     </group>
+                    <field name="demo_interrupted" invisible="1" />
+                    <div
+                        class="alert alert-warning"
+                        role="alert"
+                        invisible="not demo_interrupted"
+                    >
+                        <i class="fa fa-exclamation-triangle" title="Interrupted" />
+                        The last generation was cut off (Odoo stopped while it ran) : the
+                        orders of its finished batches are there. Generate again : the
+                        new generation also repairs what it left (templates, stock).
+                    </div>
                     <group string="Generation">
                         <group>
                             <field name="demo_total" />
@@ -47,7 +58,7 @@
                                 icon="fa-cogs"
                                 class="btn-primary"
                                 title="Generate the orders above in the background (reload the page to follow it)"
-                                invisible="demo_state in ('queued', 'running')"
+                                invisible="demo_state == 'queued' or (demo_state == 'running' and not demo_interrupted)"
                             />
                         </group>
                     </group>

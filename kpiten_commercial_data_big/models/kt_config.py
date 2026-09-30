@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 
 from odoo import _, api, exceptions, fields, models
 
@@ -9,6 +10,9 @@ _logger = logging.getLogger(__name__)
 
 GENERATOR = "erp_commercial_data_big.demo_generator_sale_big"
 CRON = "kpiten_commercial_data_big.ir_cron_generate_demo"
+# a batch takes seconds, the end of a generation (stock, check) a minute or two :
+# running and silent longer than this, it was cut off
+SILENT_MINUTES = 10
 
 
 class KtConfig(models.Model):
@@ -71,6 +75,14 @@ class KtConfig(models.Model):
         string="Orders generated", readonly=True, help="By the current generation."
     )
     demo_message = fields.Char(string="Last generation", readonly=True)
+    # written at each batch : a generation that stops writing it was cut off (Odoo
+    # stopped, the process killed) and never said so
+    demo_heartbeat = fields.Datetime(readonly=True)
+    demo_interrupted = fields.Boolean(
+        compute="_compute_demo_interrupted",
+        help="Running, but silent for a while : it was cut off. A new generation "
+        "repairs what it left (its templates, the stock).",
+    )
     demo_total = fields.Integer(
         string="Demo orders in the database",
         compute="_compute_demo_total",
@@ -110,10 +122,19 @@ class KtConfig(models.Model):
         for rec in self:
             rec.demo_total = total
 
+    @api.depends("demo_state", "demo_heartbeat")
+    def _compute_demo_interrupted(self):
+        silent = fields.Datetime.now() - timedelta(minutes=SILENT_MINUTES)
+        for rec in self:
+            rec.demo_interrupted = rec.demo_state == "running" and (
+                not rec.demo_heartbeat or rec.demo_heartbeat < silent
+            )
+
     def action_generate_demo(self):
         """Queue a generation : the cron runs it in the background."""
         self.ensure_one()
-        if self.search_count([("demo_state", "in", ("queued", "running"))]):
+        busy = self.search([("demo_state", "in", ("queued", "running"))])
+        if busy.filtered(lambda rec: not rec.demo_interrupted):
             raise exceptions.UserError(_("A generation is already on its way."))
         self.write({"demo_state": "queued", "demo_done": 0, "demo_message": False})
         self.env.ref(CRON).sudo()._trigger()
@@ -124,11 +145,18 @@ class KtConfig(models.Model):
         and the outcome are written on the configuration."""
         self.ensure_one()
         cr = self.env.cr
-        self.write({"demo_state": "running", "demo_done": 0, "demo_message": False})
+        self.write(
+            {
+                "demo_state": "running",
+                "demo_done": 0,
+                "demo_message": False,
+                "demo_heartbeat": fields.Datetime.now(),
+            }
+        )
         cr.commit()
 
         def progress(done, _total):
-            self.write({"demo_done": done})
+            self.write({"demo_done": done, "demo_heartbeat": fields.Datetime.now()})
             cr.commit()
 
         try:
