@@ -16,7 +16,7 @@ N       ?= 100000
 # filtre des bases visibles en mode multi-bases (regex) ; vide = celui de odoo.conf
 DBFILTER ?= dash,big
 
-.PHONY: check-repos repos venv apps db run run-db shell update add-sales sync up down restart status logs sample-fixtures
+.PHONY: check-repos repos venv apps db run run-db shell update add-sales big-demo sync up down restart status logs sample-fixtures
 
 ## Refuse d'agréger si des commits n'existent que localement dans src/ :
 ## git-aggregator remet la branche cible à l'état du remote (reset --hard) et les
@@ -77,6 +77,12 @@ update:
 ## installé) :  make add-sales DB=big N=100000
 add-sales:
 	echo "env.ref('erp_commercial_data_big.demo_generator_sale_big').add_big_sales($(N))" | $(ODOO_SHELL) -d $(DB)
+
+## Génère les ventes de démo (commandes, livraisons, stock, factures) selon l'onglet
+## Demo data de la configuration KpiTen (module kpiten_commercial_data_big), sans
+## passer par son bouton :  make big-demo DB=big
+big-demo:
+	echo "env['kt.config'].search([], limit=1)._demo_generate()" | $(ODOO_SHELL) -d $(DB)
 
 ## Odoo multi-bases : PAS de -d (qui restreint Odoo à une seule base). Les bases
 ## visibles sont celles de odoo.conf (dbfilter), ou de DBFILTER ; la base se
