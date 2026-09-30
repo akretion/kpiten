@@ -887,7 +887,16 @@ class ErpDemoSaleStockBig(models.Model):
 
     def generate_big_sale_demo_install(self):
         """Called by the module installation : the number of orders is the
-        system parameter `erp_commercial_data_big.initial_orders`."""
+        system parameter `erp_commercial_data_big.initial_orders` ; none when
+        kpiten_commercial_data_big comes too (its configuration decides)."""
+        driven = self.env["ir.module.module"].search_count(
+            [
+                ("name", "=", "kpiten_commercial_data_big"),
+                ("state", "in", ("to install", "installed", "to upgrade")),
+            ]
+        )
+        if driven:
+            return 0
         param = self.env["ir.config_parameter"].sudo()
         key = "erp_commercial_data_big.initial_orders"
         # `get_param` until Odoo 18, `get_str` after

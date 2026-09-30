@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="kt_config_form" model="ir.ui.view">
+        <field name="model">kt.config</field>
+        <field name="inherit_id" ref="kpiten.kt_config_form" />
+        <field name="arch" type="xml">
+            <page name="relations" position="after">
+                <page string="Demo data" name="demo_data">
+                    <div class="alert alert-info" role="alert">
+                        Sales orders for volume tests, with their deliveries (pickings,
+                        stock) and their customer invoices. A generation runs in the
+                        background and adds to the orders already there.
+                    </div>
+                    <group>
+                        <group string="Volume">
+                            <field name="demo_orders" />
+                            <field name="demo_lines_per_order" />
+                            <field name="demo_years" />
+                        </group>
+                        <group string="Lifecycle">
+                            <field name="demo_confirmed_rate" />
+                            <field name="demo_delivered_rate" />
+                            <field name="demo_invoiced_rate" />
+                        </group>
+                    </group>
+                    <group string="Generation">
+                        <group>
+                            <field name="demo_total" />
+                            <field
+                                name="demo_state"
+                                widget="badge"
+                                decoration-info="demo_state in ('queued', 'running')"
+                                decoration-success="demo_state == 'done'"
+                                decoration-danger="demo_state == 'failed'"
+                            />
+                            <field
+                                name="demo_done"
+                                invisible="demo_state not in ('running', 'done', 'failed')"
+                            />
+                            <field name="demo_message" invisible="not demo_message" />
+                        </group>
+                        <group>
+                            <button
+                                name="action_generate_demo"
+                                type="object"
+                                string="Generate"
+                                icon="fa-cogs"
+                                class="btn-primary"
+                                title="Generate the orders above in the background (reload the page to follow it)"
+                                invisible="demo_state in ('queued', 'running')"
+                            />
+                        </group>
+                    </group>
+                </page>
+            </page>
+        </field>
+    </record>
+</odoo>
