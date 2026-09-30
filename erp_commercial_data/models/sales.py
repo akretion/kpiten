@@ -57,6 +57,17 @@ EXTRA_PERSON_NAMES = [
 
 SALE_STATES = ["draft", "sent", "cancel", "sale"]
 SALE_STATE_WEIGHTS = [0.06, 0.08, 0.03, 0.83]
+# the shares of the lifecycle (`_plan_sale(rates=...)`) : the confirmed orders, the
+# confirmed ones delivered once due, the delivered ones invoiced
+SALE_RATES = {"confirmed": 0.83, "delivered": 0.93, "invoiced": 0.85}
+
+
+def sale_state_weights(confirmed):
+    """The weights of SALE_STATES : `confirmed` for `sale`, the rest shared by the
+    quotations and the cancelled orders as in SALE_STATE_WEIGHTS."""
+    others = SALE_STATE_WEIGHTS[:3]
+    return [w * (1 - confirmed) / sum(others) for w in others] + [confirmed]
+
 
 # sale.order columns forced in SQL : {column: SQL type}. delivery_status and
 # effective_date come from sale_stock.
@@ -83,14 +94,22 @@ class ErpDemoSaleStock(models.Model):
     def _demo_steps(self):
         return [*super()._demo_steps(), ("sales orders", self.generate_sale_stock_demo)]
 
-    def _plan_sale(self, rng, now, date_start):
+    def _plan_sale(self, rng, now, date_start, rates=None):
         """Draw the lifecycle of one sales order.
 
+        `rates` : the shares of SALE_RATES to change (the confirmed orders, the
+        confirmed ones delivered once due, the delivered ones invoiced).
         Returns a dict : state, create_date (= date_order), commitment_date
         (promised delivery), effective_date (actual delivery), delivery_status,
         invoice_status, delivered (delivered share), invoiced (bool).
         """
-        state = rng.choices(SALE_STATES, SALE_STATE_WEIGHTS)[0]
+        rates = {**SALE_RATES, **(rates or {})}
+        weights = (
+            SALE_STATE_WEIGHTS
+            if rates["confirmed"] == SALE_RATES["confirmed"]
+            else sale_state_weights(rates["confirmed"])
+        )
+        state = rng.choices(SALE_STATES, weights)[0]
         plan = {
             "state": state,
             "commitment_date": None,  # None (NULL in SQL), not False
@@ -120,14 +139,14 @@ class ErpDemoSaleStock(models.Model):
             delivery = commitment_date + timedelta(days=rng.randint(-2, 0))
         else:
             delivery = commitment_date + timedelta(days=rng.randint(1, 7))
-        if rng.random() < 0.93 and delivery <= now:
+        if rng.random() < rates["delivered"] and delivery <= now:
             plan["effective_date"] = delivery
             plan["delivery_status"] = "full"
             plan["delivered"] = 1
             # only fully delivered orders can be fully invoiced
-            plan["invoiced"] = rng.random() < 0.85 and delivery < now - timedelta(
-                days=3
-            )
+            plan["invoiced"] = rng.random() < rates[
+                "invoiced"
+            ] and delivery < now - timedelta(days=3)
         elif rng.random() < 0.3 and commitment_date <= now:
             plan["effective_date"] = commitment_date
             plan["delivery_status"] = "partial"

@@ -1,19 +1,29 @@
 {
     "name": "ERP Commercial Demo Data (big volume)",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.1.0",
     "category": "Sales",
-    "summary": "Hundreds of thousands of sales orders (4 lines, several years) for volume tests",
+    "summary": "Hundreds of thousands of sales orders (4 lines, several years), with their pickings, stock and invoices, for volume tests",
     "description": """
 Extends erp_commercial_data with `generate_big_sale_demo` : sales orders of
 4 lines over several years (default 500 000 over 3 years), for dashboards and
-extraction tests at scale.
+extraction tests at scale. The shares of confirmed, delivered and invoiced orders
+are parameters.
 
 The orders are inserted in SQL by batches, cloned from a few real orders
 created through the ORM (so every column is valid) : a million lines take
 minutes, not hours. Amounts follow Odoo's rules (one percent tax, excluded from
 the price, rounded per line) and are checked against the ORM on a sample.
-As in erp_commercial_data the lifecycle (delivery, invoicing) is forced : no
-real deliveries nor customer invoices, meant for dashboards only.
+
+The documents are real, cloned the same way from template orders confirmed and
+invoiced through the ORM :
+
+- a delivery per confirmed order (done, waiting, or partly delivered with its
+  backorder), its moves and move lines, the valuation layers at standard cost ;
+- most extra products are storable : a monthly inventory adjustment per product
+  brings the stock the deliveries take, and the quants are rebuilt from the moves
+  (never negative, the open deliveries reserved) ;
+- a posted customer invoice per invoiced order (not paid), numbered per year,
+  in the currency of the order, with its tax lines, tax tags and receivable.
 
 Install : creates `erp_commercial_data_big.initial_orders` orders (system
 parameter, default 500 000). They follow the world of erp_commercial_data : each

@@ -9,6 +9,7 @@ from odoo import fields, models
 from odoo.exceptions import UserError
 
 from odoo.addons.erp_commercial_data.models.erp_demo_generator import PRODUCTS
+from odoo.addons.erp_commercial_data.models.sales import SALE_RATES
 from odoo.addons.erp_commercial_data.models.world import (
     MEDIUMS,
     SOURCES,
@@ -94,6 +95,10 @@ NOUN_CATEGORY = {
     "Vernis": "Maison / Revêtements", "Prise": "Bricolage / Électricité",
     "Interrupteur": "Bricolage / Électricité", "Ampoule": "Maison / Éclairage",
 }  # fmt: skip
+# the small hardware sold loose is not tracked in stock ; every other extra product
+# is (the 12 of erp_demo_generator stay consumables : Odoo cannot track a product
+# that has moves already)
+LOOSE_NOUNS = {"Vis", "Écrou", "Rondelle", "Colle"}
 
 ORDER_TEMP = """
 CREATE TEMP TABLE _kt_big_order (
@@ -102,7 +107,7 @@ CREATE TEMP TABLE _kt_big_order (
     currency_rate numeric,
     create_date timestamp, validity_date date, commitment_date timestamp,
     effective_date timestamp, delivery_status varchar, invoice_status varchar,
-    delivered numeric, invoiced boolean,
+    invoiced boolean, group_id int,
     amount_untaxed numeric, amount_tax numeric, amount_total numeric
 )
 """
@@ -110,7 +115,7 @@ LINE_TEMP = """
 CREATE TEMP TABLE _kt_big_line (
     line_id int, order_id int, line_no int, product_id int, tpl_line_id int,
     qty numeric, price_unit numeric, subtotal numeric, tax numeric,
-    total numeric, reduce_inc numeric
+    total numeric, reduce_inc numeric, delivered numeric
 )
 """
 
@@ -134,6 +139,22 @@ def _customer_names():
     names = persons + companies
     random.Random(7).shuffle(names)
     return names, set(companies)
+
+
+def picking_layout(plan, n_lines):
+    """The pickings of an order, as [(state, [line numbers])] : none unless it is
+    confirmed ; a partial delivery is the first half of the lines delivered and
+    a backorder of the others (an order of one line cannot be partial : it is
+    then still to deliver)."""
+    if plan["state"] != "sale":
+        return []
+    status = plan["delivery_status"]
+    if status == "full":
+        return [("done", list(range(n_lines)))]
+    if status == "partial" and n_lines > 1:
+        half = n_lines // 2
+        return [("done", list(range(half))), ("assigned", list(range(half, n_lines)))]
+    return [("assigned", list(range(n_lines)))]
 
 
 def _cents(amount_cents):
@@ -245,7 +266,7 @@ class ErpDemoSaleStockBig(models.Model):
                 {
                     "name": f"{noun} {adjective} {code[len(PRODUCT_PREFIX):]}",
                     "default_code": code,
-                    "type": "consu",
+                    **self._big_storable_vals(noun not in LOOSE_NOUNS),
                     "sale_ok": True,
                     "purchase_ok": False,
                     "list_price": price,
@@ -361,35 +382,32 @@ class ErpDemoSaleStockBig(models.Model):
         )
 
     # ---- one batch : plan (python) -> temp tables -> bulk insert (SQL) ------
-    def _big_batch(self, rng, now, date_start, size, ctx):
-        cr = self.env.cr
+    def _big_plan_orders(self, rng, now, date_start, size, ctx):
+        """The orders of a batch, planned in python : lifecycle (`_plan_sale`), zone,
+        customer, lines, pickings and invoice date. Their ids and names are given
+        here too."""
         lines_per_order = ctx["lines_per_order"]
+        prices, count = ctx["prices"], len(ctx["pids"])
         first_order = self._big_reserve("sale_order_id_seq", size)
         first_line = self._big_reserve("sale_order_line_id_seq", size * lines_per_order)
         first_number = self._big_reserve(ctx["sequence"], size)
         prefix, padding = ctx["prefix"], ctx["padding"]
-        pids, prices = ctx["pids"], ctx["prices"]
-        count = len(pids)
-
         # the orders come in date order : names and ids grow with the date
         plans = sorted(
-            (self._plan_sale(rng, now, date_start) for _ in range(size)),
+            (self._plan_sale(rng, now, date_start, ctx["rates"]) for _ in range(size)),
             key=lambda plan: plan["create_date"],
         )
-        order_rows, line_rows, order_ids = [], [], []
+        orders = []
         for i, plan in enumerate(plans):
-            order_id = first_order + i
-            order_ids.append(order_id)
             # the zone of the order : its customers, team, template (currency, taxes)
             zone = rng.choices(ctx["zones"], ctx["zone_weights"])[0]
             z = ctx["by_zone"][zone]
-            tpl_lines, rates = z["tpl_lines"], z["rates"]
             currency_rate = self.demo_rate(z["currency"], plan["create_date"])
             # `lines_per_order` different products : base + k * step (mod prime)
             base, step = rng.randrange(count), 1 + rng.randrange(count - 1)
-            untaxed = tax = 0
-            for k in range(lines_per_order):
-                index = (base + k * step) % count
+            lines = []
+            for _k in range(lines_per_order):
+                index = (base + _k * step) % count
                 qty = rng.randint(1, 12)
                 price = max(
                     1,
@@ -398,51 +416,108 @@ class ErpDemoSaleStockBig(models.Model):
                     ),
                 )
                 subtotal = qty * price
-                line_tax = _tax_cents(subtotal, rates[index])
+                lines.append(
+                    (
+                        index,
+                        qty,
+                        price,
+                        subtotal,
+                        _tax_cents(subtotal, z["rates"][index]),
+                    )
+                )
+            pickings = picking_layout(plan, lines_per_order)
+            if plan["delivery_status"] == "partial" and len(pickings) == 1:
+                # one line only : cannot be partial, still to deliver
+                plan.update(delivery_status="pending", effective_date=None, delivered=0)
+            delivered = {k for state, ks in pickings if state == "done" for k in ks}
+            invoice_date = None
+            if plan["invoiced"]:
+                invoice_date = min(
+                    now.date(),
+                    plan["effective_date"].date() + timedelta(days=rng.randint(0, 3)),
+                )
+            orders.append(
+                {
+                    "id": first_order + i,
+                    "name": f"{prefix}{str(first_number + i).zfill(padding)}",
+                    "plan": plan,
+                    "z": z,
+                    "rate": currency_rate,
+                    "partner_id": rng.choice(z["customer_ids"]),
+                    "user_id": rng.choices(z["seller_ids"], z["weights"])[0],
+                    "medium_id": rng.choices(ctx["mediums"], ctx["medium_weights"])[0],
+                    "source_id": rng.choices(ctx["sources"], ctx["source_weights"])[0],
+                    "lines": lines,
+                    "line_ids": [
+                        first_line + i * lines_per_order + k
+                        for k in range(lines_per_order)
+                    ],
+                    "delivered": delivered,
+                    "pickings": pickings,
+                    "group_id": None,
+                    "invoice_date": invoice_date,
+                }
+            )
+        return orders
+
+    def _big_batch(self, rng, now, date_start, size, ctx):
+        cr = self.env.cr
+        pids = ctx["pids"]
+        orders = self._big_plan_orders(rng, now, date_start, size, ctx)
+        groups, pickings, moves = self._big_stock_rows(orders, ctx)
+        invoices, invoice_lines = self._big_invoice_rows(orders, ctx)
+
+        order_rows, line_rows = [], []
+        for order in orders:
+            plan, z = order["plan"], order["z"]
+            untaxed = tax = 0
+            for k, (index, qty, price, subtotal, line_tax) in enumerate(order["lines"]):
                 untaxed += subtotal
                 tax += line_tax
                 line_rows.append(
                     (
-                        first_line + i * lines_per_order + k,
-                        order_id,
+                        order["line_ids"][k],
+                        order["id"],
                         k + 1,
                         pids[index],
-                        tpl_lines[index],
+                        z["tpl_lines"][index],
                         qty,
                         _cents(price),
                         _cents(subtotal),
                         _cents(line_tax),
                         _cents(subtotal + line_tax),
                         Decimal(str(round((subtotal + line_tax) / qty / 100, 2))),
+                        qty if k in order["delivered"] else 0,
                     )
                 )
             created = plan["create_date"]
             order_rows.append(
                 (
-                    order_id,
-                    f"{prefix}{str(first_number + i).zfill(padding)}",
-                    rng.choice(z["customer_ids"]),
-                    rng.choices(z["seller_ids"], z["weights"])[0],
+                    order["id"],
+                    order["name"],
+                    order["partner_id"],
+                    order["user_id"],
                     plan["state"],
                     z["template"],
                     z["team"],
-                    rng.choices(ctx["mediums"], ctx["medium_weights"])[0],
-                    rng.choices(ctx["sources"], ctx["source_weights"])[0],
-                    Decimal(str(currency_rate)),
+                    order["medium_id"],
+                    order["source_id"],
+                    Decimal(str(order["rate"])),
                     created,
                     (created + timedelta(days=30)).date(),  # quotation validity
                     plan["commitment_date"],
                     plan["effective_date"],
                     plan["delivery_status"],
                     plan["invoice_status"],
-                    Decimal(str(plan["delivered"])),
                     plan["invoiced"],
+                    order["group_id"],
                     _cents(untaxed),
                     _cents(tax),
                     _cents(untaxed + tax),
                 )
             )
 
+        self._big_groups_insert(groups)
         cr.execute(ORDER_TEMP)
         cr.execute(LINE_TEMP)
         cr.execute_values(
@@ -476,6 +551,7 @@ class ErpDemoSaleStockBig(models.Model):
             "amount_untaxed": "p.amount_untaxed",
             "amount_tax": "p.amount_tax",
             "amount_total": "p.amount_total",
+            "procurement_group_id": "p.group_id",
             "origin": f"'{BIG_ORIGIN}'",
             "access_token": "NULL",
         }
@@ -499,7 +575,7 @@ class ErpDemoSaleStockBig(models.Model):
             "price_total": "l.total",
             "price_reduce_taxexcl": "l.price_unit",
             "price_reduce_taxinc": "l.reduce_inc",
-            "qty_delivered": "l.qty * p.delivered",
+            "qty_delivered": "l.delivered",
             "qty_invoiced": "CASE WHEN p.invoiced THEN l.qty ELSE 0 END",
             "qty_to_invoice": (
                 "CASE WHEN p.invoiced OR p.state <> 'sale' THEN 0 ELSE l.qty END"
@@ -545,12 +621,17 @@ class ErpDemoSaleStockBig(models.Model):
             WHERE o.id BETWEEN %s AND %s
               AND (abs(o.amount_untaxed - l.s) > 0.005 OR abs(o.amount_total - l.t) > 0.005)
             """,
-            (first_order, first_order + size - 1) * 2,
+            (orders[0]["id"], orders[-1]["id"]) * 2,
         )
         if cr.fetchone()[0]:
             raise UserError("Inserted orders do not add up to their lines.")
         cr.execute("DROP TABLE _kt_big_line, _kt_big_order")
-        return rng.sample(order_ids, min(3, size))
+        self._big_stock_insert(groups, pickings, moves)
+        self._big_invoice_insert(invoices, invoice_lines)
+        # a sample to check against the ORM : some orders delivered and invoiced
+        sample = [o["id"] for o in orders if o["invoice_date"]][:2]
+        sample += [o["id"] for o in orders if len(o["pickings"]) == 2][:1]
+        return sample + rng.sample([o["id"] for o in orders], min(2, size))
 
     # ---- verification against the ORM ---------------------------------------
     def _big_check(self, order_ids):
@@ -583,6 +664,46 @@ class ErpDemoSaleStockBig(models.Model):
                 differences.append(
                     (order.name, "order", "amount_total", order.amount_total, shown)
                 )
+        return differences + self._big_check_documents(order_ids)
+
+    def _big_check_documents(self, order_ids):
+        """What the ORM computes from the inserted pickings and invoices : the
+        delivered and invoiced quantities of the lines (from the moves and the
+        invoice lines), the amounts of the invoices (from their lines). Computed in
+        the cache only, nothing is written. Returns the list of differences."""
+        self.env.flush_all()
+        self.env.invalidate_all()
+        lines = self.env["sale.order"].browse(order_ids).order_line
+        invoices = lines.invoice_lines.move_id
+        line_fields = ("qty_delivered", "qty_invoiced")
+        move_fields = (
+            "amount_untaxed",
+            "amount_tax",
+            "amount_total",
+            "amount_residual",
+        )
+        stored = {(line, f): line[f] for line in lines for f in line_fields}
+        stored.update({(move, f): move[f] for move in invoices for f in move_fields})
+        cr = self.env.cr
+        cr.execute("SAVEPOINT kt_big_check")
+        try:
+            with self.env.protecting([lines._fields[f] for f in line_fields], lines):
+                lines._compute_qty_delivered()
+                lines._compute_qty_invoiced()
+            with self.env.protecting(
+                [invoices._fields[f] for f in move_fields], invoices
+            ):
+                invoices._compute_amount()
+            differences = [
+                (record.display_name, field, value, record[field])
+                for (record, field), value in stored.items()
+                if abs(record[field] - value) > 0.005
+            ]
+            self.env.flush_all()
+        finally:
+            # whatever the computes marked to write : dropped
+            cr.execute("ROLLBACK TO SAVEPOINT kt_big_check")
+            self.env.invalidate_all(flush=False)
         return differences
 
     # ---- public API ---------------------------------------------------------
@@ -597,18 +718,36 @@ class ErpDemoSaleStockBig(models.Model):
         seed=None,
         batch_size=10_000,
         commit=False,
+        confirmed_rate=SALE_RATES["confirmed"],
+        delivered_rate=SALE_RATES["delivered"],
+        invoiced_rate=SALE_RATES["invoiced"],
+        progress=None,
     ):
         """Insert `n_orders` sales orders of `lines_per_order` lines (4 by
-        default) spread over the last `years` years (or `days` days).
+        default) spread over the last `years` years (or `days` days), with their
+        deliveries (pickings, stock) and their customer invoices.
+
+        `confirmed_rate` : the share of confirmed orders (the others are
+        quotations or cancelled) ; `delivered_rate` : the share of the confirmed
+        orders delivered once due (the others wait, a few partly delivered) ;
+        `invoiced_rate` : the share of the delivered orders invoiced.
 
         Can be called again to add sales : the customers, products and order
         names carry on, and `seed` defaults to a value depending on how many
         orders were already generated (so each call gives new data). With
         `commit`, every batch is committed (an interrupted run keeps what was
-        done) : use it outside a module installation.
+        done) : use it outside a module installation. `progress(done, total)` is
+        called after each batch.
         """
         self.ensure_one()
         started = time.monotonic()
+        for name, rate in (
+            ("confirmed_rate", confirmed_rate),
+            ("delivered_rate", delivered_rate),
+            ("invoiced_rate", invoiced_rate),
+        ):
+            if not 0 <= rate <= 1:
+                raise UserError(f"{name} must be between 0 and 1.")
         teams = self._demo_teams()
         already = self.env["sale.order"].search_count([("origin", "=", BIG_ORIGIN)])
         rng = random.Random(42 + already if seed is None else seed)
@@ -621,11 +760,13 @@ class ErpDemoSaleStockBig(models.Model):
             raise UserError(
                 "lines_per_order must be lower than the number of products."
             )
-        self.env["sale.order"].with_context(**SILENT).search(
-            [("origin", "=", TEMPLATE_ORIGIN)]
-        ).unlink()  # an interrupted run
+        self._big_cleanup_templates(  # an interrupted run
+            self.env["sale.order"].search([("origin", "=", TEMPLATE_ORIGIN)])
+        )
         partners = self.env["res.partner"]
         by_zone, templates = {}, self.env["sale.order"]
+        invoices = self.env["account.move"]
+        self._big_stock_give(products)
         for zone, ids in self._big_zones(customers).items():
             team = teams[ZONES[zone]["team"]]
             sellers = team.member_ids or self._demo_salespeople()
@@ -633,7 +774,15 @@ class ErpDemoSaleStockBig(models.Model):
                 products, partners.browse(ids[0])
             )
             templates |= zone_templates
+            # confirmed : the rows of their pickings and of their invoices
+            zone_templates.with_context(**SILENT).action_confirm()
+            self.env.flush_all()
+            stock = self._big_stock_templates(zone_templates, products)
+            invoice = self._big_invoice_templates(zone_templates)
+            invoices |= invoice["invoices"]
             by_zone[zone] = {
+                "stock": stock,
+                "invoice": invoice,
                 "customer_ids": ids,
                 "seller_ids": sellers.ids,
                 "weights": [rng.uniform(0.6, 1.6) for _ in sellers],
@@ -667,6 +816,28 @@ class ErpDemoSaleStockBig(models.Model):
             "sequence": sequence,
             "prefix": prefix,
             "padding": padding,
+            "rates": {
+                "confirmed": confirmed_rate,
+                "delivered": delivered_rate,
+                "invoiced": invoiced_rate,
+            },
+            # the stock
+            "storable": [self._big_is_storable(product) for product in products],
+            "categs": [product.categ_id.id for product in products],
+            "costs": [
+                Decimal(str(round(product.standard_price, 2))) for product in products
+            ],
+            "names": [product.display_name for product in products],
+            "picking_sequence": self._big_stock_sequence(
+                next(iter(by_zone.values()))["stock"]["picking"]
+            ),
+            "stock_location": self._big_stock_location().id,
+            "customer_location": self.env["stock.move"]
+            .browse(next(iter(by_zone.values()))["stock"]["moves"][products[0].id])
+            .location_dest_id.id,
+            "inventory_location": products[0].property_stock_inventory.id,
+            "inventory_moves": next(iter(by_zone.values()))["stock"]["moves"],
+            "inventory_move_line": next(iter(by_zone.values()))["stock"]["move_line"],
         }
         self = self.with_context(demo_rates={})  # the rate of a month, read once
 
@@ -683,9 +854,23 @@ class ErpDemoSaleStockBig(models.Model):
             )
             if commit:
                 self.env.cr.commit()
+            if progress:
+                progress(created, n_orders)
 
-        templates.unlink()
-        for table in ("sale_order", "sale_order_line"):
+        self._big_stock_finish(ctx)
+        invoices.exists().unlink()
+        self._big_cleanup_templates(templates)
+        self._big_stock_finish_quants(ctx)
+        for table in (
+            "sale_order",
+            "sale_order_line",
+            "stock_picking",
+            "stock_move",
+            "stock_move_line",
+            "stock_quant",
+            "account_move",
+            "account_move_line",
+        ):
             self.env.cr.execute(f'ANALYZE "{table}"')
         differences = self._big_check(sample[:60])
         if differences:
