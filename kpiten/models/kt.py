@@ -52,6 +52,10 @@ class Kt(models.AbstractModel):
             # and the rate of the order : their amounts in the currency of the company
             "sale.order": {"date_order", "currency_rate"},
             "purchase.order": {"currency_rate"},
+            # the lines of an entry get its type : the invoices apart from the other
+            # entries ; a picking and its moves the kind of operation (outgoing...)
+            "account.move": {"move_type"},
+            "stock.picking.type": {"code"},
         }
         for model, paths in self._other_relational_fields().items():
             fields[model] = set(fields.get(model, ())) | set(paths)

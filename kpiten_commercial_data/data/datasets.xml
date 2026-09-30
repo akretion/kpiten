@@ -14,4 +14,22 @@
     <record id="kpiten_purchases_lines" model="kt.dataset">
         <field name="model_id" ref="purchase.model_purchase_order_line" />
     </record>
+
+    <!-- the deliveries and receipts, and their moves -->
+    <record id="kpiten_pickings" model="kt.dataset">
+        <field name="model_id" ref="stock.model_stock_picking" />
+    </record>
+
+    <record id="kpiten_stock_moves" model="kt.dataset">
+        <field name="model_id" ref="stock.model_stock_move" />
+    </record>
+
+    <!-- the invoices (and every journal entry), and their lines -->
+    <record id="kpiten_invoices" model="kt.dataset">
+        <field name="model_id" ref="account.model_account_move" />
+    </record>
+
+    <record id="kpiten_invoices_lines" model="kt.dataset">
+        <field name="model_id" ref="account.model_account_move_line" />
+    </record>
 </odoo>
