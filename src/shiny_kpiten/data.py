@@ -21,8 +21,8 @@ def request_refresh(db: str, progress=None):
 
 def scheduled_refresh(db: str, slot: float) -> bool:
     """The sync asked by the Refresh data button : at `slot`, the next boundary of 5
-    minutes (`kpiten_core.service.next_slot`), one for all the requests of the slot.
-    Blocks until it is over."""
+    minutes (`kpiten_core.service.next_slot`), one for all the requests of the slot,
+    or now when `kt.config` does not group the syncs. Blocks until it is over."""
     return kpiten_service.scheduled_refresh(db, slot)
 
 

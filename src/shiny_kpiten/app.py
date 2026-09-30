@@ -13,6 +13,7 @@ theme can be picked in the UI bar, and is then kept in Odoo for the user.
 """
 
 import asyncio
+import time
 import base64
 import datetime
 import json
@@ -1530,7 +1531,8 @@ def server(input, output, session):
             f' draggable="true" style="grid-column: span {span_of(line)}">{content}</div>'
         )
 
-    # ---- data refresh : only when the user asks for it (the button, 5-minute slots) ;
+    # ---- data refresh : only when the user asks for it (the button ; 5-minute slots
+    # unless `kt.config` turns off `sync_grouped`) ;
     # the data may be hours old (their date in the head of the page), an empty store
     # is filled when the page opens (`store`)
     @reactive.extended_task
@@ -1541,19 +1543,24 @@ def server(input, output, session):
     @reactive.effect
     @reactive.event(input.refresh_data)
     def _refresh():
-        """At most one sync per 5 minutes : asked at 10:02, done at 10:05 ; every
-        request of the slot (the other users too) shares it."""
+        """Grouped (`kt.config`, the default) : at most one sync per 5 minutes, asked
+        at 10:02, done at 10:05 ; every request of the slot (the other users too)
+        shares it. Not grouped : the sync starts at once."""
         if refresh_task.status() == "running":
             return
         backend = backend_rv()
-        slot = next_sync_slot()
+        grouped = core_config.sync_grouped()
+        slot = next_sync_slot() if grouped else time.time()
         refresh_task(backend.db, slot)
         ui.update_action_button("refresh_data", disabled=True)
         last = data_layer.last_sync(backend, current_user_id())
-        text = tr(
-            "Sync with Odoo at {time} (at most one every 5 minutes).",
-            time=data_layer.user_time(backend, current_user_id(), slot),
-        )
+        if grouped:
+            text = tr(
+                "Sync with Odoo at {time} (at most one every 5 minutes).",
+                time=data_layer.user_time(backend, current_user_id(), slot),
+            )
+        else:
+            text = tr("Sync with Odoo in progress.")
         if last:
             text += " " + tr("Last sync : {stamp}.", stamp=last)
         ui.notification_show(text, duration=8)
