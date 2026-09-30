@@ -88,9 +88,10 @@ def bench_panel(backend, uid, panel, store, field_labels, workers, runs, verbose
             per_tile.setdefault(line["id"], []).append(took)
             if error:
                 errors[line["id"]] = error
+    # the first run opens the tables the panel reads (their record rules)
     print(
-        f"panel {panel['name']!r} : {len(lines)} tiles, "
-        f"{statistics.median(totals):.0f} ms (median of {runs})"
+        f"panel {panel['name']!r} : {len(lines)} tiles, first {totals[0]:.0f} ms, "
+        f"then {statistics.median(totals[1:] or totals):.0f} ms (median of {runs})"
     )
     if verbose:
         for line in lines:

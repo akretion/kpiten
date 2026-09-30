@@ -71,8 +71,10 @@ def bind(query: exp.Expression, variables: dict) -> exp.Expression:
 def run(sql: str, tables: dict, variables: dict | None = None) -> pl.LazyFrame:
     """Run the query on `tables` (name -> frame) ; what runs is the query checked."""
     query = bind(check(sql, tables), variables or {})
+    # only the tables it reads : a table of the store is opened when it is read
+    reads = {table.name for table in query.find_all(exp.Table)}
     context = pl.SQLContext(
-        {name: frame.lazy() for name, frame in tables.items()},
+        {name: tables[name].lazy() for name in reads if name in tables},
         register_globals=False,
     )
     return context.execute(query.sql())

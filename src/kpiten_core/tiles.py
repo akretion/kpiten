@@ -305,8 +305,13 @@ def _filters_note(result, line, table, store, predicates):
         columns = set(lazy.collect_schema().names())
         # the period : one predicate per date field of the panel (`date_order`, and
         # `order_id.date_order` for the lines), each on the tables that have it ; it
-        # applies when one of them does
-        schemas = {name: frame.lazy().collect_schema() for name, frame in store.items()}
+        # applies when one of them does (the tables of the tile : the other ones of
+        # the store are not opened for a note)
+        schemas = {
+            name: store[name].lazy().collect_schema()
+            for name in (table, source)
+            if name in store
+        }
 
         def is_period(predicate):
             return any(

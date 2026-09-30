@@ -86,7 +86,7 @@ def resolve(store: dict, definitions: list[dict]) -> tuple[dict, dict]:
                 errors.setdefault(name, f"it reads {other}, left out")
                 return
         definition = chosen[name]
-        frames = {**store, **tables}
+        frames = store | tables
         source = definition.get("source")
         if source:
             if source not in store:

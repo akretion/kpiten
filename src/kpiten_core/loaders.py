@@ -18,6 +18,7 @@ import re
 import queue
 import threading
 from datetime import datetime, timedelta, timezone
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Callable
 from zoneinfo import ZoneInfo
 
@@ -570,7 +571,7 @@ def user_rows(backend: "Backend", table: str, user_id: int, lazy: pl.LazyFrame):
     return restrict_rows(lazy, _read_sql_df(_pg_uri(backend.db), query)["id"])
 
 
-def user_store(backend: "Backend", user_id: int) -> dict[str, pl.LazyFrame]:
+def user_store(backend: "Backend", user_id: int) -> "UserStore":
     """Per-user view of the store : the columns the user may read (ACL), the
     rows the user may read (record rules), translatable lang.
 
@@ -579,28 +580,85 @@ def user_store(backend: "Backend", user_id: int) -> dict[str, pl.LazyFrame]:
     it needs when it runs.
 
     The record rules are always applied, even for a user who may read every
-    row : rows synced after this call are not in its ids (nor under its id
-    bound, `readable_bound`), so they stay hidden
-    until the store is rebuilt, instead of leaking to a user who may not read
-    them.
+    row : rows synced after a table is opened are not in its ids (nor under its
+    id bound, `_all_readable`), so they stay hidden until the store is rebuilt,
+    instead of leaking to a user who may not read them.
 
-    A table whose access could not be resolved is left out : the user sees
-    nothing of it rather than everything.
+    A table is opened (its columns, its rows) the first time it is read
+    (`UserStore`) : a panel pays for the tables its tiles read, not for all.
     """
     lang = backend.get_user_lang(user_id)
-    store: dict[str, pl.LazyFrame] = {}
+
+    def open_table(table: str) -> pl.LazyFrame:
+        with env.db_scope(backend.db):
+            allowed = backend.get_allowed_fields(table, user_id)
+            lazy = DFStorage.scan_df(table, allowed_fields=allowed, lang=lang)
+            return user_rows(backend, table, user_id, lazy)
+
     with env.db_scope(backend.db):
-        for table in DFStorage.list_table_names():
-            try:
-                allowed = backend.get_allowed_fields(table, user_id)
-                lazy = DFStorage.scan_df(table, allowed_fields=allowed, lang=lang)
-                store[table] = user_rows(backend, table, user_id, lazy)
-            except Exception:
-                logger.exception("user store fetch failed for %s", table)
-    return store
+        return UserStore(DFStorage.list_table_names(), open_table)
 
 
-def tile_store(backend: "Backend", user_id: int) -> dict[str, pl.LazyFrame]:
+class UserStore(Mapping):
+    """The tables of a user (name -> LazyFrame), each opened the first time it is
+    read, once : the record rules of a table cost a query on Postgres, up to
+    seconds on a big base, a panel reads a few tables of the store.
+
+    `store | {name: frame}` is a store with those frames on top (the derived
+    tables, a table narrowed by a filter), the opened tables shared.
+
+    A table whose access could not be resolved has no row and no column : the
+    user sees nothing of it rather than everything.
+    """
+
+    def __init__(self, names, open_table, frames=None, opened=None, lock=None):
+        self._names = list(names)
+        self._open_table = open_table
+        self._frames = dict(frames or {})  # set on top, a derived table...
+        self._opened = {} if opened is None else opened  # shared by the copies
+        self._lock = lock or threading.Lock()
+
+    def __getitem__(self, name):
+        if name in self._frames:
+            return self._frames[name]
+        if name not in self._names:
+            raise KeyError(name)
+        with self._lock:  # the tiles of a panel may run in threads
+            if name not in self._opened:
+                try:
+                    self._opened[name] = self._open_table(name)
+                except Exception:
+                    logger.exception("user store fetch failed for %s", name)
+                    self._opened[name] = pl.LazyFrame()
+            return self._opened[name]
+
+    def __iter__(self):
+        yield from self._names
+        yield from (name for name in self._frames if name not in self._names)
+
+    def __len__(self):
+        return len(set(self._names) | set(self._frames))
+
+    def __contains__(self, name):
+        return name in self._frames or name in self._names
+
+    def __or__(self, frames):
+        return UserStore(
+            self._names,
+            self._open_table,
+            {**self._frames, **frames},
+            self._opened,
+            self._lock,
+        )
+
+    def __setitem__(self, name, frame):
+        self._frames[name] = frame
+
+    def pop(self, name, *default):
+        return self._frames.pop(name, *default)
+
+
+def tile_store(backend: "Backend", user_id: int) -> "UserStore":
     """The store of the tiles : `user_store`, and the shared derived tables
     (`kt.derived.table`) computed on it. A tile reads a derived table by its name
     (`from = "confirmed_sales"`, or in the SQL of a `data` tile) ; each user sees their
@@ -613,4 +671,4 @@ def tile_store(backend: "Backend", user_id: int) -> dict[str, pl.LazyFrame]:
     tables, errors = derived.resolve(store, shared)
     for name, why in errors.items():
         logger.warning("derived table %s left out for user %s : %s", name, user_id, why)
-    return {**store, **tables}
+    return store | tables

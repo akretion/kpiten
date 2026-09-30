@@ -93,8 +93,36 @@ def test_user_store_applies_the_record_rules(monkeypatch):
     assert store["sale.order"].collect()["id"].to_list() == [1, 3]
     # no read access to the model : the table is there, without any row
     assert store["purchase.order"].collect().is_empty()
-    # access unresolved : the table is left out, never shown unrestricted
-    assert "broken" not in store
+    # access unresolved : no row, no column, never shown unrestricted
+    assert store["broken"].collect().is_empty()
+    assert store["broken"].collect_schema().names() == []
+
+
+def test_user_store_opens_a_table_when_it_is_read(monkeypatch):
+    """A table costs its record rules when a tile reads it, once ; `|` shares them."""
+    opened = []
+    backend = FakeBackend()
+    access = backend.get_access_query
+
+    def spy(table, user_id):
+        opened.append(table)
+        return access(table, user_id)
+
+    backend.get_access_query = spy
+    monkeypatch.setattr(loaders, "DFStorage", FakeStorage)
+    monkeypatch.setattr(
+        loaders,
+        "_read_sql_df",
+        lambda uri, query: pl.DataFrame({"id": [1, 3]}, schema={"id": pl.Int64}),
+    )
+    store = loaders.user_store(backend, user_id=8)
+    assert sorted(store) == ["broken", "purchase.order", "sale.order"]
+    assert opened == []
+    both = store | {"confirmed": ORDERS.lazy()}
+    assert both["sale.order"].collect()["id"].to_list() == [1, 3]
+    assert store["sale.order"].collect()["id"].to_list() == [1, 3]
+    assert opened == ["sale.order"]
+    assert "confirmed" in both and "confirmed" not in store
 
 
 def test_all_rows_readable_is_an_id_bound(monkeypatch):
