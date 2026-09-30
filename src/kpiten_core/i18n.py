@@ -67,6 +67,7 @@ FR = {
     "Sync with Odoo at {time} (at most one every 5 minutes).": (
         "Synchronisation avec Odoo à {time} (au plus une toutes les 5 minutes)."
     ),
+    "Sync with Odoo in progress.": "Synchronisation avec Odoo en cours.",
     "Last sync : {stamp}.": "Dernière synchronisation : {stamp}.",
     "history from {date}": "historique depuis le {date}",
     "The history is loading : 3 months more every 5 minutes. Before "

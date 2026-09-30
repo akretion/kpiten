@@ -11,6 +11,7 @@ kpiten module, nothing changes.
      "period": {"default": "last 90 days", "fiscal_start_month": 1},
      "ui": {"theme": "capitaine", "table_rows": 20, "colors": "theme",
             "idle_minutes": 60},
+     "sync": {"grouped": True},
      "table": {"total_row_first": True, "total_column_first": True},
      "explore": {"access": "everyone", "max_rows": 500000, "ods_max_rows": 500000},
      "ai": {"enabled": True, "send_values": True, "send_level": "summary"},
@@ -142,6 +143,14 @@ def idle_minutes(config: dict | None = None) -> int:
     the login (the settings of the process when None)."""
     ui = (config if config is not None else CONFIG).get("ui") or {}
     return max(0, int(ui.get("idle_minutes") or 0))
+
+
+# ---- sync
+def sync_grouped() -> bool:
+    """Whether a refresh asked by a user waits for the next slot of 5 minutes, one
+    sync for all the requests of the slot (`service.next_slot`) ; on when Odoo says
+    nothing. Off : each refresh syncs at once."""
+    return bool(_section("sync").get("grouped", True))
 
 
 # ---- explore

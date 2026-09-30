@@ -75,8 +75,9 @@ class SyncService:
 
     def scheduled_refresh(self, db: str, slot: float) -> bool:
         """A sync asked by a user (the Refresh button) : at `slot` (`next_slot`),
-        once for all the requests of that slot. Blocks until it is over ; False when
-        an other request of the slot already did it."""
+        once for all the requests of that slot ; `slot` is now when `kt.config` does
+        not group the syncs (`config.sync_grouped`). Blocks until it is over ; False
+        when an other request of the slot already did it."""
         time.sleep(max(0.0, slot - time.time()))
         with self._db_lock(db):
             if self._done.get(db, 0) >= slot:
