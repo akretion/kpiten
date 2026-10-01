@@ -168,6 +168,7 @@ FR = {
         "Le KPI est déjà sur tous les tableaux que vous modifiez."
     ),
     "The KPI cannot be adopted : {error}": "Le KPI ne peut pas être adopté : {error}",
+    "Remove the KPI": "Retirer le KPI",
     "Ask the AI": "Demander à l'IA",
     "Check in Odoo": "Vérifier dans Odoo",
     "Download the rows": "Télécharger les lignes",
