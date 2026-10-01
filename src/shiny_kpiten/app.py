@@ -654,7 +654,7 @@ AI_JS = """
   if (window.__kpitenAi) { return; }
   window.__kpitenAi = true;
   var inputs = {"tile-ai": "ai_tile", "tile-ai-clear": "ai_clear", "tile-save": "tile_save",
-    "tile-adopt": "tile_adopt", "tile-ai-promote": "ai_promote", "panel-ai": "ai_panel_open",
+    "tile-adopt": "tile_adopt", "tile-remove": "tile_remove", "tile-ai-promote": "ai_promote", "panel-ai": "ai_panel_open",
     "panel-ai-clear": "ai_panel_clear"};
   var selector = Object.keys(inputs).map(function (c) { return "." + c; }).join(", ");
   document.addEventListener("click", function (ev) {
@@ -679,6 +679,7 @@ ADOPT_TOOLTIP = (
     "Adopt this KPI : the same KPI also on another panel (not a copy : a change of "
     "the KPI shows on both)"
 )
+REMOVE_TOOLTIP = "Remove from the panel (the KPI stays in the catalogue)"
 
 
 def save_html(tr=i18n.english) -> str:
@@ -696,6 +697,16 @@ def adopt_html(tr=i18n.english) -> str:
         f'<button type="button" class="tile-adopt" '
         f'title="{html_escape(tr(ADOPT_TOOLTIP), quote=True)}">'
         f'{svg("thumbtack")}{menu_label(tr("Adopt this KPI"))}</button>'
+    )
+
+
+def remove_html(tr=i18n.english) -> str:
+    """The button that takes the tile off the panel (who edits the panel) ; the KPI
+    stays in the catalogue."""
+    return (
+        f'<button type="button" class="tile-remove" '
+        f'title="{html_escape(tr(REMOVE_TOOLTIP), quote=True)}">'
+        f'{svg("circle-minus")}{menu_label(tr("Remove the KPI"))}</button>'
     )
 
 
@@ -1641,6 +1652,25 @@ def server(input, output, session):
         with reactive.isolate():
             layout_version.set(layout_version() + 1)
 
+    # « Remove the KPI » of the menu of a tile : the same as ✕ in edit mode
+    @reactive.effect
+    @reactive.event(input.tile_remove)
+    def _tile_remove():
+        tile_id = input.tile_remove()
+        if not can_edit_panel():
+            ui.notification_show(
+                tr(
+                    "Only the owner of the panel or a KpiTen manager can edit its tiles."
+                )
+            )
+            return
+        if all(line["id"] != tile_id for line in lines()):
+            return
+        # off the panel only : the KPI stays in the catalogue
+        backend_rv().remove_tile(int(input.panel()), tile_id)
+        ui.notification_show(tr("Tile #{id} removed from the panel", id=tile_id))
+        layout_version.set(layout_version() + 1)
+
     @reactive.effect
     def _tile_order():
         ids = req(input.tile_order())  # list[str] pushed on html5 drag drop
@@ -2536,6 +2566,7 @@ def server(input, output, session):
         saving = can_edit()  # a KPI manager saves a tile with its filters
         # who edits another panel may put the KPI of a tile there too
         adopting = any(p != str(input.panel()) for p in editable_panel_ids())
+        removing = can_edit_panel()  # who edits the panel takes a tile off it
         store_data = panel_store()
         drill_keys.clear()
         for line, result, error in panel_results():
@@ -2589,7 +2620,8 @@ def server(input, output, session):
                             if saving and line["kind"] in savetile.WHERE_KINDS
                             else ""
                         )
-                        + (adopt_html(tr) if adopting else ""),
+                        + (adopt_html(tr) if adopting else "")
+                        + (remove_html(tr) if removing else ""),
                         check=check,
                         sheet=core_config.explore_allowed(can_edit()),
                     )
