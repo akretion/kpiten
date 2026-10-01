@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- the tiles of the « Sales (Odoo) » panel : the KPI of tiles_sale.xml (not
+        copies : a change of a KPI shows on both panels), in the order of the Odoo
+        « Sales » dashboard : the four scorecards, Monthly Sales, then the tables
+        two by two (col_span 2 : half the width) -->
+
+    <record id="odoo_sales_quotations_card_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_quotations_card" />
+        <field name="sequence">1</field>
+    </record>
+    <record id="odoo_sales_orders_card_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_orders_card" />
+        <field name="sequence">2</field>
+    </record>
+    <record id="odoo_sales_revenue_card_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_revenue_card" />
+        <field name="sequence">3</field>
+    </record>
+    <record id="odoo_sales_avg_order_card_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_avg_order_card" />
+        <field name="sequence">4</field>
+    </record>
+
+    <record id="odoo_sales_monthly_sales_graph_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_monthly_sales_graph" />
+        <field name="sequence">10</field>
+        <field name="col_span">3</field>
+        <field name="tile_height">340</field>
+    </record>
+
+    <record id="odoo_sales_top_quotations_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_top_quotations_table" />
+        <field name="sequence">20</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
+    <record id="odoo_sales_top_orders_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_top_orders_table" />
+        <field name="sequence">21</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
+    <record id="odoo_sales_top_countries_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_top_countries_table" />
+        <field name="sequence">22</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
+    <record id="odoo_sales_top_products_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_top_products_table" />
+        <field name="sequence">23</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
+    <record id="odoo_sales_top_customers_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_top_customers_table" />
+        <field name="sequence">24</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
+    <record id="odoo_sales_top_categories_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_top_categories_table" />
+        <field name="sequence">25</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
+    <record id="odoo_sales_top_sales_teams_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_top_sales_teams_table" />
+        <field name="sequence">26</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
+    <record id="odoo_sales_top_salespeople_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_top_salespeople_table" />
+        <field name="sequence">27</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
+    <record id="odoo_sales_top_sources_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_top_sources_table" />
+        <field name="sequence">28</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
+    <record id="odoo_sales_top_mediums_table_tile" model="kt.panel.tile">
+        <field name="panel_id" ref="panel_odoo_sales" />
+        <field name="kpi_id" ref="sale_top_mediums_table" />
+        <field name="sequence">29</field>
+        <field name="col_span">2</field>
+        <field name="tile_height">380</field>
+    </record>
+</odoo>
